@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log/slog"
+
 	caddycmd "github.com/caddyserver/caddy/v2/cmd"
 
 	// Import the mroki caddy module
@@ -8,5 +10,6 @@ import (
 )
 
 func main() {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 	caddycmd.Main()
 }

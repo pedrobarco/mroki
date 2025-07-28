@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/pedrobarco/mroki/pkg/proxy"
 	"go.uber.org/zap"
 )
 
@@ -28,8 +28,7 @@ type MrokiGate struct {
 	RawLive   string `json:"live,omitempty"`
 	RawShadow string `json:"shadow,omitempty"`
 
-	live   *url.URL
-	shadow *url.URL
+	proxy  *proxy.Proxy
 	logger *zap.Logger
 }
 
@@ -71,42 +70,23 @@ func (m *MrokiGate) Validate() error {
 		return fmt.Errorf("invalid shadow URL: %w", err)
 	}
 
-	m.live = live
-	m.shadow = shadow
+	m.proxy = proxy.NewProxy(live, shadow)
 	return nil
 }
 
 func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	req := r.Clone(r.Context())
-	b, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		return fmt.Errorf("failed to dump request: %w", err)
-	}
-
-	m.logger.Info("mroki request",
-		zap.String("live_url", m.live.String()),
-		zap.String("shadow_url", m.shadow.String()),
-	)
-
-	fmt.Printf("Request: %s\n", string(b))
-
-	live := m.live.String()
-	http.Redirect(w, r, live, http.StatusTemporaryRedirect)
+	m.proxy.ServeHTTP(w, r)
+	// return next.ServeHTTP(w, r)
 	return nil
-	// return next.ServeHTTP(w, req)
 }
 
 // UnmarshalCaddyfile parses the Caddyfile tokens into the MrokiGate struct.
 // It expects the following format:
 //
-// ```
-//
 //	mroki_gate {
 //	    live <live_url>
 //	    shadow <shadow_url>
 //	}
-//
-// ```
 func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	d.Next()
 
