@@ -1,15 +1,7 @@
 package diff
 
 type Differ[T any] interface {
-	Diff(a, b T) error
+	Diff(a, b T) (string, error)
 }
 
-func NewNop[T any]() *nopDiffer[T] {
-	return &nopDiffer[T]{}
-}
-
-type nopDiffer[T any] struct{}
-
-func (nopDiffer[T]) Diff(a, b T) error {
-	return nil
-}
+type DifferFunc[T any] func(a, b T) (string, error)

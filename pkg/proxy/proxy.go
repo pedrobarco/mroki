@@ -10,20 +10,20 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 var defaultTimeout = 5 * time.Second
+
+type CallbackFunc func(live, shadow ProxyResponse) error
 
 type Proxy struct {
 	Live    *url.URL
 	Shadow  *url.URL
 	Timeout time.Duration
-	Differ  diff.Differ[ProxyResponse]
 
-	logger *slog.Logger
-	client *http.Client
+	callbackFn CallbackFunc
+	logger     *slog.Logger
+	client     *http.Client
 }
 
 var (
@@ -32,12 +32,12 @@ var (
 
 func NewProxy(live, shadow *url.URL) *Proxy {
 	return &Proxy{
-		Live:    live,
-		Shadow:  shadow,
-		Timeout: defaultTimeout,
-		Differ:  diff.NewNop[ProxyResponse](),
-		logger:  slog.Default(),
-		client:  http.DefaultClient,
+		Live:       live,
+		Shadow:     shadow,
+		Timeout:    defaultTimeout,
+		callbackFn: defaultCallbackFn(),
+		logger:     slog.Default(),
+		client:     http.DefaultClient,
 	}
 }
 
@@ -140,8 +140,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Body:     shadowResp.body,
 			}
 
-			if err := p.Differ.Diff(live, shadow); err != nil {
-				p.logger.Error("diff error", "error", err)
+			if err := p.callbackFn(live, shadow); err != nil {
+				p.logger.Error("callback error", "error", err)
 			}
 
 		case <-time.After(p.Timeout):
@@ -157,7 +157,9 @@ func (p *Proxy) forwardRequest(ctx context.Context, original *http.Request, targ
 		return nil, err
 	}
 	req.Header = original.Header.Clone()
-	p.logger.Debug("Forwarding request", "method", req.Method, "url", req.URL.String())
+	p.logger.Debug("Forwarding request",
+		"method", req.Method,
+		"url", req.URL.String())
 	return p.client.Do(req)
 }
 
@@ -189,4 +191,34 @@ func rewriteRequestURL(original *http.Request, target *url.URL) *url.URL {
 	newURL.RawQuery = mergedQuery.Encode()
 
 	return &newURL
+}
+
+func defaultCallbackFn() CallbackFunc {
+	isJSONContent := func(resp *http.Response) bool {
+		return resp.Header.Get("Content-Type") == "application/json"
+	}
+
+	logger := slog.Default()
+	differ := NewProxyResponseDiffer()
+
+	return func(live, shadow ProxyResponse) error {
+		// Only diff if both responses are JSON
+		if !isJSONContent(live.Response) || !isJSONContent(shadow.Response) {
+			return nil
+		}
+
+		res, err := differ.Diff(live, shadow)
+		if err != nil {
+			logger.Error("Failed to diff responses", "error", err)
+		}
+
+		if len(res) > 0 {
+			logger.Debug("Response diff detected",
+				"live_status", live.Response.StatusCode,
+				"shadow_status", shadow.Response.StatusCode,
+			)
+		}
+
+		return nil
+	}
 }

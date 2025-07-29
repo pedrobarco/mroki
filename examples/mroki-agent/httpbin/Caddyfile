@@ -5,8 +5,8 @@
 http://localhost:8080 {
     route {
         mroki_gate {
-            live    "http://httpbin.org/post?mroki_gate=live"
-            shadow  "http://httpbin.org/post?mroki_gate=shadow"
+            live    "http://httpbin.org?mroki_gate=live"
+            shadow  "http://httpbin.org?mroki_gate=shadow"
         }
     }
 }
