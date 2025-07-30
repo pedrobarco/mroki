@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -25,8 +26,9 @@ func init() {
 }
 
 type MrokiGate struct {
-	RawLive   string `json:"live,omitempty"`
-	RawShadow string `json:"shadow,omitempty"`
+	RawLive      string  `json:"live,omitempty"`
+	RawShadow    string  `json:"shadow,omitempty"`
+	SamplingRate *string `json:"sampling_rate,omitempty"`
 
 	proxy  *proxy.Proxy
 	logger *zap.Logger
@@ -70,7 +72,23 @@ func (m *MrokiGate) Validate() error {
 		return fmt.Errorf("invalid shadow URL: %w", err)
 	}
 
-	m.proxy = proxy.NewProxy(live, shadow)
+	var opts []proxy.Option
+
+	if m.SamplingRate != nil {
+		rate, err := strconv.ParseFloat(*m.SamplingRate, 64)
+		if err != nil {
+			return fmt.Errorf("invalid sampling rate: %w", err)
+		}
+
+		sr, err := proxy.NewSamplingRate(rate)
+		if err != nil {
+			return fmt.Errorf("failed to create sampling rate: %w", err)
+		}
+
+		opts = append(opts, proxy.WithSamplingRate(sr))
+	}
+
+	m.proxy = proxy.NewProxy(live, shadow, opts...)
 	return nil
 }
 
@@ -86,6 +104,7 @@ func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyh
 //	mroki_gate {
 //	    live <live_url>
 //	    shadow <shadow_url>
+//	    [sampling_rate <rate>]
 //	}
 func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	d.Next()
@@ -102,6 +121,12 @@ func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				return d.ArgErr()
 			}
 			m.RawShadow = d.Val()
+		case "sampling_rate":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			rate := d.Val()
+			m.SamplingRate = &rate
 		default:
 			return d.Errf("unknown property '%s'", d.Val())
 		}

@@ -17,28 +17,56 @@ var defaultTimeout = 5 * time.Second
 type CallbackFunc func(live, shadow ProxyResponse) error
 
 type Proxy struct {
-	Live    *url.URL
-	Shadow  *url.URL
-	Timeout time.Duration
+	Live   *url.URL
+	Shadow *url.URL
 
-	callbackFn CallbackFunc
-	logger     *slog.Logger
-	client     *http.Client
+	timeout      time.Duration
+	samplingRate *SamplingRate
+	callbackFn   CallbackFunc
+	logger       *slog.Logger
+	client       *http.Client
 }
 
 var (
 	_ http.Handler = (*Proxy)(nil)
 )
 
-func NewProxy(live, shadow *url.URL) *Proxy {
-	return &Proxy{
-		Live:       live,
-		Shadow:     shadow,
-		Timeout:    defaultTimeout,
-		callbackFn: defaultCallbackFn(),
-		logger:     slog.Default(),
-		client:     http.DefaultClient,
+type Option func(*Proxy)
+
+func WithTimeout(timeout time.Duration) Option {
+	return func(p *Proxy) {
+		p.timeout = timeout
 	}
+}
+
+func WithSamplingRate(rate *SamplingRate) Option {
+	return func(p *Proxy) {
+		p.samplingRate = rate
+	}
+}
+
+func WithCallbackFn(fn CallbackFunc) Option {
+	return func(p *Proxy) {
+		p.callbackFn = fn
+	}
+}
+
+func NewProxy(live, shadow *url.URL, opts ...Option) *Proxy {
+	proxy := &Proxy{
+		Live:         live,
+		Shadow:       shadow,
+		timeout:      defaultTimeout,
+		samplingRate: nil,
+		callbackFn:   defaultCallbackFn(),
+		logger:       slog.Default(),
+		client:       http.DefaultClient,
+	}
+
+	for _, o := range opts {
+		o(proxy)
+	}
+
+	return proxy
 }
 
 type ProxyResponse struct {
@@ -53,7 +81,7 @@ type responseResult struct {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	liveCtx, liveCancel := context.WithTimeout(r.Context(), p.Timeout)
+	liveCtx, liveCancel := context.WithTimeout(r.Context(), p.timeout)
 	defer liveCancel()
 
 	body, err := io.ReadAll(r.Body)
@@ -83,22 +111,24 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		liveCh <- responseResult{resp: resp, body: b, err: err}
 	}()
 
-	shadowCtx, shadowCancel := context.WithTimeout(context.Background(), p.Timeout)
-
-	// Launch shadow request
-	go func() {
-		defer shadowCancel()
-		resp, err := p.forwardRequest(shadowCtx, r, p.Shadow, body)
-		if err != nil {
-			shadowCh <- responseResult{err: err}
-			return
-		}
-		b, err := io.ReadAll(resp.Body)
-		if err := resp.Body.Close(); err != nil {
-			shadowCh <- responseResult{err: err}
-		}
-		shadowCh <- responseResult{resp: resp, body: b, err: err}
-	}()
+	sample := p.samplingRate == nil || p.samplingRate.Sample()
+	if sample {
+		shadowCtx, shadowCancel := context.WithTimeout(context.Background(), p.timeout)
+		// Launch shadow request
+		go func() {
+			defer shadowCancel()
+			resp, err := p.forwardRequest(shadowCtx, r, p.Shadow, body)
+			if err != nil {
+				shadowCh <- responseResult{err: err}
+				return
+			}
+			b, err := io.ReadAll(resp.Body)
+			if err := resp.Body.Close(); err != nil {
+				shadowCh <- responseResult{err: err}
+			}
+			shadowCh <- responseResult{resp: resp, body: b, err: err}
+		}()
+	}
 
 	// Wait for live first
 	var liveResp responseResult
@@ -119,6 +149,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(liveResp.resp.StatusCode)
 	if _, err = w.Write(liveResp.body); err != nil {
 		http.Error(w, "Failed to write live response", http.StatusInternalServerError)
+		return
+	}
+
+	if !sample {
 		return
 	}
 
@@ -144,8 +178,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				p.logger.Error("callback error", "error", err)
 			}
 
-		case <-time.After(p.Timeout):
-			p.logger.Error("shadow request timeout", "timeout", p.Timeout)
+		case <-time.After(p.timeout):
+			p.logger.Error("shadow request timeout", "timeout", p.timeout)
 		}
 	}(liveResp.body)
 }
@@ -157,7 +191,7 @@ func (p *Proxy) forwardRequest(ctx context.Context, original *http.Request, targ
 		return nil, err
 	}
 	req.Header = original.Header.Clone()
-	p.logger.Debug("Forwarding request",
+	p.logger.Debug("forwarding request",
 		"method", req.Method,
 		"url", req.URL.String())
 	return p.client.Do(req)
@@ -209,11 +243,11 @@ func defaultCallbackFn() CallbackFunc {
 
 		res, err := differ.Diff(live, shadow)
 		if err != nil {
-			logger.Error("Failed to diff responses", "error", err)
+			logger.Error("failed to diff responses", "error", err)
 		}
 
 		if len(res) > 0 {
-			logger.Debug("Response diff detected",
+			logger.Debug("response diff detected",
 				"live_status", live.Response.StatusCode,
 				"shadow_status", shadow.Response.StatusCode,
 			)
