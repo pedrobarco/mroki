@@ -28,11 +28,11 @@ func (p *proxyResponseDiffer) Diff(a, b ProxyResponse) (string, error) {
 		return "", fmt.Errorf("failed to marshal shadow response header: %w", err)
 	}
 
-	live := jsonString(ah, a.Body)
-	shadow := jsonString(bh, b.Body)
+	live := jsonString(a.StatusCode, ah, a.Body)
+	shadow := jsonString(b.StatusCode, bh, b.Body)
 	return diff.JSON(live, shadow)
 }
 
-func jsonString(headers, body []byte) string {
-	return fmt.Sprintf(`{"headers": %s, "body": %s}`, headers, body)
+func jsonString(status int, headers, body []byte) string {
+	return fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`, status, headers, body)
 }

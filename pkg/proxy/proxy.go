@@ -70,8 +70,9 @@ func NewProxy(live, shadow *url.URL, opts ...Option) *Proxy {
 }
 
 type ProxyResponse struct {
-	Response *http.Response
-	Body     []byte
+	StatusCode int
+	Response   *http.Response
+	Body       []byte
 }
 
 type responseResult struct {
@@ -166,12 +167,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			live := ProxyResponse{
-				Response: liveResp.resp,
-				Body:     liveBody,
+				StatusCode: liveResp.resp.StatusCode,
+				Response:   liveResp.resp,
+				Body:       liveBody,
 			}
 			shadow := ProxyResponse{
-				Response: shadowResp.resp,
-				Body:     shadowResp.body,
+				StatusCode: shadowResp.resp.StatusCode,
+				Response:   shadowResp.resp,
+				Body:       shadowResp.body,
 			}
 
 			if err := p.callbackFn(live, shadow); err != nil {
