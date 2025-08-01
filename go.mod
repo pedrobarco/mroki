@@ -4,7 +4,10 @@ go 1.24.5
 
 require (
 	github.com/caddyserver/caddy/v2 v2.10.0
+	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.5.1
 	github.com/josephburnett/jd/v2 v2.2.3
+	github.com/sethvargo/go-envconfig v1.3.0
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 )
@@ -48,7 +51,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/cel-go v0.24.1 // indirect
 	github.com/google/pprof v0.0.0-20231212022811-ec68065c825e // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect

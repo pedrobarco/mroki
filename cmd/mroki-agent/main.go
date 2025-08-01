@@ -1,60 +1,30 @@
 package main
 
 import (
-	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 
-	"github.com/pedrobarco/mroki/pkg/proxy"
+	"github.com/pedrobarco/mroki/cmd/mroki-agent/config"
+	"github.com/pedrobarco/mroki/cmd/mroki-agent/handlers"
+	"github.com/pedrobarco/mroki/pkg/logger"
 )
-
-var (
-	fLive   string
-	fShadow string
-)
-
-func init() {
-	flag.StringVar(&fLive, "live", "", "Live URL to proxy requests to")
-	flag.StringVar(&fShadow, "shadow", "", "Shadow URL to proxy requests to")
-	flag.Parse()
-}
 
 func main() {
-	slog.SetLogLoggerLevel(slog.LevelDebug)
+	cfg := config.Load()
 
-	if fLive == "" {
-		slog.Error("Live URL is required")
-		return
-	}
-
-	if fShadow == "" {
-		slog.Error("Shadow URL is required")
-		return
-	}
-
-	live, err := url.Parse(fLive)
-	if err != nil {
-		slog.Error("Invalid live URL", "error", err)
-		return
-	}
-
-	shadow, err := url.Parse(fShadow)
-	if err != nil {
-		slog.Error("Invalid shadow URL", "error", err)
-		return
-	}
+	logger := logger.New()
 
 	mux := http.NewServeMux()
-	mux.Handle("/", proxy.NewProxy(live, shadow))
+	mux.Handle("/", handlers.Proxy(cfg.App.LiveURL, cfg.App.ShadowURL))
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%d", cfg.App.Port),
 		Handler: mux,
 	}
 
-	slog.Info("Started server",
-		"live", live.String(),
-		"shadow", shadow.String(),
+	logger.Info("Started server",
+		"live", cfg.App.LiveURL.String(),
+		"shadow", cfg.App.ShadowURL.String(),
 		"address", server.Addr,
 	)
 	if err := server.ListenAndServe(); err != nil {
