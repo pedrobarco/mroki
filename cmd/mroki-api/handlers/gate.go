@@ -10,15 +10,15 @@ import (
 
 type gateResponseDTO struct {
 	ID        string `json:"id"`
-	LiveURL   string `json:"liveURL"`
-	ShadowURL string `json:"shadowURL"`
+	LiveURL   string `json:"live_url"`
+	ShadowURL string `json:"shadow_url"`
 }
 
 func CreateGate(svc *diffing.GateService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			LiveURL   string `json:"liveURL"`
-			ShadowURL string `json:"shadowURL"`
+			LiveURL   string `json:"live_url"`
+			ShadowURL string `json:"shadow_url"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -95,12 +95,12 @@ func GetAllGates(svc *diffing.GateService) http.HandlerFunc {
 		}
 
 		data := make([]gateResponseDTO, len(gates))
-		for _, gate := range gates {
-			data = append(data, gateResponseDTO{
+		for i, gate := range gates {
+			data[i] = gateResponseDTO{
 				ID:        gate.ID.String(),
 				LiveURL:   gate.LiveURL.String(),
 				ShadowURL: gate.ShadowURL.String(),
-			})
+			}
 		}
 
 		response := responseDTO[[]gateResponseDTO]{
