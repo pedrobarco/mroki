@@ -8,11 +8,12 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
-	"github.com/pedrobarco/mroki/cmd/mroki-api/handlers"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
+	"github.com/pedrobarco/mroki/internal/handlers"
 	"github.com/pedrobarco/mroki/internal/storage/postgres"
 	"github.com/pedrobarco/mroki/internal/storage/postgres/db"
 	"github.com/pedrobarco/mroki/pkg/logger"
+	sloghttp "github.com/samber/slog-http"
 )
 
 func main() {
@@ -37,16 +38,30 @@ func main() {
 	gateRepo := postgres.NewGateRepository(queries)
 	gateSvc := diffing.NewGateService(gateRepo)
 
-	reqRepo := postgres.NewRequestRepository(queries)
+	reqRepo := postgres.NewRequestRepository(queries, conn)
 	reqSvc := diffing.NewRequestService(reqRepo)
 
+	logRequest := sloghttp.New(logger)
+
+	baseChain := handlers.Chain{
+		logRequest,
+	}
+
+	getAllGates := handlers.GetAllGates(gateSvc)
+	createGate := handlers.CreateGate(gateSvc)
+	getGateByID := handlers.GetGateByID(gateSvc)
+
+	getAllRequestsByGateID := handlers.GetAllRequestsByGateID(reqSvc)
+	createRequest := handlers.CreateRequest(reqSvc)
+	getRequestByID := handlers.GetRequestByID(reqSvc)
+
 	mux := http.NewServeMux()
-	mux.Handle("GET /gates", handlers.GetAllGates(gateSvc))
-	mux.Handle("POST /gates", handlers.CreateGate(gateSvc))
-	mux.Handle("GET /gates/{gate_id}", handlers.GetGateByID(gateSvc))
-	mux.Handle("GET /gates/{gate_id}/requests", handlers.GetAllRequestsByGateID(reqSvc))
-	mux.Handle("POST /gates/{gate_id}/requests", handlers.CreateRequest(reqSvc))
-	mux.Handle("GET /gates/{gate_id}/requests/{request_id}", handlers.GetRequestByID(reqSvc))
+	mux.Handle("GET /gates", baseChain.Then(getAllGates))
+	mux.Handle("POST /gates", baseChain.Then(createGate))
+	mux.Handle("GET /gates/{gate_id}", baseChain.Then(getGateByID))
+	mux.Handle("GET /gates/{gate_id}/requests", baseChain.Then(getAllRequestsByGateID))
+	mux.Handle("POST /gates/{gate_id}/requests", baseChain.Then(createRequest))
+	mux.Handle("GET /gates/{gate_id}/requests/{request_id}", baseChain.Then(getRequestByID))
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.App.Port),
 		Handler: mux,

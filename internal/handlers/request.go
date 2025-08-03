@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -28,6 +29,7 @@ func CreateRequest(svc *diffing.RequestService) http.HandlerFunc {
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			fmt.Printf("Error decoding request body: %v\n", err)
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}

@@ -20,9 +20,10 @@ type requestRepository struct {
 
 var _ diffing.RequestRepository = (*requestRepository)(nil)
 
-func NewRequestRepository(queries *db.Queries) *requestRepository {
+func NewRequestRepository(queries *db.Queries, conn *pgx.Conn) *requestRepository {
 	return &requestRepository{
 		queries: queries,
+		conn:    conn,
 	}
 }
 
