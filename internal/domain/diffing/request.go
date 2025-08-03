@@ -38,15 +38,19 @@ func NewRequest(
 	headers http.Header,
 	body []byte,
 	createdAt time.Time,
+	responses []Response,
+	diff Diff,
 	opts ...requestOption,
 ) (*Request, error) {
 	request := &Request{
-		GateID: gateID,
-		Method: method,
-		Path: path,
-		Headers: headers,
-		Body: body,
+		GateID:    gateID,
+		Method:    method,
+		Path:      path,
+		Headers:   headers,
+		Body:      body,
 		CreatedAt: createdAt,
+		Responses: responses,
+		Diff:      diff,
 	}
 
 	for _, o := range opts {

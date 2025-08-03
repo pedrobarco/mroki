@@ -3,6 +3,7 @@ package diffing
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,12 +33,49 @@ type CreateRequestProps struct {
 	Headers   map[string][]string
 	Body      []byte
 	CreatedAt time.Time
+
+	Responses []CreateRequestResponseProps
+	Diff      CreateRequestDiffProps
+}
+
+type CreateRequestResponseProps struct {
+	ID         uuid.UUID
+	Type       string
+	StatusCode int
+	Headers    http.Header
+	Body       []byte
+	CreatedAt  time.Time
+}
+
+type CreateRequestDiffProps struct {
+	Content string
 }
 
 func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (*Request, error) {
-	var opts []requestOption
-	if props.ID != uuid.Nil {
-		opts = append(opts, WithRequestID(props.ID))
+	var responses []Response
+	for _, dto := range props.Responses {
+		rtype, err := NewResponseType(dto.Type)
+		if err != nil {
+			return nil, fmt.Errorf("invalid response type: %w", err)
+		}
+
+		resp, err := NewResponse(
+			rtype,
+			dto.StatusCode,
+			dto.Headers,
+			dto.Body,
+			dto.CreatedAt,
+			WithResponseID(dto.ID),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create response: %w", err)
+		}
+		responses = append(responses, *resp)
+	}
+
+	diff, err := NewDiff(props.Diff.Content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create diff: %w", err)
 	}
 
 	request, err := NewRequest(
@@ -47,7 +85,9 @@ func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (
 		props.Headers,
 		props.Body,
 		props.CreatedAt,
-		opts...,
+		responses,
+		*diff,
+		WithRequestID(props.ID),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

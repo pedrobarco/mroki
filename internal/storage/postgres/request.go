@@ -58,6 +58,25 @@ func (r *requestRepository) Save(ctx context.Context, request *diffing.Request) 
 		return fmt.Errorf("failed to save request: %w", err)
 	}
 
+	for _, resp := range request.Responses {
+		headers, err := json.Marshal(resp.Headers)
+		if err != nil {
+			return fmt.Errorf("failed to marshal headers: %w", err)
+		}
+
+		if err := qtx.SaveResponse(ctx, db.SaveResponseParams{
+			ID:         pgtype.UUID{Bytes: resp.ID, Valid: true},
+			Type:       pgtype.Text{String: string(resp.Type), Valid: true},
+			RequestID:  pgtype.UUID{Bytes: request.ID, Valid: true},
+			StatusCode: pgtype.Int4{Int32: int32(resp.StatusCode), Valid: true},
+			Headers:    headers,
+			Body:       resp.Body,
+			CreatedAt:  pgtype.Timestamptz{Time: resp.CreatedAt, Valid: true},
+		}); err != nil {
+			return fmt.Errorf("failed to save response: %w", err)
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}

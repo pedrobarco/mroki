@@ -23,3 +23,13 @@ type Request struct {
 	Body      []byte
 	CreatedAt pgtype.Timestamptz
 }
+
+type Response struct {
+	ID         pgtype.UUID
+	RequestID  pgtype.UUID
+	Type       pgtype.Text
+	StatusCode pgtype.Int4
+	Headers    []byte
+	Body       []byte
+	CreatedAt  pgtype.Timestamptz
+}

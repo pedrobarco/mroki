@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -24,12 +23,24 @@ func CreateRequest(svc *diffing.RequestService) http.HandlerFunc {
 			Method    string              `json:"method"`
 			Path      string              `json:"path"`
 			Headers   map[string][]string `json:"headers"`
-			Body      []byte              `json:"body"`
+			Body      string              `json:"body"`
 			CreatedAt time.Time           `json:"created_at"`
+
+			Responses []struct {
+				ID         uuid.UUID   `json:"id,omitempty"`
+				Type       string      `json:"type"`
+				StatusCode int         `json:"status_code"`
+				Headers    http.Header `json:"headers"`
+				Body       string      `json:"body"`
+				CreatedAt  time.Time   `json:"created_at"`
+			} `json:"responses"`
+
+			Diff struct {
+				Content string `json:"content"`
+			} `json:"diff"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			fmt.Printf("Error decoding request body: %v\n", err)
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
@@ -40,15 +51,32 @@ func CreateRequest(svc *diffing.RequestService) http.HandlerFunc {
 			return
 		}
 
-		request, err := svc.Create(r.Context(), diffing.CreateRequestProps{
+		props := diffing.CreateRequestProps{
 			ID:        req.ID,
 			GateID:    gateID,
 			Method:    req.Method,
 			Path:      req.Path,
 			Headers:   req.Headers,
-			Body:      req.Body,
+			Body:      []byte(req.Body),
 			CreatedAt: req.CreatedAt,
-		})
+		}
+
+		for _, resp := range req.Responses {
+			props.Responses = append(props.Responses, diffing.CreateRequestResponseProps{
+				ID:         resp.ID,
+				Type:       resp.Type,
+				StatusCode: resp.StatusCode,
+				Headers:    resp.Headers,
+				Body:       []byte(resp.Body),
+				CreatedAt:  resp.CreatedAt,
+			})
+		}
+
+		props.Diff = diffing.CreateRequestDiffProps{
+			Content: req.Diff.Content,
+		}
+
+		request, err := svc.Create(r.Context(), props)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

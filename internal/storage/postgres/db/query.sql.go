@@ -153,3 +153,31 @@ func (q *Queries) SaveRequest(ctx context.Context, arg SaveRequestParams) error 
 	)
 	return err
 }
+
+const saveResponse = `-- name: SaveResponse :exec
+INSERT INTO responses (id, request_id, type, status_code, headers, body, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type SaveResponseParams struct {
+	ID         pgtype.UUID
+	RequestID  pgtype.UUID
+	Type       pgtype.Text
+	StatusCode pgtype.Int4
+	Headers    []byte
+	Body       []byte
+	CreatedAt  pgtype.Timestamptz
+}
+
+func (q *Queries) SaveResponse(ctx context.Context, arg SaveResponseParams) error {
+	_, err := q.db.Exec(ctx, saveResponse,
+		arg.ID,
+		arg.RequestID,
+		arg.Type,
+		arg.StatusCode,
+		arg.Headers,
+		arg.Body,
+		arg.CreatedAt,
+	)
+	return err
+}

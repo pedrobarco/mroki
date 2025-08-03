@@ -16,16 +16,16 @@ CREATE TABLE requests (
     created_at TIMESTAMPTZ
 );
 
--- -- Responses table
--- CREATE TABLE responses (
---     id UUID PRIMARY KEY,
---     request_id UUID REFERENCES requests(id) ON DELETE CASCADE,
---     type TEXT,
---     status INTEGER,
---     headers JSONB,
---     body BYTEA,
---     created_at TIMESTAMPTZ,
--- );
+-- Responses table
+CREATE TABLE responses (
+    id UUID PRIMARY KEY,
+    request_id UUID REFERENCES requests(id) ON DELETE CASCADE,
+    type TEXT,
+    status_code INTEGER,
+    headers JSONB,
+    body BYTEA,
+    created_at TIMESTAMPTZ
+);
 
 -- -- Diffs table (1:1 with requests)
 -- CREATE TABLE diffs (
