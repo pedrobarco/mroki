@@ -37,10 +37,16 @@ func main() {
 	gateRepo := postgres.NewGateRepository(queries)
 	gateSvc := diffing.NewGateService(gateRepo)
 
+	reqRepo := postgres.NewRequestRepository(queries)
+	reqSvc := diffing.NewRequestService(reqRepo)
+
 	mux := http.NewServeMux()
 	mux.Handle("GET /gates", handlers.GetAllGates(gateSvc))
 	mux.Handle("POST /gates", handlers.CreateGate(gateSvc))
-	mux.Handle("GET /gates/{id}", handlers.GetGateByID(gateSvc))
+	mux.Handle("GET /gates/{gate_id}", handlers.GetGateByID(gateSvc))
+	mux.Handle("GET /gates/{gate_id}/requests", handlers.GetAllRequestsByGateID(reqSvc))
+	mux.Handle("POST /gates/{gate_id}/requests", handlers.CreateRequest(reqSvc))
+	mux.Handle("GET /gates/{gate_id}/requests/{request_id}", handlers.GetRequestByID(reqSvc))
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.App.Port),
 		Handler: mux,

@@ -36,6 +36,41 @@ func (q *Queries) GetAllGates(ctx context.Context) ([]Gate, error) {
 	return items, nil
 }
 
+const getAllRequestsByGateID = `-- name: GetAllRequestsByGateID :many
+SELECT id, gate_id, method, path, headers, body, created_at
+FROM requests
+WHERE gate_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetAllRequestsByGateID(ctx context.Context, gateID pgtype.UUID) ([]Request, error) {
+	rows, err := q.db.Query(ctx, getAllRequestsByGateID, gateID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Request
+	for rows.Next() {
+		var i Request
+		if err := rows.Scan(
+			&i.ID,
+			&i.GateID,
+			&i.Method,
+			&i.Path,
+			&i.Headers,
+			&i.Body,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getGateByID = `-- name: GetGateByID :one
 SELECT id, live_url, shadow_url
 FROM gates
@@ -46,6 +81,32 @@ func (q *Queries) GetGateByID(ctx context.Context, id pgtype.UUID) (Gate, error)
 	row := q.db.QueryRow(ctx, getGateByID, id)
 	var i Gate
 	err := row.Scan(&i.ID, &i.LiveUrl, &i.ShadowUrl)
+	return i, err
+}
+
+const getRequestByID = `-- name: GetRequestByID :one
+SELECT id, gate_id, method, path, headers, body, created_at
+FROM requests
+WHERE id = $1 AND gate_id = $2
+`
+
+type GetRequestByIDParams struct {
+	ID     pgtype.UUID
+	GateID pgtype.UUID
+}
+
+func (q *Queries) GetRequestByID(ctx context.Context, arg GetRequestByIDParams) (Request, error) {
+	row := q.db.QueryRow(ctx, getRequestByID, arg.ID, arg.GateID)
+	var i Request
+	err := row.Scan(
+		&i.ID,
+		&i.GateID,
+		&i.Method,
+		&i.Path,
+		&i.Headers,
+		&i.Body,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
@@ -62,5 +123,33 @@ type SaveGateParams struct {
 
 func (q *Queries) SaveGate(ctx context.Context, arg SaveGateParams) error {
 	_, err := q.db.Exec(ctx, saveGate, arg.ID, arg.LiveUrl, arg.ShadowUrl)
+	return err
+}
+
+const saveRequest = `-- name: SaveRequest :exec
+INSERT INTO requests (id, gate_id, method, path, headers, body, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type SaveRequestParams struct {
+	ID        pgtype.UUID
+	GateID    pgtype.UUID
+	Method    pgtype.Text
+	Path      pgtype.Text
+	Headers   []byte
+	Body      []byte
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) SaveRequest(ctx context.Context, arg SaveRequestParams) error {
+	_, err := q.db.Exec(ctx, saveRequest,
+		arg.ID,
+		arg.GateID,
+		arg.Method,
+		arg.Path,
+		arg.Headers,
+		arg.Body,
+		arg.CreatedAt,
+	)
 	return err
 }

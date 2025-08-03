@@ -13,3 +13,13 @@ type Gate struct {
 	LiveUrl   pgtype.Text
 	ShadowUrl pgtype.Text
 }
+
+type Request struct {
+	ID        pgtype.UUID
+	GateID    pgtype.UUID
+	Method    pgtype.Text
+	Path      pgtype.Text
+	Headers   []byte
+	Body      []byte
+	CreatedAt pgtype.Timestamptz
+}

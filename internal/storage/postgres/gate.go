@@ -23,35 +23,35 @@ func NewGateRepository(queries *db.Queries) *gateRepository {
 	}
 }
 
-func (g *gateRepository) GetAll(ctx context.Context) ([]*diffing.Gate, error) {
-	gates, err := g.queries.GetAllGates(ctx)
+func (r *gateRepository) GetAll(ctx context.Context) ([]*diffing.Gate, error) {
+	rows, err := r.queries.GetAllGates(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []*diffing.Gate
-	for _, raw := range gates {
-		gate, err := g.toDomain(raw)
+	var gates []*diffing.Gate
+	for _, raw := range rows {
+		gate, err := r.toDomain(raw)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert gate: %w", err)
 		}
-		result = append(result, gate)
+		gates = append(gates, gate)
 	}
-	return result, nil
+	return gates, nil
 }
 
-func (g *gateRepository) GetByID(ctx context.Context, id uuid.UUID) (*diffing.Gate, error) {
+func (r *gateRepository) GetByID(ctx context.Context, id uuid.UUID) (*diffing.Gate, error) {
 	pid := pgtype.UUID{
 		Bytes: id,
 		Valid: true,
 	}
 
-	raw, err := g.queries.GetGateByID(ctx, pid)
+	raw, err := r.queries.GetGateByID(ctx, pid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get gate by ID: %w", err)
 	}
 
-	gate, err := g.toDomain(raw)
+	gate, err := r.toDomain(raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert gate: %w", err)
 	}
@@ -59,8 +59,8 @@ func (g *gateRepository) GetByID(ctx context.Context, id uuid.UUID) (*diffing.Ga
 	return gate, nil
 }
 
-func (g *gateRepository) Save(ctx context.Context, gate *diffing.Gate) error {
-	if err := g.queries.SaveGate(ctx, db.SaveGateParams{
+func (r *gateRepository) Save(ctx context.Context, gate *diffing.Gate) error {
+	if err := r.queries.SaveGate(ctx, db.SaveGateParams{
 		ID:        pgtype.UUID{Bytes: gate.ID, Valid: true},
 		LiveUrl:   pgtype.Text{String: gate.LiveURL.String(), Valid: true},
 		ShadowUrl: pgtype.Text{String: gate.ShadowURL.String(), Valid: true},
@@ -70,20 +70,25 @@ func (g *gateRepository) Save(ctx context.Context, gate *diffing.Gate) error {
 	return nil
 }
 
-func (g *gateRepository) toDomain(raw db.Gate) (*diffing.Gate, error) {
+func (r *gateRepository) toDomain(raw db.Gate) (*diffing.Gate, error) {
 	live, err := url.Parse(raw.LiveUrl.String)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid live URL: %w", err)
 	}
 
 	shadow, err := url.Parse(raw.ShadowUrl.String)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid shadow URL: %w", err)
 	}
 
-	gate, err := diffing.NewGate(live, shadow)
+	id, err := uuid.Parse(raw.ID.String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid UUID format: %w", err)
+	}
+
+	gate, err := diffing.NewGate(live, shadow, diffing.WithGateID(id))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gate: %w", err)
 	}
 
 	return gate, nil

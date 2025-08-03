@@ -51,7 +51,7 @@ func CreateGate(svc *diffing.GateService) http.HandlerFunc {
 
 func GetGateByID(svc *diffing.GateService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
+		id := r.PathValue("gate_id")
 		if id == "" {
 			http.Error(w, "ID is required", http.StatusBadRequest)
 			return

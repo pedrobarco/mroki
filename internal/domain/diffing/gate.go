@@ -16,16 +16,25 @@ type Gate struct {
 
 type gateOption func(*Gate)
 
-func WithID(id uuid.UUID) gateOption {
+func WithGateID(id uuid.UUID) gateOption {
 	return func(g *Gate) {
 		g.ID = id
 	}
 }
 
-func NewGate(live, shadow *url.URL) (*Gate, error) {
-	return &Gate{
-		ID:        uuid.New(),
+func NewGate(live, shadow *url.URL, opts ...gateOption) (*Gate, error) {
+	gate := &Gate{
 		LiveURL:   live,
 		ShadowURL: shadow,
-	}, nil
+	}
+
+	for _, o := range opts {
+		o(gate)
+	}
+
+	if gate.ID == uuid.Nil {
+		gate.ID = uuid.New()
+	}
+
+	return gate, nil
 }
