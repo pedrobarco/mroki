@@ -29,3 +29,7 @@ ORDER BY created_at DESC;
 -- name: SaveResponse :exec
 INSERT INTO responses (id, request_id, type, status_code, headers, body, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7);
+
+-- name: SaveDiff :exec
+INSERT INTO diffs (id, request_id, from_response_id, to_response_id, content)
+VALUES ($1, $2, $3, $4, $5);

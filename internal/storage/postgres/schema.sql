@@ -27,12 +27,14 @@ CREATE TABLE responses (
     created_at TIMESTAMPTZ
 );
 
--- -- Diffs table (1:1 with requests)
--- CREATE TABLE diffs (
---     id UUID PRIMARY KEY,
---     request_id UUID REFERENCES requests(id) ON DELETE CASCADE,
---     content BYTEA,
--- );
---
+-- Diffs table
+CREATE TABLE diffs (
+    id UUID PRIMARY KEY,
+    request_id UUID REFERENCES requests(id) ON DELETE CASCADE,
+    from_response_id UUID REFERENCES responses(id) ON DELETE CASCADE,
+    to_response_id UUID REFERENCES responses(id) ON DELETE CASCADE,
+    content BYTEA
+);
+
 -- -- Index for efficient lookup
 -- CREATE INDEX idx_responses_request_id ON responses(request_id);

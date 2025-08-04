@@ -77,6 +77,16 @@ func (r *requestRepository) Save(ctx context.Context, request *diffing.Request) 
 		}
 	}
 
+	if err := qtx.SaveDiff(ctx, db.SaveDiffParams{
+		ID:             pgtype.UUID{Bytes: request.Diff.ID, Valid: true},
+		RequestID:      pgtype.UUID{Bytes: request.ID, Valid: true},
+		FromResponseID: pgtype.UUID{Bytes: request.Diff.FromResponseID, Valid: true},
+		ToResponseID:   pgtype.UUID{Bytes: request.Diff.ToResponseID, Valid: true},
+		Content:        []byte(request.Diff.Content),
+	}); err != nil {
+		return fmt.Errorf("failed to save diff: %w", err)
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}

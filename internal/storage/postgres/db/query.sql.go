@@ -110,6 +110,30 @@ func (q *Queries) GetRequestByID(ctx context.Context, arg GetRequestByIDParams) 
 	return i, err
 }
 
+const saveDiff = `-- name: SaveDiff :exec
+INSERT INTO diffs (id, request_id, from_response_id, to_response_id, content)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type SaveDiffParams struct {
+	ID             pgtype.UUID
+	RequestID      pgtype.UUID
+	FromResponseID pgtype.UUID
+	ToResponseID   pgtype.UUID
+	Content        []byte
+}
+
+func (q *Queries) SaveDiff(ctx context.Context, arg SaveDiffParams) error {
+	_, err := q.db.Exec(ctx, saveDiff,
+		arg.ID,
+		arg.RequestID,
+		arg.FromResponseID,
+		arg.ToResponseID,
+		arg.Content,
+	)
+	return err
+}
+
 const saveGate = `-- name: SaveGate :exec
 INSERT INTO gates (id, live_url, shadow_url)
 VALUES ($1, $2, $3)

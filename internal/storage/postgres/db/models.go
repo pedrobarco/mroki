@@ -8,6 +8,14 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Diff struct {
+	ID             pgtype.UUID
+	RequestID      pgtype.UUID
+	FromResponseID pgtype.UUID
+	ToResponseID   pgtype.UUID
+	Content        []byte
+}
+
 type Gate struct {
 	ID        pgtype.UUID
 	LiveUrl   pgtype.Text

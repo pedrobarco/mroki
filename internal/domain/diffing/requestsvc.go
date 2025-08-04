@@ -52,6 +52,7 @@ type CreateRequestDiffProps struct {
 }
 
 func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (*Request, error) {
+	var live, shadow *Response
 	var responses []Response
 	for _, dto := range props.Responses {
 		rtype, err := NewResponseType(dto.Type)
@@ -71,9 +72,28 @@ func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (
 			return nil, fmt.Errorf("failed to create response: %w", err)
 		}
 		responses = append(responses, *resp)
+
+		switch resp.Type {
+		case ResponseTypeLive:
+			live = resp
+		case ResponseTypeShadow:
+			shadow = resp
+		}
 	}
 
-	diff, err := NewDiff(props.Diff.Content)
+	if len(responses) != 2 {
+		return nil, fmt.Errorf("exactly two responses are required, got %d", len(responses))
+	}
+
+	if live == nil {
+		return nil, fmt.Errorf("live response is required")
+	}
+
+	if shadow == nil {
+		return nil, fmt.Errorf("shadow response is required")
+	}
+
+	diff, err := NewDiff(live.ID, shadow.ID, props.Diff.Content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create diff: %w", err)
 	}
