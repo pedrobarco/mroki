@@ -1,11 +1,13 @@
-package handlers
+package middleware
 
 import (
 	"net/http"
 	"slices"
 )
 
-type Chain []func(http.Handler) http.Handler
+type Middleware func(http.Handler) http.Handler
+
+type Chain []Middleware
 
 func (c Chain) ThenFunc(h http.HandlerFunc) http.Handler {
 	return c.Then(h)

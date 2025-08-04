@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -16,8 +17,12 @@ type requestResponseDTO struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func CreateRequest(svc *diffing.RequestService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+var (
+	ErrInvalidRequestID = errors.New("invalid request ID format")
+)
+
+func CreateRequest(svc *diffing.RequestService) AppHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			ID        uuid.UUID           `json:"id,omitempty"`
 			Method    string              `json:"method"`
@@ -41,14 +46,12 @@ func CreateRequest(svc *diffing.RequestService) http.HandlerFunc {
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
+			return InvalidRequestBody(err)
 		}
 
 		gateID, err := uuid.Parse(r.PathValue("gate_id"))
 		if err != nil {
-			http.Error(w, "Invalid gate ID format", http.StatusBadRequest)
-			return
+			return MissingPathParam("gate_id")
 		}
 
 		props := diffing.CreateRequestProps{
@@ -78,8 +81,7 @@ func CreateRequest(svc *diffing.RequestService) http.HandlerFunc {
 
 		request, err := svc.Create(r.Context(), props)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return NewError(http.StatusInternalServerError, "failed to create request", err)
 		}
 
 		resp := responseDTO[requestResponseDTO]{
@@ -89,42 +91,40 @@ func CreateRequest(svc *diffing.RequestService) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-			return
+			return InvalidResponseBody(err)
 		}
+
+		return nil
 	}
 }
 
-func GetRequestByID(svc *diffing.RequestService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func GetRequestByID(svc *diffing.RequestService) AppHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		gid := r.PathValue("gate_id")
 		if gid == "" {
-			http.Error(w, "Gate ID is required", http.StatusBadRequest)
-			return
+			return MissingPathParam("gate_id")
 		}
 
+		// TODO: refactor to be handled by svc.GetByID
 		gateID, err := uuid.Parse(gid)
 		if err != nil {
-			http.Error(w, "Invalid Gate ID format", http.StatusBadRequest)
-			return
+			return NewError(http.StatusBadRequest, ErrInvalidGateID.Error(), err)
 		}
 
 		rid := r.PathValue("request_id")
 		if rid == "" {
-			http.Error(w, "Request ID is required", http.StatusBadRequest)
-			return
+			return MissingPathParam("request_id")
 		}
 
+		// TODO: refactor to be handled by svc.GetByID
 		requestID, err := uuid.Parse(rid)
 		if err != nil {
-			http.Error(w, "Invalid Request ID format", http.StatusBadRequest)
-			return
+			return NewError(http.StatusBadRequest, ErrInvalidRequestID.Error(), err)
 		}
 
 		req, err := svc.GetByID(r.Context(), requestID, gateID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return NewError(http.StatusInternalServerError, "failed to retrieve request", err)
 		}
 
 		response := responseDTO[requestResponseDTO]{
@@ -134,30 +134,29 @@ func GetRequestByID(svc *diffing.RequestService) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-			return
+			return InvalidResponseBody(err)
 		}
+
+		return nil
 	}
 }
 
-func GetAllRequestsByGateID(svc *diffing.RequestService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func GetAllRequestsByGateID(svc *diffing.RequestService) AppHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		gid := r.PathValue("gate_id")
 		if gid == "" {
-			http.Error(w, "Gate ID is required", http.StatusBadRequest)
-			return
+			return MissingPathParam("gate_id")
 		}
 
+		// TODO: refactor to be handled by svc.GetAllByGateID
 		gateID, err := uuid.Parse(gid)
 		if err != nil {
-			http.Error(w, "Invalid Gate ID format", http.StatusBadRequest)
-			return
+			return NewError(http.StatusBadRequest, ErrInvalidGateID.Error(), err)
 		}
 
 		requests, err := svc.GetAllByGateID(r.Context(), gateID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return NewError(http.StatusInternalServerError, "failed to retrieve requests", err)
 		}
 
 		response := responseDTO[[]requestResponseDTO]{
@@ -171,9 +170,10 @@ func GetAllRequestsByGateID(svc *diffing.RequestService) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-			return
+			return InvalidResponseBody(err)
 		}
+
+		return nil
 	}
 }
 
@@ -184,5 +184,4 @@ func toRequestResponseDTO(req *diffing.Request) requestResponseDTO {
 		Path:      req.Path,
 		CreatedAt: req.CreatedAt,
 	}
-
 }

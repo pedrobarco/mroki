@@ -10,10 +10,10 @@ import (
 	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 	"github.com/pedrobarco/mroki/internal/handlers"
+	"github.com/pedrobarco/mroki/internal/middleware"
 	"github.com/pedrobarco/mroki/internal/storage/postgres"
 	"github.com/pedrobarco/mroki/internal/storage/postgres/db"
 	"github.com/pedrobarco/mroki/pkg/logger"
-	sloghttp "github.com/samber/slog-http"
 )
 
 func main() {
@@ -41,10 +41,8 @@ func main() {
 	reqRepo := postgres.NewRequestRepository(queries, conn)
 	reqSvc := diffing.NewRequestService(reqRepo)
 
-	logRequest := sloghttp.New(logger)
-
-	baseChain := handlers.Chain{
-		logRequest,
+	baseChain := middleware.Chain{
+		middleware.Logging(logger),
 	}
 
 	getAllGates := handlers.GetAllGates(gateSvc)
