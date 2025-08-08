@@ -84,30 +84,95 @@ func (q *Queries) GetGateByID(ctx context.Context, id pgtype.UUID) (Gate, error)
 	return i, err
 }
 
-const getRequestByID = `-- name: GetRequestByID :one
-SELECT id, gate_id, method, path, headers, body, created_at
-FROM requests
-WHERE id = $1 AND gate_id = $2
+const getRequestByID = `-- name: GetRequestByID :many
+SELECT
+  req.id as request_id,
+  req.gate_id as request_gate_id,
+  req.method as request_method,
+  req.path as request_path,
+  req.headers as request_headers,
+  req.body as request_body,
+  req.created_at as request_created_at,
+
+  resp.id AS response_id,
+  resp.type AS response_type,
+  resp.status_code AS response_status_code,
+  resp.headers AS response_headers,
+  resp.body AS response_body,
+  resp.created_at AS response_created_at,
+
+  diff.id AS diff_id,
+  diff.from_response_id AS diff_from_response_id,
+  diff.to_response_id AS diff_to_response_id,
+  diff.content AS diff_content
+
+FROM requests req
+LEFT JOIN responses resp ON resp.request_id = req.id
+LEFT JOIN diffs diff ON diff.request_id = req.id
+WHERE req.gate_id = $1 AND req.id = $2
 `
 
 type GetRequestByIDParams struct {
-	ID     pgtype.UUID
 	GateID pgtype.UUID
+	ID     pgtype.UUID
 }
 
-func (q *Queries) GetRequestByID(ctx context.Context, arg GetRequestByIDParams) (Request, error) {
-	row := q.db.QueryRow(ctx, getRequestByID, arg.ID, arg.GateID)
-	var i Request
-	err := row.Scan(
-		&i.ID,
-		&i.GateID,
-		&i.Method,
-		&i.Path,
-		&i.Headers,
-		&i.Body,
-		&i.CreatedAt,
-	)
-	return i, err
+type GetRequestByIDRow struct {
+	RequestID          pgtype.UUID
+	RequestGateID      pgtype.UUID
+	RequestMethod      pgtype.Text
+	RequestPath        pgtype.Text
+	RequestHeaders     []byte
+	RequestBody        []byte
+	RequestCreatedAt   pgtype.Timestamptz
+	ResponseID         pgtype.UUID
+	ResponseType       pgtype.Text
+	ResponseStatusCode pgtype.Int4
+	ResponseHeaders    []byte
+	ResponseBody       []byte
+	ResponseCreatedAt  pgtype.Timestamptz
+	DiffID             pgtype.UUID
+	DiffFromResponseID pgtype.UUID
+	DiffToResponseID   pgtype.UUID
+	DiffContent        []byte
+}
+
+func (q *Queries) GetRequestByID(ctx context.Context, arg GetRequestByIDParams) ([]GetRequestByIDRow, error) {
+	rows, err := q.db.Query(ctx, getRequestByID, arg.GateID, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetRequestByIDRow
+	for rows.Next() {
+		var i GetRequestByIDRow
+		if err := rows.Scan(
+			&i.RequestID,
+			&i.RequestGateID,
+			&i.RequestMethod,
+			&i.RequestPath,
+			&i.RequestHeaders,
+			&i.RequestBody,
+			&i.RequestCreatedAt,
+			&i.ResponseID,
+			&i.ResponseType,
+			&i.ResponseStatusCode,
+			&i.ResponseHeaders,
+			&i.ResponseBody,
+			&i.ResponseCreatedAt,
+			&i.DiffID,
+			&i.DiffFromResponseID,
+			&i.DiffToResponseID,
+			&i.DiffContent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const saveDiff = `-- name: SaveDiff :exec

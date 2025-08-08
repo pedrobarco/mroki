@@ -17,6 +17,30 @@ type requestResponseDTO struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type fullRequestResponseDTO struct {
+	ID        uuid.UUID `json:"id"`
+	Method    string    `json:"method"`
+	Path      string    `json:"path"`
+	CreatedAt time.Time `json:"created_at"`
+
+	Responses []responseResponseDTO `json:"responses"`
+	Diff      diffResponseDTO       `json:"diff"`
+}
+
+type responseResponseDTO struct {
+	ID         uuid.UUID   `json:"id"`
+	Type       string      `json:"type"`
+	StatusCode int         `json:"status_code"`
+	Headers    http.Header `json:"headers"`
+	Body       string      `json:"body"`
+	CreatedAt  time.Time   `json:"created_at"`
+}
+
+type diffResponseDTO struct {
+	ID      uuid.UUID `json:"id"`
+	Content string    `json:"content"`
+}
+
 var (
 	ErrInvalidRequestID = errors.New("invalid request ID format")
 )
@@ -127,8 +151,8 @@ func GetRequestByID(svc *diffing.RequestService) AppHandler {
 			return NewError(http.StatusInternalServerError, "failed to retrieve request", err)
 		}
 
-		response := responseDTO[requestResponseDTO]{
-			Data: toRequestResponseDTO(req),
+		response := responseDTO[fullRequestResponseDTO]{
+			Data: toFullRequestResponseDTO(req),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -184,4 +208,31 @@ func toRequestResponseDTO(req *diffing.Request) requestResponseDTO {
 		Path:      req.Path,
 		CreatedAt: req.CreatedAt,
 	}
+}
+
+func toFullRequestResponseDTO(req *diffing.Request) fullRequestResponseDTO {
+	dto := fullRequestResponseDTO{
+		ID:        req.ID,
+		Method:    req.Method,
+		Path:      req.Path,
+		CreatedAt: req.CreatedAt,
+	}
+
+	for _, resp := range req.Responses {
+		dto.Responses = append(dto.Responses, responseResponseDTO{
+			ID:         resp.ID,
+			Type:       string(resp.Type),
+			StatusCode: resp.StatusCode,
+			Headers:    resp.Headers,
+			Body:       string(resp.Body),
+			CreatedAt:  resp.CreatedAt,
+		})
+	}
+
+	dto.Diff = diffResponseDTO{
+		ID:      req.Diff.ID,
+		Content: req.Diff.Content,
+	}
+
+	return dto
 }

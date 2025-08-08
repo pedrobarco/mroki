@@ -112,7 +112,7 @@ func (r *requestRepository) GetAllByGateID(ctx context.Context, gateID uuid.UUID
 }
 
 func (r *requestRepository) GetByID(ctx context.Context, id uuid.UUID, gateID uuid.UUID) (*diffing.Request, error) {
-	raw, err := r.queries.GetRequestByID(ctx, db.GetRequestByIDParams{
+	rows, err := r.queries.GetRequestByID(ctx, db.GetRequestByIDParams{
 		ID:     pgtype.UUID{Bytes: id, Valid: true},
 		GateID: pgtype.UUID{Bytes: gateID, Valid: true},
 	})
@@ -120,7 +120,11 @@ func (r *requestRepository) GetByID(ctx context.Context, id uuid.UUID, gateID uu
 		return nil, fmt.Errorf("failed to get request by ID: %w", err)
 	}
 
-	req, err := r.toDomain(raw)
+	if len(rows) == 0 {
+		return nil, fmt.Errorf("request with ID %s not found for gate %s", id, gateID)
+	}
+
+	req, err := r.toFullRequest(rows)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert request: %w", err)
 	}
@@ -142,4 +146,46 @@ func (r *requestRepository) toDomain(raw db.Request) (*diffing.Request, error) {
 		Body:      raw.Body,
 		CreatedAt: raw.CreatedAt.Time,
 	}, nil
+}
+
+func (r *requestRepository) toFullRequest(rows []db.GetRequestByIDRow) (*diffing.Request, error) {
+	reqHeaders := make(http.Header)
+	if err := json.Unmarshal(rows[0].RequestHeaders, &reqHeaders); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal request headers: %w", err)
+	}
+
+	req := &diffing.Request{
+		ID:        rows[0].RequestID.Bytes,
+		GateID:    rows[0].RequestGateID.Bytes,
+		Method:    rows[0].RequestMethod.String,
+		Path:      rows[0].RequestPath.String,
+		Headers:   reqHeaders,
+		Body:      rows[0].RequestBody,
+		CreatedAt: rows[0].RequestCreatedAt.Time,
+	}
+
+	for _, row := range rows {
+		respHeaders := make(http.Header)
+		if err := json.Unmarshal(row.ResponseHeaders, &respHeaders); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal request headers: %w", err)
+		}
+
+		req.Responses = append(req.Responses, diffing.Response{
+			ID:         row.ResponseID.Bytes,
+			Type:       diffing.ResponseType(row.ResponseType.String),
+			StatusCode: int(row.ResponseStatusCode.Int32),
+			Headers:    respHeaders,
+			Body:       row.ResponseBody,
+			CreatedAt:  row.ResponseCreatedAt.Time,
+		})
+	}
+
+	req.Diff = diffing.Diff{
+		ID:             rows[0].DiffID.Bytes,
+		FromResponseID: rows[0].DiffFromResponseID.Bytes,
+		ToResponseID:   rows[0].DiffToResponseID.Bytes,
+		Content:        string(rows[0].DiffContent),
+	}
+
+	return req, nil
 }
