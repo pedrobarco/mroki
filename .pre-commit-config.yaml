@@ -20,6 +20,7 @@ repos:
         stages: [pre-commit]
       - id: check-json
         stages: [pre-commit]
+        exclude: "tsconfig.*.json"
 
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.8.3
