@@ -1,3 +1,9 @@
+export interface Agent {
+  id: string;
+  name: string;
+  status: string;
+}
+
 export interface Gate {
   id: string;
   live_url: string;
