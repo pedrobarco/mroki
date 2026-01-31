@@ -7,6 +7,13 @@ http://localhost:8080 {
         mroki_gate {
             live    "http://httpbin.org?mroki_gate=live"
             shadow  "http://httpbin.org?mroki_gate=shadow"
+            
+            # Optional: Configure timeouts (defaults: 5s live, 10s shadow)
+            # live_timeout 3s
+            # shadow_timeout 15s
+            
+            # Optional: Sample 50% of requests
+            # sampling_rate 0.5
         }
     }
 }

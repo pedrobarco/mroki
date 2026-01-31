@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -26,9 +27,11 @@ func init() {
 }
 
 type MrokiGate struct {
-	RawLive      string  `json:"live,omitempty"`
-	RawShadow    string  `json:"shadow,omitempty"`
-	SamplingRate *string `json:"sampling_rate,omitempty"`
+	RawLive          string  `json:"live,omitempty"`
+	RawShadow        string  `json:"shadow,omitempty"`
+	SamplingRate     *string `json:"sampling_rate,omitempty"`
+	RawLiveTimeout   *string `json:"live_timeout,omitempty"`
+	RawShadowTimeout *string `json:"shadow_timeout,omitempty"`
 
 	proxy  *proxy.Proxy
 	logger *zap.Logger
@@ -88,6 +91,24 @@ func (m *MrokiGate) Validate() error {
 		opts = append(opts, proxy.WithSamplingRate(sr))
 	}
 
+	// Live timeout
+	if m.RawLiveTimeout != nil {
+		timeout, err := time.ParseDuration(*m.RawLiveTimeout)
+		if err != nil {
+			return fmt.Errorf("invalid live timeout: %w", err)
+		}
+		opts = append(opts, proxy.WithLiveTimeout(timeout))
+	}
+
+	// Shadow timeout
+	if m.RawShadowTimeout != nil {
+		timeout, err := time.ParseDuration(*m.RawShadowTimeout)
+		if err != nil {
+			return fmt.Errorf("invalid shadow timeout: %w", err)
+		}
+		opts = append(opts, proxy.WithShadowTimeout(timeout))
+	}
+
 	m.proxy = proxy.NewProxy(live, shadow, opts...)
 	return nil
 }
@@ -105,6 +126,8 @@ func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyh
 //	    live <live_url>
 //	    shadow <shadow_url>
 //	    [sampling_rate <rate>]
+//	    [live_timeout <duration>]
+//	    [shadow_timeout <duration>]
 //	}
 func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	d.Next()
@@ -127,6 +150,18 @@ func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			}
 			rate := d.Val()
 			m.SamplingRate = &rate
+		case "live_timeout":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			timeout := d.Val()
+			m.RawLiveTimeout = &timeout
+		case "shadow_timeout":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			timeout := d.Val()
+			m.RawShadowTimeout = &timeout
 		default:
 			return d.Errf("unknown property '%s'", d.Val())
 		}
