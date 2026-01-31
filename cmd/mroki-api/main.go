@@ -73,6 +73,12 @@ func main() {
 	getRequestByID := handlers.GetRequestByID(reqSvc)
 
 	mux := http.NewServeMux()
+
+	// Health check endpoints (no middleware to avoid logging noise)
+	mux.Handle("GET /health/live", handlers.Liveness())
+	mux.Handle("GET /health/ready", handlers.Readiness(pool))
+
+	// API endpoints (with middleware)
 	mux.Handle("GET /gates", baseChain.Then(getAllGates))
 	mux.Handle("POST /gates", baseChain.Then(createGate))
 	mux.Handle("GET /gates/{gate_id}", baseChain.Then(getGateByID))
