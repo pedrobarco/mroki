@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-var defaultTimeout = 5 * time.Second
+var (
+	defaultLiveTimeout   = 5 * time.Second
+	defaultShadowTimeout = 10 * time.Second
+)
 
 type CallbackFunc func(live, shadow ProxyResponse) error
 
@@ -20,11 +23,12 @@ type Proxy struct {
 	Live   *url.URL
 	Shadow *url.URL
 
-	timeout      time.Duration
-	samplingRate *SamplingRate
-	callbackFn   CallbackFunc
-	logger       *slog.Logger
-	client       *http.Client
+	liveTimeout   time.Duration
+	shadowTimeout time.Duration
+	samplingRate  *SamplingRate
+	callbackFn    CallbackFunc
+	logger        *slog.Logger
+	client        *http.Client
 }
 
 var (
@@ -33,9 +37,17 @@ var (
 
 type Option func(*Proxy)
 
-func WithTimeout(timeout time.Duration) Option {
+// WithLiveTimeout sets the timeout for live requests
+func WithLiveTimeout(timeout time.Duration) Option {
 	return func(p *Proxy) {
-		p.timeout = timeout
+		p.liveTimeout = timeout
+	}
+}
+
+// WithShadowTimeout sets the timeout for shadow requests
+func WithShadowTimeout(timeout time.Duration) Option {
+	return func(p *Proxy) {
+		p.shadowTimeout = timeout
 	}
 }
 
@@ -51,15 +63,49 @@ func WithCallbackFn(fn CallbackFunc) Option {
 	}
 }
 
+// WithHTTPClient allows setting a custom HTTP client
+func WithHTTPClient(client *http.Client) Option {
+	return func(p *Proxy) {
+		p.client = client
+	}
+}
+
+// newDefaultHTTPClient creates an HTTP client with sensible defaults
+// for connection pooling and timeouts
+func newDefaultHTTPClient() *http.Client {
+	return &http.Client{
+		// No client-level timeout - we use context timeouts
+		Timeout: 0,
+		Transport: &http.Transport{
+			// Connection pool settings
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			MaxConnsPerHost:     100,
+			IdleConnTimeout:     90 * time.Second,
+
+			// Timeout settings
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 0, // Use context timeout
+			ExpectContinueTimeout: 1 * time.Second,
+
+			// Performance
+			DisableKeepAlives:  false,
+			DisableCompression: false,
+			ForceAttemptHTTP2:  true,
+		},
+	}
+}
+
 func NewProxy(live, shadow *url.URL, opts ...Option) *Proxy {
 	proxy := &Proxy{
-		Live:         live,
-		Shadow:       shadow,
-		timeout:      defaultTimeout,
-		samplingRate: nil,
-		callbackFn:   defaultCallbackFn(),
-		logger:       slog.Default(),
-		client:       http.DefaultClient,
+		Live:          live,
+		Shadow:        shadow,
+		liveTimeout:   defaultLiveTimeout,
+		shadowTimeout: defaultShadowTimeout,
+		samplingRate:  nil,
+		callbackFn:    defaultCallbackFn(),
+		logger:        slog.Default(),
+		client:        newDefaultHTTPClient(),
 	}
 
 	for _, o := range opts {
@@ -81,8 +127,29 @@ type responseResult struct {
 	err  error
 }
 
+// ServeHTTP implements the http.Handler interface for proxying requests.
+//
+// Request Flow:
+//  1. Reads request body (needed to replay to both services)
+//  2. Launches live request with client context + timeout
+//  3. Launches shadow request (if sampled) with independent context + timeout
+//  4. Waits for live response and returns to client immediately
+//  5. Compares responses in background goroutine
+//
+// Context Handling:
+//   - Live requests inherit the client's request context (r.Context())
+//     This means if the client disconnects, live request is cancelled
+//   - Shadow requests use context.Background() as parent context
+//     This makes shadow independent of client connection state, ensuring
+//     complete diff data collection even if client disconnects
+//   - Both contexts have their own timeout values for safety
+//
+// Timeouts:
+//   - liveTimeout: Controls how long to wait for live service (blocks client)
+//   - shadowTimeout: Controls how long shadow service can run (doesn't block client)
+//   - Shadow timeout can be longer since it doesn't impact user experience
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	liveCtx, liveCancel := context.WithTimeout(r.Context(), p.timeout)
+	liveCtx, liveCancel := context.WithTimeout(r.Context(), p.liveTimeout)
 	defer liveCancel()
 
 	body, err := io.ReadAll(r.Body)
@@ -120,7 +187,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sample := p.samplingRate == nil || p.samplingRate.Sample()
 	if sample {
-		shadowCtx, shadowCancel := context.WithTimeout(context.Background(), p.timeout)
+		// Shadow uses Background() context so it's independent of client connection
+		// This allows shadow requests to complete even if the client disconnects,
+		// ensuring we collect complete diff data for monitoring
+		shadowCtx, shadowCancel := context.WithTimeout(context.Background(), p.shadowTimeout)
 		// Launch shadow request
 		go func() {
 			defer shadowCancel()
@@ -161,7 +231,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	copyHeader(liveResp.resp.Header, w.Header())
 	w.WriteHeader(liveResp.resp.StatusCode)
 	if _, err = w.Write(liveResp.body); err != nil {
-		http.Error(w, "Failed to write live response", http.StatusInternalServerError)
+		// Can't call http.Error after writing response body
+		p.logger.Error("failed to write response body", "error", err)
 		return
 	}
 
@@ -193,8 +264,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				p.logger.Error("callback error", "error", err)
 			}
 
-		case <-time.After(p.timeout):
-			p.logger.Error("shadow request timeout", "timeout", p.timeout)
+		case <-time.After(p.shadowTimeout):
+			p.logger.Error("shadow request timeout", "timeout", p.shadowTimeout)
 		}
 	}(liveResp.body)
 }
@@ -246,27 +317,45 @@ func rewriteRequestURL(original *http.Request, target *url.URL) *url.URL {
 
 func defaultCallbackFn() CallbackFunc {
 	isJSONContent := func(resp *http.Response) bool {
-		return resp.Header.Get("Content-Type") == "application/json"
+		contentType := resp.Header.Get("Content-Type")
+		return strings.Contains(contentType, "application/json")
 	}
 
 	logger := slog.Default()
 	differ := NewProxyResponseDiffer()
 
 	return func(live, shadow ProxyResponse) error {
-		// Only diff if both responses are JSON
+		// Skip non-JSON responses
 		if !isJSONContent(live.Response) || !isJSONContent(shadow.Response) {
+			logger.Debug("skipping diff for non-JSON responses",
+				"live_content_type", live.Response.Header.Get("Content-Type"),
+				"shadow_content_type", shadow.Response.Header.Get("Content-Type"),
+			)
 			return nil
 		}
 
 		res, err := differ.Diff(live, shadow)
 		if err != nil {
-			logger.Error("failed to diff responses", "error", err)
+			// Log error but don't fail - shadow testing shouldn't break
+			logger.Warn("failed to diff responses",
+				"error", err,
+				"live_status", live.StatusCode,
+				"shadow_status", shadow.StatusCode,
+			)
+			// Return nil - we logged the issue, no need to fail callback
+			return nil
 		}
 
 		if len(res) > 0 {
-			logger.Debug("response diff detected",
-				"live_status", live.Response.StatusCode,
-				"shadow_status", shadow.Response.StatusCode,
+			logger.Info("response diff detected",
+				"live_status", live.StatusCode,
+				"shadow_status", shadow.StatusCode,
+				"diff_length", len(res),
+			)
+		} else {
+			logger.Debug("responses match",
+				"live_status", live.StatusCode,
+				"shadow_status", shadow.StatusCode,
 			)
 		}
 
