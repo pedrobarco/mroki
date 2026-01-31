@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -35,8 +34,8 @@ func (r *requestRepository) Save(ctx context.Context, request *diffing.Request) 
 	}
 
 	params := db.SaveRequestParams{
-		ID:        pgtype.UUID{Bytes: request.ID, Valid: true},
-		GateID:    pgtype.UUID{Bytes: request.GateID, Valid: true},
+		ID:        pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
+		GateID:    pgtype.UUID{Bytes: request.GateID.UUID(), Valid: true},
 		Method:    pgtype.Text{String: request.Method, Valid: true},
 		Path:      pgtype.Text{String: request.Path, Valid: true},
 		Headers:   headers,
@@ -68,7 +67,7 @@ func (r *requestRepository) Save(ctx context.Context, request *diffing.Request) 
 		if err := qtx.SaveResponse(ctx, db.SaveResponseParams{
 			ID:         pgtype.UUID{Bytes: resp.ID, Valid: true},
 			Type:       pgtype.Text{String: string(resp.Type), Valid: true},
-			RequestID:  pgtype.UUID{Bytes: request.ID, Valid: true},
+			RequestID:  pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
 			StatusCode: pgtype.Int4{Int32: int32(resp.StatusCode), Valid: true},
 			Headers:    headers,
 			Body:       resp.Body,
@@ -80,7 +79,7 @@ func (r *requestRepository) Save(ctx context.Context, request *diffing.Request) 
 
 	if err := qtx.SaveDiff(ctx, db.SaveDiffParams{
 		ID:             pgtype.UUID{Bytes: request.Diff.ID, Valid: true},
-		RequestID:      pgtype.UUID{Bytes: request.ID, Valid: true},
+		RequestID:      pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
 		FromResponseID: pgtype.UUID{Bytes: request.Diff.FromResponseID, Valid: true},
 		ToResponseID:   pgtype.UUID{Bytes: request.Diff.ToResponseID, Valid: true},
 		Content:        []byte(request.Diff.Content),
@@ -95,8 +94,8 @@ func (r *requestRepository) Save(ctx context.Context, request *diffing.Request) 
 	return nil
 }
 
-func (r *requestRepository) GetAllByGateID(ctx context.Context, gateID uuid.UUID) ([]*diffing.Request, error) {
-	rows, err := r.queries.GetAllRequestsByGateID(ctx, pgtype.UUID{Bytes: gateID, Valid: true})
+func (r *requestRepository) GetAllByGateID(ctx context.Context, gateID diffing.GateID) ([]*diffing.Request, error) {
+	rows, err := r.queries.GetAllRequestsByGateID(ctx, pgtype.UUID{Bytes: gateID.UUID(), Valid: true})
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +111,10 @@ func (r *requestRepository) GetAllByGateID(ctx context.Context, gateID uuid.UUID
 	return reqs, nil
 }
 
-func (r *requestRepository) GetByID(ctx context.Context, id uuid.UUID, gateID uuid.UUID) (*diffing.Request, error) {
+func (r *requestRepository) GetByID(ctx context.Context, id diffing.RequestID, gateID diffing.GateID) (*diffing.Request, error) {
 	rows, err := r.queries.GetRequestByID(ctx, db.GetRequestByIDParams{
-		ID:     pgtype.UUID{Bytes: id, Valid: true},
-		GateID: pgtype.UUID{Bytes: gateID, Valid: true},
+		ID:     pgtype.UUID{Bytes: id.UUID(), Valid: true},
+		GateID: pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get request by ID: %w", err)
@@ -138,9 +137,19 @@ func (r *requestRepository) toDomain(raw db.Request) (*diffing.Request, error) {
 		return nil, fmt.Errorf("failed to unmarshal headers: %w", err)
 	}
 
+	id, err := diffing.ParseRequestID(raw.ID.String())
+	if err != nil {
+		return nil, fmt.Errorf("invalid request ID in database: %w", err)
+	}
+
+	gateID, err := diffing.ParseGateID(raw.GateID.String())
+	if err != nil {
+		return nil, fmt.Errorf("invalid gate ID in database: %w", err)
+	}
+
 	return &diffing.Request{
-		ID:        raw.ID.Bytes,
-		GateID:    raw.GateID.Bytes,
+		ID:        id,
+		GateID:    gateID,
 		Method:    raw.Method.String,
 		Path:      raw.Path.String,
 		Headers:   headers,
@@ -155,9 +164,19 @@ func (r *requestRepository) toFullRequest(rows []db.GetRequestByIDRow) (*diffing
 		return nil, fmt.Errorf("failed to unmarshal request headers: %w", err)
 	}
 
+	id, err := diffing.ParseRequestID(rows[0].RequestID.String())
+	if err != nil {
+		return nil, fmt.Errorf("invalid request ID in database: %w", err)
+	}
+
+	gateID, err := diffing.ParseGateID(rows[0].RequestGateID.String())
+	if err != nil {
+		return nil, fmt.Errorf("invalid gate ID in database: %w", err)
+	}
+
 	req := &diffing.Request{
-		ID:        rows[0].RequestID.Bytes,
-		GateID:    rows[0].RequestGateID.Bytes,
+		ID:        id,
+		GateID:    gateID,
 		Method:    rows[0].RequestMethod.String,
 		Path:      rows[0].RequestPath.String,
 		Headers:   reqHeaders,

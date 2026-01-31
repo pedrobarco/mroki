@@ -3,14 +3,11 @@ package diffing
 import (
 	"context"
 	"fmt"
-	"net/url"
-
-	"github.com/google/uuid"
 )
 
 type GateRepository interface {
 	Save(ctx context.Context, gate *Gate) error
-	GetByID(ctx context.Context, id uuid.UUID) (*Gate, error)
+	GetByID(ctx context.Context, id GateID) (*Gate, error)
 	GetAll(ctx context.Context) ([]*Gate, error)
 }
 
@@ -25,14 +22,14 @@ func NewGateService(repo GateRepository) *GateService {
 }
 
 func (s *GateService) Create(ctx context.Context, live, shadow string) (*Gate, error) {
-	liveURL, err := url.Parse(live)
+	liveURL, err := ParseGateURL(live)
 	if err != nil {
-		return nil, fmt.Errorf("invalid live URL: %w", err)
+		return nil, err
 	}
 
-	shadowURL, err := url.Parse(shadow)
+	shadowURL, err := ParseGateURL(shadow)
 	if err != nil {
-		return nil, fmt.Errorf("invalid shadow URL: %w", err)
+		return nil, err
 	}
 
 	gate, err := NewGate(liveURL, shadowURL)
@@ -47,7 +44,12 @@ func (s *GateService) Create(ctx context.Context, live, shadow string) (*Gate, e
 	return gate, nil
 }
 
-func (s *GateService) GetByID(ctx context.Context, id uuid.UUID) (*Gate, error) {
+func (s *GateService) GetByID(ctx context.Context, idStr string) (*Gate, error) {
+	id, err := ParseGateID(idStr)
+	if err != nil {
+		return nil, err
+	}
+
 	gate, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get gate by ID: %w", err)

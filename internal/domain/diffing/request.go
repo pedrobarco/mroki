@@ -10,8 +10,8 @@ import (
 type RequestMethod string
 
 type Request struct {
-	ID        uuid.UUID
-	GateID    uuid.UUID
+	ID        RequestID
+	GateID    GateID
 	Method    string
 	Path      string
 	Headers   http.Header
@@ -25,14 +25,14 @@ type Request struct {
 
 type requestOption func(*Request)
 
-func WithRequestID(id uuid.UUID) requestOption {
+func WithRequestID(id RequestID) requestOption {
 	return func(r *Request) {
 		r.ID = id
 	}
 }
 
 func NewRequest(
-	gateID uuid.UUID,
+	gateID GateID,
 	method string,
 	path string,
 	headers http.Header,
@@ -57,8 +57,8 @@ func NewRequest(
 		o(request)
 	}
 
-	if request.ID == uuid.Nil {
-		request.ID = uuid.New()
+	if request.ID.IsZero() {
+		request.ID = NewRequestID()
 	}
 
 	return request, nil

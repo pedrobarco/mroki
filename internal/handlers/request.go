@@ -6,19 +6,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 )
 
 type requestResponseDTO struct {
-	ID        uuid.UUID `json:"id"`
+	ID        string    `json:"id"`
 	Method    string    `json:"method"`
 	Path      string    `json:"path"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 type fullRequestResponseDTO struct {
-	ID        uuid.UUID `json:"id"`
+	ID        string    `json:"id"`
 	Method    string    `json:"method"`
 	Path      string    `json:"path"`
 	CreatedAt time.Time `json:"created_at"`
@@ -28,7 +27,7 @@ type fullRequestResponseDTO struct {
 }
 
 type responseResponseDTO struct {
-	ID         uuid.UUID   `json:"id"`
+	ID         string      `json:"id"`
 	Type       string      `json:"type"`
 	StatusCode int         `json:"status_code"`
 	Headers    http.Header `json:"headers"`
@@ -37,18 +36,14 @@ type responseResponseDTO struct {
 }
 
 type diffResponseDTO struct {
-	ID      uuid.UUID `json:"id"`
-	Content string    `json:"content"`
+	ID      string `json:"id"`
+	Content string `json:"content"`
 }
-
-var (
-	ErrInvalidRequestID = errors.New("invalid request ID format")
-)
 
 func CreateRequest(svc *diffing.RequestService) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
-			ID        uuid.UUID           `json:"id,omitempty"`
+			ID        string              `json:"id,omitempty"`
 			Method    string              `json:"method"`
 			Path      string              `json:"path"`
 			Headers   map[string][]string `json:"headers"`
@@ -56,7 +51,7 @@ func CreateRequest(svc *diffing.RequestService) AppHandler {
 			CreatedAt time.Time           `json:"created_at"`
 
 			Responses []struct {
-				ID         uuid.UUID   `json:"id,omitempty"`
+				ID         string      `json:"id,omitempty"`
 				Type       string      `json:"type"`
 				StatusCode int         `json:"status_code"`
 				Headers    http.Header `json:"headers"`
@@ -73,13 +68,26 @@ func CreateRequest(svc *diffing.RequestService) AppHandler {
 			return InvalidRequestBody(err)
 		}
 
-		gateID, err := uuid.Parse(r.PathValue("gate_id"))
-		if err != nil {
+		gateIDStr := r.PathValue("gate_id")
+		if gateIDStr == "" {
 			return MissingPathParam("gate_id")
 		}
 
+		gateID, err := diffing.ParseGateID(gateIDStr)
+		if err != nil {
+			return NewError(http.StatusBadRequest, "invalid gate ID", err)
+		}
+
+		var requestID diffing.RequestID
+		if req.ID != "" {
+			requestID, err = diffing.ParseRequestID(req.ID)
+			if err != nil {
+				return NewError(http.StatusBadRequest, "invalid request ID", err)
+			}
+		}
+
 		props := diffing.CreateRequestProps{
-			ID:        req.ID,
+			ID:        requestID,
 			GateID:    gateID,
 			Method:    req.Method,
 			Path:      req.Path,
@@ -89,8 +97,17 @@ func CreateRequest(svc *diffing.RequestService) AppHandler {
 		}
 
 		for _, resp := range req.Responses {
+			var respID [16]byte
+			if resp.ID != "" {
+				parsedID, err := diffing.ParseRequestID(resp.ID)
+				if err != nil {
+					return NewError(http.StatusBadRequest, "invalid response ID", err)
+				}
+				respID = parsedID.UUID()
+			}
+
 			props.Responses = append(props.Responses, diffing.CreateRequestResponseProps{
-				ID:         resp.ID,
+				ID:         respID,
 				Type:       resp.Type,
 				StatusCode: resp.StatusCode,
 				Headers:    resp.Headers,
@@ -129,32 +146,25 @@ func GetRequestByID(svc *diffing.RequestService) AppHandler {
 			return MissingPathParam("gate_id")
 		}
 
-		// TODO: refactor to be handled by svc.GetByID
-		gateID, err := uuid.Parse(gid)
-		if err != nil {
-			return NewError(http.StatusBadRequest, ErrInvalidGateID.Error(), err)
-		}
-
 		rid := r.PathValue("request_id")
 		if rid == "" {
 			return MissingPathParam("request_id")
 		}
 
-		// TODO: refactor to be handled by svc.GetByID
-		requestID, err := uuid.Parse(rid)
+		req, err := svc.GetByID(r.Context(), rid, gid)
 		if err != nil {
-			return NewError(http.StatusBadRequest, ErrInvalidRequestID.Error(), err)
-		}
-
-		req, err := svc.GetByID(r.Context(), requestID, gateID)
-		if err != nil {
-			if errors.Is(err, diffing.ErrRequestNotFound) {
+			switch {
+			case errors.Is(err, diffing.ErrInvalidRequestID):
+				return NewError(http.StatusBadRequest, "invalid request ID", err)
+			case errors.Is(err, diffing.ErrInvalidGateID):
+				return NewError(http.StatusBadRequest, "invalid gate ID", err)
+			case errors.Is(err, diffing.ErrRequestNotFound):
 				return NewError(http.StatusNotFound, "request not found", err)
-			}
-			if errors.Is(err, diffing.ErrGateNotFound) {
+			case errors.Is(err, diffing.ErrGateNotFound):
 				return NewError(http.StatusNotFound, "gate not found", err)
+			default:
+				return NewError(http.StatusInternalServerError, "failed to retrieve request", err)
 			}
-			return NewError(http.StatusInternalServerError, "failed to retrieve request", err)
 		}
 
 		response := responseDTO[fullRequestResponseDTO]{
@@ -178,15 +188,14 @@ func GetAllRequestsByGateID(svc *diffing.RequestService) AppHandler {
 			return MissingPathParam("gate_id")
 		}
 
-		// TODO: refactor to be handled by svc.GetAllByGateID
-		gateID, err := uuid.Parse(gid)
+		requests, err := svc.GetAllByGateID(r.Context(), gid)
 		if err != nil {
-			return NewError(http.StatusBadRequest, ErrInvalidGateID.Error(), err)
-		}
-
-		requests, err := svc.GetAllByGateID(r.Context(), gateID)
-		if err != nil {
-			return NewError(http.StatusInternalServerError, "failed to retrieve requests", err)
+			switch {
+			case errors.Is(err, diffing.ErrInvalidGateID):
+				return NewError(http.StatusBadRequest, "invalid gate ID", err)
+			default:
+				return NewError(http.StatusInternalServerError, "failed to retrieve requests", err)
+			}
 		}
 
 		response := responseDTO[[]requestResponseDTO]{
@@ -209,7 +218,7 @@ func GetAllRequestsByGateID(svc *diffing.RequestService) AppHandler {
 
 func toRequestResponseDTO(req *diffing.Request) requestResponseDTO {
 	return requestResponseDTO{
-		ID:        req.ID,
+		ID:        req.ID.String(),
 		Method:    req.Method,
 		Path:      req.Path,
 		CreatedAt: req.CreatedAt,
@@ -218,7 +227,7 @@ func toRequestResponseDTO(req *diffing.Request) requestResponseDTO {
 
 func toFullRequestResponseDTO(req *diffing.Request) fullRequestResponseDTO {
 	dto := fullRequestResponseDTO{
-		ID:        req.ID,
+		ID:        req.ID.String(),
 		Method:    req.Method,
 		Path:      req.Path,
 		CreatedAt: req.CreatedAt,
@@ -226,7 +235,7 @@ func toFullRequestResponseDTO(req *diffing.Request) fullRequestResponseDTO {
 
 	for _, resp := range req.Responses {
 		dto.Responses = append(dto.Responses, responseResponseDTO{
-			ID:         resp.ID,
+			ID:         resp.ID.String(),
 			Type:       string(resp.Type),
 			StatusCode: resp.StatusCode,
 			Headers:    resp.Headers,
@@ -236,7 +245,7 @@ func toFullRequestResponseDTO(req *diffing.Request) fullRequestResponseDTO {
 	}
 
 	dto.Diff = diffResponseDTO{
-		ID:      req.Diff.ID,
+		ID:      req.Diff.ID.String(),
 		Content: req.Diff.Content,
 	}
 

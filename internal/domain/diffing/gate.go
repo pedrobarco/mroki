@@ -1,28 +1,22 @@
 package diffing
 
-import (
-	"net/url"
-
-	"github.com/google/uuid"
-)
-
 type Gate struct {
-	ID        uuid.UUID
-	LiveURL   *url.URL
-	ShadowURL *url.URL
+	ID        GateID
+	LiveURL   GateURL
+	ShadowURL GateURL
 
 	Requests []Request
 }
 
 type gateOption func(*Gate)
 
-func WithGateID(id uuid.UUID) gateOption {
+func WithGateID(id GateID) gateOption {
 	return func(g *Gate) {
 		g.ID = id
 	}
 }
 
-func NewGate(live, shadow *url.URL, opts ...gateOption) (*Gate, error) {
+func NewGate(live, shadow GateURL, opts ...gateOption) (*Gate, error) {
 	gate := &Gate{
 		LiveURL:   live,
 		ShadowURL: shadow,
@@ -32,8 +26,8 @@ func NewGate(live, shadow *url.URL, opts ...gateOption) (*Gate, error) {
 		o(gate)
 	}
 
-	if gate.ID == uuid.Nil {
-		gate.ID = uuid.New()
+	if gate.ID.IsZero() {
+		gate.ID = NewGateID()
 	}
 
 	return gate, nil

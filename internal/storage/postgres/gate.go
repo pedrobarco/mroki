@@ -3,9 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"net/url"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
@@ -41,9 +39,9 @@ func (r *gateRepository) GetAll(ctx context.Context) ([]*diffing.Gate, error) {
 	return gates, nil
 }
 
-func (r *gateRepository) GetByID(ctx context.Context, id uuid.UUID) (*diffing.Gate, error) {
+func (r *gateRepository) GetByID(ctx context.Context, id diffing.GateID) (*diffing.Gate, error) {
 	pid := pgtype.UUID{
-		Bytes: id,
+		Bytes: id.UUID(),
 		Valid: true,
 	}
 
@@ -65,7 +63,7 @@ func (r *gateRepository) GetByID(ctx context.Context, id uuid.UUID) (*diffing.Ga
 
 func (r *gateRepository) Save(ctx context.Context, gate *diffing.Gate) error {
 	if err := r.queries.SaveGate(ctx, db.SaveGateParams{
-		ID:        pgtype.UUID{Bytes: gate.ID, Valid: true},
+		ID:        pgtype.UUID{Bytes: gate.ID.UUID(), Valid: true},
 		LiveUrl:   pgtype.Text{String: gate.LiveURL.String(), Valid: true},
 		ShadowUrl: pgtype.Text{String: gate.ShadowURL.String(), Valid: true},
 	}); err != nil {
@@ -75,19 +73,19 @@ func (r *gateRepository) Save(ctx context.Context, gate *diffing.Gate) error {
 }
 
 func (r *gateRepository) toDomain(raw db.Gate) (*diffing.Gate, error) {
-	live, err := url.Parse(raw.LiveUrl.String)
+	live, err := diffing.ParseGateURL(raw.LiveUrl.String)
 	if err != nil {
-		return nil, fmt.Errorf("invalid live URL: %w", err)
+		return nil, fmt.Errorf("invalid live URL in database: %w", err)
 	}
 
-	shadow, err := url.Parse(raw.ShadowUrl.String)
+	shadow, err := diffing.ParseGateURL(raw.ShadowUrl.String)
 	if err != nil {
-		return nil, fmt.Errorf("invalid shadow URL: %w", err)
+		return nil, fmt.Errorf("invalid shadow URL in database: %w", err)
 	}
 
-	id, err := uuid.Parse(raw.ID.String())
+	id, err := diffing.ParseGateID(raw.ID.String())
 	if err != nil {
-		return nil, fmt.Errorf("invalid UUID format: %w", err)
+		return nil, fmt.Errorf("invalid gate ID in database: %w", err)
 	}
 
 	gate, err := diffing.NewGate(live, shadow, diffing.WithGateID(id))

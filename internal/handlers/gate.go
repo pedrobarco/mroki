@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 )
 
@@ -14,10 +13,6 @@ type gateResponseDTO struct {
 	LiveURL   string `json:"live_url"`
 	ShadowURL string `json:"shadow_url"`
 }
-
-var (
-	ErrInvalidGateID = errors.New("invalid gate ID format")
-)
 
 func CreateGate(svc *diffing.GateService) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -40,7 +35,12 @@ func CreateGate(svc *diffing.GateService) AppHandler {
 
 		gate, err := svc.Create(r.Context(), req.LiveURL, req.ShadowURL)
 		if err != nil {
-			return NewError(http.StatusInternalServerError, "failed to create gate", err)
+			switch {
+			case errors.Is(err, diffing.ErrInvalidGateURL):
+				return NewError(http.StatusBadRequest, "invalid URL", err)
+			default:
+				return NewError(http.StatusInternalServerError, "failed to create gate", err)
+			}
 		}
 
 		response := responseDTO[gateResponseDTO]{
@@ -64,22 +64,19 @@ func GetGateByID(svc *diffing.GateService) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("gate_id")
 		if id == "" {
-			err := MissingPathParam("gate_id")
-			return NewError(http.StatusBadRequest, err.Error(), err)
+			return MissingPathParam("gate_id")
 		}
 
-		// TODO: refactor to be handled by svc.GetByID
-		gateID, err := uuid.Parse(id)
+		gate, err := svc.GetByID(r.Context(), id)
 		if err != nil {
-			return NewError(http.StatusBadRequest, ErrInvalidGateID.Error(), err)
-		}
-
-		gate, err := svc.GetByID(r.Context(), gateID)
-		if err != nil {
-			if errors.Is(err, diffing.ErrGateNotFound) {
+			switch {
+			case errors.Is(err, diffing.ErrInvalidGateID):
+				return NewError(http.StatusBadRequest, "invalid gate ID", err)
+			case errors.Is(err, diffing.ErrGateNotFound):
 				return NewError(http.StatusNotFound, "gate not found", err)
+			default:
+				return NewError(http.StatusInternalServerError, "failed to retrieve gate", err)
 			}
-			return NewError(http.StatusInternalServerError, "failed to retrieve gate", err)
 		}
 
 		response := responseDTO[gateResponseDTO]{

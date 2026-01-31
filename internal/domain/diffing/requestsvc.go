@@ -11,8 +11,8 @@ import (
 
 type RequestRepository interface {
 	Save(ctx context.Context, request *Request) error
-	GetByID(ctx context.Context, id uuid.UUID, gateID uuid.UUID) (*Request, error)
-	GetAllByGateID(ctx context.Context, gateID uuid.UUID) ([]*Request, error)
+	GetByID(ctx context.Context, id RequestID, gateID GateID) (*Request, error)
+	GetAllByGateID(ctx context.Context, gateID GateID) ([]*Request, error)
 }
 
 type RequestService struct {
@@ -26,8 +26,8 @@ func NewRequestService(repo RequestRepository) *RequestService {
 }
 
 type CreateRequestProps struct {
-	ID        uuid.UUID
-	GateID    uuid.UUID
+	ID        RequestID
+	GateID    GateID
 	Method    string
 	Path      string
 	Headers   map[string][]string
@@ -120,7 +120,17 @@ func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (
 	return request, nil
 }
 
-func (s *RequestService) GetByID(ctx context.Context, id uuid.UUID, gateID uuid.UUID) (*Request, error) {
+func (s *RequestService) GetByID(ctx context.Context, idStr string, gateIDStr string) (*Request, error) {
+	id, err := ParseRequestID(idStr)
+	if err != nil {
+		return nil, err
+	}
+
+	gateID, err := ParseGateID(gateIDStr)
+	if err != nil {
+		return nil, err
+	}
+
 	request, err := s.repo.GetByID(ctx, id, gateID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get request by ID: %w", err)
@@ -128,7 +138,12 @@ func (s *RequestService) GetByID(ctx context.Context, id uuid.UUID, gateID uuid.
 	return request, nil
 }
 
-func (s *RequestService) GetAllByGateID(ctx context.Context, gateID uuid.UUID) ([]*Request, error) {
+func (s *RequestService) GetAllByGateID(ctx context.Context, gateIDStr string) ([]*Request, error) {
+	gateID, err := ParseGateID(gateIDStr)
+	if err != nil {
+		return nil, err
+	}
+
 	requests, err := s.repo.GetAllByGateID(ctx, gateID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all requests: %w", err)
