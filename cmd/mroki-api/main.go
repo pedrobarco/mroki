@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 	"github.com/pedrobarco/mroki/internal/handlers"
@@ -23,22 +24,40 @@ func main() {
 
 	logger := logger.New()
 
-	conn, err := pgx.Connect(ctx, cfg.App.Database.URL.String())
+	// Parse pool configuration timeouts
+	maxConnIdleDuration, err := time.ParseDuration(cfg.App.Database.MaxConnIdle)
 	if err != nil {
-		panic(fmt.Errorf("failed to connect to database: %w", err))
+		panic(fmt.Errorf("failed to parse MAX_CONN_IDLE: %w", err))
 	}
-	defer func() {
-		if err := conn.Close(ctx); err != nil {
-			slog.Error("failed to close database connection", "error", err)
-		}
-	}()
 
-	queries := db.New(conn)
+	maxConnLifeDuration, err := time.ParseDuration(cfg.App.Database.MaxConnLife)
+	if err != nil {
+		panic(fmt.Errorf("failed to parse MAX_CONN_LIFE: %w", err))
+	}
+
+	// Configure connection pool
+	poolConfig, err := pgxpool.ParseConfig(cfg.App.Database.URL.String())
+	if err != nil {
+		panic(fmt.Errorf("failed to parse database URL: %w", err))
+	}
+
+	poolConfig.MaxConns = cfg.App.Database.MaxConns
+	poolConfig.MinConns = cfg.App.Database.MinConns
+	poolConfig.MaxConnIdleTime = maxConnIdleDuration
+	poolConfig.MaxConnLifetime = maxConnLifeDuration
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		panic(fmt.Errorf("failed to create connection pool: %w", err))
+	}
+	defer pool.Close()
+
+	queries := db.New(pool)
 
 	gateRepo := postgres.NewGateRepository(queries)
 	gateSvc := diffing.NewGateService(gateRepo)
 
-	reqRepo := postgres.NewRequestRepository(queries, conn)
+	reqRepo := postgres.NewRequestRepository(queries, pool)
 	reqSvc := diffing.NewRequestService(reqRepo)
 
 	baseChain := middleware.Chain{

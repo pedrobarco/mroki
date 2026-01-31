@@ -9,21 +9,22 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 	"github.com/pedrobarco/mroki/internal/storage/postgres/db"
 )
 
 type requestRepository struct {
 	queries *db.Queries
-	conn    *pgx.Conn
+	pool    *pgxpool.Pool
 }
 
 var _ diffing.RequestRepository = (*requestRepository)(nil)
 
-func NewRequestRepository(queries *db.Queries, conn *pgx.Conn) *requestRepository {
+func NewRequestRepository(queries *db.Queries, pool *pgxpool.Pool) *requestRepository {
 	return &requestRepository{
 		queries: queries,
-		conn:    conn,
+		pool:    pool,
 	}
 }
 
@@ -43,7 +44,7 @@ func (r *requestRepository) Save(ctx context.Context, request *diffing.Request) 
 		CreatedAt: pgtype.Timestamptz{Time: request.CreatedAt, Valid: true},
 	}
 
-	tx, err := r.conn.Begin(ctx)
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
