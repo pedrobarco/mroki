@@ -106,10 +106,16 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		b, err := io.ReadAll(resp.Body)
-		if err := resp.Body.Close(); err != nil {
+		closeErr := resp.Body.Close()
+		if err != nil {
 			liveCh <- responseResult{err: err}
+			return
 		}
-		liveCh <- responseResult{resp: resp, body: b, err: err}
+		if closeErr != nil {
+			liveCh <- responseResult{err: closeErr}
+			return
+		}
+		liveCh <- responseResult{resp: resp, body: b, err: nil}
 	}()
 
 	sample := p.samplingRate == nil || p.samplingRate.Sample()
@@ -124,10 +130,16 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			b, err := io.ReadAll(resp.Body)
-			if err := resp.Body.Close(); err != nil {
+			closeErr := resp.Body.Close()
+			if err != nil {
 				shadowCh <- responseResult{err: err}
+				return
 			}
-			shadowCh <- responseResult{resp: resp, body: b, err: err}
+			if closeErr != nil {
+				shadowCh <- responseResult{err: closeErr}
+				return
+			}
+			shadowCh <- responseResult{resp: resp, body: b, err: nil}
 		}()
 	}
 
@@ -201,9 +213,11 @@ func (p *Proxy) forwardRequest(ctx context.Context, original *http.Request, targ
 }
 
 func copyHeader(src, dst http.Header) {
+	// Use Add instead of Set to preserve multiple header values
+	// (e.g., Set-Cookie, Accept-Encoding can have multiple values)
 	for k, vv := range src {
 		for _, v := range vv {
-			dst.Set(k, v)
+			dst.Add(k, v)
 		}
 	}
 }
