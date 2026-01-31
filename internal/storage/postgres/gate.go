@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 	"github.com/pedrobarco/mroki/internal/storage/postgres/db"
@@ -48,6 +49,9 @@ func (r *gateRepository) GetByID(ctx context.Context, id uuid.UUID) (*diffing.Ga
 
 	raw, err := r.queries.GetGateByID(ctx, pid)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("%w: %s", diffing.ErrGateNotFound, id)
+		}
 		return nil, fmt.Errorf("failed to get gate by ID: %w", err)
 	}
 

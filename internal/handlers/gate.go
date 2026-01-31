@@ -76,6 +76,9 @@ func GetGateByID(svc *diffing.GateService) AppHandler {
 
 		gate, err := svc.GetByID(r.Context(), gateID)
 		if err != nil {
+			if errors.Is(err, diffing.ErrGateNotFound) {
+				return NewError(http.StatusNotFound, "gate not found", err)
+			}
 			return NewError(http.StatusInternalServerError, "failed to retrieve gate", err)
 		}
 

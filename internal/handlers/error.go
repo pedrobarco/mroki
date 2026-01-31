@@ -30,7 +30,7 @@ func (a *APIError) Error() string {
 }
 
 func InvalidRequestBody(err error) *APIError {
-	return NewError(http.StatusInternalServerError, "failed to decode request body", err)
+	return NewError(http.StatusBadRequest, "invalid request body", err)
 }
 
 func InvalidResponseBody(err error) *APIError {

@@ -148,6 +148,12 @@ func GetRequestByID(svc *diffing.RequestService) AppHandler {
 
 		req, err := svc.GetByID(r.Context(), requestID, gateID)
 		if err != nil {
+			if errors.Is(err, diffing.ErrRequestNotFound) {
+				return NewError(http.StatusNotFound, "request not found", err)
+			}
+			if errors.Is(err, diffing.ErrGateNotFound) {
+				return NewError(http.StatusNotFound, "gate not found", err)
+			}
 			return NewError(http.StatusInternalServerError, "failed to retrieve request", err)
 		}
 

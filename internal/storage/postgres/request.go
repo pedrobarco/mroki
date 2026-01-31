@@ -121,7 +121,7 @@ func (r *requestRepository) GetByID(ctx context.Context, id uuid.UUID, gateID uu
 	}
 
 	if len(rows) == 0 {
-		return nil, fmt.Errorf("request with ID %s not found for gate %s", id, gateID)
+		return nil, fmt.Errorf("%w: %s for gate %s", diffing.ErrRequestNotFound, id, gateID)
 	}
 
 	req, err := r.toFullRequest(rows)
