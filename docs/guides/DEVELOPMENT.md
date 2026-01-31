@@ -1,0 +1,340 @@
+# Development Guide
+
+Guide for developers working on mroki.
+
+## Setup
+
+### Prerequisites
+
+- **Go 1.21+**
+- **Docker & Docker Compose**
+- **Node.js 18+** (for hub development)
+- **PostgreSQL 15+** (via Docker is fine)
+- **Make** (optional, for convenience)
+
+### Clone Repository
+
+```bash
+git clone https://github.com/pedrobarco/mroki.git
+cd mroki
+```
+
+### Install Dependencies
+
+```bash
+# Go dependencies (downloaded automatically on first build/run)
+go mod download
+
+# For hub development
+cd cmd/mroki-hub
+npm install
+```
+
+## Project Structure
+
+```
+mroki/
+├── cmd/                    # Executables
+│   ├── mroki-agent/       # Agent binary
+│   ├── mroki-api/         # API binary
+│   ├── mroki-hub/         # Web UI (Vue.js)
+│   └── caddy-mroki/       # Caddy module main
+├── internal/              # Private application code
+│   ├── domain/            # Business logic
+│   ├── handlers/          # HTTP handlers
+│   ├── storage/           # Database layer
+│   └── middleware/        # HTTP middleware
+├── pkg/                   # Public libraries
+│   ├── proxy/             # Core proxy logic
+│   ├── diff/              # JSON diffing
+│   ├── client/            # API client
+│   ├── logger/            # Structured logging
+│   └── caddymodule/       # Caddy integration
+├── docs/                  # Documentation
+└── build/                 # Build configurations
+```
+
+## Development Workflow
+
+### Running Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run with race detector
+go test -race ./...
+
+# Run with coverage
+go test -cover ./...
+
+# Generate coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+
+# Run specific package tests
+go test ./internal/domain/...
+go test ./pkg/proxy/...
+```
+
+### Running Components Locally
+
+**Terminal 1: PostgreSQL**
+```bash
+docker-compose -f build/mroki-api/docker-compose.yaml up
+```
+
+**Terminal 2: API**
+```bash
+cd cmd/mroki-api
+go run .
+```
+
+**Terminal 3: Agent**
+```bash
+cd cmd/mroki-agent
+go run .
+```
+
+**Terminal 4: Hub** (when implemented)
+```bash
+cd cmd/mroki-hub
+npm run dev
+```
+
+### Building Binaries
+
+```bash
+# Build agent
+go build -o mroki-agent ./cmd/mroki-agent
+
+# Build API
+go build -o mroki-api ./cmd/mroki-api
+
+# Build Caddy with mroki module
+cd cmd/caddy-mroki
+go build -o caddy-mroki .
+
+# Build all
+go build ./...
+```
+
+## Code Style
+
+### Go Code
+
+- Follow [Effective Go](https://golang.org/doc/effective_go.html)
+- Use `gofmt` for formatting
+- Use `golint` for linting
+- Write tests for all new code
+- Document exported functions
+
+```bash
+# Format code
+gofmt -w .
+
+# Run linter
+golangci-lint run
+```
+
+### Vue/TypeScript Code
+
+- Follow Vue 3 Composition API style
+- Use TypeScript for type safety
+- Use ESLint for linting
+- Use Prettier for formatting
+
+```bash
+cd cmd/mroki-hub
+npm run lint
+npm run format
+```
+
+## Testing Guidelines
+
+### Unit Tests
+
+- Test file naming: `*_test.go`
+- Table-driven tests preferred
+- Use mocks for external dependencies
+- Test edge cases and error paths
+
+**Example:**
+```go
+func TestProxy_ServeHTTP(t *testing.T) {
+    tests := []struct {
+        name           string
+        liveResponse   int
+        shadowResponse int
+        wantStatus     int
+    }{
+        {"both success", 200, 200, 200},
+        {"live fails", 500, 200, 500},
+        {"shadow fails", 200, 500, 200},
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // test implementation
+        })
+    }
+}
+```
+
+### Integration Tests
+
+- Test realistic scenarios
+- Use Docker for dependencies
+- Clean up resources after tests
+
+## Database Development
+
+### Schema Changes
+
+Currently using sqlc for type-safe queries. Schema is in `internal/storage/postgres/schema.sql`.
+
+**To modify schema:**
+
+1. Edit `schema.sql`
+2. Regenerate sqlc code:
+   ```bash
+   sqlc generate
+   ```
+3. Update domain models if needed
+4. Write migration (future: use golang-migrate)
+
+### Running Migrations
+
+Currently applied automatically on startup. Future versions will use migration tools.
+
+## Debugging
+
+### Enable Debug Logging
+
+```bash
+# Agent
+MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-agent
+
+# API
+MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-api
+```
+
+### Delve Debugger
+
+```bash
+# Install delve
+go install github.com/go-delve/delve/cmd/dlv@latest
+
+# Debug agent
+cd cmd/mroki-agent
+dlv debug
+
+# Set breakpoints
+(dlv) break main.main
+(dlv) continue
+```
+
+### VS Code Configuration
+
+**`.vscode/launch.json`:**
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Agent",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/mroki-agent"
+    },
+    {
+      "name": "Debug API",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/mroki-api"
+    }
+  ]
+}
+```
+
+## Contributing
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/my-feature`
+3. **Write** code and tests
+4. **Commit** with clear messages: `git commit -m "feat: add sampling rate support"`
+5. **Push** to your fork: `git push origin feature/my-feature`
+6. **Open** a Pull Request
+
+### Commit Message Format
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `test`: Adding tests
+- `refactor`: Code refactoring
+- `chore`: Maintenance tasks
+
+**Examples:**
+```
+feat(agent): add retry logic with exponential backoff
+fix(api): handle nil pointer in gate creation
+docs: update API contracts documentation
+test(proxy): add test for timeout handling
+```
+
+## Release Process
+
+(To be defined - placeholder for future)
+
+1. Update version in appropriate files
+2. Update CHANGELOG
+3. Create git tag
+4. Build binaries
+5. Create GitHub release
+6. Publish to package registries
+
+## Useful Commands
+
+```bash
+# Run all tests with verbose output
+go test -v ./...
+
+# Run tests for specific package
+go test ./internal/domain/diffing -v
+
+# Benchmark tests
+go test -bench=. ./pkg/proxy
+
+# Check for race conditions
+go test -race ./...
+
+# Generate mocks (using mockgen)
+go generate ./...
+
+# Clean build cache
+go clean -cache
+
+# Update dependencies
+go get -u ./...
+go mod tidy
+```
+
+## Related Documentation
+
+- [Quick Start Guide](QUICK_START.md)
+- [Architecture Overview](../architecture/OVERVIEW.md)
+- [Deployment Guide](DEPLOYMENT.md)
