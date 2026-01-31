@@ -73,22 +73,10 @@ func CreateRequest(svc *diffing.RequestService) AppHandler {
 			return MissingPathParam("gate_id")
 		}
 
-		gateID, err := diffing.ParseGateID(gateIDStr)
-		if err != nil {
-			return NewError(http.StatusBadRequest, "invalid gate ID", err)
-		}
-
-		var requestID diffing.RequestID
-		if req.ID != "" {
-			requestID, err = diffing.ParseRequestID(req.ID)
-			if err != nil {
-				return NewError(http.StatusBadRequest, "invalid request ID", err)
-			}
-		}
-
+		// Build props with primitive strings - service handles parsing
 		props := diffing.CreateRequestProps{
-			ID:        requestID,
-			GateID:    gateID,
+			ID:        req.ID,
+			GateID:    gateIDStr,
 			Method:    req.Method,
 			Path:      req.Path,
 			Headers:   req.Headers,
@@ -96,18 +84,10 @@ func CreateRequest(svc *diffing.RequestService) AppHandler {
 			CreatedAt: req.CreatedAt,
 		}
 
+		// Pass response IDs as strings
 		for _, resp := range req.Responses {
-			var respID [16]byte
-			if resp.ID != "" {
-				parsedID, err := diffing.ParseRequestID(resp.ID)
-				if err != nil {
-					return NewError(http.StatusBadRequest, "invalid response ID", err)
-				}
-				respID = parsedID.UUID()
-			}
-
 			props.Responses = append(props.Responses, diffing.CreateRequestResponseProps{
-				ID:         respID,
+				ID:         resp.ID,
 				Type:       resp.Type,
 				StatusCode: resp.StatusCode,
 				Headers:    resp.Headers,
@@ -120,9 +100,18 @@ func CreateRequest(svc *diffing.RequestService) AppHandler {
 			Content: req.Diff.Content,
 		}
 
+		// Service handles all parsing internally
 		request, err := svc.Create(r.Context(), props)
 		if err != nil {
-			return NewError(http.StatusInternalServerError, "failed to create request", err)
+			// Map domain errors to HTTP status codes
+			switch {
+			case errors.Is(err, diffing.ErrInvalidGateID):
+				return NewError(http.StatusBadRequest, "invalid gate ID", err)
+			case errors.Is(err, diffing.ErrInvalidRequestID):
+				return NewError(http.StatusBadRequest, "invalid request ID", err)
+			default:
+				return NewError(http.StatusInternalServerError, "failed to create request", err)
+			}
 		}
 
 		resp := responseDTO[requestResponseDTO]{

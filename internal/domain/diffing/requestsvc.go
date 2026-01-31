@@ -26,8 +26,8 @@ func NewRequestService(repo RequestRepository) *RequestService {
 }
 
 type CreateRequestProps struct {
-	ID        RequestID
-	GateID    GateID
+	ID        string
+	GateID    string
 	Method    string
 	Path      string
 	Headers   map[string][]string
@@ -39,7 +39,7 @@ type CreateRequestProps struct {
 }
 
 type CreateRequestResponseProps struct {
-	ID         uuid.UUID
+	ID         string
 	Type       string
 	StatusCode int
 	Headers    http.Header
@@ -52,6 +52,22 @@ type CreateRequestDiffProps struct {
 }
 
 func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (*Request, error) {
+	// Parse gate ID
+	gateID, err := ParseGateID(props.GateID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse request ID (optional)
+	var requestID RequestID
+	if props.ID != "" {
+		requestID, err = ParseRequestID(props.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Parse and create responses
 	var live, shadow *Response
 	var responses []Response
 	for _, dto := range props.Responses {
@@ -60,13 +76,22 @@ func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (
 			return nil, fmt.Errorf("invalid response type: %w", err)
 		}
 
+		// Parse response ID (optional)
+		var respID uuid.UUID
+		if dto.ID != "" {
+			respID, err = uuid.Parse(dto.ID)
+			if err != nil {
+				return nil, fmt.Errorf("invalid response ID: %w", err)
+			}
+		}
+
 		resp, err := NewResponse(
 			rtype,
 			dto.StatusCode,
 			dto.Headers,
 			dto.Body,
 			dto.CreatedAt,
-			WithResponseID(dto.ID),
+			WithResponseID(respID),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create response: %w", err)
@@ -98,8 +123,9 @@ func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (
 		return nil, fmt.Errorf("failed to create diff: %w", err)
 	}
 
+	// Create request with parsed gate ID
 	request, err := NewRequest(
-		props.GateID,
+		gateID,
 		props.Method,
 		props.Path,
 		props.Headers,
@@ -107,7 +133,7 @@ func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (
 		props.CreatedAt,
 		responses,
 		*diff,
-		WithRequestID(props.ID),
+		WithRequestID(requestID),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

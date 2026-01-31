@@ -3,8 +3,6 @@ package diffing
 import (
 	"net/http"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type RequestMethod string
@@ -16,7 +14,7 @@ type Request struct {
 	Path      string
 	Headers   http.Header
 	Body      []byte
-	AgentID   uuid.UUID
+	AgentID   AgentID
 	CreatedAt time.Time
 
 	Responses []Response
