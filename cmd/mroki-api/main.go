@@ -24,16 +24,9 @@ func main() {
 
 	logger := logger.New()
 
-	// Parse pool configuration timeouts
-	maxConnIdleDuration, err := time.ParseDuration(cfg.App.Database.MaxConnIdle)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse MAX_CONN_IDLE: %w", err))
-	}
-
-	maxConnLifeDuration, err := time.ParseDuration(cfg.App.Database.MaxConnLife)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse MAX_CONN_LIFE: %w", err))
-	}
+	// Parse pool configuration timeouts (safe after validation)
+	maxConnIdleDuration, _ := time.ParseDuration(cfg.App.Database.MaxConnIdle)
+	maxConnLifeDuration, _ := time.ParseDuration(cfg.App.Database.MaxConnLife)
 
 	// Configure connection pool
 	poolConfig, err := pgxpool.ParseConfig(cfg.App.Database.URL.String())
