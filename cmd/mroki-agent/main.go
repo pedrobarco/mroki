@@ -16,7 +16,12 @@ func main() {
 	logger := logger.New()
 
 	mux := http.NewServeMux()
-	mux.Handle("/", handlers.Proxy(cfg.App.LiveURL, cfg.App.ShadowURL))
+	mux.Handle("/", handlers.Proxy(handlers.ProxyConfig{
+		Live:          cfg.App.LiveURL,
+		Shadow:        cfg.App.ShadowURL,
+		LiveTimeout:   cfg.App.LiveTimeout,
+		ShadowTimeout: cfg.App.ShadowTimeout,
+	}))
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.App.Port),
 		Handler: mux,
