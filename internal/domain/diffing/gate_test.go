@@ -1,0 +1,31 @@
+package diffing_test
+
+import (
+	"testing"
+
+	"github.com/pedrobarco/mroki/internal/domain/diffing"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestNewGate_creates_gate_with_auto_generated_id(t *testing.T) {
+	liveURL, _ := diffing.ParseGateURL("http://live.example.com")
+	shadowURL, _ := diffing.ParseGateURL("http://shadow.example.com")
+
+	gate, err := diffing.NewGate(liveURL, shadowURL)
+
+	assert.NoError(t, err)
+	assert.False(t, gate.ID.IsZero())
+	assert.Equal(t, liveURL.String(), gate.LiveURL.String())
+	assert.Equal(t, shadowURL.String(), gate.ShadowURL.String())
+}
+
+func TestNewGate_with_custom_id(t *testing.T) {
+	liveURL, _ := diffing.ParseGateURL("http://live.example.com")
+	shadowURL, _ := diffing.ParseGateURL("http://shadow.example.com")
+	customID := diffing.NewGateID()
+
+	gate, err := diffing.NewGate(liveURL, shadowURL, diffing.WithGateID(customID))
+
+	assert.NoError(t, err)
+	assert.Equal(t, customID.String(), gate.ID.String())
+}
