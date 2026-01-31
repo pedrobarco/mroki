@@ -9,6 +9,7 @@ CREATE TABLE gates (
 CREATE TABLE requests (
     id UUID PRIMARY KEY,
     gate_id UUID REFERENCES gates(id) ON DELETE CASCADE,
+    agent_id TEXT,
     method TEXT,
     path TEXT,
     headers JSONB,
@@ -36,5 +37,7 @@ CREATE TABLE diffs (
     content BYTEA
 );
 
--- -- Index for efficient lookup
--- CREATE INDEX idx_responses_request_id ON responses(request_id);
+-- Indexes for efficient lookup
+CREATE INDEX idx_responses_request_id ON responses(request_id);
+CREATE INDEX idx_requests_agent_id ON requests(agent_id);
+CREATE INDEX idx_requests_gate_id ON requests(gate_id);

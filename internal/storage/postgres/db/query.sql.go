@@ -37,7 +37,7 @@ func (q *Queries) GetAllGates(ctx context.Context) ([]Gate, error) {
 }
 
 const getAllRequestsByGateID = `-- name: GetAllRequestsByGateID :many
-SELECT id, gate_id, method, path, headers, body, created_at
+SELECT id, gate_id, agent_id, method, path, headers, body, created_at
 FROM requests
 WHERE gate_id = $1
 ORDER BY created_at DESC
@@ -55,6 +55,7 @@ func (q *Queries) GetAllRequestsByGateID(ctx context.Context, gateID pgtype.UUID
 		if err := rows.Scan(
 			&i.ID,
 			&i.GateID,
+			&i.AgentID,
 			&i.Method,
 			&i.Path,
 			&i.Headers,
@@ -88,6 +89,7 @@ const getRequestByID = `-- name: GetRequestByID :many
 SELECT
   req.id as request_id,
   req.gate_id as request_gate_id,
+  req.agent_id as request_agent_id,
   req.method as request_method,
   req.path as request_path,
   req.headers as request_headers,
@@ -120,6 +122,7 @@ type GetRequestByIDParams struct {
 type GetRequestByIDRow struct {
 	RequestID          pgtype.UUID
 	RequestGateID      pgtype.UUID
+	RequestAgentID     pgtype.Text
 	RequestMethod      pgtype.Text
 	RequestPath        pgtype.Text
 	RequestHeaders     []byte
@@ -149,6 +152,7 @@ func (q *Queries) GetRequestByID(ctx context.Context, arg GetRequestByIDParams) 
 		if err := rows.Scan(
 			&i.RequestID,
 			&i.RequestGateID,
+			&i.RequestAgentID,
 			&i.RequestMethod,
 			&i.RequestPath,
 			&i.RequestHeaders,
@@ -216,13 +220,14 @@ func (q *Queries) SaveGate(ctx context.Context, arg SaveGateParams) error {
 }
 
 const saveRequest = `-- name: SaveRequest :exec
-INSERT INTO requests (id, gate_id, method, path, headers, body, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO requests (id, gate_id, agent_id, method, path, headers, body, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type SaveRequestParams struct {
 	ID        pgtype.UUID
 	GateID    pgtype.UUID
+	AgentID   pgtype.Text
 	Method    pgtype.Text
 	Path      pgtype.Text
 	Headers   []byte
@@ -234,6 +239,7 @@ func (q *Queries) SaveRequest(ctx context.Context, arg SaveRequestParams) error 
 	_, err := q.db.Exec(ctx, saveRequest,
 		arg.ID,
 		arg.GateID,
+		arg.AgentID,
 		arg.Method,
 		arg.Path,
 		arg.Headers,

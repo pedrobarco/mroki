@@ -11,13 +11,13 @@ import (
 type ResponseType string
 
 const (
-	ResponseTypeLive   = "live"
-	ResponseTypeShadow = "shadow"
+	ResponseTypeLive   ResponseType = "live"
+	ResponseTypeShadow ResponseType = "shadow"
 )
 
 func NewResponseType(s string) (ResponseType, error) {
 	switch s {
-	case ResponseTypeLive, ResponseTypeShadow:
+	case string(ResponseTypeLive), string(ResponseTypeShadow):
 		return ResponseType(s), nil
 	default:
 		return "", fmt.Errorf("invalid response type: %s", s)

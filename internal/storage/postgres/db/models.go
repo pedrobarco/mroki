@@ -25,6 +25,7 @@ type Gate struct {
 type Request struct {
 	ID        pgtype.UUID
 	GateID    pgtype.UUID
+	AgentID   pgtype.Text
 	Method    pgtype.Text
 	Path      pgtype.Text
 	Headers   []byte

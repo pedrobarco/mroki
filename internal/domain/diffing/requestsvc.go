@@ -1,5 +1,7 @@
 package diffing
 
+//go:generate go tool mockgen -destination=mocks/mock_request_repository.go -package=mocks github.com/pedrobarco/mroki/internal/domain/diffing RequestRepository
+
 import (
 	"context"
 	"fmt"

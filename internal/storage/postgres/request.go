@@ -8,19 +8,23 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 	"github.com/pedrobarco/mroki/internal/storage/postgres/db"
 )
 
+// TxBeginner is an interface for beginning transactions
+type TxBeginner interface {
+	Begin(context.Context) (pgx.Tx, error)
+}
+
 type requestRepository struct {
 	queries *db.Queries
-	pool    *pgxpool.Pool
+	pool    TxBeginner
 }
 
 var _ diffing.RequestRepository = (*requestRepository)(nil)
 
-func NewRequestRepository(queries *db.Queries, pool *pgxpool.Pool) *requestRepository {
+func NewRequestRepository(queries *db.Queries, pool TxBeginner) *requestRepository {
 	return &requestRepository{
 		queries: queries,
 		pool:    pool,
@@ -36,6 +40,7 @@ func (r *requestRepository) Save(ctx context.Context, request *diffing.Request) 
 	params := db.SaveRequestParams{
 		ID:        pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
 		GateID:    pgtype.UUID{Bytes: request.GateID.UUID(), Valid: true},
+		AgentID:   pgtype.Text{String: request.AgentID.String(), Valid: request.AgentID.String() != ""},
 		Method:    pgtype.Text{String: request.Method, Valid: true},
 		Path:      pgtype.Text{String: request.Path, Valid: true},
 		Headers:   headers,
@@ -147,9 +152,18 @@ func (r *requestRepository) toDomain(raw db.Request) (*diffing.Request, error) {
 		return nil, fmt.Errorf("invalid gate ID in database: %w", err)
 	}
 
+	var agentID diffing.AgentID
+	if raw.AgentID.Valid && raw.AgentID.String != "" {
+		agentID, err = diffing.ParseAgentID(raw.AgentID.String)
+		if err != nil {
+			return nil, fmt.Errorf("invalid agent ID in database: %w", err)
+		}
+	}
+
 	return &diffing.Request{
 		ID:        id,
 		GateID:    gateID,
+		AgentID:   agentID,
 		Method:    raw.Method.String,
 		Path:      raw.Path.String,
 		Headers:   headers,
@@ -174,9 +188,18 @@ func (r *requestRepository) toFullRequest(rows []db.GetRequestByIDRow) (*diffing
 		return nil, fmt.Errorf("invalid gate ID in database: %w", err)
 	}
 
+	var agentID diffing.AgentID
+	if rows[0].RequestAgentID.Valid && rows[0].RequestAgentID.String != "" {
+		agentID, err = diffing.ParseAgentID(rows[0].RequestAgentID.String)
+		if err != nil {
+			return nil, fmt.Errorf("invalid agent ID in database: %w", err)
+		}
+	}
+
 	req := &diffing.Request{
 		ID:        id,
 		GateID:    gateID,
+		AgentID:   agentID,
 		Method:    rows[0].RequestMethod.String,
 		Path:      rows[0].RequestPath.String,
 		Headers:   reqHeaders,

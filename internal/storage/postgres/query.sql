@@ -12,13 +12,14 @@ SELECT id, live_url, shadow_url
 FROM gates;
 
 -- name: SaveRequest :exec
-INSERT INTO requests (id, gate_id, method, path, headers, body, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7);
+INSERT INTO requests (id, gate_id, agent_id, method, path, headers, body, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: GetRequestByID :many
 SELECT
   req.id as request_id,
   req.gate_id as request_gate_id,
+  req.agent_id as request_agent_id,
   req.method as request_method,
   req.path as request_path,
   req.headers as request_headers,
@@ -43,7 +44,7 @@ LEFT JOIN diffs diff ON diff.request_id = req.id
 WHERE req.gate_id = $1 AND req.id = $2;
 
 -- name: GetAllRequestsByGateID :many
-SELECT id, gate_id, method, path, headers, body, created_at
+SELECT id, gate_id, agent_id, method, path, headers, body, created_at
 FROM requests
 WHERE gate_id = $1
 ORDER BY created_at DESC;
