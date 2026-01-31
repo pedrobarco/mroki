@@ -6,62 +6,44 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
+	"github.com/pedrobarco/mroki/internal/domain/diffing"
 )
 
 const agentIDFile = ".agent_id"
 
 // loadOrGenerateAgentID loads the agent ID from disk, or generates a new one if it doesn't exist.
 // The agent ID is stored in a .agent_id file in the current working directory.
-// Format: {hostname}-{8-char-uuid}
-// Example: web-server-a1b2c3d4
+// Format: {hostname}-{8-hex-chars}
+// Example: web-server-a1b2c3d4, api-prod-550e8400
 func loadOrGenerateAgentID() (string, error) {
 	// Try to read existing agent ID
 	data, err := os.ReadFile(agentIDFile)
 	if err == nil {
 		agentID := strings.TrimSpace(string(data))
 		if agentID != "" {
-			// Validate it's a proper UUID format
-			if _, err := uuid.Parse(agentID); err == nil {
+			// Validate it matches the hybrid format
+			if _, err := diffing.ParseAgentID(agentID); err == nil {
 				return agentID, nil
 			}
+			// If validation fails, log a warning and regenerate
+			fmt.Printf("Warning: existing agent ID %q is invalid, generating new one\n", agentID)
 		}
 	}
 
-	// Generate new agent ID
-	agentID := generateAgentID()
+	// Generate new agent ID using hostname
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "agent"
+	}
+
+	agentID := diffing.NewAgentIDWithHostname(hostname)
 
 	// Save to disk
-	if err := saveAgentID(agentID); err != nil {
+	if err := saveAgentID(agentID.String()); err != nil {
 		return "", fmt.Errorf("failed to save agent ID: %w", err)
 	}
 
-	return agentID, nil
-}
-
-// generateAgentID creates a new agent ID with format: {hostname}-{8-char-uuid}
-func generateAgentID() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "unknown"
-	}
-
-	// Clean hostname: replace invalid characters with hyphens
-	hostname = strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' {
-			return r
-		}
-		return '-'
-	}, hostname)
-
-	// Truncate hostname if too long
-	if len(hostname) > 50 {
-		hostname = hostname[:50]
-	}
-
-	// Generate UUID and create full agent ID
-	id := uuid.New()
-	return fmt.Sprintf("%s-%s", hostname, id.String())
+	return agentID.String(), nil
 }
 
 // saveAgentID saves the agent ID to the .agent_id file

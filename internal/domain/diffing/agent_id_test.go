@@ -3,46 +3,97 @@ package diffing_test
 import (
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseAgentID_valid_uuid(t *testing.T) {
-	input := "323e4567-e89b-12d3-a456-426614174000"
+func TestParseAgentID_valid_hybrid_format(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{"simple hostname", "web-server-a1b2c3d4"},
+		{"hostname with numbers", "api-prod-1-550e8400"},
+		{"short hostname", "app-f47ac10b"},
+		{"long hostname", "my-very-long-hostname-that-is-almost-fifty-chars-12345678"},
+		{"uppercase hex accepted", "server-A1B2C3D4"},
+	}
 
-	id, err := diffing.ParseAgentID(input)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			id, err := diffing.ParseAgentID(tc.input)
 
-	assert.NoError(t, err)
-	assert.Equal(t, input, id.String())
-	assert.False(t, id.IsZero())
+			assert.NoError(t, err)
+			assert.Equal(t, tc.input, id.String())
+		})
+	}
 }
 
-func TestParseAgentID_invalid_uuid(t *testing.T) {
-	input := "not-a-uuid"
+func TestParseAgentID_invalid_formats(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input string
+	}{
+		{"empty string", ""},
+		{"pure uuid", "550e8400-e29b-41d4-a716-446655440000"},
+		{"no dash", "webservera1b2c3d4"},
+		{"too short uuid segment", "server-a1b2c3d"},
+		{"too long uuid segment", "server-a1b2c3d4e"},
+		{"non-hex chars", "server-g1h2i3j4"},
+		{"special chars in hostname", "web@server-a1b2c3d4"},
+		{"hostname too long", "this-is-a-very-very-very-very-very-very-very-long-hostname-that-exceeds-fifty-characters-a1b2c3d4"},
+		{"space in hostname", "web server-a1b2c3d4"},
+	}
 
-	id, err := diffing.ParseAgentID(input)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			id, err := diffing.ParseAgentID(tc.input)
 
-	assert.ErrorIs(t, err, diffing.ErrInvalidAgentID)
-	assert.True(t, id.IsZero())
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, diffing.ErrInvalidAgentID)
+			assert.True(t, id.IsZero())
+		})
+	}
 }
 
 func TestNewAgentID_creates_unique_ids(t *testing.T) {
 	id1 := diffing.NewAgentID()
 	id2 := diffing.NewAgentID()
 
+	assert.NotEqual(t, id1.String(), id2.String(), "should create unique IDs")
 	assert.False(t, id1.IsZero())
 	assert.False(t, id2.IsZero())
-	assert.NotEqual(t, id1.String(), id2.String())
+
+	// Should match the hybrid format
+	_, err1 := diffing.ParseAgentID(id1.String())
+	_, err2 := diffing.ParseAgentID(id2.String())
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
 }
 
-func TestAgentIDFromUUID_roundtrip(t *testing.T) {
-	original := uuid.New()
+func TestNewAgentIDWithHostname(t *testing.T) {
+	testCases := []struct {
+		name     string
+		hostname string
+	}{
+		{"simple", "web-server"},
+		{"with numbers", "api-v2-prod"},
+		{"needs sanitization", "web@server!123"},
+		{"very long", "this-is-a-very-very-very-very-very-very-very-long-hostname-that-exceeds-max"},
+	}
 
-	agentID := diffing.AgentIDFromUUID(original)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			id := diffing.NewAgentIDWithHostname(tc.hostname)
 
-	assert.Equal(t, original, agentID.UUID())
-	assert.Equal(t, original.String(), agentID.String())
+			assert.False(t, id.IsZero())
+
+			// Should be valid hybrid format
+			parsed, err := diffing.ParseAgentID(id.String())
+			assert.NoError(t, err)
+			assert.Equal(t, id.String(), parsed.String())
+		})
+	}
 }
 
 func TestAgentID_IsZero(t *testing.T) {
