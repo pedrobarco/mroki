@@ -181,6 +181,7 @@ func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 	defer shadowServer.Close()
 
 	done := make(chan struct{})
+	var capturedReq proxy.ProxyRequest
 	var capturedLive, capturedShadow proxy.ProxyResponse
 
 	liveURL, _ := url.Parse(liveServer.URL)
@@ -188,7 +189,8 @@ func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 	p := proxy.NewProxy(
 		liveURL,
 		shadowURL,
-		proxy.WithCallbackFn(func(live, shadow proxy.ProxyResponse) error {
+		proxy.WithCallbackFn(func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+			capturedReq = req
 			capturedLive = live
 			capturedShadow = shadow
 			close(done)
@@ -209,6 +211,8 @@ func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 		t.Fatal("callback was not called within timeout")
 	}
 
+	assert.Equal(t, "GET", capturedReq.Method)
+	assert.Equal(t, "/test", capturedReq.Path)
 	assert.Equal(t, http.StatusOK, capturedLive.StatusCode)
 	assert.Equal(t, http.StatusOK, capturedShadow.StatusCode)
 }

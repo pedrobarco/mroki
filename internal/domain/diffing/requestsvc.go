@@ -30,6 +30,7 @@ func NewRequestService(repo RequestRepository) *RequestService {
 type CreateRequestProps struct {
 	ID        string
 	GateID    string
+	AgentID   string
 	Method    string
 	Path      string
 	Headers   map[string][]string
@@ -64,6 +65,15 @@ func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (
 	var requestID RequestID
 	if props.ID != "" {
 		requestID, err = ParseRequestID(props.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Parse agent ID (optional)
+	var agentID AgentID
+	if props.AgentID != "" {
+		agentID, err = ParseAgentID(props.AgentID)
 		if err != nil {
 			return nil, err
 		}
@@ -136,6 +146,7 @@ func (s *RequestService) Create(ctx context.Context, props CreateRequestProps) (
 		responses,
 		*diff,
 		WithRequestID(requestID),
+		WithAgentID(agentID),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

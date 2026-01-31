@@ -29,6 +29,12 @@ func WithRequestID(id RequestID) requestOption {
 	}
 }
 
+func WithAgentID(id AgentID) requestOption {
+	return func(r *Request) {
+		r.AgentID = id
+	}
+}
+
 func NewRequest(
 	gateID GateID,
 	method string,

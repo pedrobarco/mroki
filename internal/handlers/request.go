@@ -44,6 +44,7 @@ func CreateRequest(svc *diffing.RequestService) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			ID        string              `json:"id,omitempty"`
+			AgentID   string              `json:"agent_id"`
 			Method    string              `json:"method"`
 			Path      string              `json:"path"`
 			Headers   map[string][]string `json:"headers"`
@@ -77,6 +78,7 @@ func CreateRequest(svc *diffing.RequestService) AppHandler {
 		props := diffing.CreateRequestProps{
 			ID:        req.ID,
 			GateID:    gateIDStr,
+			AgentID:   req.AgentID,
 			Method:    req.Method,
 			Path:      req.Path,
 			Headers:   req.Headers,

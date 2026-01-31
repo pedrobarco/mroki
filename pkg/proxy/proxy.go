@@ -17,7 +17,15 @@ var (
 	defaultShadowTimeout = 10 * time.Second
 )
 
-type CallbackFunc func(live, shadow ProxyResponse) error
+// ProxyRequest represents the original HTTP request being proxied
+type ProxyRequest struct {
+	Method  string
+	Path    string
+	Headers http.Header
+	Body    []byte
+}
+
+type CallbackFunc func(req ProxyRequest, live, shadow ProxyResponse) error
 
 type Proxy struct {
 	Live   *url.URL
@@ -249,6 +257,12 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			proxyReq := ProxyRequest{
+				Method:  r.Method,
+				Path:    r.URL.Path,
+				Headers: r.Header.Clone(),
+				Body:    body,
+			}
 			live := ProxyResponse{
 				StatusCode: liveResp.resp.StatusCode,
 				Response:   liveResp.resp,
@@ -260,7 +274,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Body:       shadowResp.body,
 			}
 
-			if err := p.callbackFn(live, shadow); err != nil {
+			if err := p.callbackFn(proxyReq, live, shadow); err != nil {
 				p.logger.Error("callback error", "error", err)
 			}
 
@@ -324,7 +338,7 @@ func defaultCallbackFn() CallbackFunc {
 	logger := slog.Default()
 	differ := NewProxyResponseDiffer()
 
-	return func(live, shadow ProxyResponse) error {
+	return func(req ProxyRequest, live, shadow ProxyResponse) error {
 		// Skip non-JSON responses
 		if !isJSONContent(live.Response) || !isJSONContent(shadow.Response) {
 			logger.Debug("skipping diff for non-JSON responses",
@@ -348,12 +362,16 @@ func defaultCallbackFn() CallbackFunc {
 
 		if len(res) > 0 {
 			logger.Info("response diff detected",
+				"method", req.Method,
+				"path", req.Path,
 				"live_status", live.StatusCode,
 				"shadow_status", shadow.StatusCode,
 				"diff_length", len(res),
 			)
 		} else {
 			logger.Debug("responses match",
+				"method", req.Method,
+				"path", req.Path,
 				"live_status", live.StatusCode,
 				"shadow_status", shadow.StatusCode,
 			)

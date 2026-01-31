@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/internal/config"
 )
 
@@ -14,6 +15,13 @@ type Config config.Config[struct {
 	Port          int           `env:"PORT, default=8080"`
 	LiveTimeout   time.Duration `env:"LIVE_TIMEOUT, default=5s"`
 	ShadowTimeout time.Duration `env:"SHADOW_TIMEOUT, default=10s"`
+
+	// API integration (optional - if not set, agent runs in standalone mode)
+	APIURL     *url.URL      `env:"API_URL"`
+	GateID     string        `env:"GATE_ID"`
+	MaxRetries int           `env:"MAX_RETRIES, default=3"`
+	RetryDelay time.Duration `env:"RETRY_DELAY, default=1s"`
+	APITimeout time.Duration `env:"API_TIMEOUT, default=30s"`
 }]
 
 // Validate checks all configuration values and returns a ValidationError
@@ -49,6 +57,39 @@ func (c Config) Validate() error {
 	// Validate shadow timeout
 	if c.App.ShadowTimeout <= 0 {
 		verr.Add(fmt.Errorf("shadow_timeout must be positive, got %s", c.App.ShadowTimeout))
+	}
+
+	// Validate API configuration (optional, but if one is set, both must be set)
+	hasAPIURL := c.App.APIURL != nil
+	hasGateID := c.App.GateID != ""
+
+	if hasAPIURL != hasGateID {
+		verr.Add(fmt.Errorf("api_url and gate_id must both be set or both be empty"))
+	}
+
+	if hasAPIURL {
+		// Validate API URL scheme
+		if c.App.APIURL.Scheme != "http" && c.App.APIURL.Scheme != "https" {
+			verr.Add(fmt.Errorf("api_url must use http or https scheme, got %q", c.App.APIURL.Scheme))
+		}
+
+		// Validate gate ID is a valid UUID
+		if _, err := uuid.Parse(c.App.GateID); err != nil {
+			verr.Add(fmt.Errorf("gate_id must be a valid UUID: %w", err))
+		}
+
+		// Validate retry config
+		if c.App.MaxRetries < 0 {
+			verr.Add(fmt.Errorf("max_retries must be non-negative, got %d", c.App.MaxRetries))
+		}
+
+		if c.App.RetryDelay <= 0 {
+			verr.Add(fmt.Errorf("retry_delay must be positive, got %s", c.App.RetryDelay))
+		}
+
+		if c.App.APITimeout <= 0 {
+			verr.Add(fmt.Errorf("api_timeout must be positive, got %s", c.App.APITimeout))
+		}
 	}
 
 	if verr.HasErrors() {
