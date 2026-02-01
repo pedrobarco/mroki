@@ -18,16 +18,24 @@ All successful API responses follow this structure:
 }
 ```
 
-All error responses follow this structure:
+All error responses follow RFC 7807 (Problem Details for HTTP APIs):
 
 ```json
 {
-  "error": {
-    "message": "human-readable error message",
-    "details": "additional error context (optional)"
-  }
+  "type": "/errors/invalid-request-body",
+  "title": "Invalid Request Body",
+  "status": 400,
+  "detail": "live_url is required",
+  "instance": "/gates"
 }
 ```
+
+**RFC 7807 Error Fields:**
+- `type` - URI identifying the error type (relative path)
+- `title` - Short, human-readable summary of the error type
+- `status` - HTTP status code (matches response status)
+- `detail` - Human-readable explanation specific to this occurrence
+- `instance` - URI reference identifying the specific request (populated for 4xx errors only)
 
 ---
 
@@ -102,10 +110,11 @@ curl http://localhost:8081/health/ready
 **Error Response Examples:**
 ```json
 {
-  "error": {
-    "message": "invalid URL",
-    "details": "live_url must use http or https scheme"
-  }
+  "type": "/errors/invalid-request-body",
+  "title": "Invalid Gate URL",
+  "status": 400,
+  "detail": "live_url and shadow_url must use http or https scheme",
+  "instance": "/gates"
 }
 ```
 
@@ -377,14 +386,39 @@ curl http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000/requests
 
 ### Error Response Format
 
+All errors follow RFC 7807 (Problem Details for HTTP APIs):
+
 ```json
 {
-  "error": {
-    "message": "brief error description",
-    "details": "detailed error context (optional)"
-  }
+  "type": "/errors/not-found",
+  "title": "Gate Not Found",
+  "status": 404,
+  "detail": "gate with id \"550e8400-e29b-41d4-a716-446655440000\" does not exist",
+  "instance": "/gates/550e8400-e29b-41d4-a716-446655440000"
 }
 ```
+
+**Field Descriptions:**
+- `type` - URI reference identifying the problem type (e.g., `/errors/invalid-request-body`)
+- `title` - Short, human-readable summary that remains consistent for this error type
+- `status` - HTTP status code (always matches the response status header)
+- `detail` - Human-readable explanation specific to this occurrence of the error
+- `instance` - URI reference to the specific resource/request (auto-populated for 4xx errors, empty for 5xx)
+
+### Error Types
+
+The API uses the following generic error types:
+
+| Type | Title | Status | Usage |
+|------|-------|--------|-------|
+| `/errors/invalid-request-body` | Invalid Request Body | 400 | Malformed JSON, validation failures, invalid IDs/URLs |
+| `/errors/missing-body-field` | Missing Required Field | 400 | Required body field is missing |
+| `/errors/missing-path-param` | Missing Path Parameter | 400 | Required path parameter is missing |
+| `/errors/missing-query-param` | Missing Query Parameter | 400 | Required query parameter is missing |
+| `/errors/invalid-query-param` | Invalid Query Parameter | 400 | Invalid pagination, filters, or sort parameters |
+| `/errors/missing-header` | Missing Required Header | 400 | Required header is missing (future auth) |
+| `/errors/not-found` | Resource Not Found | 404 | Gate or Request doesn't exist |
+| `/errors/internal-error` | Internal Server Error | 500 | Unexpected server errors |
 
 ### HTTP Status Codes
 
@@ -400,42 +434,68 @@ curl http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000/requests
 #### Invalid UUID Format
 ```json
 {
-  "error": {
-    "message": "invalid gate ID",
-    "details": "gate_id must be a valid UUID"
-  }
+  "type": "/errors/invalid-request-body",
+  "title": "Invalid Gate ID",
+  "status": 400,
+  "detail": "gate_id must be a valid UUID, got \"not-a-uuid\"",
+  "instance": "/gates/not-a-uuid"
 }
 ```
 
 #### Missing Required Field
 ```json
 {
-  "error": {
-    "message": "missing required property",
-    "details": "live_url is required"
-  }
+  "type": "/errors/missing-body-field",
+  "title": "Missing Required Field",
+  "status": 400,
+  "detail": "live_url is required",
+  "instance": "/gates"
 }
 ```
 
 #### Resource Not Found
 ```json
 {
-  "error": {
-    "message": "gate not found",
-    "details": "no gate exists with id 550e8400-e29b-41d4-a716-446655440000"
-  }
+  "type": "/errors/not-found",
+  "title": "Gate Not Found",
+  "status": 404,
+  "detail": "gate with id \"550e8400-e29b-41d4-a716-446655440000\" does not exist",
+  "instance": "/gates/550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
 #### Invalid URL
 ```json
 {
-  "error": {
-    "message": "invalid URL",
-    "details": "live_url must use http or https scheme"
-  }
+  "type": "/errors/invalid-request-body",
+  "title": "Invalid Gate URL",
+  "status": 400,
+  "detail": "live_url and shadow_url must use http or https scheme: invalid gate URL: scheme must be http or https, got \"ftp\"",
+  "instance": "/gates"
 }
 ```
+
+#### Invalid Pagination
+```json
+{
+  "type": "/errors/invalid-query-param",
+  "title": "Invalid Query Parameter",
+  "status": 400,
+  "detail": "limit and offset must be non-negative integers: invalid pagination parameters: limit must be non-negative, got -10",
+  "instance": "/gates"
+}
+```
+
+#### Internal Server Error
+```json
+{
+  "type": "/errors/internal-error",
+  "title": "Internal Server Error",
+  "status": 500,
+  "detail": "An unknown error occurred. Please try again later."
+}
+```
+**Note:** 5xx errors do NOT include the `instance` field for security reasons.
 
 ---
 
