@@ -316,7 +316,7 @@ ORDER BY created_at DESC;
 
 Schema is applied automatically on startup by mroki-api. No migration tool yet.
 
-**Location:** `internal/storage/postgres/schema.sql`
+**Location:** `internal/infrastructure/persistence/postgres/db/`
 
 ### Future (v2+)
 
@@ -454,7 +454,7 @@ Partition `requests` table by `created_at` for efficient archival.
 
 The definitive schema is maintained in:
 
-**File:** `internal/storage/postgres/schema.sql`
+**File:** `internal/infrastructure/persistence/postgres/db/`
 
 **Applied by:** mroki-api on startup
 

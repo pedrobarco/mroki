@@ -40,10 +40,10 @@ mroki/
 │   ├── mroki-hub/         # Web UI (Vue.js)
 │   └── caddy-mroki/       # Caddy module main
 ├── internal/              # Private application code
-│   ├── domain/            # Business logic
-│   ├── handlers/          # HTTP handlers
-│   ├── storage/           # Database layer
-│   └── middleware/        # HTTP middleware
+│   ├── application/       # CQRS commands and queries
+│   ├── domain/            # Business logic and domain models
+│   ├── infrastructure/    # External concerns (database, etc.)
+│   └── interfaces/        # HTTP handlers and middleware
 ├── pkg/                   # Public libraries
 │   ├── proxy/             # Core proxy logic
 │   ├── diff/              # JSON diffing
@@ -191,7 +191,7 @@ func TestProxy_ServeHTTP(t *testing.T) {
 
 ### Schema Changes
 
-Currently using sqlc for type-safe queries. Schema is in `internal/storage/postgres/schema.sql`.
+Currently using sqlc for type-safe queries. Schema is in `internal/infrastructure/persistence/postgres/db/`.
 
 **To modify schema:**
 
@@ -314,7 +314,7 @@ test(proxy): add test for timeout handling
 go test -v ./...
 
 # Run tests for specific package
-go test ./internal/domain/diffing -v
+go test ./internal/domain/traffictesting -v
 
 # Benchmark tests
 go test -bench=. ./pkg/proxy

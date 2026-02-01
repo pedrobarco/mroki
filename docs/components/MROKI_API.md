@@ -164,7 +164,7 @@ See [API Contracts](../architecture/API_CONTRACTS.md) for full endpoint document
 
 ### Schema
 
-The API automatically creates tables on startup. See `internal/storage/postgres/schema.sql` for details.
+The API automatically creates tables on startup. See `internal/infrastructure/persistence/postgres/db/` for schema details.
 
 **Core Tables:**
 - `gates` - Live/shadow service pairs
@@ -557,7 +557,7 @@ SELECT COUNT(*) FROM requests WHERE gate_id = '550e8400-e29b-41d4-a716-446655440
 go test ./internal/...
 
 # Run API handler tests
-go test ./internal/handlers/...
+go test ./internal/interfaces/http/handlers/...
 
 # Run domain tests
 go test ./internal/domain/...
