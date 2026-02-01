@@ -42,8 +42,8 @@ func (r *requestRepository) Save(ctx context.Context, request *traffictesting.Re
 		ID:        pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
 		GateID:    pgtype.UUID{Bytes: request.GateID.UUID(), Valid: true},
 		AgentID:   pgtype.Text{String: request.AgentID.String(), Valid: request.AgentID.String() != ""},
-		Method:    pgtype.Text{String: request.Method, Valid: true},
-		Path:      pgtype.Text{String: request.Path, Valid: true},
+		Method:    request.Method,
+		Path:      request.Path,
 		Headers:   headers,
 		Body:      request.Body,
 		CreatedAt: pgtype.Timestamptz{Time: request.CreatedAt, Valid: true},
@@ -72,9 +72,9 @@ func (r *requestRepository) Save(ctx context.Context, request *traffictesting.Re
 
 		if err := qtx.SaveResponse(ctx, db.SaveResponseParams{
 			ID:         pgtype.UUID{Bytes: resp.ID, Valid: true},
-			Type:       pgtype.Text{String: string(resp.Type), Valid: true},
+			Type:       string(resp.Type),
 			RequestID:  pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
-			StatusCode: pgtype.Int4{Int32: int32(resp.StatusCode), Valid: true},
+			StatusCode: int32(resp.StatusCode),
 			Headers:    headers,
 			Body:       resp.Body,
 			CreatedAt:  pgtype.Timestamptz{Time: resp.CreatedAt, Valid: true},
@@ -83,14 +83,17 @@ func (r *requestRepository) Save(ctx context.Context, request *traffictesting.Re
 		}
 	}
 
-	if err := qtx.SaveDiff(ctx, db.SaveDiffParams{
-		ID:             pgtype.UUID{Bytes: request.Diff.ID, Valid: true},
-		RequestID:      pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
-		FromResponseID: pgtype.UUID{Bytes: request.Diff.FromResponseID, Valid: true},
-		ToResponseID:   pgtype.UUID{Bytes: request.Diff.ToResponseID, Valid: true},
-		Content:        []byte(request.Diff.Content),
-	}); err != nil {
-		return fmt.Errorf("failed to save diff: %w", err)
+	// Only save diff if it exists (has from/to response IDs)
+	// Per domain rules: Request + 2 Responses always creates Diff (even if content empty)
+	if !request.Diff.IsZero() {
+		if err := qtx.SaveDiff(ctx, db.SaveDiffParams{
+			RequestID:      pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
+			FromResponseID: pgtype.UUID{Bytes: request.Diff.FromResponseID, Valid: true},
+			ToResponseID:   pgtype.UUID{Bytes: request.Diff.ToResponseID, Valid: true},
+			Content:        request.Diff.Content,
+		}); err != nil {
+			return fmt.Errorf("failed to save diff: %w", err)
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -179,8 +182,8 @@ func (r *requestRepository) toDomain(raw db.Request) (*traffictesting.Request, e
 		ID:        id,
 		GateID:    gateID,
 		AgentID:   agentID,
-		Method:    raw.Method.String,
-		Path:      raw.Path.String,
+		Method:    raw.Method,
+		Path:      raw.Path,
 		Headers:   headers,
 		Body:      raw.Body,
 		CreatedAt: raw.CreatedAt.Time,
@@ -215,8 +218,8 @@ func (r *requestRepository) toFullRequest(rows []db.GetRequestByIDRow) (*traffic
 		ID:        id,
 		GateID:    gateID,
 		AgentID:   agentID,
-		Method:    rows[0].RequestMethod.String,
-		Path:      rows[0].RequestPath.String,
+		Method:    rows[0].RequestMethod,
+		Path:      rows[0].RequestPath,
 		Headers:   reqHeaders,
 		Body:      rows[0].RequestBody,
 		CreatedAt: rows[0].RequestCreatedAt.Time,
@@ -238,12 +241,15 @@ func (r *requestRepository) toFullRequest(rows []db.GetRequestByIDRow) (*traffic
 		})
 	}
 
-	req.Diff = traffictesting.Diff{
-		ID:             rows[0].DiffID.Bytes,
-		FromResponseID: rows[0].DiffFromResponseID.Bytes,
-		ToResponseID:   rows[0].DiffToResponseID.Bytes,
-		Content:        string(rows[0].DiffContent),
+	// Handle optional diff (LEFT JOIN can return NULL)
+	if rows[0].DiffFromResponseID.Valid {
+		req.Diff = traffictesting.Diff{
+			FromResponseID: rows[0].DiffFromResponseID.Bytes,
+			ToResponseID:   rows[0].DiffToResponseID.Bytes,
+			Content:        rows[0].DiffContent.String,
+		}
 	}
+	// If no diff exists, req.Diff remains zero value
 
 	return req, nil
 }

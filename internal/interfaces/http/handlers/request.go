@@ -38,7 +38,6 @@ type responseResponseDTO struct {
 }
 
 type diffResponseDTO struct {
-	ID      string `json:"id"`
 	Content string `json:"content"`
 }
 
@@ -266,7 +265,6 @@ func toFullRequestResponseDTO(req *traffictesting.Request) fullRequestResponseDT
 	}
 
 	dto.Diff = diffResponseDTO{
-		ID:      req.Diff.ID.String(),
 		Content: req.Diff.Content,
 	}
 

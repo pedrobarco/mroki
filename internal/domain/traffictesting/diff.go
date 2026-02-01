@@ -3,7 +3,6 @@ package traffictesting
 import "github.com/google/uuid"
 
 type Diff struct {
-	ID             uuid.UUID
 	FromResponseID uuid.UUID
 	ToResponseID   uuid.UUID
 	Content        string
@@ -11,15 +10,8 @@ type Diff struct {
 
 type diffOption func(*Diff)
 
-func WithDiffID(id uuid.UUID) diffOption {
-	return func(d *Diff) {
-		d.ID = id
-	}
-}
-
 func NewDiff(from, to uuid.UUID, content string, opts ...diffOption) (*Diff, error) {
 	diff := &Diff{
-		ID:             uuid.New(),
 		FromResponseID: from,
 		ToResponseID:   to,
 		Content:        content,
@@ -29,9 +21,19 @@ func NewDiff(from, to uuid.UUID, content string, opts ...diffOption) (*Diff, err
 		o(diff)
 	}
 
-	if diff.ID == uuid.Nil {
-		diff.ID = uuid.New()
-	}
-
 	return diff, nil
+}
+
+// IsZero returns true if the Diff is the zero value.
+// A zero Diff has nil FromResponseID and ToResponseID.
+func (d Diff) IsZero() bool {
+	return d.FromResponseID == uuid.Nil && d.ToResponseID == uuid.Nil
+}
+
+// Equals compares two Diff value objects for equality.
+// Value objects are equal if all their attributes are equal.
+func (d Diff) Equals(other Diff) bool {
+	return d.FromResponseID == other.FromResponseID &&
+		d.ToResponseID == other.ToResponseID &&
+		d.Content == other.Content
 }

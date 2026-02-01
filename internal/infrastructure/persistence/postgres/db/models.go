@@ -9,25 +9,24 @@ import (
 )
 
 type Diff struct {
-	ID             pgtype.UUID
 	RequestID      pgtype.UUID
 	FromResponseID pgtype.UUID
 	ToResponseID   pgtype.UUID
-	Content        []byte
+	Content        string
 }
 
 type Gate struct {
 	ID        pgtype.UUID
-	LiveUrl   pgtype.Text
-	ShadowUrl pgtype.Text
+	LiveUrl   string
+	ShadowUrl string
 }
 
 type Request struct {
 	ID        pgtype.UUID
 	GateID    pgtype.UUID
 	AgentID   pgtype.Text
-	Method    pgtype.Text
-	Path      pgtype.Text
+	Method    string
+	Path      string
 	Headers   []byte
 	Body      []byte
 	CreatedAt pgtype.Timestamptz
@@ -36,8 +35,8 @@ type Request struct {
 type Response struct {
 	ID         pgtype.UUID
 	RequestID  pgtype.UUID
-	Type       pgtype.Text
-	StatusCode pgtype.Int4
+	Type       string
+	StatusCode int32
 	Headers    []byte
 	Body       []byte
 	CreatedAt  pgtype.Timestamptz

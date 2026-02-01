@@ -141,7 +141,6 @@ SELECT
   resp.body AS response_body,
   resp.created_at AS response_created_at,
 
-  diff.id AS diff_id,
   diff.from_response_id AS diff_from_response_id,
   diff.to_response_id AS diff_to_response_id,
   diff.content AS diff_content
@@ -161,8 +160,8 @@ type GetRequestByIDRow struct {
 	RequestID          pgtype.UUID
 	RequestGateID      pgtype.UUID
 	RequestAgentID     pgtype.Text
-	RequestMethod      pgtype.Text
-	RequestPath        pgtype.Text
+	RequestMethod      string
+	RequestPath        string
 	RequestHeaders     []byte
 	RequestBody        []byte
 	RequestCreatedAt   pgtype.Timestamptz
@@ -172,10 +171,9 @@ type GetRequestByIDRow struct {
 	ResponseHeaders    []byte
 	ResponseBody       []byte
 	ResponseCreatedAt  pgtype.Timestamptz
-	DiffID             pgtype.UUID
 	DiffFromResponseID pgtype.UUID
 	DiffToResponseID   pgtype.UUID
-	DiffContent        []byte
+	DiffContent        pgtype.Text
 }
 
 func (q *Queries) GetRequestByID(ctx context.Context, arg GetRequestByIDParams) ([]GetRequestByIDRow, error) {
@@ -202,7 +200,6 @@ func (q *Queries) GetRequestByID(ctx context.Context, arg GetRequestByIDParams) 
 			&i.ResponseHeaders,
 			&i.ResponseBody,
 			&i.ResponseCreatedAt,
-			&i.DiffID,
 			&i.DiffFromResponseID,
 			&i.DiffToResponseID,
 			&i.DiffContent,
@@ -218,21 +215,19 @@ func (q *Queries) GetRequestByID(ctx context.Context, arg GetRequestByIDParams) 
 }
 
 const saveDiff = `-- name: SaveDiff :exec
-INSERT INTO diffs (id, request_id, from_response_id, to_response_id, content)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO diffs (request_id, from_response_id, to_response_id, content)
+VALUES ($1, $2, $3, $4)
 `
 
 type SaveDiffParams struct {
-	ID             pgtype.UUID
 	RequestID      pgtype.UUID
 	FromResponseID pgtype.UUID
 	ToResponseID   pgtype.UUID
-	Content        []byte
+	Content        string
 }
 
 func (q *Queries) SaveDiff(ctx context.Context, arg SaveDiffParams) error {
 	_, err := q.db.Exec(ctx, saveDiff,
-		arg.ID,
 		arg.RequestID,
 		arg.FromResponseID,
 		arg.ToResponseID,
@@ -248,8 +243,8 @@ VALUES ($1, $2, $3)
 
 type SaveGateParams struct {
 	ID        pgtype.UUID
-	LiveUrl   pgtype.Text
-	ShadowUrl pgtype.Text
+	LiveUrl   string
+	ShadowUrl string
 }
 
 func (q *Queries) SaveGate(ctx context.Context, arg SaveGateParams) error {
@@ -266,8 +261,8 @@ type SaveRequestParams struct {
 	ID        pgtype.UUID
 	GateID    pgtype.UUID
 	AgentID   pgtype.Text
-	Method    pgtype.Text
-	Path      pgtype.Text
+	Method    string
+	Path      string
 	Headers   []byte
 	Body      []byte
 	CreatedAt pgtype.Timestamptz
@@ -295,8 +290,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 type SaveResponseParams struct {
 	ID         pgtype.UUID
 	RequestID  pgtype.UUID
-	Type       pgtype.Text
-	StatusCode pgtype.Int4
+	Type       string
+	StatusCode int32
 	Headers    []byte
 	Body       []byte
 	CreatedAt  pgtype.Timestamptz

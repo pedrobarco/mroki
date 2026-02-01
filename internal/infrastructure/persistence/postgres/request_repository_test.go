@@ -31,7 +31,6 @@ func TestRequestRepository_Save_success(t *testing.T) {
 	requestID := traffictesting.NewRequestID()
 	liveRespID := uuid.New()
 	shadowRespID := uuid.New()
-	diffID := uuid.New()
 
 	request := &traffictesting.Request{
 		ID:        requestID,
@@ -60,7 +59,6 @@ func TestRequestRepository_Save_success(t *testing.T) {
 			},
 		},
 		Diff: traffictesting.Diff{
-			ID:             diffID,
 			FromResponseID: liveRespID,
 			ToResponseID:   shadowRespID,
 			Content:        "no differences",
@@ -79,7 +77,7 @@ func TestRequestRepository_Save_success(t *testing.T) {
 		WithArgs(pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 	mock.ExpectExec("INSERT INTO diffs").
-		WithArgs(pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
+		WithArgs(pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 	mock.ExpectCommit()
 	mock.ExpectRollback() // Deferred rollback
@@ -168,7 +166,6 @@ func TestRequestRepository_GetByID_success(t *testing.T) {
 	gateID := traffictesting.NewGateID()
 	liveRespID := uuid.New()
 	shadowRespID := uuid.New()
-	diffID := uuid.New()
 	now := time.Now()
 
 	// Mock the complex joined query result
@@ -176,14 +173,14 @@ func TestRequestRepository_GetByID_success(t *testing.T) {
 		"request_id", "request_gate_id", "request_agent_id", "request_method", "request_path",
 		"request_headers", "request_body", "request_created_at",
 		"response_id", "response_type", "response_status_code", "response_headers", "response_body", "response_created_at",
-		"diff_id", "diff_from_response_id", "diff_to_response_id", "diff_content",
+		"diff_from_response_id", "diff_to_response_id", "diff_content",
 	}).
 		AddRow(
 			pgtype.UUID{Bytes: requestID.UUID(), Valid: true},
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
 			pgtype.Text{String: "", Valid: false},
-			pgtype.Text{String: "GET", Valid: true},
-			pgtype.Text{String: "/test", Valid: true},
+			"GET",
+			"/test",
 			[]byte(`{}`),
 			[]byte(`{"test":"data"}`),
 			pgtype.Timestamptz{Time: now, Valid: true},
@@ -193,17 +190,16 @@ func TestRequestRepository_GetByID_success(t *testing.T) {
 			[]byte(`{}`),
 			[]byte(`{"status":"ok"}`),
 			pgtype.Timestamptz{Time: now, Valid: true},
-			pgtype.UUID{Bytes: diffID, Valid: true},
 			pgtype.UUID{Bytes: liveRespID, Valid: true},
 			pgtype.UUID{Bytes: shadowRespID, Valid: true},
-			[]byte("no diff"),
+			pgtype.Text{String: "no diff", Valid: true},
 		).
 		AddRow(
 			pgtype.UUID{Bytes: requestID.UUID(), Valid: true},
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
 			pgtype.Text{String: "", Valid: false},
-			pgtype.Text{String: "GET", Valid: true},
-			pgtype.Text{String: "/test", Valid: true},
+			"GET",
+			"/test",
 			[]byte(`{}`),
 			[]byte(`{"test":"data"}`),
 			pgtype.Timestamptz{Time: now, Valid: true},
@@ -213,10 +209,9 @@ func TestRequestRepository_GetByID_success(t *testing.T) {
 			[]byte(`{}`),
 			[]byte(`{"status":"ok"}`),
 			pgtype.Timestamptz{Time: now, Valid: true},
-			pgtype.UUID{Bytes: diffID, Valid: true},
 			pgtype.UUID{Bytes: liveRespID, Valid: true},
 			pgtype.UUID{Bytes: shadowRespID, Valid: true},
-			[]byte("no diff"),
+			pgtype.Text{String: "no diff", Valid: true},
 		)
 
 	mock.ExpectQuery("SELECT (.+) FROM requests").
@@ -250,7 +245,7 @@ func TestRequestRepository_GetByID_not_found(t *testing.T) {
 		"request_id", "request_gate_id", "request_agent_id", "request_method", "request_path",
 		"request_headers", "request_body", "request_created_at",
 		"response_id", "response_type", "response_status_code", "response_headers", "response_body", "response_created_at",
-		"diff_id", "diff_from_response_id", "diff_to_response_id", "diff_content",
+		"diff_from_response_id", "diff_to_response_id", "diff_content",
 	})
 
 	mock.ExpectQuery("SELECT (.+) FROM requests").
@@ -294,8 +289,8 @@ func TestRequestRepository_GetAllByGateID_success(t *testing.T) {
 			pgtype.UUID{Bytes: req1ID.UUID(), Valid: true},
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
 			pgtype.Text{String: "", Valid: false},
-			pgtype.Text{String: "GET", Valid: true},
-			pgtype.Text{String: "/test1", Valid: true},
+			"GET",
+			"/test1",
 			[]byte(`{}`),
 			[]byte(`{}`),
 			pgtype.Timestamptz{Time: now, Valid: true},
@@ -304,8 +299,8 @@ func TestRequestRepository_GetAllByGateID_success(t *testing.T) {
 			pgtype.UUID{Bytes: req2ID.UUID(), Valid: true},
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
 			pgtype.Text{String: "", Valid: false},
-			pgtype.Text{String: "POST", Valid: true},
-			pgtype.Text{String: "/test2", Valid: true},
+			"POST",
+			"/test2",
 			[]byte(`{}`),
 			[]byte(`{}`),
 			pgtype.Timestamptz{Time: now, Valid: true},

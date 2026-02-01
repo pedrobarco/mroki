@@ -78,8 +78,8 @@ func (r *gateRepository) GetByID(ctx context.Context, id traffictesting.GateID) 
 func (r *gateRepository) Save(ctx context.Context, gate *traffictesting.Gate) error {
 	if err := r.queries.SaveGate(ctx, db.SaveGateParams{
 		ID:        pgtype.UUID{Bytes: gate.ID.UUID(), Valid: true},
-		LiveUrl:   pgtype.Text{String: gate.LiveURL.String(), Valid: true},
-		ShadowUrl: pgtype.Text{String: gate.ShadowURL.String(), Valid: true},
+		LiveUrl:   gate.LiveURL.String(),
+		ShadowUrl: gate.ShadowURL.String(),
 	}); err != nil {
 		return fmt.Errorf("failed to save gate: %w", err)
 	}
@@ -87,12 +87,12 @@ func (r *gateRepository) Save(ctx context.Context, gate *traffictesting.Gate) er
 }
 
 func (r *gateRepository) toDomain(raw db.Gate) (*traffictesting.Gate, error) {
-	live, err := traffictesting.ParseGateURL(raw.LiveUrl.String)
+	live, err := traffictesting.ParseGateURL(raw.LiveUrl)
 	if err != nil {
 		return nil, fmt.Errorf("invalid live URL in database: %w", err)
 	}
 
-	shadow, err := traffictesting.ParseGateURL(raw.ShadowUrl.String)
+	shadow, err := traffictesting.ParseGateURL(raw.ShadowUrl)
 	if err != nil {
 		return nil, fmt.Errorf("invalid shadow URL in database: %w", err)
 	}
