@@ -4,75 +4,26 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/pedrobarco/mroki/internal/application/commands"
 	"github.com/pedrobarco/mroki/internal/application/queries"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
+	"github.com/pedrobarco/mroki/pkg/dto"
 )
 
-type requestResponseDTO struct {
-	ID        string    `json:"id"`
-	Method    string    `json:"method"`
-	Path      string    `json:"path"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-type fullRequestResponseDTO struct {
-	ID        string    `json:"id"`
-	Method    string    `json:"method"`
-	Path      string    `json:"path"`
-	CreatedAt time.Time `json:"created_at"`
-
-	Responses []responseResponseDTO `json:"responses"`
-	Diff      diffResponseDTO       `json:"diff"`
-}
-
-type responseResponseDTO struct {
-	ID         string      `json:"id"`
-	Type       string      `json:"type"`
-	StatusCode int         `json:"status_code"`
-	Headers    http.Header `json:"headers"`
-	Body       string      `json:"body"`
-	CreatedAt  time.Time   `json:"created_at"`
-}
-
-type diffResponseDTO struct {
-	Content string `json:"content"`
-}
+// Type aliases for backward compatibility
 
 func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		var req struct {
-			ID        string              `json:"id,omitempty"`
-			AgentID   string              `json:"agent_id"`
-			Method    string              `json:"method"`
-			Path      string              `json:"path"`
-			Headers   map[string][]string `json:"headers"`
-			Body      string              `json:"body"`
-			CreatedAt time.Time           `json:"created_at"`
-
-			Responses []struct {
-				ID         string      `json:"id,omitempty"`
-				Type       string      `json:"type"`
-				StatusCode int         `json:"status_code"`
-				Headers    http.Header `json:"headers"`
-				Body       string      `json:"body"`
-				CreatedAt  time.Time   `json:"created_at"`
-			} `json:"responses"`
-
-			Diff struct {
-				Content string `json:"content"`
-			} `json:"diff"`
-		}
+		var req dto.CreateRequestPayload
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			return InvalidRequestBody(err)
+			return dto.InvalidRequestBody(err)
 		}
 
 		gateIDStr := r.PathValue("gate_id")
 		if gateIDStr == "" {
-			return MissingPathParam("gate_id")
+			return dto.MissingPathParam("gate_id")
 		}
 
 		// Build command
@@ -109,22 +60,28 @@ func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 			// Map domain errors to HTTP status codes
 			switch {
 			case errors.Is(err, traffictesting.ErrInvalidGateID):
-				return NewError(http.StatusBadRequest, "invalid gate ID", err)
+				return dto.InvalidGateID(gateIDStr)
 			case errors.Is(err, traffictesting.ErrInvalidRequestID):
-				return NewError(http.StatusBadRequest, "invalid request ID", err)
+				return dto.InvalidRequestID(cmd.ID)
 			default:
-				return NewError(http.StatusInternalServerError, "failed to create request", err)
+				return dto.NewError(
+					http.StatusInternalServerError,
+					dto.ErrorTypeInternalError,
+					"Internal Server Error",
+					"An unknown error occurred. Please try again later.",
+					err,
+				)
 			}
 		}
 
-		resp := responseDTO[requestResponseDTO]{
+		resp := dto.Response[dto.Request]{
 			Data: toRequestResponseDTO(request),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			return InvalidResponseBody(err)
+			return dto.InvalidResponseBody(err)
 		}
 
 		return nil
@@ -135,12 +92,12 @@ func GetRequestByID(handler *queries.GetRequestHandler) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		gid := r.PathValue("gate_id")
 		if gid == "" {
-			return MissingPathParam("gate_id")
+			return dto.MissingPathParam("gate_id")
 		}
 
 		rid := r.PathValue("request_id")
 		if rid == "" {
-			return MissingPathParam("request_id")
+			return dto.MissingPathParam("request_id")
 		}
 
 		query := queries.GetRequestQuery{
@@ -152,26 +109,32 @@ func GetRequestByID(handler *queries.GetRequestHandler) AppHandler {
 		if err != nil {
 			switch {
 			case errors.Is(err, traffictesting.ErrInvalidRequestID):
-				return NewError(http.StatusBadRequest, "invalid request ID", err)
+				return dto.InvalidRequestID(rid)
 			case errors.Is(err, traffictesting.ErrInvalidGateID):
-				return NewError(http.StatusBadRequest, "invalid gate ID", err)
+				return dto.InvalidGateID(gid)
 			case errors.Is(err, traffictesting.ErrRequestNotFound):
-				return NewError(http.StatusNotFound, "request not found", err)
+				return dto.RequestNotFound(rid)
 			case errors.Is(err, traffictesting.ErrGateNotFound):
-				return NewError(http.StatusNotFound, "gate not found", err)
+				return dto.GateNotFound(gid)
 			default:
-				return NewError(http.StatusInternalServerError, "failed to retrieve request", err)
+				return dto.NewError(
+					http.StatusInternalServerError,
+					dto.ErrorTypeInternalError,
+					"Internal Server Error",
+					"An unknown error occurred. Please try again later.",
+					err,
+				)
 			}
 		}
 
-		response := responseDTO[fullRequestResponseDTO]{
+		response := dto.Response[dto.RequestDetail]{
 			Data: toFullRequestResponseDTO(req),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			return InvalidResponseBody(err)
+			return dto.InvalidResponseBody(err)
 		}
 
 		return nil
@@ -182,19 +145,19 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		gid := r.PathValue("gate_id")
 		if gid == "" {
-			return MissingPathParam("gate_id")
+			return dto.MissingPathParam("gate_id")
 		}
 
 		// Parse pagination query parameters
 		limit, offset, err := parsePaginationQueryParams(r.URL.Query())
 		if err != nil {
-			return NewError(http.StatusBadRequest, "invalid pagination parameters", err)
+			return dto.InvalidRequestPagination(err)
 		}
 
 		// Parse filtering and sorting query parameters
 		methods, pathPattern, fromDate, toDate, agentID, hasDiff, sortField, sortOrder, err := parseRequestQueryParams(r.URL.Query())
 		if err != nil {
-			return NewError(http.StatusBadRequest, "invalid query parameters", err)
+			return dto.InvalidRequestFilters(err)
 		}
 
 		query := queries.ListRequestsQuery{
@@ -215,28 +178,34 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 		if err != nil {
 			switch {
 			case errors.Is(err, traffictesting.ErrInvalidGateID):
-				return NewError(http.StatusBadRequest, "invalid gate ID", err)
+				return dto.InvalidGateID(gid)
 			case errors.Is(err, traffictesting.ErrInvalidPagination):
-				return NewError(http.StatusBadRequest, "invalid pagination parameters", err)
+				return dto.InvalidRequestPagination(err)
 			case errors.Is(err, traffictesting.ErrInvalidFilters):
-				return NewError(http.StatusBadRequest, "invalid filter parameters", err)
+				return dto.InvalidRequestFilters(err)
 			case errors.Is(err, traffictesting.ErrInvalidSort):
-				return NewError(http.StatusBadRequest, "invalid sort parameters", err)
+				return dto.InvalidRequestSort(err)
 			default:
-				return NewError(http.StatusInternalServerError, "failed to retrieve requests", err)
+				return dto.NewError(
+					http.StatusInternalServerError,
+					dto.ErrorTypeInternalError,
+					"Internal Server Error",
+					"An unknown error occurred. Please try again later.",
+					err,
+				)
 			}
 		}
 
 		// Map domain entities to DTOs
-		data := make([]requestResponseDTO, 0, len(result.Items))
+		data := make([]dto.Request, 0, len(result.Items))
 		for _, req := range result.Items {
 			data = append(data, toRequestResponseDTO(req))
 		}
 
 		// Use paginated response DTO
-		response := paginatedResponseDTO[[]requestResponseDTO]{
+		response := dto.PaginatedResponse[[]dto.Request]{
 			Data: data,
-			Pagination: paginationMetaDTO{
+			Pagination: dto.PaginationMeta{
 				Limit:   result.Limit,
 				Offset:  result.Offset,
 				Total:   result.Total,
@@ -247,15 +216,15 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			return InvalidResponseBody(err)
+			return dto.InvalidResponseBody(err)
 		}
 
 		return nil
 	}
 }
 
-func toRequestResponseDTO(req *traffictesting.Request) requestResponseDTO {
-	return requestResponseDTO{
+func toRequestResponseDTO(req *traffictesting.Request) dto.Request {
+	return dto.Request{
 		ID:        req.ID.String(),
 		Method:    req.Method,
 		Path:      req.Path,
@@ -263,8 +232,8 @@ func toRequestResponseDTO(req *traffictesting.Request) requestResponseDTO {
 	}
 }
 
-func toFullRequestResponseDTO(req *traffictesting.Request) fullRequestResponseDTO {
-	dto := fullRequestResponseDTO{
+func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
+	result := dto.RequestDetail{
 		ID:        req.ID.String(),
 		Method:    req.Method,
 		Path:      req.Path,
@@ -272,7 +241,7 @@ func toFullRequestResponseDTO(req *traffictesting.Request) fullRequestResponseDT
 	}
 
 	for _, resp := range req.Responses {
-		dto.Responses = append(dto.Responses, responseResponseDTO{
+		result.Responses = append(result.Responses, dto.ResponseDetail{
 			ID:         resp.ID.String(),
 			Type:       string(resp.Type),
 			StatusCode: resp.StatusCode,
@@ -282,9 +251,9 @@ func toFullRequestResponseDTO(req *traffictesting.Request) fullRequestResponseDT
 		})
 	}
 
-	dto.Diff = diffResponseDTO{
+	result.Diff = dto.DiffDetail{
 		Content: req.Diff.Content,
 	}
 
-	return dto
+	return result
 }

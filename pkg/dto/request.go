@@ -1,0 +1,74 @@
+package dto
+
+import (
+	"net/http"
+	"time"
+)
+
+// CreateRequestPayload represents the payload for creating a request with responses and diff.
+// This is sent from agents to the API.
+type CreateRequestPayload struct {
+	// Request metadata
+	ID        string              `json:"id,omitempty"` // Optional: API will generate if empty
+	AgentID   string              `json:"agent_id"`     // Required: identifies which agent
+	Method    string              `json:"method"`       // e.g., "GET", "POST"
+	Path      string              `json:"path"`         // e.g., "/api/users/123"
+	Headers   map[string][]string `json:"headers"`      // HTTP headers
+	Body      string              `json:"body"`         // Base64 encoded
+	CreatedAt time.Time           `json:"created_at"`   // When request was captured
+
+	// Responses from both services
+	Responses []ResponsePayload `json:"responses"` // Always 2: live + shadow
+
+	// Computed diff
+	Diff DiffPayload `json:"diff"`
+}
+
+// ResponsePayload represents a single HTTP response (live or shadow).
+type ResponsePayload struct {
+	ID         string              `json:"id,omitempty"` // Optional
+	Type       string              `json:"type"`         // "live" or "shadow"
+	StatusCode int                 `json:"status_code"`  // e.g., 200, 404, 500
+	Headers    map[string][]string `json:"headers"`      // Response headers
+	Body       string              `json:"body"`         // Base64 encoded
+	CreatedAt  time.Time           `json:"created_at"`   // Same as request
+}
+
+// DiffPayload contains the computed difference between responses.
+type DiffPayload struct {
+	Content string `json:"content"` // JSON diff format
+}
+
+// Request represents a summary of a captured request (used in listings).
+type Request struct {
+	ID        string    `json:"id"`
+	Method    string    `json:"method"`
+	Path      string    `json:"path"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// RequestDetail represents a complete request with all responses and diff.
+type RequestDetail struct {
+	ID        string    `json:"id"`
+	Method    string    `json:"method"`
+	Path      string    `json:"path"`
+	CreatedAt time.Time `json:"created_at"`
+
+	Responses []ResponseDetail `json:"responses"`
+	Diff      DiffDetail       `json:"diff"`
+}
+
+// ResponseDetail represents a response with full details (used in request detail view).
+type ResponseDetail struct {
+	ID         string      `json:"id"`
+	Type       string      `json:"type"`
+	StatusCode int         `json:"status_code"`
+	Headers    http.Header `json:"headers"`
+	Body       string      `json:"body"`
+	CreatedAt  time.Time   `json:"created_at"`
+}
+
+// DiffDetail represents diff content (used in request detail view).
+type DiffDetail struct {
+	Content string `json:"content"`
+}

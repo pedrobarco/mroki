@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/pedrobarco/mroki/pkg/dto"
 )
 
 type MrokiClient struct {
@@ -143,6 +145,14 @@ func (c *MrokiClient) sendRequestOnce(ctx context.Context, req *CapturedRequest)
 
 	// Check status code
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// Try to parse RFC 7807 error response
+		var apiErr dto.APIError
+		if err := json.NewDecoder(resp.Body).Decode(&apiErr); err == nil {
+			// Successfully parsed RFC 7807 error
+			return fmt.Errorf("API error (status %d): %s - %s [type: %s, instance: %s]",
+				apiErr.Status, apiErr.Title, apiErr.Detail, apiErr.Type, apiErr.Instance)
+		}
+		// Fallback to generic error if parsing failed
 		return fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
 

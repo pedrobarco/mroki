@@ -13,6 +13,7 @@ import (
 	"github.com/pedrobarco/mroki/internal/application/queries"
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
+	"github.com/pedrobarco/mroki/pkg/dto"
 )
 
 // mockGateRepository implements traffictesting.GateRepository for testing
@@ -67,7 +68,7 @@ func TestCreateGate_Success(t *testing.T) {
 		t.Errorf("expected status 201, got %d", rec.Code)
 	}
 
-	var response responseDTO[gateResponseDTO]
+	var response dto.Response[dto.Gate]
 	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -92,13 +93,13 @@ func TestCreateGate_InvalidJSON(t *testing.T) {
 	appHandler := CreateGate(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 }
 
@@ -113,17 +114,17 @@ func TestCreateGate_MissingLiveURL(t *testing.T) {
 	appHandler := CreateGate(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 
-	if apiErr.Message != "missing required body property 'live_url'" {
-		t.Errorf("unexpected error message: %s", apiErr.Message)
+	if apiErr.Detail != "live_url is required" {
+		t.Errorf("unexpected error detail: %s", apiErr.Detail)
 	}
 }
 
@@ -138,17 +139,17 @@ func TestCreateGate_MissingShadowURL(t *testing.T) {
 	appHandler := CreateGate(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 
-	if apiErr.Message != "missing required body property 'shadow_url'" {
-		t.Errorf("unexpected error message: %s", apiErr.Message)
+	if apiErr.Detail != "shadow_url is required" {
+		t.Errorf("unexpected error detail: %s", apiErr.Detail)
 	}
 }
 
@@ -163,13 +164,13 @@ func TestCreateGate_InvalidURL(t *testing.T) {
 	appHandler := CreateGate(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 }
 
@@ -188,13 +189,13 @@ func TestCreateGate_RepositoryError(t *testing.T) {
 	appHandler := CreateGate(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusInternalServerError {
-		t.Errorf("expected status 500, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusInternalServerError {
+		t.Errorf("expected status 500, got %d", apiErr.Status)
 	}
 }
 
@@ -229,7 +230,7 @@ func TestGetGateByID_Success(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var response responseDTO[gateResponseDTO]
+	var response dto.Response[dto.Gate]
 	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -249,13 +250,13 @@ func TestGetGateByID_MissingPathParam(t *testing.T) {
 	appHandler := GetGateByID(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 }
 
@@ -274,13 +275,13 @@ func TestGetGateByID_InvalidID(t *testing.T) {
 	appHandler := GetGateByID(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 }
 
@@ -300,13 +301,13 @@ func TestGetGateByID_NotFound(t *testing.T) {
 	appHandler := GetGateByID(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", apiErr.Status)
 	}
 }
 
@@ -341,7 +342,7 @@ func TestGetAllGates_Success(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var response paginatedResponseDTO[[]gateResponseDTO]
+	var response dto.PaginatedResponse[[]dto.Gate]
 	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -376,7 +377,7 @@ func TestGetAllGates_EmptyResults(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var response paginatedResponseDTO[[]gateResponseDTO]
+	var response dto.PaginatedResponse[[]dto.Gate]
 	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -400,13 +401,13 @@ func TestGetAllGates_InvalidPagination(t *testing.T) {
 	appHandler := GetAllGates(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 }
 
@@ -424,12 +425,12 @@ func TestGetAllGates_PaginationValidationError(t *testing.T) {
 	appHandler := GetAllGates(handler)
 	err := appHandler(rec, req)
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*dto.APIError)
 	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", apiErr.StatusCode)
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 }

@@ -5,7 +5,10 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/pedrobarco/mroki/pkg/dto"
 )
 
 func TestAppHandler_ServeHTTP_Success(t *testing.T) {
@@ -33,7 +36,13 @@ func TestAppHandler_ServeHTTP_Success(t *testing.T) {
 
 func TestAppHandler_ServeHTTP_APIError(t *testing.T) {
 	testErr := errors.New("test error")
-	apiErr := NewError(http.StatusBadRequest, "validation failed", testErr)
+	apiErr := dto.NewError(
+		http.StatusBadRequest,
+		dto.ErrorTypeInvalidRequestBody,
+		"Invalid Request Body",
+		"validation failed",
+		testErr,
+	)
 
 	handler := AppHandler(func(w http.ResponseWriter, r *http.Request) error {
 		return apiErr
@@ -53,21 +62,22 @@ func TestAppHandler_ServeHTTP_APIError(t *testing.T) {
 		t.Errorf("expected Content-Type application/json, got %s", contentType)
 	}
 
-	var result APIError
-	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
+	result := decodeErrorResponse(t, rec)
 
-	if result.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status code 400, got %d", result.StatusCode)
+	if result.Status != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, result.Status)
 	}
-
-	if result.Code != "Bad Request" {
-		t.Errorf("expected code 'Bad Request', got %q", result.Code)
+	if result.Type != dto.ErrorTypeInvalidRequestBody {
+		t.Errorf("expected type %q, got %q", dto.ErrorTypeInvalidRequestBody, result.Type)
 	}
-
-	if result.Message != "validation failed" {
-		t.Errorf("expected message 'validation failed', got %q", result.Message)
+	if result.Title != "Invalid Request Body" {
+		t.Errorf("expected title %q, got %q", "Invalid Request Body", result.Title)
+	}
+	if !strings.Contains(result.Detail, "validation failed") {
+		t.Errorf("expected detail to contain %q, got %q", "validation failed", result.Detail)
+	}
+	if result.Instance != "/test" {
+		t.Errorf("expected instance %q, got %q", "/test", result.Instance)
 	}
 }
 
@@ -92,21 +102,24 @@ func TestAppHandler_ServeHTTP_UnknownError(t *testing.T) {
 		t.Errorf("expected Content-Type application/json, got %s", contentType)
 	}
 
-	var result APIError
-	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
+	result := decodeErrorResponse(t, rec)
 
-	if result.StatusCode != http.StatusInternalServerError {
-		t.Errorf("expected status code 500, got %d", result.StatusCode)
+	if result.Status != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, result.Status)
 	}
-
-	if result.Code != "Internal Server Error" {
-		t.Errorf("expected code 'Internal Server Error', got %q", result.Code)
+	if result.Type != dto.ErrorTypeInternalError {
+		t.Errorf("expected type %q, got %q", dto.ErrorTypeInternalError, result.Type)
 	}
-
-	if result.Message != unknownErrorMessage {
-		t.Errorf("expected message %q, got %q", unknownErrorMessage, result.Message)
+	if result.Title != "Internal Server Error" {
+		t.Errorf("expected title %q, got %q", "Internal Server Error", result.Title)
+	}
+	expectedMessage := "An unknown error occurred. Please try again later."
+	if !strings.Contains(result.Detail, expectedMessage) {
+		t.Errorf("expected detail to contain %q, got %q", expectedMessage, result.Detail)
+	}
+	// 5xx errors should NOT have instance field populated
+	if result.Instance != "" {
+		t.Errorf("expected empty instance for 5xx error, got %q", result.Instance)
 	}
 }
 
@@ -124,4 +137,16 @@ func TestAppHandler_ServeHTTP_NilError(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
+}
+
+// Test helper functions for RFC 7807 error assertions
+
+// decodeErrorResponse decodes an RFC 7807 error response from a response body.
+func decodeErrorResponse(t *testing.T, body *httptest.ResponseRecorder) dto.APIError {
+	t.Helper()
+	var apiErr dto.APIError
+	if err := json.NewDecoder(body.Body).Decode(&apiErr); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+	return apiErr
 }
