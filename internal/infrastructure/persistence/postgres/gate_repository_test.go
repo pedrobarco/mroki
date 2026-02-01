@@ -78,8 +78,8 @@ func TestGateRepository_GetByID_success(t *testing.T) {
 	rows := pgxmock.NewRows([]string{"id", "live_url", "shadow_url"}).
 		AddRow(
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
-			pgtype.Text{String: liveURL, Valid: true},
-			pgtype.Text{String: shadowURL, Valid: true},
+			liveURL,
+			shadowURL,
 		)
 
 	mock.ExpectQuery("SELECT (.+) FROM gates WHERE id").
@@ -133,8 +133,8 @@ func TestGateRepository_GetByID_invalid_live_url(t *testing.T) {
 	rows := pgxmock.NewRows([]string{"id", "live_url", "shadow_url"}).
 		AddRow(
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
-			pgtype.Text{String: "ftp://invalid.com", Valid: true}, // Invalid scheme
-			pgtype.Text{String: "http://shadow.example.com", Valid: true},
+			"ftp://invalid.com", // Invalid scheme
+			"http://shadow.example.com",
 		)
 
 	mock.ExpectQuery("SELECT (.+) FROM gates WHERE id").
@@ -170,13 +170,13 @@ func TestGateRepository_GetAll_success(t *testing.T) {
 	rows := pgxmock.NewRows([]string{"id", "live_url", "shadow_url"}).
 		AddRow(
 			pgtype.UUID{Bytes: gateID1.UUID(), Valid: true},
-			pgtype.Text{String: "http://live1.example.com", Valid: true},
-			pgtype.Text{String: "http://shadow1.example.com", Valid: true},
+			"http://live1.example.com",
+			"http://shadow1.example.com",
 		).
 		AddRow(
 			pgtype.UUID{Bytes: gateID2.UUID(), Valid: true},
-			pgtype.Text{String: "http://live2.example.com", Valid: true},
-			pgtype.Text{String: "http://shadow2.example.com", Valid: true},
+			"http://live2.example.com",
+			"http://shadow2.example.com",
 		)
 
 	mock.ExpectQuery("SELECT (.+) FROM gates").
