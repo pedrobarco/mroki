@@ -1,0 +1,30 @@
+{
+	admin off
+	auto_https off
+}
+
+# Basic gate configuration
+:8080 {
+	# Define routes that should be shadowed
+	route /api/* {
+		# Configure mroki for this route
+		mroki {
+			# Live backend (production)
+			live_url https://api.production.example.com
+			
+			# Shadow backend (canary/staging)
+			shadow_url https://api.shadow.example.com
+			
+			# mroki API server
+			api_url http://localhost:8081
+			
+			# Gate ID from mroki API
+			gate_id 550e8400-e29b-41d4-a716-446655440000
+		}
+	}
+
+	# Regular proxy for non-shadowed routes
+	route /* {
+		reverse_proxy https://api.production.example.com
+	}
+}

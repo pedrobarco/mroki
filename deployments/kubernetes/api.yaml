@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mroki-api
+  namespace: mroki
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mroki-api
+  template:
+    metadata:
+      labels:
+        app: mroki-api
+    spec:
+      containers:
+      - name: mroki-api
+        image: mroki-api:v1.0.0
+        ports:
+        - containerPort: 8081
+        env:
+        - name: MROKI_APP_PORT
+          value: "8081"
+        - name: MROKI_APP_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: mroki-secrets
+              key: database-url
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mroki-api
+  namespace: mroki
+spec:
+  selector:
+    app: mroki-api
+  ports:
+  - port: 80
+    targetPort: 8081
+  type: ClusterIP

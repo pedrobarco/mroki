@@ -97,64 +97,15 @@ Caddy module for integrating mroki proxy into Caddy server.
 
 ## Quick Start
 
-### Prerequisites
-- Docker & Docker Compose
-- Go 1.21+
-- Node.js 18+ (for hub)
+Get mroki running in 5 minutes:
 
-### 1. Start Infrastructure
+1. **Start PostgreSQL** - `docker-compose -f build/mroki-api/docker-compose.yaml up -d`
+2. **Start API** - Configure and run mroki-api
+3. **Create a Gate** - Define your live/shadow service pair
+4. **Start Agent** - Run the proxy to capture traffic
+5. **Send Traffic** - Test with sample requests
 
-```bash
-# Start PostgreSQL
-docker-compose -f build/mroki-api/docker-compose.yaml up -d
-
-# Start API
-cd cmd/mroki-api
-cp .env.example .env
-go run .
-```
-
-### 2. Create a Gate
-
-```bash
-curl -X POST http://localhost:8081/gates \
-  -H "Content-Type: application/json" \
-  -d '{
-    "live_url": "https://httpbin.org/anything?service=live",
-    "shadow_url": "https://httpbin.org/anything?service=shadow"
-  }'
-
-# Save the returned gate ID
-```
-
-### 3. Start Agent
-
-```bash
-cd cmd/mroki-agent
-cat > .env << EOF
-MROKI_APP_LIVE_URL=https://httpbin.org/anything?service=live
-MROKI_APP_SHADOW_URL=https://httpbin.org/anything?service=shadow
-MROKI_APP_PORT=8080
-MROKI_APP_API_URL=http://localhost:8081
-MROKI_APP_GATE_ID=<your-gate-id>
-EOF
-
-go run .
-```
-
-### 4. Send Traffic
-
-```bash
-# Send request through agent
-curl -X POST http://localhost:8080/test \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Alice", "age": 30}'
-
-# View captured requests
-curl http://localhost:8081/gates/<gate-id>/requests
-```
-
-For detailed setup instructions, see the [Quick Start Guide](docs/guides/QUICK_START.md).
+For detailed step-by-step instructions, see the [Quick Start Guide](docs/guides/QUICK_START.md).
 
 ## Documentation
 

@@ -8,61 +8,23 @@ Guide for deploying mroki to production environments.
 
 Best for: Small deployments, single-server setups
 
-**`docker-compose.yml`:**
-```yaml
-version: '3.8'
+See [`/deployments/docker-compose/`](../../deployments/docker-compose/) for complete manifests.
 
-services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: mroki
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-
-  mroki-api:
-    image: mroki-api:latest
-    ports:
-      - "8081:8081"
-    environment:
-      MROKI_APP_PORT: 8081
-      MROKI_APP_DATABASE_URL: postgres://postgres:${DB_PASSWORD}@postgres:5432/mroki
-    depends_on:
-      - postgres
-    restart: unless-stopped
-
-  mroki-agent:
-    image: mroki-agent:latest
-    ports:
-      - "8080:8080"
-    environment:
-      MROKI_APP_LIVE_URL: ${LIVE_URL}
-      MROKI_APP_SHADOW_URL: ${SHADOW_URL}
-      MROKI_APP_PORT: 8080
-      MROKI_APP_API_URL: http://mroki-api:8081
-      MROKI_APP_GATE_ID: ${GATE_ID}
-    depends_on:
-      - mroki-api
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-```
-
-**`.env`:**
+**Quick start:**
 ```bash
+# Create .env file
+cat > .env <<EOF
 DB_PASSWORD=your_secure_password
 LIVE_URL=https://api.production.example.com
 SHADOW_URL=https://api.shadow.example.com
 GATE_ID=550e8400-e29b-41d4-a716-446655440000
-```
+EOF
 
-**Deploy:**
-```bash
-docker-compose up -d
+# Deploy
+docker-compose -f deployments/docker-compose/full-stack.yaml up -d
+
+# Check status
+docker-compose -f deployments/docker-compose/full-stack.yaml ps
 ```
 
 ---
@@ -71,241 +33,35 @@ docker-compose up -d
 
 Best for: Large deployments, high availability, auto-scaling
 
-**`kubernetes/namespace.yaml`:**
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: mroki
-```
+See [`/deployments/kubernetes/`](../../deployments/kubernetes/) for complete manifests.
 
-**`kubernetes/postgres.yaml`:**
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-pvc
-  namespace: mroki
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 20Gi
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgres
-  namespace: mroki
-spec:
-  serviceName: postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      containers:
-      - name: postgres
-        image: postgres:15-alpine
-        ports:
-        - containerPort: 5432
-        env:
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mroki-secrets
-              key: db-password
-        - name: POSTGRES_DB
-          value: mroki
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:
-  - metadata:
-      name: postgres-storage
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 20Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-  namespace: mroki
-spec:
-  selector:
-    app: postgres
-  ports:
-  - port: 5432
-  clusterIP: None
-```
-
-**`kubernetes/api.yaml`:**
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mroki-api
-  namespace: mroki
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: mroki-api
-  template:
-    metadata:
-      labels:
-        app: mroki-api
-    spec:
-      containers:
-      - name: mroki-api
-        image: mroki-api:v1.0.0
-        ports:
-        - containerPort: 8081
-        env:
-        - name: MROKI_APP_PORT
-          value: "8081"
-        - name: MROKI_APP_DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: mroki-secrets
-              key: database-url
-        livenessProbe:
-          httpGet:
-            path: /health/live
-            port: 8081
-          initialDelaySeconds: 10
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health/ready
-            port: 8081
-          initialDelaySeconds: 5
-          periodSeconds: 5
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mroki-api
-  namespace: mroki
-spec:
-  selector:
-    app: mroki-api
-  ports:
-  - port: 80
-    targetPort: 8081
-  type: ClusterIP
-```
-
-**`kubernetes/agent.yaml`:**
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mroki-agent
-  namespace: mroki
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: mroki-agent
-  template:
-    metadata:
-      labels:
-        app: mroki-agent
-    spec:
-      containers:
-      - name: mroki-agent
-        image: mroki-agent:v1.0.0
-        ports:
-        - containerPort: 8080
-        env:
-        - name: MROKI_APP_LIVE_URL
-          valueFrom:
-            configMapKeyRef:
-              name: mroki-config
-              key: live-url
-        - name: MROKI_APP_SHADOW_URL
-          valueFrom:
-            configMapKeyRef:
-              name: mroki-config
-              key: shadow-url
-        - name: MROKI_APP_PORT
-          value: "8080"
-        - name: MROKI_APP_API_URL
-          value: "http://mroki-api"
-        - name: MROKI_APP_GATE_ID
-          valueFrom:
-            configMapKeyRef:
-              name: mroki-config
-              key: gate-id
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "50m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mroki-agent
-  namespace: mroki
-spec:
-  selector:
-    app: mroki-agent
-  ports:
-  - port: 80
-    targetPort: 8080
-  type: LoadBalancer
-```
-
-**`kubernetes/secrets.yaml`:**
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mroki-secrets
-  namespace: mroki
-type: Opaque
-stringData:
-  db-password: "your_secure_password"
-  database-url: "postgres://postgres:your_secure_password@postgres:5432/mroki"
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mroki-config
-  namespace: mroki
-data:
-  live-url: "https://api.production.example.com"
-  shadow-url: "https://api.shadow.example.com"
-  gate-id: "550e8400-e29b-41d4-a716-446655440000"
-```
-
-**Deploy to Kubernetes:**
+**Quick start:**
 ```bash
-kubectl apply -f kubernetes/namespace.yaml
-kubectl apply -f kubernetes/secrets.yaml
-kubectl apply -f kubernetes/postgres.yaml
-kubectl apply -f kubernetes/api.yaml
-kubectl apply -f kubernetes/agent.yaml
+# Edit secrets and config in deployments/kubernetes/secrets.yaml
+
+# Deploy all components
+kubectl apply -f deployments/kubernetes/namespace.yaml
+kubectl apply -f deployments/kubernetes/secrets.yaml
+kubectl apply -f deployments/kubernetes/postgres.yaml
+kubectl apply -f deployments/kubernetes/api.yaml
+kubectl apply -f deployments/kubernetes/agent.yaml
+
+# Check status
+kubectl get pods -n mroki
+kubectl get services -n mroki
 ```
+
+**Manifests included:**
+- `namespace.yaml` - Creates mroki namespace
+- `secrets.yaml` - Secrets and ConfigMaps for credentials
+- `postgres.yaml` - PostgreSQL StatefulSet with persistent storage
+- `api.yaml` - mroki-api Deployment (3 replicas) and Service
+- `agent.yaml` - mroki-agent Deployment (2 replicas) and Service
+
+**Health checks:**
+- API includes liveness probe on `/health/live`
+- API includes readiness probe on `/health/ready`
+- Automatic pod restart on failures
 
 ---
 
