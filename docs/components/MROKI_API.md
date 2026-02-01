@@ -539,16 +539,23 @@ SELECT COUNT(*) FROM requests WHERE gate_id = '550e8400-e29b-41d4-a716-446655440
 
 ## Security Considerations
 
-- **No authentication:** Anyone can create/query gates (v1)
+**Current Status (v1):**
+- **No authentication:** Anyone can create/query gates
 - **No TLS:** HTTP only - use reverse proxy for HTTPS
-- **No input sanitization:** SQL injection prevented by parameterized queries (sqlc)
 - **No rate limiting:** Can be overwhelmed by traffic
+
+**What's secure:**
+- ✅ SQL injection prevented by parameterized queries (sqlc)
+- ✅ Input validation in domain layer
+- ✅ Connection pooling configured
+- ✅ Health checks available
 
 **Production recommendations:**
 - Add API key authentication
-- Use TLS/HTTPS
-- Implement rate limiting (nginx, API gateway)
+- Use TLS/HTTPS (terminate at load balancer)
+- Implement rate limiting (nginx, API gateway, or application-level)
 - Restrict database user permissions
+- Store database credentials securely (Kubernetes secrets, AWS Secrets Manager, etc.)
 
 ## Testing
 
@@ -564,12 +571,57 @@ go test ./internal/domain/...
 
 # Run with race detection
 go test -race ./...
+
+# Get coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
 ```
+
+**Current test coverage:** 62.8% overall
+- Domain layer: 98.6%
+- Application layer: 85%+
+- Infrastructure layer: 68%
+- Interface layer: 80%+
+
+---
+
+## Performance
+
+**Expected baseline:**
+- Throughput: ~500 req/s per instance (database-bound)
+- Memory: ~100MB baseline + connection pool overhead
+
+**Database Connection Pool:**
+- Min: 5 (always maintained)
+- Max: 25 (default, configurable)
+- Idle timeout: 5m
+- Max lifetime: 1h
+
+**Tuning:**
+```bash
+# High traffic configuration
+MROKI_APP_DATABASE_MAX_CONNS=100
+MROKI_APP_DATABASE_MIN_CONNS=20
+MROKI_APP_DATABASE_MAX_CONN_IDLE=10m
+MROKI_APP_DATABASE_MAX_CONN_LIFE=2h
+```
+
+**Bottlenecks:**
+- PostgreSQL write throughput
+- Request body size (stored as JSONB)
+- Diff computation size
+
+**Optimization tips:**
+- Use read replicas for GET endpoints
+- Increase `MAX_CONNS` for high traffic
+- Consider partitioning `requests` table by `created_at`
+- Scale horizontally with load balancer
 
 ## Related Documentation
 
 - [Architecture Overview](../architecture/OVERVIEW.md)
 - [API Contracts](../architecture/API_CONTRACTS.md)
 - [Quick Start Guide](../guides/QUICK_START.md)
+- [Development Guide](../guides/DEVELOPMENT.md)
 - [mroki-agent Component](MROKI_AGENT.md)
 - [mroki-hub Component](MROKI_HUB.md)

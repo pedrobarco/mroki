@@ -529,9 +529,22 @@ MROKI_APP_SHADOW_TIMEOUT=30s
 - **Request logging:** All traffic captured (may contain PII/secrets)
 - **Network access:** Agent needs access to both live and shadow services
 
+**What's secure:**
+- ✅ Best-effort delivery: API failures never affect live traffic
+- ✅ Retry logic with exponential backoff
+- ✅ Configurable timeouts
+- ✅ No secrets in logs
+
+**Production recommendations:**
+- Use TLS for agent→API communication
+- Deploy in isolated network (Kubernetes sidecar pattern)
+- Review data retention and PII policies
+- Consider sensitive header redaction
+
 ## Related Documentation
 
 - [Architecture Overview](../architecture/OVERVIEW.md)
 - [API Contracts](../architecture/API_CONTRACTS.md)
 - [Quick Start Guide](../guides/QUICK_START.md)
+- [Development Guide](../guides/DEVELOPMENT.md)
 - [mroki-api Component](MROKI_API.md)

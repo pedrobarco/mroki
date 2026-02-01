@@ -504,11 +504,7 @@ Diffs use JSON Patch (RFC 6902) format:
 
 **Current:** No authentication required (v1)
 
-**Planned (v2):** API key authentication via header:
-
-```
-Authorization: Bearer <api_key>
-```
+**Future:** API key authentication planned for production deployment
 
 ---
 
@@ -516,17 +512,13 @@ Authorization: Bearer <api_key>
 
 **Current:** No rate limiting (v1)
 
-**Planned (v2):**
-- 1000 requests/minute per API key
-- 429 Too Many Requests response when exceeded
+**Future:** Per-IP or per-API-key rate limiting planned for production
 
 ---
 
 ## Pagination
 
-**Current:** No pagination (v1) - all results returned
-
-**Planned (v2):**
+**Status:** ✅ Implemented
 
 Query parameters:
 - `limit` - Results per page (default: 50, max: 100)
@@ -540,10 +532,15 @@ Response includes pagination metadata:
   "pagination": {
     "limit": 50,
     "offset": 0,
-    "total": 250
+    "total": 250,
+    "has_more": true
   }
 }
 ```
+
+**Paginated endpoints:**
+- `GET /gates`
+- `GET /gates/:gate_id/requests`
 
 ---
 
