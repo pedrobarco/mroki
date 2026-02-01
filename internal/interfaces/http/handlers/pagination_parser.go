@@ -8,9 +8,9 @@ import (
 
 // parsePaginationQueryParams extracts limit and offset from HTTP query parameters
 // Returns primitive values for service layer to create pagination.Params value object
-// Uses default of 50 for limit and 0 for offset when not provided
+// Returns 0 for limit and offset when not provided (domain layer applies defaults)
 func parsePaginationQueryParams(query url.Values) (limit int, offset int, err error) {
-	limit = 50 // default, matches pagination.defaultLimit
+	limit = 0 // 0 signals "not provided" - domain layer will apply default
 	offset = 0
 
 	if limitStr := query.Get("limit"); limitStr != "" {

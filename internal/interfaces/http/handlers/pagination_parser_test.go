@@ -13,12 +13,12 @@ func TestParsePaginationQueryParams_Defaults(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if limit != 50 {
-		t.Errorf("expected default limit 50, got %d", limit)
+	if limit != 0 {
+		t.Errorf("expected limit 0 (not provided), got %d", limit)
 	}
 
 	if offset != 0 {
-		t.Errorf("expected default offset 0, got %d", offset)
+		t.Errorf("expected offset 0 (not provided), got %d", offset)
 	}
 }
 
@@ -71,8 +71,8 @@ func TestParsePaginationQueryParams_OnlyOffset(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if limit != 50 {
-		t.Errorf("expected default limit 50, got %d", limit)
+	if limit != 0 {
+		t.Errorf("expected limit 0 (not provided), got %d", limit)
 	}
 
 	if offset != 50 {
