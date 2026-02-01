@@ -12,5 +12,11 @@ import (
 type RequestRepository interface {
 	Save(ctx context.Context, request *Request) error
 	GetByID(ctx context.Context, id RequestID, gateID GateID) (*Request, error)
-	GetAllByGateID(ctx context.Context, gateID GateID, params *pagination.Params) (*pagination.PagedResult[*Request], error)
+	GetAllByGateID(
+		ctx context.Context,
+		gateID GateID,
+		filters RequestFilters,
+		sort RequestSort,
+		params *pagination.Params,
+	) (*pagination.PagedResult[*Request], error)
 }

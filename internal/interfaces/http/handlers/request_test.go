@@ -20,7 +20,7 @@ import (
 type mockRequestRepository struct {
 	saveFunc           func(ctx context.Context, req *traffictesting.Request) error
 	getByIDFunc        func(ctx context.Context, id traffictesting.RequestID, gateID traffictesting.GateID) (*traffictesting.Request, error)
-	getAllByGateIDFunc func(ctx context.Context, gateID traffictesting.GateID, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error)
+	getAllByGateIDFunc func(ctx context.Context, gateID traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error)
 }
 
 func (m *mockRequestRepository) Save(ctx context.Context, req *traffictesting.Request) error {
@@ -37,9 +37,9 @@ func (m *mockRequestRepository) GetByID(ctx context.Context, id traffictesting.R
 	return nil, nil
 }
 
-func (m *mockRequestRepository) GetAllByGateID(ctx context.Context, gateID traffictesting.GateID, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+func (m *mockRequestRepository) GetAllByGateID(ctx context.Context, gateID traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
 	if m.getAllByGateIDFunc != nil {
-		return m.getAllByGateIDFunc(ctx, gateID, params)
+		return m.getAllByGateIDFunc(ctx, gateID, filters, sort, params)
 	}
 	return nil, nil
 }
@@ -452,7 +452,7 @@ func TestGetAllRequestsByGateID_Success(t *testing.T) {
 	result := pagination.NewPagedResult(requests, 2, params)
 
 	repo := &mockRequestRepository{
-		getAllByGateIDFunc: func(ctx context.Context, gid traffictesting.GateID, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+		getAllByGateIDFunc: func(ctx context.Context, gid traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
 			if gid != gateID {
 				t.Errorf("unexpected gate ID: %s", gid)
 			}
@@ -496,7 +496,7 @@ func TestGetAllRequestsByGateID_EmptyResults(t *testing.T) {
 	result := pagination.NewPagedResult([]*traffictesting.Request{}, 0, params)
 
 	repo := &mockRequestRepository{
-		getAllByGateIDFunc: func(ctx context.Context, gid traffictesting.GateID, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+		getAllByGateIDFunc: func(ctx context.Context, gid traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
 			return result, nil
 		},
 	}
@@ -545,7 +545,7 @@ func TestGetAllRequestsByGateID_MissingGateID(t *testing.T) {
 
 func TestGetAllRequestsByGateID_InvalidGateID(t *testing.T) {
 	repo := &mockRequestRepository{
-		getAllByGateIDFunc: func(ctx context.Context, gid traffictesting.GateID, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+		getAllByGateIDFunc: func(ctx context.Context, gid traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
 			return nil, traffictesting.ErrInvalidGateID
 		},
 	}

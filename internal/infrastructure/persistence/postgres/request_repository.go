@@ -103,24 +103,32 @@ func (r *requestRepository) Save(ctx context.Context, request *traffictesting.Re
 	return nil
 }
 
-func (r *requestRepository) GetAllByGateID(ctx context.Context, gateID traffictesting.GateID, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
-	// Get total count for this gate
-	total, err := r.queries.CountRequestsByGateID(ctx, pgtype.UUID{Bytes: gateID.UUID(), Valid: true})
+func (r *requestRepository) GetAllByGateID(
+	ctx context.Context,
+	gateID traffictesting.GateID,
+	filters traffictesting.RequestFilters,
+	sort traffictesting.RequestSort,
+	params *pagination.Params,
+) (*pagination.PagedResult[*traffictesting.Request], error) {
+	// Build sqlc parameters from domain value objects
+	countParams := buildCountFilteredRequestsParams(gateID, filters)
+
+	// Get total count with filters using sqlc-generated method
+	total, err := r.queries.CountFilteredRequests(ctx, countParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count requests: %w", err)
 	}
 
-	// Get paginated results using getters
-	rows, err := r.queries.GetAllRequestsByGateID(ctx, db.GetAllRequestsByGateIDParams{
-		GateID: pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
-		Limit:  int32(params.Limit()),
-		Offset: int32(params.Offset()),
-	})
+	// Build parameters for paginated query
+	queryParams := buildGetFilteredRequestsParams(gateID, filters, sort, params)
+
+	// Execute query using sqlc-generated method
+	rows, err := r.queries.GetFilteredRequests(ctx, queryParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get requests: %w", err)
 	}
 
-	// Handle empty results - return empty slice
+	// Convert sqlc models to domain entities
 	reqs := make([]*traffictesting.Request, 0, len(rows))
 	for _, raw := range rows {
 		req, err := r.toDomain(raw)

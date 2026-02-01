@@ -11,23 +11,73 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countFilteredRequests = `-- name: CountFilteredRequests :one
+SELECT COUNT(*)
+FROM requests
+WHERE 
+  gate_id = $1
+  -- Same filters as GetFilteredRequests for consistency
+  AND (
+    $2 IS NULL 
+    OR cardinality($2::text[]) = 0 
+    OR method = ANY($2::text[])
+  )
+  AND (
+    $3 IS NULL 
+    OR $3 = '' 
+    OR path LIKE $3
+  )
+  AND ($4 IS NULL OR created_at >= $4)
+  AND ($5 IS NULL OR created_at <= $5)
+  AND (
+    $6 IS NULL 
+    OR $6 = '' 
+    OR agent_id = $6
+  )
+  AND (
+    $7 IS NULL 
+    OR (
+      $7 = true 
+      AND EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
+    )
+    OR (
+      $7 = false 
+      AND NOT EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
+    )
+  )
+`
+
+type CountFilteredRequestsParams struct {
+	GateID      pgtype.UUID
+	Methods     interface{}
+	PathPattern interface{}
+	FromDate    interface{}
+	ToDate      interface{}
+	AgentID     interface{}
+	HasDiff     interface{}
+}
+
+func (q *Queries) CountFilteredRequests(ctx context.Context, arg CountFilteredRequestsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countFilteredRequests,
+		arg.GateID,
+		arg.Methods,
+		arg.PathPattern,
+		arg.FromDate,
+		arg.ToDate,
+		arg.AgentID,
+		arg.HasDiff,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countGates = `-- name: CountGates :one
 SELECT COUNT(*) FROM gates
 `
 
 func (q *Queries) CountGates(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countGates)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countRequestsByGateID = `-- name: CountRequestsByGateID :one
-SELECT COUNT(*) FROM requests WHERE gate_id = $1
-`
-
-func (q *Queries) CountRequestsByGateID(ctx context.Context, gateID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countRequestsByGateID, gateID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -66,23 +116,96 @@ func (q *Queries) GetAllGates(ctx context.Context, arg GetAllGatesParams) ([]Gat
 	return items, nil
 }
 
-const getAllRequestsByGateID = `-- name: GetAllRequestsByGateID :many
+const getFilteredRequests = `-- name: GetFilteredRequests :many
 SELECT id, gate_id, agent_id, method, path, headers, body, created_at
 FROM requests
-WHERE gate_id = $1
-ORDER BY created_at DESC
-LIMIT $3
-OFFSET $2
+WHERE 
+  gate_id = $1
+  -- Optional method filter: empty array or NULL = no filter
+  AND (
+    $2 IS NULL 
+    OR cardinality($2::text[]) = 0 
+    OR method = ANY($2::text[])
+  )
+  -- Optional path pattern filter: NULL = no filter
+  AND (
+    $3 IS NULL 
+    OR $3 = '' 
+    OR path LIKE $3
+  )
+  -- Optional date range filters
+  AND ($4 IS NULL OR created_at >= $4)
+  AND ($5 IS NULL OR created_at <= $5)
+  -- Optional agent ID filter: NULL or empty = no filter
+  AND (
+    $6 IS NULL 
+    OR $6 = '' 
+    OR agent_id = $6
+  )
+  -- Optional diff existence filter: NULL = no filter
+  AND (
+    $7 IS NULL 
+    OR (
+      $7 = true 
+      AND EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
+    )
+    OR (
+      $7 = false 
+      AND NOT EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
+    )
+  )
+ORDER BY 
+  -- Dynamic sorting with CASE statements
+  CASE 
+    WHEN $8 = 'asc' THEN
+      CASE $9
+        WHEN 'method' THEN method
+        WHEN 'path' THEN path
+        WHEN 'created_at' THEN created_at::text
+        ELSE created_at::text
+      END
+  END ASC,
+  CASE 
+    WHEN $8 = 'desc' THEN
+      CASE $9
+        WHEN 'method' THEN method
+        WHEN 'path' THEN path
+        WHEN 'created_at' THEN created_at::text
+        ELSE created_at::text
+      END
+  END DESC
+LIMIT $11
+OFFSET $10
 `
 
-type GetAllRequestsByGateIDParams struct {
-	GateID pgtype.UUID
-	Offset int32
-	Limit  int32
+type GetFilteredRequestsParams struct {
+	GateID      pgtype.UUID
+	Methods     interface{}
+	PathPattern interface{}
+	FromDate    interface{}
+	ToDate      interface{}
+	AgentID     interface{}
+	HasDiff     interface{}
+	SortOrder   interface{}
+	SortField   interface{}
+	Offset      int32
+	Limit       int32
 }
 
-func (q *Queries) GetAllRequestsByGateID(ctx context.Context, arg GetAllRequestsByGateIDParams) ([]Request, error) {
-	rows, err := q.db.Query(ctx, getAllRequestsByGateID, arg.GateID, arg.Offset, arg.Limit)
+func (q *Queries) GetFilteredRequests(ctx context.Context, arg GetFilteredRequestsParams) ([]Request, error) {
+	rows, err := q.db.Query(ctx, getFilteredRequests,
+		arg.GateID,
+		arg.Methods,
+		arg.PathPattern,
+		arg.FromDate,
+		arg.ToDate,
+		arg.AgentID,
+		arg.HasDiff,
+		arg.SortOrder,
+		arg.SortField,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

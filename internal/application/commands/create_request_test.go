@@ -29,7 +29,7 @@ func (m *mockRequestRepository) GetByID(ctx context.Context, id traffictesting.R
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockRequestRepository) GetAllByGateID(ctx context.Context, gateID traffictesting.GateID, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+func (m *mockRequestRepository) GetAllByGateID(ctx context.Context, gateID traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
 	return nil, errors.New("not implemented")
 }
 

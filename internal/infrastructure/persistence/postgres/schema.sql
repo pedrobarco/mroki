@@ -39,6 +39,8 @@ CREATE TABLE diffs (
 -- PERFORMANCE INDICES
 -- High-priority indices for query optimization
 CREATE INDEX idx_requests_gate_id ON requests(gate_id);
-CREATE INDEX idx_requests_gate_id_created_at ON requests(gate_id, created_at DESC); -- Composite for list queries
+CREATE INDEX idx_requests_gate_id_created_at ON requests(gate_id, created_at DESC); -- Composite for list queries with date sorting
+CREATE INDEX idx_requests_gate_id_method ON requests(gate_id, method); -- For method filtering
+CREATE INDEX idx_requests_gate_id_path ON requests(gate_id, path); -- For path filtering and sorting
 CREATE INDEX idx_responses_request_id ON responses(request_id);
-CREATE INDEX idx_requests_agent_id ON requests(agent_id);
+CREATE INDEX idx_requests_agent_id ON requests(agent_id); -- For agent filtering

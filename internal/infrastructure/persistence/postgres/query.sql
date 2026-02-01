@@ -48,16 +48,101 @@ LEFT JOIN responses resp ON resp.request_id = req.id
 LEFT JOIN diffs diff ON diff.request_id = req.id
 WHERE req.gate_id = $1 AND req.id = $2;
 
--- name: GetAllRequestsByGateID :many
+-- name: GetFilteredRequests :many
 SELECT id, gate_id, agent_id, method, path, headers, body, created_at
 FROM requests
-WHERE gate_id = $1
-ORDER BY created_at DESC
+WHERE 
+  gate_id = sqlc.arg('gate_id')
+  -- Optional method filter: empty array or NULL = no filter
+  AND (
+    sqlc.narg('methods') IS NULL 
+    OR cardinality(sqlc.narg('methods')::text[]) = 0 
+    OR method = ANY(sqlc.narg('methods')::text[])
+  )
+  -- Optional path pattern filter: NULL = no filter
+  AND (
+    sqlc.narg('path_pattern') IS NULL 
+    OR sqlc.narg('path_pattern') = '' 
+    OR path LIKE sqlc.narg('path_pattern')
+  )
+  -- Optional date range filters
+  AND (sqlc.narg('from_date') IS NULL OR created_at >= sqlc.narg('from_date'))
+  AND (sqlc.narg('to_date') IS NULL OR created_at <= sqlc.narg('to_date'))
+  -- Optional agent ID filter: NULL or empty = no filter
+  AND (
+    sqlc.narg('agent_id') IS NULL 
+    OR sqlc.narg('agent_id') = '' 
+    OR agent_id = sqlc.narg('agent_id')
+  )
+  -- Optional diff existence filter: NULL = no filter
+  AND (
+    sqlc.narg('has_diff') IS NULL 
+    OR (
+      sqlc.narg('has_diff') = true 
+      AND EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
+    )
+    OR (
+      sqlc.narg('has_diff') = false 
+      AND NOT EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
+    )
+  )
+ORDER BY 
+  -- Dynamic sorting with CASE statements
+  CASE 
+    WHEN sqlc.arg('sort_order') = 'asc' THEN
+      CASE sqlc.arg('sort_field')
+        WHEN 'method' THEN method
+        WHEN 'path' THEN path
+        WHEN 'created_at' THEN created_at::text
+        ELSE created_at::text
+      END
+  END ASC,
+  CASE 
+    WHEN sqlc.arg('sort_order') = 'desc' THEN
+      CASE sqlc.arg('sort_field')
+        WHEN 'method' THEN method
+        WHEN 'path' THEN path
+        WHEN 'created_at' THEN created_at::text
+        ELSE created_at::text
+      END
+  END DESC
 LIMIT sqlc.arg('limit')
 OFFSET sqlc.arg('offset');
 
--- name: CountRequestsByGateID :one
-SELECT COUNT(*) FROM requests WHERE gate_id = $1;
+-- name: CountFilteredRequests :one
+SELECT COUNT(*)
+FROM requests
+WHERE 
+  gate_id = sqlc.arg('gate_id')
+  -- Same filters as GetFilteredRequests for consistency
+  AND (
+    sqlc.narg('methods') IS NULL 
+    OR cardinality(sqlc.narg('methods')::text[]) = 0 
+    OR method = ANY(sqlc.narg('methods')::text[])
+  )
+  AND (
+    sqlc.narg('path_pattern') IS NULL 
+    OR sqlc.narg('path_pattern') = '' 
+    OR path LIKE sqlc.narg('path_pattern')
+  )
+  AND (sqlc.narg('from_date') IS NULL OR created_at >= sqlc.narg('from_date'))
+  AND (sqlc.narg('to_date') IS NULL OR created_at <= sqlc.narg('to_date'))
+  AND (
+    sqlc.narg('agent_id') IS NULL 
+    OR sqlc.narg('agent_id') = '' 
+    OR agent_id = sqlc.narg('agent_id')
+  )
+  AND (
+    sqlc.narg('has_diff') IS NULL 
+    OR (
+      sqlc.narg('has_diff') = true 
+      AND EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
+    )
+    OR (
+      sqlc.narg('has_diff') = false 
+      AND NOT EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
+    )
+  );
 
 -- name: SaveResponse :exec
 INSERT INTO responses (id, request_id, type, status_code, headers, body, created_at)

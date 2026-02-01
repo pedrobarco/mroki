@@ -13,7 +13,7 @@ import (
 )
 
 type mockRequestRepositoryForListRequests struct {
-	getAllByGateIDFn func(context.Context, traffictesting.GateID, *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error)
+	getAllByGateIDFn func(context.Context, traffictesting.GateID, traffictesting.RequestFilters, traffictesting.RequestSort, *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error)
 }
 
 func (m *mockRequestRepositoryForListRequests) Save(ctx context.Context, req *traffictesting.Request) error {
@@ -24,9 +24,9 @@ func (m *mockRequestRepositoryForListRequests) GetByID(ctx context.Context, id t
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockRequestRepositoryForListRequests) GetAllByGateID(ctx context.Context, gateID traffictesting.GateID, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+func (m *mockRequestRepositoryForListRequests) GetAllByGateID(ctx context.Context, gateID traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
 	if m.getAllByGateIDFn != nil {
-		return m.getAllByGateIDFn(ctx, gateID, params)
+		return m.getAllByGateIDFn(ctx, gateID, filters, sort, params)
 	}
 	return nil, errors.New("not implemented")
 }
@@ -56,7 +56,7 @@ func TestListRequestsHandler_Handle_success(t *testing.T) {
 	)
 
 	repo := &mockRequestRepositoryForListRequests{
-		getAllByGateIDFn: func(ctx context.Context, gid traffictesting.GateID, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+		getAllByGateIDFn: func(ctx context.Context, gid traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
 			assert.Equal(t, gateID, gid)
 			return pagination.NewPagedResult([]*traffictesting.Request{req1, req2}, 2, params), nil
 		},
@@ -102,7 +102,7 @@ func TestListRequestsHandler_Handle_empty_result(t *testing.T) {
 	// Arrange
 	gateID := traffictesting.NewGateID()
 	repo := &mockRequestRepositoryForListRequests{
-		getAllByGateIDFn: func(ctx context.Context, gid traffictesting.GateID, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+		getAllByGateIDFn: func(ctx context.Context, gid traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
 			return pagination.NewPagedResult([]*traffictesting.Request{}, 0, params), nil
 		},
 	}
@@ -129,7 +129,7 @@ func TestListRequestsHandler_Handle_repository_error(t *testing.T) {
 	expectedErr := errors.New("database connection failed")
 	gateID := traffictesting.NewGateID()
 	repo := &mockRequestRepositoryForListRequests{
-		getAllByGateIDFn: func(ctx context.Context, gid traffictesting.GateID, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+		getAllByGateIDFn: func(ctx context.Context, gid traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
 			return nil, expectedErr
 		},
 	}

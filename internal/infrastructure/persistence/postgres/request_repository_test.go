@@ -274,14 +274,26 @@ func TestRequestRepository_GetAllByGateID_success(t *testing.T) {
 	now := time.Now()
 
 	params, _ := pagination.NewParams(50, 0)
+	filters := traffictesting.EmptyRequestFilters()
+	sort := traffictesting.DefaultRequestSort()
 
-	// Expect CountRequestsByGateID query
+	// Expect CountFilteredRequests with all filter parameters
+	// Parameters: gate_id, methods, path_pattern, from_date, to_date, agent_id, has_diff
 	countRows := pgxmock.NewRows([]string{"count"}).AddRow(int64(2))
-	mock.ExpectQuery("SELECT COUNT").
-		WithArgs(pgtype.UUID{Bytes: gateID.UUID(), Valid: true}).
+	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM requests WHERE`).
+		WithArgs(
+			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
+			nil, // methods
+			nil, // path_pattern
+			nil, // from_date
+			nil, // to_date
+			nil, // agent_id
+			nil, // has_diff
+		).
 		WillReturnRows(countRows)
 
-	// Expect GetAllRequestsByGateID query with pagination
+	// Expect GetFilteredRequests with all parameters including sort and pagination
+	// Parameters: gate_id, methods, path_pattern, from_date, to_date, agent_id, has_diff, sort_order, sort_field, offset, limit
 	rows := pgxmock.NewRows([]string{
 		"id", "gate_id", "agent_id", "method", "path", "headers", "body", "created_at",
 	}).
@@ -306,15 +318,23 @@ func TestRequestRepository_GetAllByGateID_success(t *testing.T) {
 			pgtype.Timestamptz{Time: now, Valid: true},
 		)
 
-	mock.ExpectQuery("SELECT (.+) FROM requests").
+	mock.ExpectQuery(`SELECT id, gate_id, agent_id, method, path, headers, body, created_at FROM requests WHERE`).
 		WithArgs(
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
-			int32(0),
-			int32(50),
+			nil,          // methods
+			nil,          // path_pattern
+			nil,          // from_date
+			nil,          // to_date
+			nil,          // agent_id
+			nil,          // has_diff
+			"desc",       // sort_order
+			"created_at", // sort_field
+			int32(0),     // offset
+			int32(50),    // limit
 		).
 		WillReturnRows(rows)
 
-	result, err := repo.GetAllByGateID(context.Background(), gateID, params)
+	result, err := repo.GetAllByGateID(context.Background(), gateID, filters, sort, params)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -339,26 +359,45 @@ func TestRequestRepository_GetAllByGateID_empty_result(t *testing.T) {
 	gateID := traffictesting.NewGateID()
 	params, _ := pagination.NewParams(50, 0)
 
-	// Expect CountRequestsByGateID = 0
+	filters := traffictesting.EmptyRequestFilters()
+	sort := traffictesting.DefaultRequestSort()
+
+	// Expect CountFilteredRequests with all filter parameters returning 0
 	countRows := pgxmock.NewRows([]string{"count"}).AddRow(int64(0))
-	mock.ExpectQuery("SELECT COUNT").
-		WithArgs(pgtype.UUID{Bytes: gateID.UUID(), Valid: true}).
+	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM requests WHERE`).
+		WithArgs(
+			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
+			nil, // methods
+			nil, // path_pattern
+			nil, // from_date
+			nil, // to_date
+			nil, // agent_id
+			nil, // has_diff
+		).
 		WillReturnRows(countRows)
 
-	// Expect empty GetAllRequestsByGateID
+	// Expect GetFilteredRequests returning empty result
 	rows := pgxmock.NewRows([]string{
 		"id", "gate_id", "agent_id", "method", "path", "headers", "body", "created_at",
 	})
 
-	mock.ExpectQuery("SELECT (.+) FROM requests").
+	mock.ExpectQuery(`SELECT id, gate_id, agent_id, method, path, headers, body, created_at FROM requests WHERE`).
 		WithArgs(
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
-			int32(0),
-			int32(50),
+			nil,          // methods
+			nil,          // path_pattern
+			nil,          // from_date
+			nil,          // to_date
+			nil,          // agent_id
+			nil,          // has_diff
+			"desc",       // sort_order
+			"created_at", // sort_field
+			int32(0),     // offset
+			int32(50),    // limit
 		).
 		WillReturnRows(rows)
 
-	result, err := repo.GetAllByGateID(context.Background(), gateID, params)
+	result, err := repo.GetAllByGateID(context.Background(), gateID, filters, sort, params)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

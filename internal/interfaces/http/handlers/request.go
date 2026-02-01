@@ -191,10 +191,24 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 			return NewError(http.StatusBadRequest, "invalid pagination parameters", err)
 		}
 
+		// Parse filtering and sorting query parameters
+		methods, pathPattern, fromDate, toDate, agentID, hasDiff, sortField, sortOrder, err := parseRequestQueryParams(r.URL.Query())
+		if err != nil {
+			return NewError(http.StatusBadRequest, "invalid query parameters", err)
+		}
+
 		query := queries.ListRequestsQuery{
-			GateID: gid,
-			Limit:  limit,
-			Offset: offset,
+			GateID:      gid,
+			Limit:       limit,
+			Offset:      offset,
+			Methods:     methods,
+			PathPattern: pathPattern,
+			FromDate:    fromDate,
+			ToDate:      toDate,
+			AgentID:     agentID,
+			HasDiff:     hasDiff,
+			SortField:   sortField,
+			SortOrder:   sortOrder,
 		}
 
 		result, err := handler.Handle(r.Context(), query)
@@ -204,6 +218,10 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 				return NewError(http.StatusBadRequest, "invalid gate ID", err)
 			case errors.Is(err, traffictesting.ErrInvalidPagination):
 				return NewError(http.StatusBadRequest, "invalid pagination parameters", err)
+			case errors.Is(err, traffictesting.ErrInvalidFilters):
+				return NewError(http.StatusBadRequest, "invalid filter parameters", err)
+			case errors.Is(err, traffictesting.ErrInvalidSort):
+				return NewError(http.StatusBadRequest, "invalid sort parameters", err)
 			default:
 				return NewError(http.StatusInternalServerError, "failed to retrieve requests", err)
 			}
