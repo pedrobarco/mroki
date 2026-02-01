@@ -249,8 +249,8 @@ curl http://localhost:8081/gates
   - `headers` (required) - Response headers
   - `body` (required) - Response body (string)
   - `created_at` (required) - Response timestamp
-- `diff` (required) - Computed difference
-  - `content` (required) - JSON diff in RFC 6902 format
+- `diff` (required) - Computed difference (value object, no ID)
+  - `content` (required) - JSON diff in RFC 6902 format (always present, may be empty string)
 
 **Response:**
 - `201 Created` on success
@@ -319,12 +319,11 @@ curl -X POST http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000/re
         "body": "{\"id\":456,\"name\":\"Alice\",\"age\":30}",
         "created_at": "2026-01-31T20:00:01Z"
       }
-    ],
-    "diff": {
-      "id": "a02g9902-a758-73g1-c77e-138gf4g13dga0",
-      "content": "[{\"op\":\"replace\",\"path\":\"/id\",\"value\":456,\"oldValue\":123}]"
-    }
+  ],
+  "diff": {
+    "content": "[{\"op\":\"replace\",\"path\":\"/id\",\"value\":456,\"oldValue\":123}]"
   }
+}
 }
 ```
 

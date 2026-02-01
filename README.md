@@ -176,7 +176,7 @@ go build -o mroki-api ./cmd/mroki-api
 - ✅ Request capture and diff computation
 - ✅ Retry logic with exponential backoff
 - ✅ Agent ID persistence
-- ✅ 131+ tests, 0 failures
+- ✅ 237+ tests, 0 failures
 - 🚧 Web UI (mroki-hub) - In development
 
 ## License

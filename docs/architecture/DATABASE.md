@@ -156,14 +156,13 @@ Stores computed differences between live and shadow responses.
 
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
-| `id` | UUID | NOT NULL | Primary key, generated UUID v4 |
-| `request_id` | UUID | NOT NULL | Foreign key to requests.id |
-| `from_response_id` | UUID | NOT NULL | Foreign key to responses.id (live) |
-| `to_response_id` | UUID | NOT NULL | Foreign key to responses.id (shadow) |
-| `content` | BYTEA | YES | Diff content (JSON Patch format) |
+| `request_id` | UUID | NOT NULL | Primary key & foreign key to requests.id (1:1 relationship) |
+| `from_response_id` | UUID | NOT NULL | Foreign key to responses.id (live response) |
+| `to_response_id` | UUID | NOT NULL | Foreign key to responses.id (shadow response) |
+| `content` | TEXT | NOT NULL | Diff content (JSON Patch format, always saved even if empty) |
 
 **Indexes:**
-- PRIMARY KEY on `id`
+- PRIMARY KEY on `request_id` (enforces 1:1 relationship with requests)
 
 **Foreign Keys:**
 - `request_id` REFERENCES `requests(id)` ON DELETE CASCADE
@@ -173,9 +172,8 @@ Stores computed differences between live and shadow responses.
 **Example:**
 ```sql
 INSERT INTO diffs (
-    id, request_id, from_response_id, to_response_id, content
+    request_id, from_response_id, to_response_id, content
 ) VALUES (
-    'a02g9902-a758-73g1-c77e-138gf4g13dga0',
     '7c9e6679-7425-40de-944b-e07fc1f90ae7',
     '8d0e7780-8536-51ef-a55c-f18fd2f91bf8',
     '9e1f8891-9647-62f0-b66d-027fe3f02cf9',
@@ -220,18 +218,22 @@ Headers are stored as JSONB for efficient querying.
 - Supports indexing and querying
 - Allows header arrays (multiple values per key)
 
-### BYTEA
+### BYTEA and TEXT
 
-Request/response bodies and diff content are stored as BYTEA (binary).
+Request/response bodies are stored as BYTEA (binary), while diff content is stored as TEXT.
 
-**Why binary:**
+**Request/Response Bodies (BYTEA):**
 - Handles any content type (JSON, XML, binary, etc.)
 - Preserves exact byte representation
 - No character encoding issues
-
-**Conversion:**
 - Go: `[]byte` ↔ PostgreSQL BYTEA
 - API: Base64 encoded in JSON responses
+
+**Diff Content (TEXT):**
+- Stores JSON Patch format (always valid UTF-8)
+- Human-readable in database queries
+- Better debuggability and inspection
+- Go: `string` ↔ PostgreSQL TEXT
 
 ---
 
@@ -316,7 +318,9 @@ ORDER BY created_at DESC;
 
 Schema is applied automatically on startup by mroki-api. No migration tool yet.
 
-**Location:** `internal/infrastructure/persistence/postgres/db/`
+**Schema File:** `internal/infrastructure/persistence/postgres/schema.sql`
+**Query File:** `internal/infrastructure/persistence/postgres/query.sql`
+**Generated Code:** `internal/infrastructure/persistence/postgres/db/` (via sqlc)
 
 ### Future (v2+)
 
@@ -454,7 +458,9 @@ Partition `requests` table by `created_at` for efficient archival.
 
 The definitive schema is maintained in:
 
-**File:** `internal/infrastructure/persistence/postgres/db/`
+**Schema File:** `internal/infrastructure/persistence/postgres/schema.sql`
+**Query File:** `internal/infrastructure/persistence/postgres/query.sql`
+**Generated Code:** `internal/infrastructure/persistence/postgres/db/` (via sqlc)
 
 **Applied by:** mroki-api on startup
 
