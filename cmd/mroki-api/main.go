@@ -9,11 +9,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
-	"github.com/pedrobarco/mroki/internal/domain/diffing"
-	"github.com/pedrobarco/mroki/internal/handlers"
-	"github.com/pedrobarco/mroki/internal/middleware"
-	"github.com/pedrobarco/mroki/internal/storage/postgres"
-	"github.com/pedrobarco/mroki/internal/storage/postgres/db"
+	"github.com/pedrobarco/mroki/internal/application/commands"
+	appqueries "github.com/pedrobarco/mroki/internal/application/queries"
+	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/postgres"
+	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/postgres/db"
+	"github.com/pedrobarco/mroki/internal/interfaces/http/handlers"
+	"github.com/pedrobarco/mroki/internal/interfaces/http/middleware"
 	"github.com/pedrobarco/mroki/pkg/logger"
 )
 
@@ -47,23 +48,33 @@ func main() {
 
 	queries := db.New(pool)
 
+	// Infrastructure Layer: Repository implementations
 	gateRepo := postgres.NewGateRepository(queries)
-	gateSvc := diffing.NewGateService(gateRepo)
-
 	reqRepo := postgres.NewRequestRepository(queries, pool)
-	reqSvc := diffing.NewRequestService(reqRepo)
 
+	// Application Layer: Command Handlers (Write operations)
+	createGateHandler := commands.NewCreateGateHandler(gateRepo)
+	createRequestHandler := commands.NewCreateRequestHandler(reqRepo)
+
+	// Application Layer: Query Handlers (Read operations)
+	getGateHandler := appqueries.NewGetGateHandler(gateRepo)
+	listGatesHandler := appqueries.NewListGatesHandler(gateRepo)
+	getRequestHandler := appqueries.NewGetRequestHandler(reqRepo)
+	listRequestsHandler := appqueries.NewListRequestsHandler(reqRepo)
+
+	// Middleware
 	baseChain := middleware.Chain{
 		middleware.Logging(logger),
 	}
 
-	getAllGates := handlers.GetAllGates(gateSvc)
-	createGate := handlers.CreateGate(gateSvc)
-	getGateByID := handlers.GetGateByID(gateSvc)
+	// Interface Layer: HTTP Handlers
+	createGate := handlers.CreateGate(createGateHandler)
+	getGateByID := handlers.GetGateByID(getGateHandler)
+	getAllGates := handlers.GetAllGates(listGatesHandler)
 
-	getAllRequestsByGateID := handlers.GetAllRequestsByGateID(reqSvc)
-	createRequest := handlers.CreateRequest(reqSvc)
-	getRequestByID := handlers.GetRequestByID(reqSvc)
+	createRequest := handlers.CreateRequest(createRequestHandler)
+	getRequestByID := handlers.GetRequestByID(getRequestHandler)
+	getAllRequestsByGateID := handlers.GetAllRequestsByGateID(listRequestsHandler)
 
 	mux := http.NewServeMux()
 

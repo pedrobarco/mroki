@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pedrobarco/mroki/internal/domain/diffing"
+	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 )
 
 const agentIDFile = ".agent_id"
@@ -22,7 +22,7 @@ func loadOrGenerateAgentID() (string, error) {
 		agentID := strings.TrimSpace(string(data))
 		if agentID != "" {
 			// Validate it matches the hybrid format
-			if _, err := diffing.ParseAgentID(agentID); err == nil {
+			if _, err := traffictesting.ParseAgentID(agentID); err == nil {
 				return agentID, nil
 			}
 			// If validation fails, log a warning and regenerate
@@ -36,7 +36,7 @@ func loadOrGenerateAgentID() (string, error) {
 		hostname = "agent"
 	}
 
-	agentID := diffing.NewAgentIDWithHostname(hostname)
+	agentID := traffictesting.NewAgentIDWithHostname(hostname)
 
 	// Save to disk
 	if err := saveAgentID(agentID.String()); err != nil {
