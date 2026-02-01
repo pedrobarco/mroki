@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
+	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/storage/postgres/db"
 )
 
@@ -22,13 +23,24 @@ func NewGateRepository(queries *db.Queries) *gateRepository {
 	}
 }
 
-func (r *gateRepository) GetAll(ctx context.Context) ([]*diffing.Gate, error) {
-	rows, err := r.queries.GetAllGates(ctx)
+func (r *gateRepository) GetAll(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*diffing.Gate], error) {
+	// Get total count
+	total, err := r.queries.CountGates(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to count gates: %w", err)
 	}
 
-	var gates []*diffing.Gate
+	// Get paginated results using getters
+	rows, err := r.queries.GetAllGates(ctx, db.GetAllGatesParams{
+		Limit:  int32(params.Limit()),
+		Offset: int32(params.Offset()),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gates: %w", err)
+	}
+
+	// Handle empty results - return empty slice
+	gates := make([]*diffing.Gate, 0, len(rows))
 	for _, raw := range rows {
 		gate, err := r.toDomain(raw)
 		if err != nil {
@@ -36,7 +48,9 @@ func (r *gateRepository) GetAll(ctx context.Context) ([]*diffing.Gate, error) {
 		}
 		gates = append(gates, gate)
 	}
-	return gates, nil
+
+	// Use factory to create PagedResult
+	return pagination.NewPagedResult(gates, total, params), nil
 }
 
 func (r *gateRepository) GetByID(ctx context.Context, id diffing.GateID) (*diffing.Gate, error) {

@@ -9,7 +9,13 @@ WHERE id = $1;
 
 -- name: GetAllGates :many
 SELECT id, live_url, shadow_url
-FROM gates;
+FROM gates
+ORDER BY id
+LIMIT sqlc.arg('limit')
+OFFSET sqlc.arg('offset');
+
+-- name: CountGates :one
+SELECT COUNT(*) FROM gates;
 
 -- name: SaveRequest :exec
 INSERT INTO requests (id, gate_id, agent_id, method, path, headers, body, created_at)
@@ -47,7 +53,12 @@ WHERE req.gate_id = $1 AND req.id = $2;
 SELECT id, gate_id, agent_id, method, path, headers, body, created_at
 FROM requests
 WHERE gate_id = $1
-ORDER BY created_at DESC;
+ORDER BY created_at DESC
+LIMIT sqlc.arg('limit')
+OFFSET sqlc.arg('offset');
+
+-- name: CountRequestsByGateID :one
+SELECT COUNT(*) FROM requests WHERE gate_id = $1;
 
 -- name: SaveResponse :exec
 INSERT INTO responses (id, request_id, type, status_code, headers, body, created_at)

@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
+	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/storage/postgres/db"
 )
 
@@ -99,21 +100,35 @@ func (r *requestRepository) Save(ctx context.Context, request *diffing.Request) 
 	return nil
 }
 
-func (r *requestRepository) GetAllByGateID(ctx context.Context, gateID diffing.GateID) ([]*diffing.Request, error) {
-	rows, err := r.queries.GetAllRequestsByGateID(ctx, pgtype.UUID{Bytes: gateID.UUID(), Valid: true})
+func (r *requestRepository) GetAllByGateID(ctx context.Context, gateID diffing.GateID, params *pagination.Params) (*pagination.PagedResult[*diffing.Request], error) {
+	// Get total count for this gate
+	total, err := r.queries.CountRequestsByGateID(ctx, pgtype.UUID{Bytes: gateID.UUID(), Valid: true})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to count requests: %w", err)
 	}
 
-	var reqs []*diffing.Request
+	// Get paginated results using getters
+	rows, err := r.queries.GetAllRequestsByGateID(ctx, db.GetAllRequestsByGateIDParams{
+		GateID: pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
+		Limit:  int32(params.Limit()),
+		Offset: int32(params.Offset()),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get requests: %w", err)
+	}
+
+	// Handle empty results - return empty slice
+	reqs := make([]*diffing.Request, 0, len(rows))
 	for _, raw := range rows {
 		req, err := r.toDomain(raw)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert gate: %w", err)
+			return nil, fmt.Errorf("failed to convert request: %w", err)
 		}
 		reqs = append(reqs, req)
 	}
-	return reqs, nil
+
+	// Use factory to create PagedResult
+	return pagination.NewPagedResult(reqs, total, params), nil
 }
 
 func (r *requestRepository) GetByID(ctx context.Context, id diffing.RequestID, gateID diffing.GateID) (*diffing.Request, error) {

@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pedrobarco/mroki/internal/domain/pagination"
 )
 
 type RequestRepository interface {
 	Save(ctx context.Context, request *Request) error
 	GetByID(ctx context.Context, id RequestID, gateID GateID) (*Request, error)
-	GetAllByGateID(ctx context.Context, gateID GateID) ([]*Request, error)
+	GetAllByGateID(ctx context.Context, gateID GateID, params *pagination.Params) (*pagination.PagedResult[*Request], error)
 }
 
 type RequestService struct {
@@ -177,15 +178,26 @@ func (s *RequestService) GetByID(ctx context.Context, idStr string, gateIDStr st
 	return request, nil
 }
 
-func (s *RequestService) GetAllByGateID(ctx context.Context, gateIDStr string) ([]*Request, error) {
+// GetAllByGateID retrieves all requests for a gate with pagination
+// Accepts optional limit and offset parameters (0 or negative values use defaults)
+// Returns PagedResult containing requests, total count, and pagination metadata
+func (s *RequestService) GetAllByGateID(ctx context.Context, gateIDStr string, limit, offset int) (*pagination.PagedResult[*Request], error) {
+	// Parse gate ID first (domain validation)
 	gateID, err := ParseGateID(gateIDStr)
 	if err != nil {
 		return nil, err
 	}
 
-	requests, err := s.repo.GetAllByGateID(ctx, gateID)
+	// Service is responsible for creating the pagination value object
+	params, err := pagination.NewParams(limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidPagination, err)
+	}
+
+	result, err := s.repo.GetAllByGateID(ctx, gateID, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all requests: %w", err)
 	}
-	return requests, nil
+
+	return result, nil
 }

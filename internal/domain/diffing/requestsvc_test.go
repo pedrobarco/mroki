@@ -9,6 +9,7 @@ import (
 
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 	"github.com/pedrobarco/mroki/internal/domain/diffing/mocks"
+	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -219,15 +220,46 @@ func TestRequestService_GetAllByGateID_success(t *testing.T) {
 		{ID: diffing.NewRequestID(), GateID: gateID},
 	}
 
+	params, _ := pagination.NewParams(50, 0)
+	pagedResult := pagination.NewPagedResult(expectedRequests, int64(2), params)
+
 	mockRepo := mocks.NewMockRequestRepository(ctrl)
-	mockRepo.EXPECT().GetAllByGateID(gomock.Any(), gateID).Return(expectedRequests, nil)
+	mockRepo.EXPECT().GetAllByGateID(gomock.Any(), gateID, gomock.Any()).Return(pagedResult, nil)
 
 	service := diffing.NewRequestService(mockRepo)
-	requests, err := service.GetAllByGateID(context.Background(), gateID.String())
+	result, err := service.GetAllByGateID(context.Background(), gateID.String(), 50, 0)
 
 	assert.NoError(t, err)
-	assert.Len(t, requests, 2)
-	assert.Equal(t, expectedRequests, requests)
+	assert.NotNil(t, result)
+	assert.Len(t, result.Items, 2)
+	assert.Equal(t, int64(2), result.Total)
+	assert.False(t, result.HasMore)
+}
+
+func TestRequestService_GetAllByGateID_with_defaults(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	gateID := diffing.NewGateID()
+	expectedRequests := []*diffing.Request{
+		{ID: diffing.NewRequestID(), GateID: gateID},
+	}
+
+	params, _ := pagination.NewParams(50, 0)
+	pagedResult := pagination.NewPagedResult(expectedRequests, int64(1), params)
+
+	mockRepo := mocks.NewMockRequestRepository(ctrl)
+	mockRepo.EXPECT().GetAllByGateID(gomock.Any(), gateID, gomock.Any()).Return(pagedResult, nil)
+
+	service := diffing.NewRequestService(mockRepo)
+
+	// Pass 0 values - should use defaults
+	result, err := service.GetAllByGateID(context.Background(), gateID.String(), 0, 0)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 50, result.Limit) // Default applied
+	assert.Equal(t, 0, result.Offset)
 }
 
 func TestRequestService_GetAllByGateID_invalid_gate_id(t *testing.T) {
@@ -237,7 +269,7 @@ func TestRequestService_GetAllByGateID_invalid_gate_id(t *testing.T) {
 	mockRepo := mocks.NewMockRequestRepository(ctrl)
 	service := diffing.NewRequestService(mockRepo)
 
-	_, err := service.GetAllByGateID(context.Background(), "invalid-uuid")
+	_, err := service.GetAllByGateID(context.Background(), "invalid-uuid", 50, 0)
 
 	assert.Error(t, err)
 }

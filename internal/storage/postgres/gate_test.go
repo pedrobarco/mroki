@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pashagolub/pgxmock/v3"
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
+	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/storage/postgres"
 	"github.com/pedrobarco/mroki/internal/storage/postgres/db"
 	"github.com/stretchr/testify/assert"
@@ -159,6 +160,12 @@ func TestGateRepository_GetAll_success(t *testing.T) {
 	gateID1 := diffing.NewGateID()
 	gateID2 := diffing.NewGateID()
 
+	params, _ := pagination.NewParams(50, 0)
+
+	// Expect CountGates query
+	countRows := pgxmock.NewRows([]string{"count"}).AddRow(int64(2))
+	mock.ExpectQuery("SELECT COUNT").WillReturnRows(countRows)
+
 	// Expect GetAllGates query
 	rows := pgxmock.NewRows([]string{"id", "live_url", "shadow_url"}).
 		AddRow(
@@ -173,14 +180,20 @@ func TestGateRepository_GetAll_success(t *testing.T) {
 		)
 
 	mock.ExpectQuery("SELECT (.+) FROM gates").
+		WithArgs(int32(0), int32(50)).
 		WillReturnRows(rows)
 
-	gates, err := repo.GetAll(context.Background())
+	result, err := repo.GetAll(context.Background(), params)
 
 	assert.NoError(t, err)
-	assert.Len(t, gates, 2)
-	assert.Equal(t, gateID1.String(), gates[0].ID.String())
-	assert.Equal(t, gateID2.String(), gates[1].ID.String())
+	assert.NotNil(t, result)
+	assert.Len(t, result.Items, 2)
+	assert.Equal(t, int64(2), result.Total)
+	assert.Equal(t, 50, result.Limit)
+	assert.Equal(t, 0, result.Offset)
+	assert.False(t, result.HasMore)
+	assert.Equal(t, gateID1.String(), result.Items[0].ID.String())
+	assert.Equal(t, gateID2.String(), result.Items[1].ID.String())
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -192,16 +205,26 @@ func TestGateRepository_GetAll_empty_result(t *testing.T) {
 	queries := db.New(mock)
 	repo := postgres.NewGateRepository(queries)
 
+	params, _ := pagination.NewParams(50, 0)
+
+	// Expect CountGates query
+	countRows := pgxmock.NewRows([]string{"count"}).AddRow(int64(0))
+	mock.ExpectQuery("SELECT COUNT").WillReturnRows(countRows)
+
 	// Expect GetAllGates query with no rows
 	rows := pgxmock.NewRows([]string{"id", "live_url", "shadow_url"})
 
 	mock.ExpectQuery("SELECT (.+) FROM gates").
+		WithArgs(int32(0), int32(50)).
 		WillReturnRows(rows)
 
-	gates, err := repo.GetAll(context.Background())
+	result, err := repo.GetAll(context.Background(), params)
 
 	assert.NoError(t, err)
-	assert.Empty(t, gates)
+	assert.NotNil(t, result)
+	assert.Empty(t, result.Items)
+	assert.Equal(t, int64(0), result.Total)
+	assert.False(t, result.HasMore)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -213,13 +236,15 @@ func TestGateRepository_GetAll_database_error(t *testing.T) {
 	queries := db.New(mock)
 	repo := postgres.NewGateRepository(queries)
 
-	// Expect GetAllGates query to fail
-	mock.ExpectQuery("SELECT (.+) FROM gates").
+	params, _ := pagination.NewParams(50, 0)
+
+	// Expect CountGates query to fail
+	mock.ExpectQuery("SELECT COUNT").
 		WillReturnError(pgx.ErrTxClosed)
 
-	gates, err := repo.GetAll(context.Background())
+	result, err := repo.GetAll(context.Background(), params)
 
 	assert.Error(t, err)
-	assert.Nil(t, gates)
+	assert.Nil(t, result)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

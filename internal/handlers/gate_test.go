@@ -10,6 +10,7 @@ import (
 
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 	"github.com/pedrobarco/mroki/internal/domain/diffing/mocks"
+	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/handlers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -216,7 +217,9 @@ func TestGetAllGates_success(t *testing.T) {
 	gate2, _ := diffing.NewGate(liveURL2, shadowURL2)
 
 	gates := []*diffing.Gate{gate1, gate2}
-	mockSvc.EXPECT().GetAll(gomock.Any()).Return(gates, nil)
+	params, _ := pagination.NewParams(50, 0)
+	pagedResult := pagination.NewPagedResult(gates, int64(2), params)
+	mockSvc.EXPECT().GetAll(gomock.Any(), gomock.Any()).Return(pagedResult, nil)
 
 	handler := handlers.GetAllGates(service)
 
@@ -232,6 +235,13 @@ func TestGetAllGates_success(t *testing.T) {
 	_ = json.NewDecoder(rec.Body).Decode(&response)
 	data := response["data"].([]interface{})
 	assert.Len(t, data, 2)
+
+	// Verify pagination metadata
+	paginationMeta := response["pagination"].(map[string]interface{})
+	assert.Equal(t, float64(50), paginationMeta["limit"])
+	assert.Equal(t, float64(0), paginationMeta["offset"])
+	assert.Equal(t, float64(2), paginationMeta["total"])
+	assert.Equal(t, false, paginationMeta["has_more"])
 }
 
 func TestGetAllGates_empty(t *testing.T) {
@@ -241,7 +251,9 @@ func TestGetAllGates_empty(t *testing.T) {
 	mockSvc := mocks.NewMockGateRepository(ctrl)
 	service := diffing.NewGateService(mockSvc)
 
-	mockSvc.EXPECT().GetAll(gomock.Any()).Return([]*diffing.Gate{}, nil)
+	params, _ := pagination.NewParams(50, 0)
+	pagedResult := pagination.NewPagedResult([]*diffing.Gate{}, int64(0), params)
+	mockSvc.EXPECT().GetAll(gomock.Any(), gomock.Any()).Return(pagedResult, nil)
 
 	handler := handlers.GetAllGates(service)
 
@@ -266,7 +278,7 @@ func TestGetAllGates_database_error(t *testing.T) {
 	mockSvc := mocks.NewMockGateRepository(ctrl)
 	service := diffing.NewGateService(mockSvc)
 
-	mockSvc.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("database error"))
+	mockSvc.EXPECT().GetAll(gomock.Any(), gomock.Any()).Return(nil, errors.New("database error"))
 
 	handler := handlers.GetAllGates(service)
 

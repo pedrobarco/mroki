@@ -21,4 +21,7 @@ var (
 	// ErrInvalidGateURL indicates a URL is not valid for gate usage.
 	// URLs must use http or https schemes.
 	ErrInvalidGateURL = errors.New("invalid gate URL")
+
+	// ErrInvalidPagination indicates invalid pagination parameters
+	ErrInvalidPagination = errors.New("invalid pagination parameters")
 )

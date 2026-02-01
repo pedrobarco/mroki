@@ -11,6 +11,7 @@ import (
 
 	"github.com/pedrobarco/mroki/internal/domain/diffing"
 	"github.com/pedrobarco/mroki/internal/domain/diffing/mocks"
+	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/handlers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -268,7 +269,9 @@ func TestGetAllRequestsByGateID_success(t *testing.T) {
 		},
 	}
 
-	mockSvc.EXPECT().GetAllByGateID(gomock.Any(), gateID).Return(requests, nil)
+	params, _ := pagination.NewParams(50, 0)
+	pagedResult := pagination.NewPagedResult(requests, int64(2), params)
+	mockSvc.EXPECT().GetAllByGateID(gomock.Any(), gateID, gomock.Any()).Return(pagedResult, nil)
 
 	handler := handlers.GetAllRequestsByGateID(service)
 
@@ -285,6 +288,13 @@ func TestGetAllRequestsByGateID_success(t *testing.T) {
 	_ = json.NewDecoder(rec.Body).Decode(&response)
 	data := response["data"].([]interface{})
 	assert.Len(t, data, 2)
+
+	// Verify pagination metadata
+	paginationMeta := response["pagination"].(map[string]interface{})
+	assert.Equal(t, float64(50), paginationMeta["limit"])
+	assert.Equal(t, float64(0), paginationMeta["offset"])
+	assert.Equal(t, float64(2), paginationMeta["total"])
+	assert.Equal(t, false, paginationMeta["has_more"])
 }
 
 func TestGetAllRequestsByGateID_empty(t *testing.T) {
@@ -295,7 +305,10 @@ func TestGetAllRequestsByGateID_empty(t *testing.T) {
 	service := diffing.NewRequestService(mockSvc)
 
 	gateID := diffing.NewGateID()
-	mockSvc.EXPECT().GetAllByGateID(gomock.Any(), gateID).Return([]*diffing.Request{}, nil)
+
+	params, _ := pagination.NewParams(50, 0)
+	pagedResult := pagination.NewPagedResult([]*diffing.Request{}, int64(0), params)
+	mockSvc.EXPECT().GetAllByGateID(gomock.Any(), gateID, gomock.Any()).Return(pagedResult, nil)
 
 	handler := handlers.GetAllRequestsByGateID(service)
 
@@ -307,6 +320,11 @@ func TestGetAllRequestsByGateID_empty(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var response map[string]interface{}
+	_ = json.NewDecoder(rec.Body).Decode(&response)
+	data := response["data"].([]interface{})
+	assert.Len(t, data, 0)
 }
 
 func TestGetAllRequestsByGateID_invalid_gate_id(t *testing.T) {
@@ -337,7 +355,7 @@ func TestGetAllRequestsByGateID_database_error(t *testing.T) {
 	service := diffing.NewRequestService(mockSvc)
 
 	gateID := diffing.NewGateID()
-	mockSvc.EXPECT().GetAllByGateID(gomock.Any(), gateID).Return(nil, errors.New("database error"))
+	mockSvc.EXPECT().GetAllByGateID(gomock.Any(), gateID, gomock.Any()).Return(nil, errors.New("database error"))
 
 	handler := handlers.GetAllRequestsByGateID(service)
 

@@ -98,22 +98,43 @@ func GetGateByID(svc *diffing.GateService) AppHandler {
 
 func GetAllGates(svc *diffing.GateService) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		gates, err := svc.GetAll(r.Context())
+		// 1. Parse HTTP query to primitives
+		limit, offset, err := parsePaginationQueryParams(r.URL.Query())
 		if err != nil {
-			return NewError(http.StatusInternalServerError, "failed to retrieve gates", err)
+			return NewError(http.StatusBadRequest, "invalid pagination parameters", err)
 		}
 
-		data := make([]gateResponseDTO, len(gates))
-		for i, gate := range gates {
-			data[i] = gateResponseDTO{
-				ID:        gate.ID.String(),
-				LiveURL:   gate.LiveURL.String(),
-				ShadowURL: gate.ShadowURL.String(),
+		// 2. Service creates pagination.Params and handles business logic
+		result, err := svc.GetAll(r.Context(), limit, offset)
+		if err != nil {
+			// Check if it's a pagination validation error
+			switch {
+			case errors.Is(err, diffing.ErrInvalidPagination):
+				return NewError(http.StatusBadRequest, "invalid pagination parameters", err)
+			default:
+				return NewError(http.StatusInternalServerError, "failed to retrieve gates", err)
 			}
 		}
 
-		response := responseDTO[[]gateResponseDTO]{
+		// 3. Map domain entities to DTOs (empty slice for empty results)
+		data := make([]gateResponseDTO, 0, len(result.Items))
+		for _, gate := range result.Items {
+			data = append(data, gateResponseDTO{
+				ID:        gate.ID.String(),
+				LiveURL:   gate.LiveURL.String(),
+				ShadowURL: gate.ShadowURL.String(),
+			})
+		}
+
+		// 4. Map PagedResult to response DTO
+		response := paginatedResponseDTO[[]gateResponseDTO]{
 			Data: data,
+			Pagination: paginationMetaDTO{
+				Limit:   result.Limit,
+				Offset:  result.Offset,
+				Total:   result.Total,
+				HasMore: result.HasMore,
+			},
 		}
 
 		w.Header().Set("Content-Type", "application/json")

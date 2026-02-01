@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	diffing "github.com/pedrobarco/mroki/internal/domain/diffing"
+	pagination "github.com/pedrobarco/mroki/internal/domain/pagination"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,18 +43,18 @@ func (m *MockGateRepository) EXPECT() *MockGateRepositoryMockRecorder {
 }
 
 // GetAll mocks base method.
-func (m *MockGateRepository) GetAll(ctx context.Context) ([]*diffing.Gate, error) {
+func (m *MockGateRepository) GetAll(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*diffing.Gate], error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAll", ctx)
-	ret0, _ := ret[0].([]*diffing.Gate)
+	ret := m.ctrl.Call(m, "GetAll", ctx, params)
+	ret0, _ := ret[0].(*pagination.PagedResult[*diffing.Gate])
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAll indicates an expected call of GetAll.
-func (mr *MockGateRepositoryMockRecorder) GetAll(ctx any) *gomock.Call {
+func (mr *MockGateRepositoryMockRecorder) GetAll(ctx, params any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockGateRepository)(nil).GetAll), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockGateRepository)(nil).GetAll), ctx, params)
 }
 
 // GetByID mocks base method.

@@ -5,12 +5,14 @@ package diffing
 import (
 	"context"
 	"fmt"
+
+	"github.com/pedrobarco/mroki/internal/domain/pagination"
 )
 
 type GateRepository interface {
 	Save(ctx context.Context, gate *Gate) error
 	GetByID(ctx context.Context, id GateID) (*Gate, error)
-	GetAll(ctx context.Context) ([]*Gate, error)
+	GetAll(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*Gate], error)
 }
 
 type GateService struct {
@@ -59,10 +61,20 @@ func (s *GateService) GetByID(ctx context.Context, idStr string) (*Gate, error) 
 	return gate, nil
 }
 
-func (s *GateService) GetAll(ctx context.Context) ([]*Gate, error) {
-	gates, err := s.repo.GetAll(ctx)
+// GetAll retrieves all gates with pagination
+// Accepts optional limit and offset parameters (0 or negative values use defaults)
+// Returns PagedResult containing gates, total count, and pagination metadata
+func (s *GateService) GetAll(ctx context.Context, limit, offset int) (*pagination.PagedResult[*Gate], error) {
+	// Service is responsible for creating the pagination value object
+	params, err := pagination.NewParams(limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidPagination, err)
+	}
+
+	result, err := s.repo.GetAll(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all gates: %w", err)
 	}
-	return gates, nil
+
+	return result, nil
 }
