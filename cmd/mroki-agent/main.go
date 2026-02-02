@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/pedrobarco/mroki/cmd/mroki-agent/config"
@@ -75,15 +78,39 @@ func main() {
 		IdleTimeout:  120 * time.Second, // Keep-alive timeout
 	}
 
-	log.Info("Started server",
-		"live", cfg.App.LiveURL.String(),
-		"shadow", cfg.App.ShadowURL.String(),
-		"address", server.Addr,
-		"agent_id", agentID,
-	)
+	// Start server in goroutine
+	serverErrors := make(chan error, 1)
+	go func() {
+		log.Info("Starting server",
+			"live", cfg.App.LiveURL.String(),
+			"shadow", cfg.App.ShadowURL.String(),
+			"address", server.Addr,
+			"agent_id", agentID,
+		)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErrors <- err
+		}
+	}()
 
-	if err := server.ListenAndServe(); err != nil {
-		slog.Error("Failed to start server", "error", err)
+	// Wait for interrupt signal
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErrors:
+		log.Error("Server failed to start", "error", err)
 		return
+	case sig := <-stop:
+		log.Info("Shutting down server", "signal", sig.String())
+	}
+
+	// Graceful shutdown with timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Error("Error during shutdown", "error", err)
+	} else {
+		log.Info("Server stopped")
 	}
 }

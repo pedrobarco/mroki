@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -44,7 +46,6 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("failed to create connection pool: %w", err))
 	}
-	defer pool.Close()
 
 	queries := db.New(pool)
 
@@ -103,11 +104,38 @@ func main() {
 		IdleTimeout:  60 * time.Second, // Keep-alive timeout
 	}
 
-	logger.Info("Started server",
-		"address", server.Addr,
-	)
-	if err := server.ListenAndServe(); err != nil {
-		slog.Error("Failed to start server", "error", err)
+	// Start server in goroutine
+	serverErrors := make(chan error, 1)
+	go func() {
+		logger.Info("Starting server", "address", server.Addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErrors <- err
+		}
+	}()
+
+	// Wait for interrupt signal
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErrors:
+		logger.Error("Server failed to start", "error", err)
 		return
+	case sig := <-stop:
+		logger.Info("Shutting down server", "signal", sig.String())
 	}
+
+	// Graceful shutdown with timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logger.Error("Error during shutdown", "error", err)
+	} else {
+		logger.Info("Server stopped")
+	}
+
+	// Close database pool
+	pool.Close()
+	logger.Info("Database connection pool closed")
 }
