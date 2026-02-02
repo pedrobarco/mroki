@@ -31,6 +31,7 @@ cd cmd/mroki-api
 # Create configuration file
 cat > .env << 'EOF'
 MROKI_APP_PORT=8081
+MROKI_APP_API_KEY=dev-test-key-min-16-chars
 MROKI_APP_DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres
 EOF
 
@@ -40,7 +41,7 @@ go run .
 
 **Expected output:**
 ```
-INFO Started server address=:8081
+INFO Starting server address=:8081
 ```
 
 Keep this terminal open.
@@ -53,6 +54,7 @@ Open a new terminal:
 # Create a gate (live/shadow service pair)
 curl -X POST http://localhost:8081/gates \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dev-test-key-min-16-chars" \
   -d '{
     "live_url": "https://httpbin.org/anything?service=live",
     "shadow_url": "https://httpbin.org/anything?service=shadow"
@@ -86,6 +88,7 @@ MROKI_APP_SHADOW_URL=https://httpbin.org/anything?service=shadow
 MROKI_APP_PORT=8080
 MROKI_APP_API_URL=http://localhost:8081
 MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
+MROKI_APP_API_KEY=dev-test-key-min-16-chars
 EOF
 
 # IMPORTANT: Replace the GATE_ID in .env with your actual gate ID from step 3
@@ -131,7 +134,8 @@ DEBUG successfully sent request to API method=POST path=/test has_diff=true
 ```bash
 # List all captured requests for your gate
 GATE_ID="550e8400-e29b-41d4-a716-446655440000"  # Replace with your gate ID
-curl http://localhost:8081/gates/$GATE_ID/requests | jq .
+curl -H "Authorization: Bearer dev-test-key-min-16-chars" \
+  http://localhost:8081/gates/$GATE_ID/requests | jq .
 ```
 
 **Expected response:**
@@ -155,7 +159,8 @@ curl http://localhost:8081/gates/$GATE_ID/requests | jq .
 GATE_ID="550e8400-e29b-41d4-a716-446655440000"  # Your gate ID
 REQUEST_ID="7c9e6679-7425-40de-944b-e07fc1f90ae7"  # From step 6
 
-curl http://localhost:8081/gates/$GATE_ID/requests/$REQUEST_ID | jq .
+curl -H "Authorization: Bearer dev-test-key-min-16-chars" \
+  http://localhost:8081/gates/$GATE_ID/requests/$REQUEST_ID | jq .
 ```
 
 **Response includes:**
@@ -206,7 +211,8 @@ curl -X PUT http://localhost:8080/users/123 \
 
 **View All Gates:**
 ```bash
-curl http://localhost:8081/gates | jq .
+curl -H "Authorization: Bearer dev-test-key-min-16-chars" \
+  http://localhost:8081/gates | jq .
 ```
 
 **Check API Health:**
@@ -261,6 +267,51 @@ curl http://localhost:8080/test -H "Content-Type: application/json" -d '{}'
 
 ## Troubleshooting
 
+### Authentication Errors
+
+**Problem:** `401 Unauthorized` or `{"type":"about:blank","title":"Unauthorized","status":401,...}`
+
+**Solution:** Ensure API_KEY is configured and Bearer token is included:
+
+```bash
+# Check API key in .env files match
+grep API_KEY cmd/mroki-api/.env
+grep API_KEY cmd/mroki-agent/.env
+
+# Test with explicit Bearer token
+curl -H "Authorization: Bearer dev-test-key-min-16-chars" \
+  http://localhost:8081/gates
+```
+
+---
+
+**Problem:** `{"type":"about:blank","title":"Invalid API Key","status":401,...}`
+
+**Solution:** API key is too short or doesn't match. API keys must be at least 16 characters and match between API and agent:
+
+```bash
+# Update both .env files with same key
+echo 'MROKI_APP_API_KEY=your-new-key-min-16-chars' >> cmd/mroki-api/.env
+echo 'MROKI_APP_API_KEY=your-new-key-min-16-chars' >> cmd/mroki-agent/.env
+
+# Restart both services
+```
+
+---
+
+**Problem:** `429 Too Many Requests`
+
+**Solution:** Rate limit exceeded (default: 1000 requests per minute per IP). Wait 60 seconds or adjust:
+
+```bash
+# Add to cmd/mroki-api/.env
+MROKI_APP_RATE_LIMIT=5000  # Increase to 5000 req/min
+
+# Restart API
+```
+
+---
+
 ### PostgreSQL connection fails
 
 **Problem:** `failed to create connection pool: connection refused`
@@ -283,11 +334,12 @@ docker-compose -f build/mroki-api/docker-compose.yaml restart
 **Solution:** Either set both or remove both from `.env`:
 
 ```bash
-# Option 1: API mode (both set)
+# Option 1: API mode (both set, including API_KEY)
 MROKI_APP_API_URL=http://localhost:8081
 MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
+MROKI_APP_API_KEY=dev-test-key-min-16-chars
 
-# Option 2: Standalone mode (both removed)
+# Option 2: Standalone mode (all removed)
 # Just delete those lines from .env
 ```
 
@@ -336,10 +388,16 @@ docker-compose -f build/mroki-api/docker-compose.yaml down
 **Key Endpoints:**
 - Agent proxy: `http://localhost:8080`
 - API: `http://localhost:8081`
-- Create gate: `POST http://localhost:8081/gates`
-- List gates: `GET http://localhost:8081/gates`
-- List requests: `GET http://localhost:8081/gates/:gate_id/requests`
-- Get request: `GET http://localhost:8081/gates/:gate_id/requests/:request_id`
+- Create gate: `POST http://localhost:8081/gates` (requires Bearer token)
+- List gates: `GET http://localhost:8081/gates` (requires Bearer token)
+- List requests: `GET http://localhost:8081/gates/:gate_id/requests` (requires Bearer token)
+- Get request: `GET http://localhost:8081/gates/:gate_id/requests/:request_id` (requires Bearer token)
+
+**Configuration:**
+- API requires Bearer token authentication (minimum 16 characters)
+- Rate limit: 1000 requests/minute per IP (configurable via `MROKI_APP_RATE_LIMIT`)
+- Max body size: 10MB (configurable via `MROKI_APP_MAX_BODY_SIZE`)
+- All API calls need: `Authorization: Bearer <your-api-key>`
 
 ## Next Steps
 
