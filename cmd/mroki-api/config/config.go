@@ -11,6 +11,7 @@ import (
 type Config config.Config[struct {
 	Port        int    `env:"PORT, default=8090"`
 	MaxBodySize int64  `env:"MAX_BODY_SIZE, default=10485760"` // 10MB
+	RateLimit   int    `env:"RATE_LIMIT, default=1000"`        // requests per minute per IP
 	APIKey      string `env:"API_KEY, required"`
 	Database    struct {
 		URL         *url.URL `env:"URL, default=postgres://postgres:postgres@localhost:5432/postgres"`
@@ -35,6 +36,16 @@ func (c Config) Validate() error {
 	// Validate max body size
 	if c.App.MaxBodySize <= 0 {
 		verr.Add(fmt.Errorf("max_body_size must be positive, got %d", c.App.MaxBodySize))
+	}
+
+	// Validate rate limit
+	if c.App.RateLimit <= 0 {
+		verr.Add(fmt.Errorf("rate_limit must be positive, got %d", c.App.RateLimit))
+	}
+
+	// Reasonable upper bound to prevent misconfiguration
+	if c.App.RateLimit > 100000 {
+		verr.Add(fmt.Errorf("rate_limit too high (max 100000), got %d", c.App.RateLimit))
 	}
 
 	// Validate API key

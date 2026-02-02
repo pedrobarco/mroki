@@ -86,9 +86,21 @@ func main() {
 		}).ServeHTTP(w, r)
 	}
 
+	// Rate limit error handler maps to dto error
+	handleRateLimitError := func(w http.ResponseWriter, r *http.Request) {
+		// Use AppHandler for automatic RFC 7807 formatting
+		handlers.AppHandler(func(w http.ResponseWriter, r *http.Request) error {
+			return dto.ErrRateLimitExceeded
+		}).ServeHTTP(w, r)
+	}
+
 	// Middleware
 	baseChain := middleware.Chain{
 		middleware.Logging(logger),
+		middleware.RateLimit(cfg.App.RateLimit,
+			middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
+			middleware.WithRateLimitErrorHandler(handleRateLimitError),
+		),
 		middleware.APIKeyAuth(cfg.App.APIKey,
 			middleware.WithAuthErrorHandler(handleAuthError),
 		),
@@ -97,6 +109,10 @@ func main() {
 	// Middleware chain for POST endpoints with body size limit
 	postChain := middleware.Chain{
 		middleware.Logging(logger),
+		middleware.RateLimit(cfg.App.RateLimit,
+			middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
+			middleware.WithRateLimitErrorHandler(handleRateLimitError),
+		),
 		middleware.APIKeyAuth(cfg.App.APIKey,
 			middleware.WithAuthErrorHandler(handleAuthError),
 		),

@@ -42,6 +42,9 @@ const (
 	// Authentication errors
 	ErrorTypeUnauthorized = "/errors/unauthorized" // Missing or invalid credentials
 
+	// Rate limiting errors
+	ErrorTypeRateLimitExceeded = "/errors/rate-limit-exceeded" // Too many requests
+
 	// Resource errors
 	ErrorTypeNotFound = "/errors/not-found" // Resource doesn't exist
 
@@ -73,6 +76,14 @@ var (
 		Status: http.StatusUnauthorized,
 		Detail: "The provided API key is not valid",
 		Err:    errors.New("invalid api key"),
+	}
+
+	ErrRateLimitExceeded = &APIError{
+		Type:   ErrorTypeRateLimitExceeded,
+		Title:  "Rate Limit Exceeded",
+		Status: http.StatusTooManyRequests,
+		Detail: "Too many requests. Please slow down and try again later.",
+		Err:    errors.New("rate limit exceeded"),
 	}
 )
 
