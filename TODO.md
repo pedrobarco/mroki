@@ -279,7 +279,7 @@ MROKI_APP_API_KEY=key1
 **Status:** ✅ COMPLETE  
 **Priority:** ~~BLOCKER~~ RESOLVED  
 **Completion Date:** 2026-02-02  
-**Commit:** (to be added)
+**Commit:** dd85ad8
 
 **Problem:** No rate limiting - DoS vulnerability.
 
