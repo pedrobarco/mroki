@@ -2,7 +2,6 @@ package traffictesting
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,8 +26,8 @@ func NewResponseType(s string) (ResponseType, error) {
 type Response struct {
 	ID         uuid.UUID
 	Type       ResponseType
-	StatusCode int
-	Headers    http.Header
+	StatusCode StatusCode
+	Headers    Headers
 	Body       []byte
 	CreatedAt  time.Time
 }
@@ -43,8 +42,8 @@ func WithResponseID(id uuid.UUID) responseOption {
 
 func NewResponse(
 	responseType ResponseType,
-	statusCode int,
-	headers http.Header,
+	statusCode StatusCode,
+	headers Headers,
 	body []byte,
 	createdAt time.Time,
 	opts ...responseOption,

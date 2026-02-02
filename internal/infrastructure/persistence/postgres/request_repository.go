@@ -33,7 +33,7 @@ func NewRequestRepository(queries *db.Queries, pool TxBeginner) *requestReposito
 }
 
 func (r *requestRepository) Save(ctx context.Context, request *traffictesting.Request) error {
-	headers, err := json.Marshal(request.Headers)
+	headers, err := json.Marshal(request.Headers.HTTPHeader())
 	if err != nil {
 		return fmt.Errorf("failed to marshal headers: %w", err)
 	}
@@ -42,8 +42,8 @@ func (r *requestRepository) Save(ctx context.Context, request *traffictesting.Re
 		ID:        pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
 		GateID:    pgtype.UUID{Bytes: request.GateID.UUID(), Valid: true},
 		AgentID:   pgtype.Text{String: request.AgentID.String(), Valid: request.AgentID.String() != ""},
-		Method:    request.Method,
-		Path:      request.Path,
+		Method:    request.Method.String(),
+		Path:      request.Path.String(),
 		Headers:   headers,
 		Body:      request.Body,
 		CreatedAt: pgtype.Timestamptz{Time: request.CreatedAt, Valid: true},
@@ -65,7 +65,7 @@ func (r *requestRepository) Save(ctx context.Context, request *traffictesting.Re
 	}
 
 	for _, resp := range request.Responses {
-		headers, err := json.Marshal(resp.Headers)
+		headers, err := json.Marshal(resp.Headers.HTTPHeader())
 		if err != nil {
 			return fmt.Errorf("failed to marshal headers: %w", err)
 		}
@@ -74,7 +74,7 @@ func (r *requestRepository) Save(ctx context.Context, request *traffictesting.Re
 			ID:         pgtype.UUID{Bytes: resp.ID, Valid: true},
 			Type:       string(resp.Type),
 			RequestID:  pgtype.UUID{Bytes: request.ID.UUID(), Valid: true},
-			StatusCode: int32(resp.StatusCode),
+			StatusCode: int32(resp.StatusCode.Int()),
 			Headers:    headers,
 			Body:       resp.Body,
 			CreatedAt:  pgtype.Timestamptz{Time: resp.CreatedAt, Valid: true},
@@ -186,13 +186,23 @@ func (r *requestRepository) toDomain(raw db.Request) (*traffictesting.Request, e
 		}
 	}
 
+	method, err := traffictesting.NewHTTPMethod(raw.Method)
+	if err != nil {
+		return nil, fmt.Errorf("invalid HTTP method in database: %w", err)
+	}
+
+	path, err := traffictesting.ParsePath(raw.Path)
+	if err != nil {
+		return nil, fmt.Errorf("invalid path in database: %w", err)
+	}
+
 	return &traffictesting.Request{
 		ID:        id,
 		GateID:    gateID,
 		AgentID:   agentID,
-		Method:    raw.Method,
-		Path:      raw.Path,
-		Headers:   headers,
+		Method:    method,
+		Path:      path,
+		Headers:   traffictesting.NewHeaders(headers),
 		Body:      raw.Body,
 		CreatedAt: raw.CreatedAt.Time,
 	}, nil
@@ -222,13 +232,23 @@ func (r *requestRepository) toFullRequest(rows []db.GetRequestByIDRow) (*traffic
 		}
 	}
 
+	method, err := traffictesting.NewHTTPMethod(rows[0].RequestMethod)
+	if err != nil {
+		return nil, fmt.Errorf("invalid HTTP method in database: %w", err)
+	}
+
+	path, err := traffictesting.ParsePath(rows[0].RequestPath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid path in database: %w", err)
+	}
+
 	req := &traffictesting.Request{
 		ID:        id,
 		GateID:    gateID,
 		AgentID:   agentID,
-		Method:    rows[0].RequestMethod,
-		Path:      rows[0].RequestPath,
-		Headers:   reqHeaders,
+		Method:    method,
+		Path:      path,
+		Headers:   traffictesting.NewHeaders(reqHeaders),
 		Body:      rows[0].RequestBody,
 		CreatedAt: rows[0].RequestCreatedAt.Time,
 	}
@@ -239,11 +259,16 @@ func (r *requestRepository) toFullRequest(rows []db.GetRequestByIDRow) (*traffic
 			return nil, fmt.Errorf("failed to unmarshal request headers: %w", err)
 		}
 
+		statusCode, err := traffictesting.ParseStatusCode(int(row.ResponseStatusCode.Int32))
+		if err != nil {
+			return nil, fmt.Errorf("invalid status code in database: %w", err)
+		}
+
 		req.Responses = append(req.Responses, traffictesting.Response{
 			ID:         row.ResponseID.Bytes,
 			Type:       traffictesting.ResponseType(row.ResponseType.String),
-			StatusCode: int(row.ResponseStatusCode.Int32),
-			Headers:    respHeaders,
+			StatusCode: statusCode,
+			Headers:    traffictesting.NewHeaders(respHeaders),
 			Body:       row.ResponseBody,
 			CreatedAt:  row.ResponseCreatedAt.Time,
 		})

@@ -226,8 +226,8 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 func toRequestResponseDTO(req *traffictesting.Request) dto.Request {
 	return dto.Request{
 		ID:        req.ID.String(),
-		Method:    req.Method,
-		Path:      req.Path,
+		Method:    req.Method.String(),
+		Path:      req.Path.String(),
 		CreatedAt: req.CreatedAt,
 	}
 }
@@ -235,8 +235,8 @@ func toRequestResponseDTO(req *traffictesting.Request) dto.Request {
 func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
 	result := dto.RequestDetail{
 		ID:        req.ID.String(),
-		Method:    req.Method,
-		Path:      req.Path,
+		Method:    req.Method.String(),
+		Path:      req.Path.String(),
 		CreatedAt: req.CreatedAt,
 	}
 
@@ -244,8 +244,8 @@ func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
 		result.Responses = append(result.Responses, dto.ResponseDetail{
 			ID:         resp.ID.String(),
 			Type:       string(resp.Type),
-			StatusCode: resp.StatusCode,
-			Headers:    resp.Headers,
+			StatusCode: resp.StatusCode.Int(),
+			Headers:    resp.Headers.HTTPHeader(),
 			Body:       string(resp.Body),
 			CreatedAt:  resp.CreatedAt,
 		})

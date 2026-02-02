@@ -1,7 +1,6 @@
 package traffictesting
 
 import (
-	"net/http"
 	"time"
 )
 
@@ -10,9 +9,9 @@ type RequestMethod string
 type Request struct {
 	ID        RequestID
 	GateID    GateID
-	Method    string
-	Path      string
-	Headers   http.Header
+	Method    HTTPMethod
+	Path      Path
+	Headers   Headers
 	Body      []byte
 	AgentID   AgentID
 	CreatedAt time.Time
@@ -37,9 +36,9 @@ func WithAgentID(id AgentID) requestOption {
 
 func NewRequest(
 	gateID GateID,
-	method string,
-	path string,
-	headers http.Header,
+	method HTTPMethod,
+	path Path,
+	headers Headers,
 	body []byte,
 	createdAt time.Time,
 	responses []Response,

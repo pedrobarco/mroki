@@ -65,6 +65,18 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		}
 	}
 
+	// Parse HTTP method
+	method, err := traffictesting.NewHTTPMethod(cmd.Method)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse path
+	path, err := traffictesting.ParsePath(cmd.Path)
+	if err != nil {
+		return nil, err
+	}
+
 	// Parse agent ID (optional)
 	var agentID traffictesting.AgentID
 	if cmd.AgentID != "" {
@@ -77,21 +89,29 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	// Parse and create responses
 	var live, shadow *traffictesting.Response
 	var responses []traffictesting.Response
-	for _, dto := range cmd.Responses {
+	for i, dto := range cmd.Responses {
+		// Parse response type
 		rtype, err := traffictesting.NewResponseType(dto.Type)
 		if err != nil {
-			return nil, fmt.Errorf("invalid response type: %w", err)
+			return nil, fmt.Errorf("response %d: invalid response type: %w", i, err)
 		}
 
+		// Parse status code
+		statusCode, err := traffictesting.ParseStatusCode(dto.StatusCode)
+		if err != nil {
+			return nil, fmt.Errorf("response %d: %w", i, err)
+		}
+
+		// Create response with value objects
 		resp, err := traffictesting.NewResponse(
 			rtype,
-			dto.StatusCode,
-			dto.Headers,
+			statusCode,
+			traffictesting.NewHeaders(dto.Headers),
 			dto.Body,
 			dto.CreatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create response: %w", err)
+			return nil, fmt.Errorf("response %d: failed to create response: %w", i, err)
 		}
 		responses = append(responses, *resp)
 
@@ -121,13 +141,12 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		return nil, fmt.Errorf("failed to create diff: %w", err)
 	}
 
-	// Create request aggregate
-	// We directly set fields on the request since options use a private type
+	// Create request aggregate with value objects
 	request, err := traffictesting.NewRequest(
 		gateID,
-		cmd.Method,
-		cmd.Path,
-		cmd.Headers,
+		method,
+		path,
+		traffictesting.NewHeaders(cmd.Headers),
 		cmd.Body,
 		cmd.CreatedAt,
 		responses,

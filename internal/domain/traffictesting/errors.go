@@ -14,6 +14,10 @@ var (
 	ErrInvalidRequestID = errors.New("invalid request ID")
 	ErrInvalidAgentID   = errors.New("invalid agent ID")
 
+	// Validation errors
+	ErrInvalidStatusCode = errors.New("invalid HTTP status code")
+	ErrInvalidPath       = errors.New("invalid path")
+
 	// Filtering and sorting errors
 	ErrInvalidFilters   = errors.New("invalid request filters")
 	ErrInvalidSort      = errors.New("invalid request sort")

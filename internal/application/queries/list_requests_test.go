@@ -34,11 +34,16 @@ func (m *mockRequestRepositoryForListRequests) GetAllByGateID(ctx context.Contex
 func TestListRequestsHandler_Handle_success(t *testing.T) {
 	// Arrange
 	gateID := traffictesting.NewGateID()
+	method1, _ := traffictesting.NewHTTPMethod("GET")
+	path1, _ := traffictesting.ParsePath("/api/test1")
+	method2, _ := traffictesting.NewHTTPMethod("POST")
+	path2, _ := traffictesting.ParsePath("/api/test2")
+
 	req1, _ := traffictesting.NewRequest(
 		gateID,
-		"GET",
-		"/api/test1",
-		map[string][]string{},
+		method1,
+		path1,
+		traffictesting.NewHeaders(map[string][]string{}),
 		[]byte{},
 		time.Now(),
 		[]traffictesting.Response{},
@@ -46,9 +51,9 @@ func TestListRequestsHandler_Handle_success(t *testing.T) {
 	)
 	req2, _ := traffictesting.NewRequest(
 		gateID,
-		"POST",
-		"/api/test2",
-		map[string][]string{},
+		method2,
+		path2,
+		traffictesting.NewHeaders(map[string][]string{}),
 		[]byte{},
 		time.Now(),
 		[]traffictesting.Response{},

@@ -84,8 +84,8 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 	require.NotNil(t, req)
 	assert.False(t, req.ID.IsZero())
 	assert.Equal(t, gateID, req.GateID)
-	assert.Equal(t, "GET", req.Method)
-	assert.Equal(t, "/api/test", req.Path)
+	assert.Equal(t, "GET", req.Method.String())
+	assert.Equal(t, "/api/test", req.Path.String())
 	assert.Len(t, req.Responses, 2)
 }
 

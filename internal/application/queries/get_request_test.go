@@ -35,12 +35,14 @@ func TestGetRequestHandler_Handle_success(t *testing.T) {
 	// Arrange
 	gateID := traffictesting.NewGateID()
 	requestID := traffictesting.NewRequestID()
+	method, _ := traffictesting.NewHTTPMethod("GET")
+	path, _ := traffictesting.ParsePath("/api/test")
 
 	expectedRequest, _ := traffictesting.NewRequest(
 		gateID,
-		"GET",
-		"/api/test",
-		map[string][]string{"Content-Type": {"application/json"}},
+		method,
+		path,
+		traffictesting.NewHeaders(map[string][]string{"Content-Type": {"application/json"}}),
 		[]byte(`{"test":"data"}`),
 		time.Now(),
 		[]traffictesting.Response{},

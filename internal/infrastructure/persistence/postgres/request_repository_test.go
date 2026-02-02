@@ -32,28 +32,32 @@ func TestRequestRepository_Save_success(t *testing.T) {
 	liveRespID := uuid.New()
 	shadowRespID := uuid.New()
 
+	method, _ := traffictesting.NewHTTPMethod("POST")
+	path, _ := traffictesting.ParsePath("/api/test")
+	statusCode, _ := traffictesting.ParseStatusCode(200)
+
 	request := &traffictesting.Request{
 		ID:        requestID,
 		GateID:    gateID,
-		Method:    "POST",
-		Path:      "/api/test",
-		Headers:   http.Header{"Content-Type": []string{"application/json"}},
+		Method:    method,
+		Path:      path,
+		Headers:   traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
 		Body:      []byte(`{"test":"data"}`),
 		CreatedAt: time.Now(),
 		Responses: []traffictesting.Response{
 			{
 				ID:         liveRespID,
 				Type:       traffictesting.ResponseTypeLive,
-				StatusCode: 200,
-				Headers:    http.Header{},
+				StatusCode: statusCode,
+				Headers:    traffictesting.NewHeaders(http.Header{}),
 				Body:       []byte(`{"status":"ok"}`),
 				CreatedAt:  time.Now(),
 			},
 			{
 				ID:         shadowRespID,
 				Type:       traffictesting.ResponseTypeShadow,
-				StatusCode: 200,
-				Headers:    http.Header{},
+				StatusCode: statusCode,
+				Headers:    traffictesting.NewHeaders(http.Header{}),
 				Body:       []byte(`{"status":"ok"}`),
 				CreatedAt:  time.Now(),
 			},
@@ -97,12 +101,15 @@ func TestRequestRepository_Save_transaction_begin_error(t *testing.T) {
 	repo := postgres.NewRequestRepository(queries, mock)
 
 	gateID := traffictesting.NewGateID()
+	method, _ := traffictesting.NewHTTPMethod("POST")
+	path, _ := traffictesting.ParsePath("/test")
+
 	request := &traffictesting.Request{
 		ID:        traffictesting.NewRequestID(),
 		GateID:    gateID,
-		Method:    "POST",
-		Path:      "/test",
-		Headers:   http.Header{},
+		Method:    method,
+		Path:      path,
+		Headers:   traffictesting.NewHeaders(http.Header{}),
 		Body:      []byte{},
 		CreatedAt: time.Now(),
 		Responses: []traffictesting.Response{},
@@ -128,12 +135,15 @@ func TestRequestRepository_Save_request_insert_error(t *testing.T) {
 	repo := postgres.NewRequestRepository(queries, mock)
 
 	gateID := traffictesting.NewGateID()
+	method, _ := traffictesting.NewHTTPMethod("POST")
+	path, _ := traffictesting.ParsePath("/test")
+
 	request := &traffictesting.Request{
 		ID:        traffictesting.NewRequestID(),
 		GateID:    gateID,
-		Method:    "POST",
-		Path:      "/test",
-		Headers:   http.Header{},
+		Method:    method,
+		Path:      path,
+		Headers:   traffictesting.NewHeaders(http.Header{}),
 		Body:      []byte{},
 		CreatedAt: time.Now(),
 		Responses: []traffictesting.Response{},
@@ -224,7 +234,7 @@ func TestRequestRepository_GetByID_success(t *testing.T) {
 	assert.NotNil(t, request)
 	assert.Equal(t, requestID.String(), request.ID.String())
 	assert.Equal(t, gateID.String(), request.GateID.String())
-	assert.Equal(t, "GET", request.Method)
+	assert.Equal(t, "GET", request.Method.String())
 	assert.Len(t, request.Responses, 2)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

@@ -272,27 +272,30 @@ func TestGetRequestByID_Success(t *testing.T) {
 	gateID := traffictesting.NewGateID()
 	requestID := traffictesting.NewRequestID()
 
+	statusCode, _ := traffictesting.ParseStatusCode(200)
 	liveResp, _ := traffictesting.NewResponse(
 		traffictesting.ResponseTypeLive,
-		200,
-		http.Header{"Content-Type": []string{"application/json"}},
+		statusCode,
+		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
 		[]byte("live body"),
 		time.Now(),
 	)
 	shadowResp, _ := traffictesting.NewResponse(
 		traffictesting.ResponseTypeShadow,
-		200,
-		http.Header{"Content-Type": []string{"application/json"}},
+		statusCode,
+		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
 		[]byte("shadow body"),
 		time.Now(),
 	)
 
 	diff, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, "diff content")
+	method, _ := traffictesting.NewHTTPMethod("GET")
+	path, _ := traffictesting.ParsePath("/test")
 	expectedRequest, _ := traffictesting.NewRequest(
 		gateID,
-		"GET",
-		"/test",
-		http.Header{},
+		method,
+		path,
+		traffictesting.NewHeaders(http.Header{}),
 		[]byte("request body"),
 		time.Now(),
 		[]traffictesting.Response{*liveResp, *shadowResp},
@@ -593,27 +596,30 @@ func TestGetAllRequestsByGateID_InvalidPagination(t *testing.T) {
 
 // Helper function to create a test request
 func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, error) {
+	statusCode, _ := traffictesting.ParseStatusCode(200)
 	liveResp, _ := traffictesting.NewResponse(
 		traffictesting.ResponseTypeLive,
-		200,
-		http.Header{},
+		statusCode,
+		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
 		time.Now(),
 	)
 	shadowResp, _ := traffictesting.NewResponse(
 		traffictesting.ResponseTypeShadow,
-		200,
-		http.Header{},
+		statusCode,
+		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
 		time.Now(),
 	)
 
 	diff, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, "")
+	method, _ := traffictesting.NewHTTPMethod("GET")
+	path, _ := traffictesting.ParsePath("/test")
 	return traffictesting.NewRequest(
 		gateID,
-		"GET",
-		"/test",
-		http.Header{},
+		method,
+		path,
+		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
 		time.Now(),
 		[]traffictesting.Response{*liveResp, *shadowResp},

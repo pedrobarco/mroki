@@ -32,17 +32,18 @@ func TestNewResponseType_invalid(t *testing.T) {
 }
 
 func TestNewResponse_creates_response_with_auto_generated_id(t *testing.T) {
-	headers := http.Header{"Content-Type": []string{"application/json"}}
+	headers := traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}})
 	body := []byte(`{"status":"ok"}`)
 	createdAt := time.Now()
+	statusCode, _ := traffictesting.ParseStatusCode(200)
 
-	response, err := traffictesting.NewResponse(traffictesting.ResponseTypeLive, 200, headers, body, createdAt)
+	response, err := traffictesting.NewResponse(traffictesting.ResponseTypeLive, statusCode, headers, body, createdAt)
 
 	assert.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, response.ID)
 	assert.Equal(t, traffictesting.ResponseTypeLive, response.Type)
-	assert.Equal(t, 200, response.StatusCode)
-	assert.Equal(t, headers, response.Headers)
+	assert.Equal(t, 200, response.StatusCode.Int())
+	assert.Equal(t, http.Header{"Content-Type": []string{"application/json"}}, response.Headers.HTTPHeader())
 	assert.Equal(t, body, response.Body)
 	assert.Equal(t, createdAt, response.CreatedAt)
 }
@@ -50,11 +51,12 @@ func TestNewResponse_creates_response_with_auto_generated_id(t *testing.T) {
 func TestNewResponse_with_custom_id(t *testing.T) {
 	customID := uuid.New()
 	createdAt := time.Now()
+	statusCode, _ := traffictesting.ParseStatusCode(500)
 
 	response, err := traffictesting.NewResponse(
 		traffictesting.ResponseTypeShadow,
-		500,
-		nil,
+		statusCode,
+		traffictesting.NewHeaders(nil),
 		nil,
 		createdAt,
 		traffictesting.WithResponseID(customID),
