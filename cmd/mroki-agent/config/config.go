@@ -13,6 +13,7 @@ type Config config.Config[struct {
 	LiveURL       *url.URL      `env:"LIVE_URL, required"`
 	ShadowURL     *url.URL      `env:"SHADOW_URL, required"`
 	Port          int           `env:"PORT, default=8080"`
+	MaxBodySize   int64         `env:"MAX_BODY_SIZE, default=10485760"` // 10MB, 0=unlimited
 	LiveTimeout   time.Duration `env:"LIVE_TIMEOUT, default=5s"`
 	ShadowTimeout time.Duration `env:"SHADOW_TIMEOUT, default=10s"`
 
@@ -57,6 +58,11 @@ func (c Config) Validate() error {
 	// Validate shadow timeout
 	if c.App.ShadowTimeout <= 0 {
 		verr.Add(fmt.Errorf("shadow_timeout must be positive, got %s", c.App.ShadowTimeout))
+	}
+
+	// Validate max body size (0 is allowed for unlimited)
+	if c.App.MaxBodySize < 0 {
+		verr.Add(fmt.Errorf("max_body_size must be non-negative (0=unlimited), got %d", c.App.MaxBodySize))
 	}
 
 	// Validate API configuration (optional, but if one is set, both must be set)

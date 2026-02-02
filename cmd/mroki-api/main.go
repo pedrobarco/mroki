@@ -67,6 +67,12 @@ func main() {
 		middleware.Logging(logger),
 	}
 
+	// Middleware chain for POST endpoints with body size limit
+	postChain := middleware.Chain{
+		middleware.Logging(logger),
+		middleware.MaxBodySize(cfg.App.MaxBodySize),
+	}
+
 	// Interface Layer: HTTP Handlers
 	createGate := handlers.CreateGate(createGateHandler)
 	getGateByID := handlers.GetGateByID(getGateHandler)
@@ -84,14 +90,17 @@ func main() {
 
 	// API endpoints (with middleware)
 	mux.Handle("GET /gates", baseChain.Then(getAllGates))
-	mux.Handle("POST /gates", baseChain.Then(createGate))
+	mux.Handle("POST /gates", postChain.Then(createGate))
 	mux.Handle("GET /gates/{gate_id}", baseChain.Then(getGateByID))
 	mux.Handle("GET /gates/{gate_id}/requests", baseChain.Then(getAllRequestsByGateID))
-	mux.Handle("POST /gates/{gate_id}/requests", baseChain.Then(createRequest))
+	mux.Handle("POST /gates/{gate_id}/requests", postChain.Then(createRequest))
 	mux.Handle("GET /gates/{gate_id}/requests/{request_id}", baseChain.Then(getRequestByID))
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.App.Port),
-		Handler: mux,
+		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second, // Time to read request
+		WriteTimeout: 30 * time.Second, // Time to write response
+		IdleTimeout:  60 * time.Second, // Keep-alive timeout
 	}
 
 	logger.Info("Started server",

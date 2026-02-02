@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/pedrobarco/mroki/cmd/mroki-agent/config"
 	"github.com/pedrobarco/mroki/cmd/mroki-agent/handlers"
@@ -30,6 +31,7 @@ func main() {
 		Shadow:        cfg.App.ShadowURL,
 		LiveTimeout:   cfg.App.LiveTimeout,
 		ShadowTimeout: cfg.App.ShadowTimeout,
+		MaxBodySize:   cfg.App.MaxBodySize,
 		AgentID:       agentID,
 		Logger:        log,
 	}
@@ -66,8 +68,11 @@ func main() {
 	mux.Handle("/", handlers.Proxy(proxyConfig))
 
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.App.Port),
-		Handler: mux,
+		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
+		Handler:      mux,
+		ReadTimeout:  30 * time.Second,  // Time to read request
+		WriteTimeout: 60 * time.Second,  // Time to write response
+		IdleTimeout:  120 * time.Second, // Keep-alive timeout
 	}
 
 	log.Info("Started server",

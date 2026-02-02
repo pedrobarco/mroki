@@ -9,8 +9,9 @@ import (
 )
 
 type Config config.Config[struct {
-	Port     int `env:"PORT, default=8090"`
-	Database struct {
+	Port        int   `env:"PORT, default=8090"`
+	MaxBodySize int64 `env:"MAX_BODY_SIZE, default=10485760"` // 10MB
+	Database    struct {
 		URL         *url.URL `env:"URL, default=postgres://postgres:postgres@localhost:5432/postgres"`
 		MaxConns    int32    `env:"MAX_CONNS, default=25"`
 		MinConns    int32    `env:"MIN_CONNS, default=5"`
@@ -28,6 +29,11 @@ func (c Config) Validate() error {
 	// Validate port range
 	if c.App.Port < 1 || c.App.Port > 65535 {
 		verr.Add(fmt.Errorf("port must be between 1 and 65535, got %d", c.App.Port))
+	}
+
+	// Validate max body size
+	if c.App.MaxBodySize <= 0 {
+		verr.Add(fmt.Errorf("max_body_size must be positive, got %d", c.App.MaxBodySize))
 	}
 
 	// Validate database URL scheme

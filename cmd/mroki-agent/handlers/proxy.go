@@ -16,6 +16,7 @@ type ProxyConfig struct {
 	Shadow        *url.URL
 	LiveTimeout   time.Duration
 	ShadowTimeout time.Duration
+	MaxBodySize   int64
 
 	// API integration (optional)
 	APIClient *client.MrokiClient
@@ -27,6 +28,7 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 	opts := []proxy.Option{
 		proxy.WithLiveTimeout(cfg.LiveTimeout),
 		proxy.WithShadowTimeout(cfg.ShadowTimeout),
+		proxy.WithMaxBodySize(cfg.MaxBodySize),
 	}
 
 	// Add API callback if API client is configured

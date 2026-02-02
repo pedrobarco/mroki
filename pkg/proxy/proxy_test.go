@@ -170,7 +170,7 @@ func TestProxy_ServeHTTP_handles_live_error(t *testing.T) {
 func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"live":true}`))
+		_, _ = w.Write([]byte("live response"))
 	}))
 	defer liveServer.Close()
 
@@ -220,6 +220,7 @@ func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 func TestProxy_ServeHTTP_skips_shadow_when_not_sampled(t *testing.T) {
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("live response"))
 	}))
 	defer liveServer.Close()
 
@@ -361,4 +362,153 @@ func TestProxy_ServeHTTP_copies_response_headers(t *testing.T) {
 
 	require.Equal(t, "custom-value", rec.Header().Get("X-Custom-Response"))
 	assert.Equal(t, []string{"value1", "value2"}, rec.Header()["X-Multi"])
+}
+
+func TestProxy_ServeHTTP_skips_shadow_when_body_too_large(t *testing.T) {
+	shadowCalled := false
+
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("live response"))
+	}))
+	defer liveServer.Close()
+
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		shadowCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer shadowServer.Close()
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+
+	// Set max body size to 10 bytes
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(10))
+
+	// Create request with 20 bytes body (exceeds limit)
+	body := bytes.Repeat([]byte("a"), 20)
+	req := httptest.NewRequest("POST", "/test", bytes.NewReader(body))
+	req.ContentLength = 20
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	// Should return live response
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "live response", rec.Body.String())
+
+	// Shadow should not be called (give it time to process if it was)
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, shadowCalled, "shadow service should not be called for large bodies")
+}
+
+func TestProxy_ServeHTTP_diffs_when_body_under_limit(t *testing.T) {
+	shadowCalled := false
+
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("live response"))
+	}))
+	defer liveServer.Close()
+
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		shadowCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer shadowServer.Close()
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+
+	// Set max body size to 100 bytes
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(100))
+
+	// Create request with 20 bytes body (under limit)
+	body := bytes.Repeat([]byte("a"), 20)
+	req := httptest.NewRequest("POST", "/test", bytes.NewReader(body))
+	req.ContentLength = 20
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	// Should return live response
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Shadow should be called (give it time to process)
+	time.Sleep(50 * time.Millisecond)
+	assert.True(t, shadowCalled, "shadow service should be called for small bodies")
+}
+
+func TestProxy_ServeHTTP_skips_shadow_when_chunked(t *testing.T) {
+	shadowCalled := false
+
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("live response"))
+	}))
+	defer liveServer.Close()
+
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		shadowCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer shadowServer.Close()
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+
+	// Set max body size to 100 bytes
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(100))
+
+	// Create request with chunked encoding (ContentLength = -1)
+	body := bytes.NewReader([]byte("test body"))
+	req := httptest.NewRequest("POST", "/test", body)
+	req.ContentLength = -1 // Simulate chunked encoding
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	// Should return live response
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Shadow should not be called (give it time to process if it was)
+	time.Sleep(50 * time.Millisecond)
+	assert.False(t, shadowCalled, "shadow service should not be called for chunked encoding")
+}
+
+func TestProxy_ServeHTTP_unlimited_when_zero(t *testing.T) {
+	shadowCalled := false
+
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("live response"))
+	}))
+	defer liveServer.Close()
+
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		shadowCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer shadowServer.Close()
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+
+	// Set max body size to 0 (unlimited)
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(0))
+
+	// Create request with large body
+	body := bytes.Repeat([]byte("a"), 1000)
+	req := httptest.NewRequest("POST", "/test", bytes.NewReader(body))
+	req.ContentLength = 1000
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	// Should return live response
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Shadow should be called even with large body (give it time to process)
+	time.Sleep(50 * time.Millisecond)
+	assert.True(t, shadowCalled, "shadow service should be called when max body size is 0 (unlimited)")
 }

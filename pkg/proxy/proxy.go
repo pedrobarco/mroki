@@ -33,6 +33,7 @@ type Proxy struct {
 
 	liveTimeout   time.Duration
 	shadowTimeout time.Duration
+	maxBodySize   int64 // 0 = unlimited
 	samplingRate  *SamplingRate
 	callbackFn    CallbackFunc
 	logger        *slog.Logger
@@ -56,6 +57,15 @@ func WithLiveTimeout(timeout time.Duration) Option {
 func WithShadowTimeout(timeout time.Duration) Option {
 	return func(p *Proxy) {
 		p.shadowTimeout = timeout
+	}
+}
+
+// WithMaxBodySize sets the maximum request body size for diffing
+// If body exceeds this size (or is chunked), skip shadow/diff and only proxy to live
+// Set to 0 for unlimited (always diff)
+func WithMaxBodySize(maxBytes int64) Option {
+	return func(p *Proxy) {
+		p.maxBodySize = maxBytes
 	}
 }
 
@@ -110,6 +120,7 @@ func NewProxy(live, shadow *url.URL, opts ...Option) *Proxy {
 		Shadow:        shadow,
 		liveTimeout:   defaultLiveTimeout,
 		shadowTimeout: defaultShadowTimeout,
+		maxBodySize:   0, // 0 = unlimited by default
 		samplingRate:  nil,
 		callbackFn:    defaultCallbackFn(),
 		logger:        slog.Default(),
@@ -157,6 +168,33 @@ type responseResult struct {
 //   - shadowTimeout: Controls how long shadow service can run (doesn't block client)
 //   - Shadow timeout can be longer since it doesn't impact user experience
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Check if body size exceeds limit (skip diffing if so)
+	if p.maxBodySize > 0 {
+		contentLength := r.ContentLength
+
+		// Skip diffing for chunked encoding (unknown size)
+		if contentLength < 0 {
+			p.logger.Warn("chunked encoding detected, skipping shadow/diff",
+				slog.String("method", r.Method),
+				slog.String("path", r.URL.Path),
+			)
+			p.proxyToLiveOnly(w, r)
+			return
+		}
+
+		// Skip diffing for large bodies
+		if contentLength > p.maxBodySize {
+			p.logger.Warn("request body exceeds limit, skipping shadow/diff",
+				slog.Int64("content_length", contentLength),
+				slog.Int64("max_body_size", p.maxBodySize),
+				slog.String("method", r.Method),
+				slog.String("path", r.URL.Path),
+			)
+			p.proxyToLiveOnly(w, r)
+			return
+		}
+	}
+
 	liveCtx, liveCancel := context.WithTimeout(r.Context(), p.liveTimeout)
 	defer liveCancel()
 
@@ -286,7 +324,15 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (p *Proxy) forwardRequest(ctx context.Context, original *http.Request, target *url.URL, body []byte) (*http.Response, error) {
 	url := rewriteRequestURL(original, target)
-	req, err := http.NewRequestWithContext(ctx, original.Method, url.String(), bytes.NewReader(body))
+
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	} else {
+		bodyReader = original.Body // Use original body for streaming
+	}
+
+	req, err := http.NewRequestWithContext(ctx, original.Method, url.String(), bodyReader)
 	if err != nil {
 		return nil, err
 	}
@@ -378,5 +424,33 @@ func defaultCallbackFn() CallbackFunc {
 		}
 
 		return nil
+	}
+}
+
+// proxyToLiveOnly forwards request to live service only, skipping shadow/diff
+// Used when body size exceeds limit or chunked encoding is detected
+func (p *Proxy) proxyToLiveOnly(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), p.liveTimeout)
+	defer cancel()
+
+	// Forward request to live service (pass nil for body to use original body)
+	resp, err := p.forwardRequest(ctx, r, p.Live, nil)
+	if err != nil {
+		http.Error(w, "live backend error: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			p.logger.Error("failed to close response body", "error", closeErr)
+		}
+	}()
+
+	// Copy response to client
+	copyHeader(resp.Header, w.Header())
+	w.WriteHeader(resp.StatusCode)
+
+	// Stream body directly (don't buffer)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		p.logger.Error("failed to copy response body", "error", err)
 	}
 }
