@@ -49,6 +49,7 @@ func main() {
 			cfg.App.APIURL,
 			cfg.App.GateID,
 			agentID,
+			cfg.App.APIKey,
 			client.WithHTTPClient(httpClient),
 			client.WithMaxRetries(cfg.App.MaxRetries),
 			client.WithInitialDelay(cfg.App.RetryDelay),

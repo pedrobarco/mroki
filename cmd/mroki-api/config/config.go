@@ -9,8 +9,9 @@ import (
 )
 
 type Config config.Config[struct {
-	Port        int   `env:"PORT, default=8090"`
-	MaxBodySize int64 `env:"MAX_BODY_SIZE, default=10485760"` // 10MB
+	Port        int    `env:"PORT, default=8090"`
+	MaxBodySize int64  `env:"MAX_BODY_SIZE, default=10485760"` // 10MB
+	APIKey      string `env:"API_KEY, required"`
 	Database    struct {
 		URL         *url.URL `env:"URL, default=postgres://postgres:postgres@localhost:5432/postgres"`
 		MaxConns    int32    `env:"MAX_CONNS, default=25"`
@@ -34,6 +35,15 @@ func (c Config) Validate() error {
 	// Validate max body size
 	if c.App.MaxBodySize <= 0 {
 		verr.Add(fmt.Errorf("max_body_size must be positive, got %d", c.App.MaxBodySize))
+	}
+
+	// Validate API key
+	if c.App.APIKey == "" {
+		verr.Add(fmt.Errorf("api_key is required"))
+	}
+
+	if len(c.App.APIKey) < 16 {
+		verr.Add(fmt.Errorf("api_key must be at least 16 characters, got %d", len(c.App.APIKey)))
 	}
 
 	// Validate database URL scheme

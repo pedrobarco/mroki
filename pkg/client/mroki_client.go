@@ -18,6 +18,7 @@ type MrokiClient struct {
 	baseURL      *url.URL
 	gateID       string
 	agentID      string
+	apiKey       string
 	httpClient   *http.Client
 	maxRetries   int
 	initialDelay time.Duration
@@ -25,11 +26,12 @@ type MrokiClient struct {
 }
 
 // NewMrokiClient creates a new API client
-func NewMrokiClient(apiURL *url.URL, gateID, agentID string, opts ...ClientOption) *MrokiClient {
+func NewMrokiClient(apiURL *url.URL, gateID, agentID, apiKey string, opts ...ClientOption) *MrokiClient {
 	client := &MrokiClient{
 		baseURL:      apiURL,
 		gateID:       gateID,
 		agentID:      agentID,
+		apiKey:       apiKey,
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
 		maxRetries:   3,
 		initialDelay: 1 * time.Second,
@@ -133,6 +135,7 @@ func (c *MrokiClient) sendRequestOnce(ctx context.Context, req *CapturedRequest)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
 	// Send request
 	resp, err := c.httpClient.Do(httpReq)

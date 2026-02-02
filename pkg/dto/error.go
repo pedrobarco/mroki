@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -38,11 +39,41 @@ const (
 	ErrorTypeMissingBodyField  = "/errors/missing-body-field"  // Required body field missing
 	ErrorTypeInvalidQueryParam = "/errors/invalid-query-param" // Query parameter invalid
 
+	// Authentication errors
+	ErrorTypeUnauthorized = "/errors/unauthorized" // Missing or invalid credentials
+
 	// Resource errors
 	ErrorTypeNotFound = "/errors/not-found" // Resource doesn't exist
 
 	// Server errors
 	ErrorTypeInternalError = "/errors/internal-error" // Server error
+)
+
+// Static authentication errors
+var (
+	ErrMissingAuthHeader = &APIError{
+		Type:   ErrorTypeUnauthorized,
+		Title:  "Missing Authorization Header",
+		Status: http.StatusUnauthorized,
+		Detail: "Authorization header is required",
+		Err:    errors.New("missing authorization header"),
+	}
+
+	ErrInvalidAuthFormat = &APIError{
+		Type:   ErrorTypeUnauthorized,
+		Title:  "Invalid Authorization Format",
+		Status: http.StatusUnauthorized,
+		Detail: "Authorization header must use format: Bearer <token>",
+		Err:    errors.New("invalid authorization format"),
+	}
+
+	ErrInvalidAPIKey = &APIError{
+		Type:   ErrorTypeUnauthorized,
+		Title:  "Invalid API Key",
+		Status: http.StatusUnauthorized,
+		Detail: "The provided API key is not valid",
+		Err:    errors.New("invalid api key"),
+	}
 )
 
 // NewError creates a new APIError with RFC 7807 fields.

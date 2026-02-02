@@ -19,6 +19,7 @@ type Config config.Config[struct {
 
 	// API integration (optional - if not set, agent runs in standalone mode)
 	APIURL     *url.URL      `env:"API_URL"`
+	APIKey     string        `env:"API_KEY"`
 	GateID     string        `env:"GATE_ID"`
 	MaxRetries int           `env:"MAX_RETRIES, default=3"`
 	RetryDelay time.Duration `env:"RETRY_DELAY, default=1s"`
@@ -65,12 +66,22 @@ func (c Config) Validate() error {
 		verr.Add(fmt.Errorf("max_body_size must be non-negative (0=unlimited), got %d", c.App.MaxBodySize))
 	}
 
-	// Validate API configuration (optional, but if one is set, both must be set)
+	// Validate API configuration (optional, but if one is set, all must be set)
 	hasAPIURL := c.App.APIURL != nil
 	hasGateID := c.App.GateID != ""
+	hasAPIKey := c.App.APIKey != ""
 
-	if hasAPIURL != hasGateID {
-		verr.Add(fmt.Errorf("api_url and gate_id must both be set or both be empty"))
+	if hasAPIURL || hasGateID || hasAPIKey {
+		// If any API config is set, all must be set
+		if !hasAPIURL {
+			verr.Add(fmt.Errorf("api_url is required when api integration is configured"))
+		}
+		if !hasGateID {
+			verr.Add(fmt.Errorf("gate_id is required when api integration is configured"))
+		}
+		if !hasAPIKey {
+			verr.Add(fmt.Errorf("api_key is required when api integration is configured"))
+		}
 	}
 
 	if hasAPIURL {

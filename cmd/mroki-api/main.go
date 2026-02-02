@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/postgres/db"
 	"github.com/pedrobarco/mroki/internal/interfaces/http/handlers"
 	"github.com/pedrobarco/mroki/internal/interfaces/http/middleware"
+	"github.com/pedrobarco/mroki/pkg/dto"
 	"github.com/pedrobarco/mroki/pkg/logger"
 )
 
@@ -63,14 +65,41 @@ func main() {
 	getRequestHandler := appqueries.NewGetRequestHandler(reqRepo)
 	listRequestsHandler := appqueries.NewListRequestsHandler(reqRepo)
 
+	// Auth error handler maps middleware errors to dto errors
+	handleAuthError := func(w http.ResponseWriter, r *http.Request, err error) {
+		var dtoErr error
+
+		switch {
+		case errors.Is(err, middleware.ErrMissingAuthHeader):
+			dtoErr = dto.ErrMissingAuthHeader
+		case errors.Is(err, middleware.ErrInvalidAuthFormat):
+			dtoErr = dto.ErrInvalidAuthFormat
+		case errors.Is(err, middleware.ErrInvalidAPIKey):
+			dtoErr = dto.ErrInvalidAPIKey
+		default:
+			dtoErr = dto.ErrInvalidAPIKey
+		}
+
+		// Use AppHandler for automatic RFC 7807 formatting
+		handlers.AppHandler(func(w http.ResponseWriter, r *http.Request) error {
+			return dtoErr
+		}).ServeHTTP(w, r)
+	}
+
 	// Middleware
 	baseChain := middleware.Chain{
 		middleware.Logging(logger),
+		middleware.APIKeyAuth(cfg.App.APIKey,
+			middleware.WithAuthErrorHandler(handleAuthError),
+		),
 	}
 
 	// Middleware chain for POST endpoints with body size limit
 	postChain := middleware.Chain{
 		middleware.Logging(logger),
+		middleware.APIKeyAuth(cfg.App.APIKey,
+			middleware.WithAuthErrorHandler(handleAuthError),
+		),
 		middleware.MaxBodySize(cfg.App.MaxBodySize),
 	}
 

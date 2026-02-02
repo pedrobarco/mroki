@@ -39,6 +39,59 @@ All error responses follow RFC 7807 (Problem Details for HTTP APIs):
 
 ---
 
+## Authentication
+
+All API endpoints (except health checks) require bearer token authentication.
+
+### Authorization Header Format
+
+```
+Authorization: Bearer <your-api-key>
+```
+
+### Authentication Errors
+
+**Missing Authorization Header:**
+```json
+{
+  "type": "/errors/unauthorized",
+  "title": "Missing Authorization Header",
+  "status": 401,
+  "detail": "Authorization header is required",
+  "instance": "/gates"
+}
+```
+
+**Invalid Authorization Format:**
+```json
+{
+  "type": "/errors/unauthorized",
+  "title": "Invalid Authorization Format",
+  "status": 401,
+  "detail": "Authorization header must use format: Bearer <token>",
+  "instance": "/gates"
+}
+```
+
+**Invalid API Key:**
+```json
+{
+  "type": "/errors/unauthorized",
+  "title": "Invalid API Key",
+  "status": 401,
+  "detail": "The provided API key is not valid",
+  "instance": "/gates"
+}
+```
+
+### Excluded Endpoints
+
+The following endpoints do not require authentication:
+- `GET /health/live` - Liveness probe
+- `GET /health/ready` - Readiness probe
+
+---
+
 ## Endpoints
 
 ### Health Checks
