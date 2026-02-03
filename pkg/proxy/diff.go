@@ -7,16 +7,18 @@ import (
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
-type proxyResponseDiffer struct{}
-
-var (
-	_ diff.Differ[ProxyResponse] = (*proxyResponseDiffer)(nil)
-)
-
-func NewProxyResponseDiffer() *proxyResponseDiffer {
-	return &proxyResponseDiffer{}
+type proxyResponseDiffer struct {
+	opts []diff.Option
 }
 
+// Compile-time check that proxyResponseDiffer implements diff.Differ[ProxyResponse]
+var _ diff.Differ[ProxyResponse] = (*proxyResponseDiffer)(nil)
+
+func NewProxyResponseDiffer(opts ...diff.Option) *proxyResponseDiffer {
+	return &proxyResponseDiffer{opts: opts}
+}
+
+// Diff compares two proxy responses using configured diff options
 func (p *proxyResponseDiffer) Diff(a, b ProxyResponse) (string, error) {
 	ah, err := json.Marshal(a.Response.Header)
 	if err != nil {
@@ -30,7 +32,9 @@ func (p *proxyResponseDiffer) Diff(a, b ProxyResponse) (string, error) {
 
 	live := jsonString(a.StatusCode, ah, a.Body)
 	shadow := jsonString(b.StatusCode, bh, b.Body)
-	return diff.JSON(live, shadow)
+
+	// Use configured options from struct
+	return diff.JSON(live, shadow, p.opts...)
 }
 
 func jsonString(status int, headers, body []byte) string {

@@ -394,6 +394,7 @@ func defaultCallbackFn() CallbackFunc {
 			return nil
 		}
 
+		// Compare responses (no custom options for default callback)
 		res, err := differ.Diff(live, shadow)
 		if err != nil {
 			// Log error but don't fail - shadow testing shouldn't break
@@ -412,7 +413,6 @@ func defaultCallbackFn() CallbackFunc {
 				"path", req.Path,
 				"live_status", live.StatusCode,
 				"shadow_status", shadow.StatusCode,
-				"diff_length", len(res),
 			)
 		} else {
 			logger.Debug("responses match",
