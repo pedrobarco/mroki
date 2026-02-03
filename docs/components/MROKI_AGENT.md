@@ -7,12 +7,13 @@ mroki-agent is a lightweight proxy that intercepts HTTP traffic, forwards it to 
 ## Features
 
 - **Transparent Proxying**: Clients see no difference - live responses returned immediately
+- **Dual Operating Modes**: API mode (fetches gate config from API) or Standalone mode (hardcoded URLs)
+- **Configurable Diff Options**: Field filtering, array sorting, float tolerance
 - **Parallel Forwarding**: Live and shadow requests execute concurrently
-- **JSON Diff Computing**: Automatically compares JSON responses
+- **JSON Diff Computing**: Automatically compares JSON responses with customizable filtering
 - **Retry Logic**: Exponential backoff for API failures (1s, 2s, 4s)
 - **Best-Effort Delivery**: API failures never affect live traffic
 - **Agent ID Persistence**: Identity survives restarts
-- **Standalone Mode**: Works without API connection (useful for testing)
 - **Structured Logging**: All events logged with context
 
 ## Architecture
@@ -71,8 +72,43 @@ go install github.com/pedrobarco/mroki/cmd/mroki-agent@latest
 
 Configuration is via environment variables with the `MROKI_APP_` prefix.
 
-### Required Configuration
+### Operating Modes
 
+The agent supports two operating modes. You must configure ONE mode:
+
+#### API Mode (Recommended)
+
+In API mode, the agent fetches gate configuration (live/shadow URLs) from mroki-api on startup.
+
+**Required:**
+```bash
+# mroki-api server URL
+MROKI_APP_API_URL="http://localhost:8081"
+
+# Gate ID from mroki-api (must be valid UUID)
+MROKI_APP_GATE_ID="550e8400-e29b-41d4-a716-446655440000"
+
+# API key for authentication
+MROKI_APP_API_KEY="dev-test-key-min-16-chars"
+```
+
+**Optional:**
+```bash
+# Maximum retry attempts for API requests (default: 3)
+MROKI_APP_MAX_RETRIES=3
+
+# Initial delay between retries, doubles each attempt (default: 1s)
+MROKI_APP_RETRY_DELAY=1s
+
+# Timeout for each API request attempt (default: 30s)
+MROKI_APP_API_TIMEOUT=30s
+```
+
+#### Standalone Mode
+
+In standalone mode, the agent uses hardcoded URLs from environment variables. No API communication.
+
+**Required:**
 ```bash
 # Live service (production)
 MROKI_APP_LIVE_URL="https://api.production.example.com"
@@ -81,11 +117,16 @@ MROKI_APP_LIVE_URL="https://api.production.example.com"
 MROKI_APP_SHADOW_URL="https://api.shadow.example.com"
 ```
 
-### Optional Configuration
+### Server Configuration
+
+Works in both modes:
 
 ```bash
 # Proxy server port (default: 8080)
 MROKI_APP_PORT=8080
+
+# Maximum request body size for diffing (default: 10MB, 0=unlimited)
+MROKI_APP_MAX_BODY_SIZE=10485760
 
 # Live request timeout (default: 5s)
 # Blocks client response - keep tight!
@@ -96,26 +137,138 @@ MROKI_APP_LIVE_TIMEOUT=5s
 MROKI_APP_SHADOW_TIMEOUT=10s
 ```
 
-### API Integration (Optional)
+### Diff Configuration (Optional)
 
-To send captured diffs to mroki-api, configure both variables:
+Configure how responses are compared. Works in both API and Standalone modes.
 
+#### `MROKI_APP_DIFF_IGNORED_FIELDS`
+
+Comma-separated list of JSON field paths to ignore during comparison.
+
+**Syntax:** gjson path syntax (supports nested fields and array wildcards)
+
+**Examples:**
 ```bash
-# mroki-api server URL
-MROKI_APP_API_URL="http://localhost:8081"
+# Simple fields
+MROKI_APP_DIFF_IGNORED_FIELDS="timestamp,id"
 
-# Gate ID (create via mroki-api first)
-MROKI_APP_GATE_ID="550e8400-e29b-41d4-a716-446655440000"
+# Nested fields
+MROKI_APP_DIFF_IGNORED_FIELDS="metadata.timestamp,user.created_at"
 
-# Retry configuration
-MROKI_APP_MAX_RETRIES=3              # default: 3
-MROKI_APP_RETRY_DELAY=1s             # default: 1s (exponential backoff)
-MROKI_APP_API_TIMEOUT=30s            # default: 30s per attempt
+# Array wildcards (# matches any array element)
+MROKI_APP_DIFF_IGNORED_FIELDS="users.#.id,orders.#.created_at"
+
+# Multiple patterns
+MROKI_APP_DIFF_IGNORED_FIELDS="timestamp,metadata.created_at,users.#.updated_at"
 ```
 
-**Important:** Both `API_URL` and `GATE_ID` must be set together, or both left empty.
+#### `MROKI_APP_DIFF_INCLUDED_FIELDS`
+
+Comma-separated list of JSON field paths to include (whitelist mode). When set, ONLY these fields are compared, then `DIFF_IGNORED_FIELDS` is applied.
+
+**Examples:**
+```bash
+# Only compare user and order fields
+MROKI_APP_DIFF_INCLUDED_FIELDS="user,order"
+
+# Combine with ignored fields
+MROKI_APP_DIFF_INCLUDED_FIELDS="user,order"
+MROKI_APP_DIFF_IGNORED_FIELDS="user.created_at,order.created_at"
+```
+
+#### `MROKI_APP_DIFF_SORT_ARRAYS`
+
+Boolean flag to sort arrays before comparison. Useful when array order doesn't matter.
+
+**Default:** `false`
+
+**Example:**
+```bash
+MROKI_APP_DIFF_SORT_ARRAYS=true
+```
+
+#### `MROKI_APP_DIFF_FLOAT_TOLERANCE`
+
+Tolerance for floating point comparisons. Allows small differences that might occur due to rounding.
+
+**Default:** `0` (exact comparison)
+
+**Example:**
+```bash
+# Allow 0.1% difference (useful for prices, percentages)
+MROKI_APP_DIFF_FLOAT_TOLERANCE=0.001
+```
+
+**Field Pattern Syntax:**
+
+The diff configuration uses [gjson path syntax](https://github.com/tidwall/gjson/blob/master/SYNTAX.md):
+
+| Pattern | Description | Example JSON | Matches |
+|---------|-------------|--------------|---------|
+| `field` | Top-level field | `{"field": 1}` | `field` |
+| `a.b` | Nested field | `{"a": {"b": 1}}` | `a.b` |
+| `a.#.b` | Array wildcard | `{"a": [{"b": 1}, {"b": 2}]}` | `a[0].b`, `a[1].b` |
+| `a.b\\.c` | Escaped dot | `{"a": {"b.c": 1}}` | `a["b.c"]` |
+
+**Common patterns:**
+```bash
+# Ignore all timestamps
+MROKI_APP_DIFF_IGNORED_FIELDS="timestamp,created_at,updated_at,deleted_at"
+
+# Ignore IDs in nested arrays
+MROKI_APP_DIFF_IGNORED_FIELDS="users.#.id,users.#.posts.#.id"
+
+# Ignore metadata object
+MROKI_APP_DIFF_IGNORED_FIELDS="metadata"
+
+# Ignore specific nested field
+MROKI_APP_DIFF_IGNORED_FIELDS="response.data.internal.debug_info"
+```
 
 ## Running the Agent
+
+## Running the Agent
+
+### API Mode
+
+```bash
+cd cmd/mroki-agent
+
+# 1. Create gate in mroki-api first
+GATE_RESPONSE=$(curl -s -X POST http://localhost:8081/gates \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dev-test-key-min-16-chars" \
+  -d '{
+    "live_url": "https://httpbin.org/anything?service=live",
+    "shadow_url": "https://httpbin.org/anything?service=shadow"
+  }')
+
+GATE_ID=$(echo $GATE_RESPONSE | jq -r '.data.id')
+
+# 2. Configure agent
+cat > .env << EOF
+MROKI_APP_PORT=8080
+MROKI_APP_API_URL=http://localhost:8081
+MROKI_APP_GATE_ID=$GATE_ID
+MROKI_APP_API_KEY=dev-test-key-min-16-chars
+
+# Optional: Diff configuration
+MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at,metadata.request_id
+MROKI_APP_DIFF_SORT_ARRAYS=true
+EOF
+
+# 3. Run
+go run .
+```
+
+**Output:**
+```
+INFO Agent ID loaded agent_id=MacBook-Pro-a1b2c3d4
+INFO Starting in API mode api_url=http://localhost:8081 gate_id=550e8400-...
+INFO Gate configuration loaded gate_id=550e8400-... live_url=https://httpbin.org/... shadow_url=https://httpbin.org/...
+DEBUG Diff options configured ignored_fields=[timestamp created_at metadata.request_id] sort_arrays=true
+INFO Started server address=:8080
+```
 
 ### Standalone Mode (No API)
 
@@ -127,6 +280,10 @@ cat > .env << 'EOF'
 MROKI_APP_LIVE_URL=https://httpbin.org/anything?service=live
 MROKI_APP_SHADOW_URL=https://httpbin.org/anything?service=shadow
 MROKI_APP_PORT=8080
+
+# Optional: Diff configuration
+MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,id
+MROKI_APP_DIFF_SORT_ARRAYS=true
 EOF
 
 # Run
@@ -135,44 +292,10 @@ go run .
 
 **Output:**
 ```
-INFO Running in standalone mode (no API integration)
 INFO Agent ID loaded agent_id=MacBook-Pro-a1b2c3d4
-INFO Started server live=https://httpbin.org/... address=:8080
-```
-
-### API-Integrated Mode
-
-```bash
-cd cmd/mroki-agent
-
-# 1. Create gate in mroki-api first
-GATE_RESPONSE=$(curl -s -X POST http://localhost:8081/gates \
-  -H "Content-Type: application/json" \
-  -d '{
-    "live_url": "https://httpbin.org/anything?service=live",
-    "shadow_url": "https://httpbin.org/anything?service=shadow"
-  }')
-
-GATE_ID=$(echo $GATE_RESPONSE | jq -r '.data.id')
-
-# 2. Configure agent
-cat > .env << EOF
-MROKI_APP_LIVE_URL=https://httpbin.org/anything?service=live
-MROKI_APP_SHADOW_URL=https://httpbin.org/anything?service=shadow
-MROKI_APP_PORT=8080
-MROKI_APP_API_URL=http://localhost:8081
-MROKI_APP_GATE_ID=$GATE_ID
-EOF
-
-# 3. Run
-go run .
-```
-
-**Output:**
-```
-INFO Agent ID loaded agent_id=MacBook-Pro-a1b2c3d4
-INFO API integration enabled api_url=http://localhost:8081 gate_id=550e8400...
-INFO Started server live=https://httpbin.org/... address=:8080
+INFO Starting in standalone mode live_url=https://httpbin.org/... shadow_url=https://httpbin.org/...
+DEBUG Diff options configured ignored_fields=[timestamp id] sort_arrays=true
+INFO Started server address=:8080
 ```
 
 ### Sending Test Traffic
@@ -281,24 +404,48 @@ ERROR all retries exhausted attempts=4
 
 ## Configuration Examples
 
-### Local Testing
+### API Mode with Diff Options
 
 ```bash
+# Agent fetches gate URLs from API
+MROKI_APP_API_URL=http://localhost:8081
+MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
+MROKI_APP_API_KEY=dev-test-key-min-16-chars
+MROKI_APP_PORT=8080
+
+# Ignore timestamp fields
+MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at,updated_at
+MROKI_APP_DIFF_SORT_ARRAYS=true
+```
+
+### Standalone Mode with Field Filtering
+
+```bash
+# Hardcoded URLs
 MROKI_APP_LIVE_URL=http://localhost:3000
 MROKI_APP_SHADOW_URL=http://localhost:3001
 MROKI_APP_PORT=8080
+
+# Only compare specific fields
+MROKI_APP_DIFF_INCLUDED_FIELDS=user.email,user.name,order.total
+MROKI_APP_DIFF_IGNORED_FIELDS=user.last_login
 ```
 
 ### Production with External Services
 
 ```bash
-MROKI_APP_LIVE_URL=https://api.production.example.com
-MROKI_APP_SHADOW_URL=https://api.shadow.example.com
+# API Mode
+MROKI_APP_API_URL=https://mroki-api.internal.example.com
+MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
+MROKI_APP_API_KEY=production-key-min-16-chars
 MROKI_APP_PORT=80
 MROKI_APP_LIVE_TIMEOUT=3s
 MROKI_APP_SHADOW_TIMEOUT=15s
-MROKI_APP_API_URL=https://mroki-api.internal.example.com
-MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
+
+# Diff configuration for production API
+MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,request_id,users.#.last_seen
+MROKI_APP_DIFF_SORT_ARRAYS=true
+MROKI_APP_DIFF_FLOAT_TOLERANCE=0.0001
 ```
 
 ### Testing with httpbin
@@ -308,6 +455,9 @@ MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
 MROKI_APP_LIVE_URL=https://httpbin.org/anything?service=live
 MROKI_APP_SHADOW_URL=https://httpbin.org/anything?service=shadow
 MROKI_APP_PORT=8080
+
+# Ignore httpbin-specific fields
+MROKI_APP_DIFF_IGNORED_FIELDS=origin,url,headers.Host
 ```
 
 ## Deployment
@@ -331,10 +481,11 @@ CMD ["./mroki-agent"]
 ```bash
 docker build -t mroki-agent .
 docker run -p 8080:8080 \
-  -e MROKI_APP_LIVE_URL=https://api.production.example.com \
-  -e MROKI_APP_SHADOW_URL=https://api.shadow.example.com \
   -e MROKI_APP_API_URL=http://mroki-api:8081 \
   -e MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000 \
+  -e MROKI_APP_API_KEY=dev-test-key-min-16-chars \
+  -e MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at \
+  -e MROKI_APP_DIFF_SORT_ARRAYS=true \
   mroki-agent
 ```
 
@@ -361,10 +512,6 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        - name: MROKI_APP_LIVE_URL
-          value: "http://localhost:3000"
-        - name: MROKI_APP_SHADOW_URL
-          value: "http://my-app-shadow:3000"
         - name: MROKI_APP_API_URL
           value: "http://mroki-api:8081"
         - name: MROKI_APP_GATE_ID
@@ -372,6 +519,15 @@ spec:
             configMapKeyRef:
               name: mroki-config
               key: gate-id
+        - name: MROKI_APP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mroki-secrets
+              key: api-key
+        - name: MROKI_APP_DIFF_IGNORED_FIELDS
+          value: "timestamp,created_at,metadata.request_id"
+        - name: MROKI_APP_DIFF_SORT_ARRAYS
+          value: "true"
 ---
 apiVersion: v1
 kind: Service
@@ -408,14 +564,19 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        - name: MROKI_APP_LIVE_URL
-          value: "http://my-app-live:80"
-        - name: MROKI_APP_SHADOW_URL
-          value: "http://my-app-shadow:80"
         - name: MROKI_APP_API_URL
           value: "http://mroki-api:8081"
         - name: MROKI_APP_GATE_ID
           value: "550e8400-e29b-41d4-a716-446655440000"
+        - name: MROKI_APP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mroki-secrets
+              key: api-key
+        - name: MROKI_APP_DIFF_IGNORED_FIELDS
+          value: "timestamp,created_at"
+        - name: MROKI_APP_DIFF_SORT_ARRAYS
+          value: "true"
 ---
 apiVersion: v1
 kind: Service
@@ -452,9 +613,15 @@ All logs use structured logging (slog) with JSON output.
 
 ### Agent won't start
 
-**Problem:** `panic: configuration validation failed: live_url is required`
+**Problem:** `panic: configuration validation failed: must configure either API mode or standalone mode`
 
-**Solution:** Ensure `MROKI_APP_LIVE_URL` and `MROKI_APP_SHADOW_URL` are set.
+**Solution:** Set either API mode (API_URL + GATE_ID + API_KEY) or standalone mode (LIVE_URL + SHADOW_URL), not both.
+
+---
+
+**Problem:** `panic: configuration validation failed: gate_id must be a valid UUID`
+
+**Solution:** Ensure `GATE_ID` is a valid UUID format (create gate via mroki-api first).
 
 ---
 

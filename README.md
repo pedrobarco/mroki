@@ -70,6 +70,8 @@ Proxy that intercepts traffic and forwards to live/shadow services. Computes dif
 
 **Key Features:**
 - Transparent HTTP proxy
+- Dual operating modes (API-fetched config or standalone)
+- Configurable diff options (field filtering, array sorting, float tolerance)
 - Exponential backoff retry logic
 - Best-effort delivery (never fails live traffic)
 - Agent ID persistence
@@ -170,13 +172,15 @@ go build -o mroki-api ./cmd/mroki-api
 
 ## Project Status
 
-**Current State:** Phase 1 Complete
+**Current State:** Phase 2 Complete
 
 - ✅ Agent → API integration
+- ✅ Agent fetches gate configuration from API (dual operating modes)
+- ✅ Configurable diff options (field filtering, array sorting, float tolerance)
 - ✅ Request capture and diff computation
 - ✅ Retry logic with exponential backoff
 - ✅ Agent ID persistence
-- ✅ 237+ tests, 0 failures
+- ✅ 250+ tests, 0 failures
 - 🚧 Web UI (mroki-hub) - In development
 
 ## License

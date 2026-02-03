@@ -51,16 +51,17 @@ mroki consists of four main components:
 
 **Responsibilities:**
 - Intercept incoming HTTP requests
+- Operate in dual modes: fetch gate config from API or use hardcoded URLs
 - Forward to both live and shadow services in parallel
 - Return live service response to client immediately
-- Compute JSON response differences in background
+- Compute JSON response differences with configurable filtering in background
 - Send captured data to mroki-api with retry logic
 - Persist agent identity across restarts
 
 **Technology:**
 - Language: Go 1.21+
 - HTTP Proxy: Custom `pkg/proxy`
-- Diff Engine: Custom JSON differ `pkg/diff`
+- Diff Engine: Custom JSON differ `pkg/diff` with field filtering, array sorting, float tolerance
 - API Client: `pkg/client` with exponential backoff
 
 **Deployment:** Runs as a sidecar proxy or standalone service in production environment
@@ -282,15 +283,16 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 - No session management needed
 - Easy to load balance
 
-### 7. Standalone Agent Mode
+### 7. Dual Operating Modes
 
-**Decision:** Agent works without API connection
+**Decision:** Agent works in API mode (fetches config) or standalone mode (hardcoded URLs)
 
 **Rationale:**
-- Useful for local testing
-- Validates live/shadow behavior without storage
-- Graceful degradation
-- Reduces operational dependencies
+- API mode: Centralized configuration management
+- Standalone mode: Useful for local testing and validation
+- Graceful degradation when API unavailable
+- Reduces operational dependencies for simple setups
+- Agent can operate without API connection
 
 ---
 
@@ -463,19 +465,24 @@ log.Info("request captured",
 
 ## Future Enhancements
 
-### Phase 2
-- [ ] Sampling configuration per gate
-- [ ] Request filtering (ignore headers, fields)
-- [ ] Batch API requests for efficiency
-- [ ] Prometheus metrics
-- [ ] Authentication & authorization
+### Phase 2 (✅ Completed)
+- [x] Agent fetches gate configuration from API
+- [x] Dual operating modes (API vs standalone)
+- [x] Configurable diff options (field filtering, array sorting, float tolerance)
+- [x] API key authentication
 
 ### Phase 3
+- [ ] Sampling configuration per gate
+- [ ] Batch API requests for efficiency
+- [ ] Prometheus metrics
 - [ ] Request replay (send to shadow on-demand)
 - [ ] Diff analysis algorithms (similarity scores)
+
+### Phase 4
 - [ ] Alerting on unexpected diffs
 - [ ] Multi-region support
 - [ ] Performance regression detection
+- [ ] Advanced diff visualization
 
 ---
 

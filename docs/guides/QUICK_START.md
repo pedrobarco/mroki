@@ -83,8 +83,6 @@ cd cmd/mroki-agent
 
 # Create configuration file (replace GATE_ID with your actual gate ID)
 cat > .env << 'EOF'
-MROKI_APP_LIVE_URL=https://httpbin.org/anything?service=live
-MROKI_APP_SHADOW_URL=https://httpbin.org/anything?service=shadow
 MROKI_APP_PORT=8080
 MROKI_APP_API_URL=http://localhost:8081
 MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
@@ -100,8 +98,9 @@ go run .
 **Expected output:**
 ```
 INFO Agent ID loaded agent_id=MacBook-Pro-a1b2c3d4-...
-INFO API integration enabled api_url=http://localhost:8081 gate_id=550e8400-...
-INFO Started server live=https://httpbin.org/... address=:8080
+INFO Starting in API mode api_url=http://localhost:8081 gate_id=550e8400-...
+INFO Gate configuration loaded gate_id=550e8400-... live_url=https://httpbin.org/... shadow_url=https://httpbin.org/...
+INFO Started server address=:8080
 ```
 
 Keep this terminal open.
@@ -183,12 +182,20 @@ You've successfully:
 
 ### Test with Your Own Services
 
-Replace the httpbin URLs with your actual services:
+Create a new gate with your actual service URLs:
 
 ```bash
-# Edit cmd/mroki-agent/.env
-MROKI_APP_LIVE_URL=http://localhost:3000      # Your production service
-MROKI_APP_SHADOW_URL=http://localhost:3001    # Your experimental service
+# Create gate with your services
+curl -X POST http://localhost:8081/gates \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dev-test-key-min-16-chars" \
+  -d '{
+    "live_url": "http://localhost:3000",
+    "shadow_url": "http://localhost:3001"
+  }'
+
+# Get the gate ID from response, then update agent config
+# Edit cmd/mroki-agent/.env and update MROKI_APP_GATE_ID
 ```
 
 ### Explore Advanced Features
@@ -236,18 +243,32 @@ cd cmd/mroki-agent && go run .
 
 **Standalone Mode (No API):**
 ```bash
-# Edit cmd/mroki-agent/.env - remove API config
-cat > .env << 'EOF'
+# Edit cmd/mroki-agent/.env - remove API config, add URLs
+cat > cmd/mroki-agent/.env << 'EOF'
 MROKI_APP_LIVE_URL=https://httpbin.org/anything?service=live
 MROKI_APP_SHADOW_URL=https://httpbin.org/anything?service=shadow
 MROKI_APP_PORT=8080
 EOF
 
 # Restart agent
-go run .
+cd cmd/mroki-agent && go run .
 
-# Should see: "Running in standalone mode (no API integration)"
+# Should see: "Starting in standalone mode"
 # Requests still work, but diffs are not stored
+```
+
+**Test Diff Configuration:**
+```bash
+# Add diff options to cmd/mroki-agent/.env
+cat >> cmd/mroki-agent/.env << 'EOF'
+MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at,url
+MROKI_APP_DIFF_SORT_ARRAYS=true
+EOF
+
+# Restart agent
+cd cmd/mroki-agent && go run .
+
+# Should see: "Diff options configured" in logs
 ```
 
 **Test Retry Logic:**
@@ -329,18 +350,19 @@ docker-compose -f build/mroki-api/docker-compose.yaml restart
 
 ### Agent won't start
 
-**Problem:** `configuration validation failed: api_url and gate_id must both be set`
+**Problem:** `configuration validation failed: must configure either API mode or standalone mode`
 
-**Solution:** Either set both or remove both from `.env`:
+**Solution:** Either set API mode (API_URL + GATE_ID + API_KEY) or standalone mode (LIVE_URL + SHADOW_URL), not both:
 
 ```bash
-# Option 1: API mode (both set, including API_KEY)
+# Option 1: API mode (all three required)
 MROKI_APP_API_URL=http://localhost:8081
 MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
 MROKI_APP_API_KEY=dev-test-key-min-16-chars
 
-# Option 2: Standalone mode (all removed)
-# Just delete those lines from .env
+# Option 2: Standalone mode (both required)
+MROKI_APP_LIVE_URL=https://api.production.example.com
+MROKI_APP_SHADOW_URL=https://api.shadow.example.com
 ```
 
 ---

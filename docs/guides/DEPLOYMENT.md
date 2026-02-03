@@ -15,8 +15,7 @@ See [`/deployments/docker-compose/`](../../deployments/docker-compose/) for comp
 # Create .env file
 cat > .env <<EOF
 DB_PASSWORD=your_secure_password
-LIVE_URL=https://api.production.example.com
-SHADOW_URL=https://api.shadow.example.com
+API_KEY=your-api-key-min-16-chars
 GATE_ID=550e8400-e29b-41d4-a716-446655440000
 EOF
 
@@ -103,11 +102,12 @@ Type=simple
 User=mroki
 Group=mroki
 WorkingDirectory=/opt/mroki
-Environment="MROKI_APP_LIVE_URL=https://api.production.example.com"
-Environment="MROKI_APP_SHADOW_URL=https://api.shadow.example.com"
 Environment="MROKI_APP_PORT=8080"
 Environment="MROKI_APP_API_URL=http://localhost:8081"
 Environment="MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000"
+Environment="MROKI_APP_API_KEY=your-secret-key-min-16-chars"
+Environment="MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at"
+Environment="MROKI_APP_DIFF_SORT_ARRAYS=true"
 ExecStart=/opt/mroki/mroki-agent
 Restart=always
 RestartSec=5
