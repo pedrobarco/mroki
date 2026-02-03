@@ -379,3 +379,183 @@ func TestSendRequest_ExponentialBackoffTiming(t *testing.T) {
 	assert.InDelta(t, initialDelay*4, delay3, float64(tolerance),
 		"third retry should wait ~200ms")
 }
+
+func TestGetGate_Success(t *testing.T) {
+	// Create test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify request
+		assert.Equal(t, "/gates/550e8400-e29b-41d4-a716-446655440000", r.URL.Path)
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
+
+		// Send successful response
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		response := map[string]interface{}{
+			"data": map[string]interface{}{
+				"id":         "550e8400-e29b-41d4-a716-446655440000",
+				"live_url":   "https://api.live.com",
+				"shadow_url": "https://api.shadow.com",
+			},
+		}
+		_ = json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	// Create client
+	apiURL, _ := url.Parse(server.URL)
+	client := NewMrokiClient(
+		apiURL,
+		"550e8400-e29b-41d4-a716-446655440000",
+		"agent-1",
+		"test-api-key",
+	)
+
+	// Call GetGate
+	gate, err := client.GetGate(context.Background())
+
+	// Verify
+	require.NoError(t, err)
+	assert.NotNil(t, gate)
+	assert.Equal(t, "550e8400-e29b-41d4-a716-446655440000", gate.ID)
+	assert.Equal(t, "https://api.live.com", gate.LiveURL)
+	assert.Equal(t, "https://api.shadow.com", gate.ShadowURL)
+}
+
+func TestGetGate_NotFound(t *testing.T) {
+	// Create test server that returns 404
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		response := map[string]interface{}{
+			"status": 404,
+			"title":  "Not Found",
+			"detail": "Gate not found",
+		}
+		_ = json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	// Create client
+	apiURL, _ := url.Parse(server.URL)
+	client := NewMrokiClient(
+		apiURL,
+		"non-existent-gate",
+		"agent-1",
+		"test-api-key",
+	)
+
+	// Call GetGate
+	gate, err := client.GetGate(context.Background())
+
+	// Verify error
+	assert.Error(t, err)
+	assert.Nil(t, gate)
+	assert.Contains(t, err.Error(), "gate not found")
+}
+
+func TestGetGate_APIError(t *testing.T) {
+	testCases := []struct {
+		statusCode int
+		name       string
+	}{
+		{http.StatusBadRequest, "400 Bad Request"},
+		{http.StatusUnauthorized, "401 Unauthorized"},
+		{http.StatusForbidden, "403 Forbidden"},
+		{http.StatusInternalServerError, "500 Internal Server Error"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create test server
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tc.statusCode)
+				response := map[string]interface{}{
+					"status": tc.statusCode,
+					"title":  tc.name,
+					"detail": "Something went wrong",
+				}
+				_ = json.NewEncoder(w).Encode(response)
+			}))
+			defer server.Close()
+
+			// Create client
+			apiURL, _ := url.Parse(server.URL)
+			client := NewMrokiClient(apiURL, "gate-123", "agent-1", "test-api-key")
+
+			// Call GetGate
+			gate, err := client.GetGate(context.Background())
+
+			// Verify error
+			assert.Error(t, err)
+			assert.Nil(t, gate)
+			assert.Contains(t, err.Error(), "API error")
+			assert.Contains(t, err.Error(), tc.name)
+		})
+	}
+}
+
+func TestGetGate_Timeout(t *testing.T) {
+	// Create slow server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// Create client with short timeout
+	apiURL, _ := url.Parse(server.URL)
+	client := NewMrokiClient(
+		apiURL,
+		"gate-123",
+		"agent-1",
+		"test-api-key",
+		WithHTTPClient(&http.Client{Timeout: 50 * time.Millisecond}),
+	)
+
+	// Call GetGate with context
+	ctx := context.Background()
+	gate, err := client.GetGate(ctx)
+
+	// Should timeout
+	assert.Error(t, err)
+	assert.Nil(t, gate)
+	assert.Contains(t, err.Error(), "HTTP request failed")
+}
+
+func TestGetGate_MalformedJSON(t *testing.T) {
+	// Create test server with invalid JSON
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data": invalid json}`))
+	}))
+	defer server.Close()
+
+	// Create client
+	apiURL, _ := url.Parse(server.URL)
+	client := NewMrokiClient(apiURL, "gate-123", "agent-1", "test-api-key")
+
+	// Call GetGate
+	gate, err := client.GetGate(context.Background())
+
+	// Should error on JSON decode
+	assert.Error(t, err)
+	assert.Nil(t, gate)
+	assert.Contains(t, err.Error(), "failed to decode response")
+}
+
+func TestGetGate_NetworkError(t *testing.T) {
+	// Create client pointing to non-existent server
+	apiURL, _ := url.Parse("http://localhost:1")
+	client := NewMrokiClient(apiURL, "gate-123", "agent-1", "test-api-key")
+
+	// Call GetGate
+	gate, err := client.GetGate(context.Background())
+
+	// Should error on connection
+	assert.Error(t, err)
+	assert.Nil(t, gate)
+	assert.Contains(t, err.Error(), "HTTP request failed")
+}

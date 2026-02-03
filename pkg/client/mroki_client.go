@@ -117,6 +117,53 @@ func (c *MrokiClient) SendRequest(ctx context.Context, req *CapturedRequest) err
 	return fmt.Errorf("failed after %d attempts: %w", c.maxRetries+1, lastErr)
 }
 
+// GetGate fetches gate configuration from the API
+// Returns gate with live_url and shadow_url
+func (c *MrokiClient) GetGate(ctx context.Context) (*dto.Gate, error) {
+	// Build URL: GET /gates/{gate_id}
+	endpoint := fmt.Sprintf("%s/gates/%s", c.baseURL.String(), c.gateID)
+
+	// Create HTTP request
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	// Send request
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	// Check status code
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("gate not found: %s", c.gateID)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// Try to parse RFC 7807 error response
+		var apiErr dto.APIError
+		if err := json.NewDecoder(resp.Body).Decode(&apiErr); err == nil {
+			return nil, fmt.Errorf("API error (status %d): %s - %s",
+				apiErr.Status, apiErr.Title, apiErr.Detail)
+		}
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	// Parse response
+	var response dto.Response[dto.Gate]
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &response.Data, nil
+}
+
 // sendRequestOnce makes a single API call without retry
 func (c *MrokiClient) sendRequestOnce(ctx context.Context, req *CapturedRequest) error {
 	// Build URL: POST /gates/{gate_id}/requests
