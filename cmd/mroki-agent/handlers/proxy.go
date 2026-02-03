@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pedrobarco/mroki/pkg/client"
+	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 )
 
@@ -22,6 +23,9 @@ type ProxyConfig struct {
 	APIClient *client.MrokiClient
 	AgentID   string
 	Logger    *slog.Logger
+
+	// Diff options from agent config
+	DiffOptions []diff.Option
 }
 
 func Proxy(cfg ProxyConfig) http.HandlerFunc {
@@ -50,7 +54,8 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 		logger = slog.Default()
 	}
 
-	differ := proxy.NewProxyResponseDiffer()
+	// Create differ with configured diff options
+	differ := proxy.NewProxyResponseDiffer(cfg.DiffOptions...)
 
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
 		// Skip non-JSON responses
@@ -64,10 +69,10 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 			return nil
 		}
 
-		// Compute diff
+		// Compute diff using differ with pre-configured options
 		diffContent, err := differ.Diff(live, shadow)
 		if err != nil {
-			logger.Warn("failed to compute diff",
+			logger.Error("failed to compute diff",
 				"error", err,
 				"method", req.Method,
 				"path", req.Path,
@@ -75,27 +80,45 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 			return nil // Don't fail the callback
 		}
 
-		// Convert to API format
-		captured := client.ConvertProxyToCapture(req, live, shadow, diffContent, cfg.AgentID)
-
-		// Send to API with timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := cfg.APIClient.SendRequest(ctx, captured); err != nil {
-			logger.Error("failed to send request to API",
-				"error", err,
+		// Log if diff found
+		if len(diffContent) > 0 {
+			logger.Info("diff detected",
+				"method", req.Method,
+				"path", req.Path,
+				"live_status", live.StatusCode,
+				"shadow_status", shadow.StatusCode,
+			)
+		} else {
+			logger.Debug("responses match",
 				"method", req.Method,
 				"path", req.Path,
 			)
-			return nil // Log but don't fail - best effort delivery
 		}
 
-		logger.Debug("successfully sent request to API",
-			"method", req.Method,
-			"path", req.Path,
-			"has_diff", len(diffContent) > 0,
-		)
+		// If API client configured, send to API
+		if cfg.APIClient != nil {
+			// Convert to API format
+			captured := client.ConvertProxyToCapture(req, live, shadow, diffContent, cfg.AgentID)
+
+			// Send to API with timeout
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := cfg.APIClient.SendRequest(ctx, captured); err != nil {
+				logger.Warn("failed to send request to API",
+					"error", err,
+					"method", req.Method,
+					"path", req.Path,
+				)
+				return nil // Log but don't fail - best effort delivery
+			}
+
+			logger.Debug("successfully sent request to API",
+				"method", req.Method,
+				"path", req.Path,
+				"has_diff", len(diffContent) > 0,
+			)
+		}
 
 		return nil
 	}

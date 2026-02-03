@@ -10,8 +10,10 @@ import (
 )
 
 type Config config.Config[struct {
-	LiveURL       *url.URL      `env:"LIVE_URL, required"`
-	ShadowURL     *url.URL      `env:"SHADOW_URL, required"`
+	// URLs - optional if API mode configured (agent fetches from API)
+	LiveURL   *url.URL `env:"LIVE_URL"`
+	ShadowURL *url.URL `env:"SHADOW_URL"`
+
 	Port          int           `env:"PORT, default=8080"`
 	MaxBodySize   int64         `env:"MAX_BODY_SIZE, default=10485760"` // 10MB, 0=unlimited
 	LiveTimeout   time.Duration `env:"LIVE_TIMEOUT, default=5s"`
@@ -24,6 +26,12 @@ type Config config.Config[struct {
 	MaxRetries int           `env:"MAX_RETRIES, default=3"`
 	RetryDelay time.Duration `env:"RETRY_DELAY, default=1s"`
 	APITimeout time.Duration `env:"API_TIMEOUT, default=30s"`
+
+	// Diff options (optional, works in both API and standalone modes)
+	DiffIgnoredFields  []string `env:"DIFF_IGNORED_FIELDS"`  // Comma-separated
+	DiffIncludedFields []string `env:"DIFF_INCLUDED_FIELDS"` // Comma-separated
+	DiffSortArrays     bool     `env:"DIFF_SORT_ARRAYS, default=false"`
+	DiffFloatTolerance float64  `env:"DIFF_FLOAT_TOLERANCE, default=0"`
 }]
 
 // Validate checks all configuration values and returns a ValidationError
@@ -37,54 +45,16 @@ func (c Config) Validate() error {
 		verr.Add(fmt.Errorf("port must be between 1 and 65535, got %d", c.App.Port))
 	}
 
-	// Validate live URL
-	if c.App.LiveURL == nil {
-		verr.Add(fmt.Errorf("live_url is required"))
-	} else if c.App.LiveURL.Scheme != "http" && c.App.LiveURL.Scheme != "https" {
-		verr.Add(fmt.Errorf("live_url must use http or https scheme, got %q", c.App.LiveURL.Scheme))
+	// Check if API mode or standalone mode
+	hasAPIConfig := c.App.APIURL != nil && c.App.GateID != "" && c.App.APIKey != ""
+	hasStandaloneConfig := c.App.LiveURL != nil && c.App.ShadowURL != nil
+
+	if !hasAPIConfig && !hasStandaloneConfig {
+		verr.Add(fmt.Errorf("must configure either API mode (API_URL+GATE_ID+API_KEY) or standalone mode (LIVE_URL+SHADOW_URL)"))
 	}
 
-	// Validate shadow URL
-	if c.App.ShadowURL == nil {
-		verr.Add(fmt.Errorf("shadow_url is required"))
-	} else if c.App.ShadowURL.Scheme != "http" && c.App.ShadowURL.Scheme != "https" {
-		verr.Add(fmt.Errorf("shadow_url must use http or https scheme, got %q", c.App.ShadowURL.Scheme))
-	}
-
-	// Validate live timeout
-	if c.App.LiveTimeout <= 0 {
-		verr.Add(fmt.Errorf("live_timeout must be positive, got %s", c.App.LiveTimeout))
-	}
-
-	// Validate shadow timeout
-	if c.App.ShadowTimeout <= 0 {
-		verr.Add(fmt.Errorf("shadow_timeout must be positive, got %s", c.App.ShadowTimeout))
-	}
-
-	// Validate max body size (0 is allowed for unlimited)
-	if c.App.MaxBodySize < 0 {
-		verr.Add(fmt.Errorf("max_body_size must be non-negative (0=unlimited), got %d", c.App.MaxBodySize))
-	}
-
-	// Validate API configuration (optional, but if one is set, all must be set)
-	hasAPIURL := c.App.APIURL != nil
-	hasGateID := c.App.GateID != ""
-	hasAPIKey := c.App.APIKey != ""
-
-	if hasAPIURL || hasGateID || hasAPIKey {
-		// If any API config is set, all must be set
-		if !hasAPIURL {
-			verr.Add(fmt.Errorf("api_url is required when api integration is configured"))
-		}
-		if !hasGateID {
-			verr.Add(fmt.Errorf("gate_id is required when api integration is configured"))
-		}
-		if !hasAPIKey {
-			verr.Add(fmt.Errorf("api_key is required when api integration is configured"))
-		}
-	}
-
-	if hasAPIURL {
+	// Validate API mode configuration
+	if hasAPIConfig {
 		// Validate API URL scheme
 		if c.App.APIURL.Scheme != "http" && c.App.APIURL.Scheme != "https" {
 			verr.Add(fmt.Errorf("api_url must use http or https scheme, got %q", c.App.APIURL.Scheme))
@@ -95,18 +65,52 @@ func (c Config) Validate() error {
 			verr.Add(fmt.Errorf("gate_id must be a valid UUID: %w", err))
 		}
 
+		// API key validation
+		if c.App.APIKey == "" {
+			verr.Add(fmt.Errorf("api_key is required when api integration is configured"))
+		}
+
 		// Validate retry config
 		if c.App.MaxRetries < 0 {
 			verr.Add(fmt.Errorf("max_retries must be non-negative, got %d", c.App.MaxRetries))
 		}
-
 		if c.App.RetryDelay <= 0 {
 			verr.Add(fmt.Errorf("retry_delay must be positive, got %s", c.App.RetryDelay))
 		}
-
 		if c.App.APITimeout <= 0 {
 			verr.Add(fmt.Errorf("api_timeout must be positive, got %s", c.App.APITimeout))
 		}
+	}
+
+	// Validate standalone mode configuration
+	if hasStandaloneConfig {
+		// Validate live URL
+		if c.App.LiveURL.Scheme != "http" && c.App.LiveURL.Scheme != "https" {
+			verr.Add(fmt.Errorf("live_url must use http or https scheme, got %q", c.App.LiveURL.Scheme))
+		}
+
+		// Validate shadow URL
+		if c.App.ShadowURL.Scheme != "http" && c.App.ShadowURL.Scheme != "https" {
+			verr.Add(fmt.Errorf("shadow_url must use http or https scheme, got %q", c.App.ShadowURL.Scheme))
+		}
+	}
+
+	// Validate timeouts (both modes)
+	if c.App.LiveTimeout <= 0 {
+		verr.Add(fmt.Errorf("live_timeout must be positive, got %s", c.App.LiveTimeout))
+	}
+	if c.App.ShadowTimeout <= 0 {
+		verr.Add(fmt.Errorf("shadow_timeout must be positive, got %s", c.App.ShadowTimeout))
+	}
+
+	// Validate max body size
+	if c.App.MaxBodySize < 0 {
+		verr.Add(fmt.Errorf("max_body_size must be non-negative (0=unlimited), got %d", c.App.MaxBodySize))
+	}
+
+	// Validate diff float tolerance
+	if c.App.DiffFloatTolerance < 0 {
+		verr.Add(fmt.Errorf("diff_float_tolerance must be non-negative, got %f", c.App.DiffFloatTolerance))
 	}
 
 	if verr.HasErrors() {
