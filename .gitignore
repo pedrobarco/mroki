@@ -36,6 +36,3 @@ bin/
 /mroki-api
 /mroki-agent
 /caddy-mroki
-cmd/mroki-api/mroki-api
-cmd/mroki-agent/mroki-agent
-cmd/caddy-mroki/caddy-mroki
