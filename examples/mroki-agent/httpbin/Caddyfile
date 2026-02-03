@@ -5,8 +5,8 @@
 http://localhost:8080 {
     route {
         mroki_gate {
-            live    "http://httpbin.org?mroki_gate=live"
-            shadow  "http://httpbin.org?mroki_gate=shadow"
+            live    "http://httpbin.org/anything?mroki_gate=live"
+            shadow  "http://httpbin.org/anything?mroki_gate=shadow"
             
             # Optional: Configure timeouts (defaults: 5s live, 10s shadow)
             # live_timeout 3s
