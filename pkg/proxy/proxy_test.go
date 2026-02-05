@@ -44,7 +44,7 @@ func TestNewProxy_with_sampling_rate(t *testing.T) {
 	shadowURL, _ := url.Parse("http://shadow.example.com")
 	samplingRate, _ := proxy.NewSamplingRate(0.5)
 
-	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithSamplingRate(samplingRate))
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithShouldProxyToShadow(proxy.SamplingRateCheck(samplingRate)))
 
 	assert.NotNil(t, p)
 }
@@ -189,7 +189,7 @@ func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 	p := proxy.NewProxy(
 		liveURL,
 		shadowURL,
-		proxy.WithCallbackFn(func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+		proxy.WithCallbackFn(func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse, diff proxy.DiffResult) error {
 			capturedReq = req
 			capturedLive = live
 			capturedShadow = shadow
@@ -238,7 +238,7 @@ func TestProxy_ServeHTTP_skips_shadow_when_not_sampled(t *testing.T) {
 	p := proxy.NewProxy(
 		liveURL,
 		shadowURL,
-		proxy.WithSamplingRate(samplingRate),
+		proxy.WithShouldProxyToShadow(proxy.SamplingRateCheck(samplingRate)),
 	)
 
 	req := httptest.NewRequest("GET", "/test", nil)
@@ -383,7 +383,7 @@ func TestProxy_ServeHTTP_skips_shadow_when_body_too_large(t *testing.T) {
 	shadowURL, _ := url.Parse(shadowServer.URL)
 
 	// Set max body size to 10 bytes
-	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(10))
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithShouldProxyToShadow(proxy.MaxBodySizeCheck(10)))
 
 	// Create request with 20 bytes body (exceeds limit)
 	body := bytes.Repeat([]byte("a"), 20)
@@ -421,7 +421,7 @@ func TestProxy_ServeHTTP_diffs_when_body_under_limit(t *testing.T) {
 	shadowURL, _ := url.Parse(shadowServer.URL)
 
 	// Set max body size to 100 bytes
-	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(100))
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithShouldProxyToShadow(proxy.MaxBodySizeCheck(100)))
 
 	// Create request with 20 bytes body (under limit)
 	body := bytes.Repeat([]byte("a"), 20)
@@ -458,7 +458,7 @@ func TestProxy_ServeHTTP_skips_shadow_when_chunked(t *testing.T) {
 	shadowURL, _ := url.Parse(shadowServer.URL)
 
 	// Set max body size to 100 bytes
-	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(100))
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithShouldProxyToShadow(proxy.MaxBodySizeCheck(100)))
 
 	// Create request with chunked encoding (ContentLength = -1)
 	body := bytes.NewReader([]byte("test body"))
@@ -494,8 +494,8 @@ func TestProxy_ServeHTTP_unlimited_when_zero(t *testing.T) {
 	liveURL, _ := url.Parse(liveServer.URL)
 	shadowURL, _ := url.Parse(shadowServer.URL)
 
-	// Set max body size to 0 (unlimited)
-	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(0))
+	// Set max body size to 0 (unlimited) - no check needed, default behavior
+	p := proxy.NewProxy(liveURL, shadowURL)
 
 	// Create request with large body
 	body := bytes.Repeat([]byte("a"), 1000)

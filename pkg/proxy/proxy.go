@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"maps"
@@ -10,6 +11,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 var (
@@ -25,7 +28,13 @@ type ProxyRequest struct {
 	Body    []byte
 }
 
-type CallbackFunc func(req ProxyRequest, live, shadow ProxyResponse) error
+// DiffResult contains the result of comparing live and shadow responses
+type DiffResult struct {
+	Content string // The diff output (empty if responses match or not JSON)
+	Error   error  // Error from diffing, if any
+}
+
+type CallbackFunc func(req ProxyRequest, live, shadow ProxyResponse, diff DiffResult) error
 
 type Proxy struct {
 	Live   *url.URL
@@ -33,8 +42,8 @@ type Proxy struct {
 
 	liveTimeout   time.Duration
 	shadowTimeout time.Duration
-	maxBodySize   int64 // 0 = unlimited
-	samplingRate  *SamplingRate
+	checks        []CheckFunc
+	differ        *proxyResponseDiffer
 	callbackFn    CallbackFunc
 	logger        *slog.Logger
 	client        *http.Client
@@ -60,18 +69,20 @@ func WithShadowTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithMaxBodySize sets the maximum request body size for diffing
-// If body exceeds this size (or is chunked), skip shadow/diff and only proxy to live
-// Set to 0 for unlimited (always diff)
-func WithMaxBodySize(maxBytes int64) Option {
+// WithShouldProxyToShadow adds check functions to determine if shadow should be proxied
+// Multiple checks can be provided - all must return true (AND logic)
+// Can be called multiple times to add more checks
+func WithShouldProxyToShadow(checks ...CheckFunc) Option {
 	return func(p *Proxy) {
-		p.maxBodySize = maxBytes
+		p.checks = append(p.checks, checks...)
 	}
 }
 
-func WithSamplingRate(rate *SamplingRate) Option {
+// WithDiffOptions configures the differ with custom options
+// If not called, a default differ with no options is used
+func WithDiffOptions(opts ...diff.Option) Option {
 	return func(p *Proxy) {
-		p.samplingRate = rate
+		p.differ = NewProxyResponseDiffer(opts...)
 	}
 }
 
@@ -120,8 +131,8 @@ func NewProxy(live, shadow *url.URL, opts ...Option) *Proxy {
 		Shadow:        shadow,
 		liveTimeout:   defaultLiveTimeout,
 		shadowTimeout: defaultShadowTimeout,
-		maxBodySize:   0, // 0 = unlimited by default
-		samplingRate:  nil,
+		checks:        []CheckFunc{},
+		differ:        NewProxyResponseDiffer(),
 		callbackFn:    defaultCallbackFn(),
 		logger:        slog.Default(),
 		client:        newDefaultHTTPClient(),
@@ -146,6 +157,28 @@ type responseResult struct {
 	err  error
 }
 
+// shouldProxyToShadow evaluates all registered checks
+func (p *Proxy) shouldProxyToShadow(r *http.Request) bool {
+	// No checks = always proxy
+	if len(p.checks) == 0 {
+		return true
+	}
+
+	// All checks must pass (AND logic)
+	for _, check := range p.checks {
+		if !check(r) {
+			p.logger.Info("skipping shadow proxy",
+				slog.String("method", r.Method),
+				slog.String("path", r.URL.Path),
+				slog.Int64("content_length", r.ContentLength),
+			)
+			return false
+		}
+	}
+
+	return true
+}
+
 // ServeHTTP implements the http.Handler interface for proxying requests.
 //
 // Request Flow:
@@ -168,31 +201,10 @@ type responseResult struct {
 //   - shadowTimeout: Controls how long shadow service can run (doesn't block client)
 //   - Shadow timeout can be longer since it doesn't impact user experience
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Check if body size exceeds limit (skip diffing if so)
-	if p.maxBodySize > 0 {
-		contentLength := r.ContentLength
-
-		// Skip diffing for chunked encoding (unknown size)
-		if contentLength < 0 {
-			p.logger.Warn("chunked encoding detected, skipping shadow/diff",
-				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
-			)
-			p.proxyToLiveOnly(w, r)
-			return
-		}
-
-		// Skip diffing for large bodies
-		if contentLength > p.maxBodySize {
-			p.logger.Warn("request body exceeds limit, skipping shadow/diff",
-				slog.Int64("content_length", contentLength),
-				slog.Int64("max_body_size", p.maxBodySize),
-				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
-			)
-			p.proxyToLiveOnly(w, r)
-			return
-		}
+	// Check if we should proxy to shadow BEFORE reading body
+	if !p.shouldProxyToShadow(r) {
+		p.proxyToLiveOnly(w, r)
+		return
 	}
 
 	liveCtx, liveCancel := context.WithTimeout(r.Context(), p.liveTimeout)
@@ -231,33 +243,30 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		liveCh <- responseResult{resp: resp, body: b, err: nil}
 	}()
 
-	sample := p.samplingRate == nil || p.samplingRate.Sample()
-	if sample {
-		// Shadow uses Background() context so it's independent of client connection
-		// This allows shadow requests to complete even if the client disconnects,
-		// ensuring we collect complete diff data for monitoring
-		shadowCtx, shadowCancel := context.WithTimeout(context.Background(), p.shadowTimeout)
-		// Launch shadow request
-		go func() {
-			defer shadowCancel()
-			resp, err := p.forwardRequest(shadowCtx, r, p.Shadow, body)
-			if err != nil {
-				shadowCh <- responseResult{err: err}
-				return
-			}
-			b, err := io.ReadAll(resp.Body)
-			closeErr := resp.Body.Close()
-			if err != nil {
-				shadowCh <- responseResult{err: err}
-				return
-			}
-			if closeErr != nil {
-				shadowCh <- responseResult{err: closeErr}
-				return
-			}
-			shadowCh <- responseResult{resp: resp, body: b, err: nil}
-		}()
-	}
+	// Shadow uses Background() context so it's independent of client connection
+	// This allows shadow requests to complete even if the client disconnects,
+	// ensuring we collect complete diff data for monitoring
+	shadowCtx, shadowCancel := context.WithTimeout(context.Background(), p.shadowTimeout)
+	// Launch shadow request
+	go func() {
+		defer shadowCancel()
+		resp, err := p.forwardRequest(shadowCtx, r, p.Shadow, body)
+		if err != nil {
+			shadowCh <- responseResult{err: err}
+			return
+		}
+		b, err := io.ReadAll(resp.Body)
+		closeErr := resp.Body.Close()
+		if err != nil {
+			shadowCh <- responseResult{err: err}
+			return
+		}
+		if closeErr != nil {
+			shadowCh <- responseResult{err: closeErr}
+			return
+		}
+		shadowCh <- responseResult{resp: resp, body: b, err: nil}
+	}()
 
 	// Wait for live first
 	var liveResp responseResult
@@ -279,10 +288,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, err = w.Write(liveResp.body); err != nil {
 		// Can't call http.Error after writing response body
 		p.logger.Error("failed to write response body", "error", err)
-		return
-	}
-
-	if !sample {
 		return
 	}
 
@@ -312,7 +317,28 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Body:       shadowResp.body,
 			}
 
-			if err := p.callbackFn(proxyReq, live, shadow); err != nil {
+			// Compute diff before calling callback
+			var diffResult DiffResult
+
+			// Check if both responses are JSON
+			if isJSONContent(live.Response) && isJSONContent(shadow.Response) {
+				content, err := p.differ.Diff(live, shadow)
+				diffResult = DiffResult{
+					Content: content,
+					Error:   err,
+				}
+			} else {
+				// Skip diffing for non-JSON, log it
+				p.logger.Debug("skipping diff for non-JSON responses",
+					slog.String("method", r.Method),
+					slog.String("path", r.URL.Path),
+					slog.String("live_content_type", live.Response.Header.Get("Content-Type")),
+					slog.String("shadow_content_type", shadow.Response.Header.Get("Content-Type")),
+				)
+			}
+
+			// Invoke callback with diff result
+			if err := p.callbackFn(proxyReq, live, shadow, diffResult); err != nil {
 				p.logger.Error("callback error", "error", err)
 			}
 
@@ -375,51 +401,46 @@ func rewriteRequestURL(original *http.Request, target *url.URL) *url.URL {
 	return &newURL
 }
 
-func defaultCallbackFn() CallbackFunc {
-	isJSONContent := func(resp *http.Response) bool {
-		contentType := resp.Header.Get("Content-Type")
-		return strings.Contains(contentType, "application/json")
+// isJSONContent checks if the response has JSON content type
+func isJSONContent(resp *http.Response) bool {
+	if resp == nil {
+		return false
 	}
+	contentType := resp.Header.Get("Content-Type")
+	return strings.Contains(contentType, "application/json")
+}
 
+func defaultCallbackFn() CallbackFunc {
 	logger := slog.Default()
-	differ := NewProxyResponseDiffer()
 
-	return func(req ProxyRequest, live, shadow ProxyResponse) error {
-		// Skip non-JSON responses
-		if !isJSONContent(live.Response) || !isJSONContent(shadow.Response) {
-			logger.Debug("skipping diff for non-JSON responses",
-				"live_content_type", live.Response.Header.Get("Content-Type"),
-				"shadow_content_type", shadow.Response.Header.Get("Content-Type"),
-			)
-			return nil
-		}
-
-		// Compare responses (no custom options for default callback)
-		res, err := differ.Diff(live, shadow)
-		if err != nil {
-			// Log error but don't fail - shadow testing shouldn't break
+	return func(req ProxyRequest, live, shadow ProxyResponse, diff DiffResult) error {
+		// Handle diff error
+		if diff.Error != nil {
 			logger.Warn("failed to diff responses",
-				"error", err,
-				"live_status", live.StatusCode,
-				"shadow_status", shadow.StatusCode,
+				slog.String("error", diff.Error.Error()),
+				slog.Int("live_status", live.StatusCode),
+				slog.Int("shadow_status", shadow.StatusCode),
 			)
-			// Return nil - we logged the issue, no need to fail callback
 			return nil
 		}
 
-		if len(res) > 0 {
+		// Log diff result
+		if diff.Content != "" {
 			logger.Info("response diff detected",
-				"method", req.Method,
-				"path", req.Path,
-				"live_status", live.StatusCode,
-				"shadow_status", shadow.StatusCode,
+				slog.String("method", req.Method),
+				slog.String("path", req.Path),
+				slog.Int("live_status", live.StatusCode),
+				slog.Int("shadow_status", shadow.StatusCode),
 			)
+			// Print the diff content in human-readable format
+			fmt.Println("Diff:")
+			fmt.Println(diff.Content)
 		} else {
 			logger.Debug("responses match",
-				"method", req.Method,
-				"path", req.Path,
-				"live_status", live.StatusCode,
-				"shadow_status", shadow.StatusCode,
+				slog.String("method", req.Method),
+				slog.String("path", req.Path),
+				slog.Int("live_status", live.StatusCode),
+				slog.Int("shadow_status", shadow.StatusCode),
 			)
 		}
 

@@ -88,7 +88,9 @@ func (m *MrokiGate) Validate() error {
 			return fmt.Errorf("failed to create sampling rate: %w", err)
 		}
 
-		opts = append(opts, proxy.WithSamplingRate(sr))
+		opts = append(opts, proxy.WithShouldProxyToShadow(
+			proxy.SamplingRateCheck(sr),
+		))
 	}
 
 	// Live timeout

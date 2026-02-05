@@ -23,6 +23,7 @@ import (
 func main() {
 	cfg := config.Load()
 
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 	log := logger.New()
 
 	// Load or generate agent ID

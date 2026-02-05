@@ -32,7 +32,18 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 	opts := []proxy.Option{
 		proxy.WithLiveTimeout(cfg.LiveTimeout),
 		proxy.WithShadowTimeout(cfg.ShadowTimeout),
-		proxy.WithMaxBodySize(cfg.MaxBodySize),
+	}
+
+	// Add max body size check if configured
+	if cfg.MaxBodySize > 0 {
+		opts = append(opts, proxy.WithShouldProxyToShadow(
+			proxy.MaxBodySizeCheck(cfg.MaxBodySize),
+		))
+	}
+
+	// Configure differ with options from config
+	if len(cfg.DiffOptions) > 0 {
+		opts = append(opts, proxy.WithDiffOptions(cfg.DiffOptions...))
 	}
 
 	// Add API callback if API client is configured
@@ -54,34 +65,19 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 		logger = slog.Default()
 	}
 
-	// Create differ with configured diff options
-	differ := proxy.NewProxyResponseDiffer(cfg.DiffOptions...)
-
-	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
-		// Skip non-JSON responses
-		if !isJSONContent(live.Response) || !isJSONContent(shadow.Response) {
-			logger.Debug("skipping non-JSON response",
+	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse, diff proxy.DiffResult) error {
+		// Handle diff error
+		if diff.Error != nil {
+			logger.Error("failed to compute diff",
+				"error", diff.Error,
 				"method", req.Method,
 				"path", req.Path,
-				"live_content_type", live.Response.Header.Get("Content-Type"),
-				"shadow_content_type", shadow.Response.Header.Get("Content-Type"),
 			)
 			return nil
 		}
 
-		// Compute diff using differ with pre-configured options
-		diffContent, err := differ.Diff(live, shadow)
-		if err != nil {
-			logger.Error("failed to compute diff",
-				"error", err,
-				"method", req.Method,
-				"path", req.Path,
-			)
-			return nil // Don't fail the callback
-		}
-
-		// Log if diff found
-		if len(diffContent) > 0 {
+		// Log diff result
+		if diff.Content != "" {
 			logger.Info("diff detected",
 				"method", req.Method,
 				"path", req.Path,
@@ -95,12 +91,10 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 			)
 		}
 
-		// If API client configured, send to API
+		// Send to API if configured
 		if cfg.APIClient != nil {
-			// Convert to API format
-			captured := client.ConvertProxyToCapture(req, live, shadow, diffContent, cfg.AgentID)
+			captured := client.ConvertProxyToCapture(req, live, shadow, diff.Content, cfg.AgentID)
 
-			// Send to API with timeout
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
@@ -110,26 +104,16 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 					"method", req.Method,
 					"path", req.Path,
 				)
-				return nil // Log but don't fail - best effort delivery
+				return nil
 			}
 
 			logger.Debug("successfully sent request to API",
 				"method", req.Method,
 				"path", req.Path,
-				"has_diff", len(diffContent) > 0,
+				"has_diff", diff.Content != "",
 			)
 		}
 
 		return nil
 	}
-}
-
-// isJSONContent checks if the response has JSON content type
-func isJSONContent(resp *http.Response) bool {
-	if resp == nil {
-		return false
-	}
-	contentType := resp.Header.Get("Content-Type")
-	return contentType == "application/json" ||
-		(len(contentType) > 16 && contentType[:16] == "application/json")
 }
