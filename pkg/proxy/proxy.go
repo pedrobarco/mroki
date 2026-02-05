@@ -250,7 +250,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	shadowCtx, shadowCancel := context.WithTimeout(context.Background(), p.shadowTimeout)
 	// Launch shadow request
 	go func() {
-		defer shadowCancel()
 		resp, err := p.forwardRequest(shadowCtx, r, p.Shadow, body)
 		if err != nil {
 			shadowCh <- responseResult{err: err}
@@ -294,6 +293,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Wait for shadow and compare in background
 	go func(liveBody []byte) {
+		// Cancel shadow context when this goroutine completes
+		// This ensures context is not cancelled before we read from shadowCh
+		defer shadowCancel()
+
 		select {
 		case shadowResp := <-shadowCh:
 			if shadowResp.err != nil {

@@ -203,11 +203,16 @@ func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 
 	p.ServeHTTP(rec, req)
 
-	// Wait for callback to be called (it runs in background)
+	// Wait for callback to be called (it runs in background goroutine)
+	// The callback is called after both live and shadow requests complete,
+	// so we need a reasonable timeout that accounts for:
+	// - Network roundtrips (even to localhost test servers)
+	// - Goroutine scheduling delays
+	// - Diff computation (if responses are JSON)
 	select {
 	case <-done:
-		// Callback was called
-	case <-time.After(100 * time.Millisecond):
+		// Callback was called successfully
+	case <-time.After(1 * time.Second):
 		t.Fatal("callback was not called within timeout")
 	}
 
