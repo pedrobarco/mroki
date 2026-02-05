@@ -342,7 +342,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				p.logger.Error("callback error", "error", err)
 			}
 
-		case <-time.After(p.shadowTimeout):
+		case <-shadowCtx.Done():
+			// Shadow request timed out or was cancelled
 			p.logger.Error("shadow request timeout", "timeout", p.shadowTimeout)
 		}
 	}(liveResp.body)

@@ -66,6 +66,7 @@ func buildMethodsParam(filters traffictesting.RequestFilters) interface{} {
 }
 
 // buildPathPatternParam converts PathPattern to SQL LIKE pattern or nil
+// Escapes SQL LIKE special characters (%, _) before converting glob wildcards
 func buildPathPatternParam(filters traffictesting.RequestFilters) interface{} {
 	if !filters.HasPathFilter() {
 		return nil
@@ -76,8 +77,16 @@ func buildPathPatternParam(filters traffictesting.RequestFilters) interface{} {
 		return nil
 	}
 
-	// Convert glob wildcards (*) to SQL wildcards (%)
-	sqlPattern := strings.ReplaceAll(pathPattern.String(), "*", "%")
+	pattern := pathPattern.String()
+
+	// Escape SQL LIKE special characters before converting glob wildcards
+	// This prevents SQL injection where users could use % or _ to bypass filters
+	pattern = strings.ReplaceAll(pattern, "\\", "\\\\") // Escape backslashes first
+	pattern = strings.ReplaceAll(pattern, "%", "\\%")   // Escape percent signs
+	pattern = strings.ReplaceAll(pattern, "_", "\\_")   // Escape underscores
+
+	// Now convert glob wildcards (*) to SQL wildcards (%)
+	sqlPattern := strings.ReplaceAll(pattern, "*", "%")
 	return sqlPattern
 }
 

@@ -20,6 +20,7 @@ import (
 	"github.com/pedrobarco/mroki/internal/interfaces/http/middleware"
 	"github.com/pedrobarco/mroki/pkg/dto"
 	"github.com/pedrobarco/mroki/pkg/logger"
+	"github.com/pedrobarco/mroki/pkg/ratelimit"
 )
 
 func main() {
@@ -48,6 +49,15 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("failed to create connection pool: %w", err))
 	}
+
+	// Ensure pool is closed if initialization fails
+	var poolClosed bool
+	defer func() {
+		if !poolClosed && pool != nil {
+			pool.Close()
+			logger.Info("Database connection pool closed (cleanup)")
+		}
+	}()
 
 	queries := db.New(pool)
 
@@ -94,10 +104,18 @@ func main() {
 		}).ServeHTTP(w, r)
 	}
 
+	// Create rate limiter with explicit lifecycle management
+	rateLimiter := ratelimit.NewLimiter(cfg.App.RateLimit)
+	defer func() {
+		if err := rateLimiter.Stop(); err != nil {
+			logger.Error("Failed to stop rate limiter", "error", err)
+		}
+	}()
+
 	// Middleware
 	baseChain := middleware.Chain{
 		middleware.Logging(logger),
-		middleware.RateLimit(cfg.App.RateLimit,
+		middleware.RateLimit(rateLimiter,
 			middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
 			middleware.WithRateLimitErrorHandler(handleRateLimitError),
 		),
@@ -109,7 +127,7 @@ func main() {
 	// Middleware chain for POST endpoints with body size limit
 	postChain := middleware.Chain{
 		middleware.Logging(logger),
-		middleware.RateLimit(cfg.App.RateLimit,
+		middleware.RateLimit(rateLimiter,
 			middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
 			middleware.WithRateLimitErrorHandler(handleRateLimitError),
 		),
@@ -181,6 +199,9 @@ func main() {
 	}
 
 	// Close database pool
-	pool.Close()
-	logger.Info("Database connection pool closed")
+	if pool != nil {
+		pool.Close()
+		poolClosed = true
+		logger.Info("Database connection pool closed")
+	}
 }

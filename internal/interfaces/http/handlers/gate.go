@@ -13,7 +13,6 @@ import (
 
 // Type alias for backward compatibility
 
-
 func CreateGate(handler *commands.CreateGateHandler) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
