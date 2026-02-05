@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -370,7 +371,7 @@ func TestProxy_ServeHTTP_copies_response_headers(t *testing.T) {
 }
 
 func TestProxy_ServeHTTP_skips_shadow_when_body_too_large(t *testing.T) {
-	shadowCalled := false
+	var shadowCalled atomic.Bool
 
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -379,7 +380,7 @@ func TestProxy_ServeHTTP_skips_shadow_when_body_too_large(t *testing.T) {
 	defer liveServer.Close()
 
 	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		shadowCalled = true
+		shadowCalled.Store(true)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer shadowServer.Close()
@@ -404,11 +405,11 @@ func TestProxy_ServeHTTP_skips_shadow_when_body_too_large(t *testing.T) {
 
 	// Shadow should not be called (give it time to process if it was)
 	time.Sleep(50 * time.Millisecond)
-	assert.False(t, shadowCalled, "shadow service should not be called for large bodies")
+	assert.False(t, shadowCalled.Load(), "shadow service should not be called for large bodies")
 }
 
 func TestProxy_ServeHTTP_diffs_when_body_under_limit(t *testing.T) {
-	shadowCalled := false
+	var shadowCalled atomic.Bool
 
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -417,7 +418,7 @@ func TestProxy_ServeHTTP_diffs_when_body_under_limit(t *testing.T) {
 	defer liveServer.Close()
 
 	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		shadowCalled = true
+		shadowCalled.Store(true)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer shadowServer.Close()
@@ -441,11 +442,11 @@ func TestProxy_ServeHTTP_diffs_when_body_under_limit(t *testing.T) {
 
 	// Shadow should be called (give it time to process)
 	time.Sleep(50 * time.Millisecond)
-	assert.True(t, shadowCalled, "shadow service should be called for small bodies")
+	assert.True(t, shadowCalled.Load(), "shadow service should be called for small bodies")
 }
 
 func TestProxy_ServeHTTP_skips_shadow_when_chunked(t *testing.T) {
-	shadowCalled := false
+	var shadowCalled atomic.Bool
 
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -454,7 +455,7 @@ func TestProxy_ServeHTTP_skips_shadow_when_chunked(t *testing.T) {
 	defer liveServer.Close()
 
 	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		shadowCalled = true
+		shadowCalled.Store(true)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer shadowServer.Close()
@@ -478,11 +479,11 @@ func TestProxy_ServeHTTP_skips_shadow_when_chunked(t *testing.T) {
 
 	// Shadow should not be called (give it time to process if it was)
 	time.Sleep(50 * time.Millisecond)
-	assert.False(t, shadowCalled, "shadow service should not be called for chunked encoding")
+	assert.False(t, shadowCalled.Load(), "shadow service should not be called for chunked encoding")
 }
 
 func TestProxy_ServeHTTP_unlimited_when_zero(t *testing.T) {
-	shadowCalled := false
+	var shadowCalled atomic.Bool
 
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -491,7 +492,7 @@ func TestProxy_ServeHTTP_unlimited_when_zero(t *testing.T) {
 	defer liveServer.Close()
 
 	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		shadowCalled = true
+		shadowCalled.Store(true)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer shadowServer.Close()
@@ -515,5 +516,5 @@ func TestProxy_ServeHTTP_unlimited_when_zero(t *testing.T) {
 
 	// Shadow should be called even with large body (give it time to process)
 	time.Sleep(50 * time.Millisecond)
-	assert.True(t, shadowCalled, "shadow service should be called when max body size is 0 (unlimited)")
+	assert.True(t, shadowCalled.Load(), "shadow service should be called when max body size is 0 (unlimited)")
 }
