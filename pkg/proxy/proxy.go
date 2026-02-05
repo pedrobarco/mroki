@@ -215,9 +215,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 		return
 	}
+	// Best effort close - log error but don't fail the request
+	// The body has already been read successfully
 	if err := r.Body.Close(); err != nil {
-		http.Error(w, "Failed to close request body", http.StatusInternalServerError)
-		return
+		p.logger.Warn("failed to close request body", "error", err)
 	}
 
 	liveCh := make(chan responseResult, 1)

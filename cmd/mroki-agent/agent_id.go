@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,6 +34,8 @@ func loadOrGenerateAgentID() (string, error) {
 	// Generate new agent ID using hostname
 	hostname, err := os.Hostname()
 	if err != nil {
+		// Log the error but fallback to "agent" to allow system to continue
+		slog.Warn("failed to get hostname, using fallback", "error", err, "fallback", "agent")
 		hostname = "agent"
 	}
 

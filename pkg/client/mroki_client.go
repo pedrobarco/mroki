@@ -137,7 +137,9 @@ func (c *MrokiClient) GetGate(ctx context.Context) (*dto.Gate, error) {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			c.logger.Warn("failed to close response body", "error", closeErr)
+		}
 	}()
 
 	// Check status code
@@ -190,7 +192,9 @@ func (c *MrokiClient) sendRequestOnce(ctx context.Context, req *CapturedRequest)
 		return fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			c.logger.Warn("failed to close response body", "error", closeErr)
+		}
 	}()
 
 	// Check status code

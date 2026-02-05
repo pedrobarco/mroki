@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
@@ -56,7 +57,7 @@ func (r *requestRepository) Save(ctx context.Context, request *traffictesting.Re
 	qtx := r.queries.WithTx(tx)
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && err != pgx.ErrTxClosed {
-			fmt.Printf("failed to rollback transaction: %v\n", err)
+			slog.Error("failed to rollback transaction", "error", err)
 		}
 	}()
 

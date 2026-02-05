@@ -51,10 +51,10 @@ func JSON(a, b string, opts ...Option) (string, error) {
 
 	// Validate JSON first
 	if !gjson.ValidBytes(aBytes) {
-		return "", fmt.Errorf("first input is not valid JSON")
+		return "", fmt.Errorf("invalid JSON in first input")
 	}
 	if !gjson.ValidBytes(bBytes) {
-		return "", fmt.Errorf("second input is not valid JSON")
+		return "", fmt.Errorf("invalid JSON in second input")
 	}
 
 	// Step 1: Normalize (filter fields)
@@ -73,12 +73,12 @@ func JSON(a, b string, opts ...Option) (string, error) {
 	// Step 2: Parse JSON into Go values
 	resultA := gjson.ParseBytes(normalizedA)
 	if !resultA.IsObject() && !resultA.IsArray() {
-		return "", fmt.Errorf("first input is not valid JSON object or array")
+		return "", fmt.Errorf("invalid JSON structure in first input: expected object or array")
 	}
 
 	resultB := gjson.ParseBytes(normalizedB)
 	if !resultB.IsObject() && !resultB.IsArray() {
-		return "", fmt.Errorf("second input is not valid JSON object or array")
+		return "", fmt.Errorf("invalid JSON structure in second input: expected object or array")
 	}
 
 	// Step 3: Compare using go-cmp
