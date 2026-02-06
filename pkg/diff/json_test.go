@@ -229,3 +229,55 @@ func BenchmarkJSON_IncludedFields(b *testing.B) {
 		_, _ = diff.JSON(a, same, diff.WithIncludedFields("name", "email"))
 	}
 }
+
+func BenchmarkJSON_WithDifferences(b *testing.B) {
+	// Benchmark with actual differences (more realistic use case)
+	a := `{"name":"Alice","age":30,"email":"alice@example.com","address":"123 Main St","city":"NYC"}`
+	different := `{"name":"Bob","age":25,"email":"bob@example.com","address":"456 Elm St","city":"LA"}`
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = diff.JSON(a, different)
+	}
+}
+
+func BenchmarkJSON_ComplexNested(b *testing.B) {
+	// Benchmark with complex nested structure (proxy response-like)
+	a := `{
+		"statusCode": 200,
+		"headers": {
+			"Content-Type": ["application/json"],
+			"X-Custom": ["value1", "value2", "value3"]
+		},
+		"body": {
+			"status": "ok",
+			"data": {
+				"user": "alice",
+				"age": 30,
+				"tags": ["admin", "active"],
+				"metadata": {"id": "123", "version": "1.0"}
+			}
+		}
+	}`
+	c := `{
+		"statusCode": 500,
+		"headers": {
+			"Content-Type": ["application/json"],
+			"X-Custom": ["value1", "value3", "value4"]
+		},
+		"body": {
+			"status": "error",
+			"data": {
+				"user": "bob",
+				"age": 25,
+				"tags": ["admin", "inactive"],
+				"metadata": {"id": "456", "version": "2.0"}
+			}
+		}
+	}`
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = diff.JSON(a, c)
+	}
+}

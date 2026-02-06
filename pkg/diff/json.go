@@ -13,10 +13,12 @@ import (
 // The comparison process:
 // 1. Normalize JSON (filter fields based on options)
 // 2. Parse normalized JSON into Go values
-// 3. Compare using go-cmp with configured options
-// 4. Return human-readable diff string
+// 3. Compare using go-cmp with custom reporter for clean output
+// 4. Return human-readable diff string without Go type annotations
 //
-// Returns empty string if inputs are equal, or a diff string describing differences.
+// Returns empty string if inputs are equal, or a clean diff string describing differences.
+// The output format is readable and doesn't include Go-specific type annotations like
+// float64(), string(), or map[string]any.
 //
 // Example usage:
 //
@@ -81,8 +83,10 @@ func JSON(a, b string, opts ...Option) (string, error) {
 		return "", fmt.Errorf("invalid JSON structure in second input: expected object or array")
 	}
 
-	// Step 3: Compare using go-cmp
-	diff := cmp.Diff(resultA.Value(), resultB.Value(), cfg.toCmpOptions()...)
+	// Step 3: Compare using go-cmp with custom reporter for clean output
+	reporter := &cleanReporter{}
+	cmpOpts := append(cfg.toCmpOptions(), cmp.Reporter(reporter))
+	cmp.Equal(resultA.Value(), resultB.Value(), cmpOpts...)
 
-	return diff, nil
+	return reporter.String(), nil
 }
