@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -161,6 +162,32 @@ func (r *requestRepository) GetByID(ctx context.Context, id traffictesting.Reque
 		return nil, fmt.Errorf("failed to convert request: %w", err)
 	}
 	return req, nil
+}
+
+func (r *requestRepository) DeleteOlderThan(ctx context.Context, olderThan time.Duration) (int64, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil && err != pgx.ErrTxClosed {
+			slog.Error("failed to rollback transaction", "error", err)
+		}
+	}()
+
+	result, err := tx.Exec(ctx,
+		"DELETE FROM requests WHERE created_at < NOW() - $1::interval",
+		fmt.Sprintf("%d seconds", int(olderThan.Seconds())),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete expired requests: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return result.RowsAffected(), nil
 }
 
 func (r *requestRepository) toDomain(raw db.Request) (*traffictesting.Request, error) {

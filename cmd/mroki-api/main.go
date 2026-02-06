@@ -14,6 +14,7 @@ import (
 	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
 	"github.com/pedrobarco/mroki/internal/application/commands"
 	appqueries "github.com/pedrobarco/mroki/internal/application/queries"
+	"github.com/pedrobarco/mroki/internal/infrastructure/jobs"
 	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/postgres"
 	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/postgres/db"
 	"github.com/pedrobarco/mroki/internal/interfaces/http/handlers"
@@ -111,6 +112,13 @@ func main() {
 			logger.Error("Failed to stop rate limiter", "error", err)
 		}
 	}()
+
+	// Start cleanup job if retention is configured
+	if cfg.App.Retention > 0 {
+		cleanupJob := jobs.NewCleanupJob(reqRepo, cfg.App.Retention, cfg.App.CleanupInterval, logger)
+		cleanupJob.Start()
+		defer cleanupJob.Stop()
+	}
 
 	// Middleware
 	baseChain := middleware.Chain{

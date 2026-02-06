@@ -9,11 +9,13 @@ import (
 )
 
 type Config config.Config[struct {
-	Port        int    `env:"PORT, default=8090"`
-	MaxBodySize int64  `env:"MAX_BODY_SIZE, default=10485760"` // 10MB
-	RateLimit   int    `env:"RATE_LIMIT, default=1000"`        // requests per minute per IP
-	APIKey      string `env:"API_KEY, required"`
-	Database    struct {
+	Port            int           `env:"PORT, default=8090"`
+	MaxBodySize     int64         `env:"MAX_BODY_SIZE, default=10485760"` // 10MB
+	RateLimit       int           `env:"RATE_LIMIT, default=1000"`        // requests per minute per IP
+	APIKey          string        `env:"API_KEY, required"`
+	Retention       time.Duration `env:"RETENTION, default=0"` // 0 = keep forever, e.g. 168h = 7 days
+	CleanupInterval time.Duration `env:"CLEANUP_INTERVAL, default=1h"`
+	Database        struct {
 		URL         *url.URL `env:"URL, default=postgres://postgres:postgres@localhost:5432/postgres"`
 		MaxConns    int32    `env:"MAX_CONNS, default=25"`
 		MinConns    int32    `env:"MIN_CONNS, default=5"`
@@ -55,6 +57,16 @@ func (c Config) Validate() error {
 
 	if len(c.App.APIKey) < 16 {
 		verr.Add(fmt.Errorf("api_key must be at least 16 characters, got %d", len(c.App.APIKey)))
+	}
+
+	// Validate retention
+	if c.App.Retention < 0 {
+		verr.Add(fmt.Errorf("retention must be non-negative, got %s", c.App.Retention))
+	}
+
+	// Validate cleanup interval
+	if c.App.CleanupInterval <= 0 {
+		verr.Add(fmt.Errorf("cleanup_interval must be positive, got %s", c.App.CleanupInterval))
 	}
 
 	// Validate database URL scheme
