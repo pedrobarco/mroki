@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pedrobarco/mroki/internal/config"
@@ -13,6 +14,7 @@ type Config config.Config[struct {
 	MaxBodySize     int64         `env:"MAX_BODY_SIZE, default=10485760"` // 10MB
 	RateLimit       int           `env:"RATE_LIMIT, default=1000"`        // requests per minute per IP
 	APIKey          string        `env:"API_KEY, required"`
+	CORSOrigins     string        `env:"CORS_ORIGINS"`         // comma-separated allowed origins, empty = disabled
 	Retention       time.Duration `env:"RETENTION, default=0"` // 0 = keep forever, e.g. 168h = 7 days
 	CleanupInterval time.Duration `env:"CLEANUP_INTERVAL, default=1h"`
 	Database        struct {
@@ -124,4 +126,20 @@ func Load() Config {
 	}
 
 	return cfg
+}
+
+// ParseCORSOrigins splits the comma-separated CORSOrigins string into
+// a slice of trimmed, non-empty origin strings. Returns nil if empty.
+func (c Config) ParseCORSOrigins() []string {
+	if c.App.CORSOrigins == "" {
+		return nil
+	}
+	parts := strings.Split(c.App.CORSOrigins, ",")
+	origins := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			origins = append(origins, trimmed)
+		}
+	}
+	return origins
 }

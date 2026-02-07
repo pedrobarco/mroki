@@ -17,6 +17,8 @@ import (
 	"github.com/pedrobarco/mroki/internal/infrastructure/jobs"
 	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/postgres"
 	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/postgres/db"
+	"github.com/rs/cors"
+
 	"github.com/pedrobarco/mroki/internal/interfaces/http/handlers"
 	"github.com/pedrobarco/mroki/internal/interfaces/http/middleware"
 	"github.com/pedrobarco/mroki/pkg/dto"
@@ -167,9 +169,23 @@ func main() {
 	mux.Handle("GET /gates/{gate_id}/requests", baseChain.Then(getAllRequestsByGateID))
 	mux.Handle("POST /gates/{gate_id}/requests", postChain.Then(createRequest))
 	mux.Handle("GET /gates/{gate_id}/requests/{request_id}", baseChain.Then(getRequestByID))
+
+	// Wrap mux with CORS if configured (before auth/rate-limiting so
+	// preflight OPTIONS requests are handled without credentials).
+	var handler http.Handler = mux
+	if origins := cfg.ParseCORSOrigins(); len(origins) > 0 {
+		handler = cors.New(cors.Options{
+			AllowedOrigins: origins,
+			AllowedMethods: []string{"GET", "POST", "OPTIONS"},
+			AllowedHeaders: []string{"Content-Type", "Authorization"},
+			MaxAge:         86400,
+		}).Handler(mux)
+		logger.Info("CORS enabled", "origins", origins)
+	}
+
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
-		Handler:      mux,
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second, // Time to read request
 		WriteTimeout: 30 * time.Second, // Time to write response
 		IdleTimeout:  60 * time.Second, // Keep-alive timeout
