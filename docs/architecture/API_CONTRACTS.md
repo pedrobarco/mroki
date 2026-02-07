@@ -5,7 +5,7 @@ This document specifies the REST API provided by `mroki-api`, including endpoint
 ## Base URL
 
 ```
-http://localhost:8081
+http://localhost:8090
 ```
 
 ## Response Format
@@ -106,7 +106,7 @@ The following endpoints do not require authentication:
 
 **Example:**
 ```bash
-curl http://localhost:8081/health/live
+curl http://localhost:8090/health/live
 ```
 
 ---
@@ -122,7 +122,7 @@ curl http://localhost:8081/health/live
 
 **Example:**
 ```bash
-curl http://localhost:8081/health/ready
+curl http://localhost:8090/health/ready
 ```
 
 ---
@@ -173,7 +173,8 @@ curl http://localhost:8081/health/ready
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8081/gates \
+curl -X POST http://localhost:8090/gates \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
     "live_url": "https://httpbin.org/anything?service=live",
@@ -208,7 +209,8 @@ curl -X POST http://localhost:8081/gates \
 
 **Example:**
 ```bash
-curl http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000
 ```
 
 ---
@@ -241,7 +243,8 @@ curl http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000
 
 **Example:**
 ```bash
-curl http://localhost:8081/gates
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates
 ```
 
 ---
@@ -312,7 +315,7 @@ curl http://localhost:8081/gates
   - `body` (required) - Response body (string)
   - `created_at` (required) - Response timestamp
 - `diff` (required) - Computed difference (value object, no ID)
-  - `content` (required) - JSON diff in RFC 6902 format (always present, may be empty string)
+  - `content` (required) - Diff content as human-readable text (go-cmp format, always present, may be empty string)
 
 **Response:**
 - `201 Created` on success
@@ -332,7 +335,8 @@ curl http://localhost:8081/gates
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000/requests \
+curl -X POST http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/requests \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d @captured_request.json
 ```
@@ -391,7 +395,8 @@ curl -X POST http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000/re
 
 **Example:**
 ```bash
-curl http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000/requests/7c9e6679-7425-40de-944b-e07fc1f90ae7
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/requests/7c9e6679-7425-40de-944b-e07fc1f90ae7
 ```
 
 ---
@@ -430,7 +435,8 @@ curl http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000/requests/7
 
 **Example:**
 ```bash
-curl http://localhost:8081/gates/550e8400-e29b-41d4-a716-446655440000/requests
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/requests
 ```
 
 ---
@@ -469,8 +475,10 @@ The API uses the following generic error types:
 | `/errors/missing-path-param` | Missing Path Parameter | 400 | Required path parameter is missing |
 | `/errors/missing-query-param` | Missing Query Parameter | 400 | Required query parameter is missing |
 | `/errors/invalid-query-param` | Invalid Query Parameter | 400 | Invalid pagination, filters, or sort parameters |
-| `/errors/missing-header` | Missing Required Header | 400 | Required header is missing (future auth) |
+| `/errors/missing-header` | Missing Required Header | 400 | Required header is missing |
+| `/errors/unauthorized` | Unauthorized | 401 | Missing or invalid API key |
 | `/errors/not-found` | Resource Not Found | 404 | Gate or Request doesn't exist |
+| `/errors/rate-limit-exceeded` | Rate Limit Exceeded | 429 | Too many requests from this IP |
 | `/errors/internal-error` | Internal Server Error | 500 | Unexpected server errors |
 
 ### HTTP Status Codes
@@ -478,7 +486,9 @@ The API uses the following generic error types:
 - `200 OK` - Request succeeded
 - `201 Created` - Resource created successfully
 - `400 Bad Request` - Invalid request data (validation failed)
+- `401 Unauthorized` - Missing or invalid API key
 - `404 Not Found` - Resource not found
+- `429 Too Many Requests` - Rate limit exceeded
 - `500 Internal Server Error` - Server error
 - `503 Service Unavailable` - Service not ready (health check failed)
 
@@ -583,49 +593,58 @@ Headers are represented as maps with string arrays (to support multiple values):
 
 ### Diff Format
 
-Diffs use JSON Patch (RFC 6902) format:
+Diffs use go-cmp's human-readable text format. The diff content compares an envelope containing `statusCode`, `headers`, and `body` from both live and shadow responses.
 
-```json
-[
-  {
-    "op": "replace",
-    "path": "/id",
-    "value": 456,
-    "oldValue": 123
-  },
-  {
-    "op": "add",
-    "path": "/new_field",
-    "value": "new_value"
-  },
-  {
-    "op": "remove",
-    "path": "/old_field",
-    "oldValue": "old_value"
-  }
-]
+**Example (no differences):**
+```
+""  (empty string)
 ```
 
-**Operations:**
-- `replace` - Field value changed
-- `add` - Field added in shadow response
-- `remove` - Field removed in shadow response
+**Example (with differences):**
+```
+map[string]any{
+        "body": map[string]any{
+-               "id":   float64(123),
++               "id":   float64(456),
+                "name": string("Alice"),
+        },
+        "headers": map[string]any{...},
+        "statusCode": float64(200),
+}
+```
+
+**Key:**
+- Lines prefixed with `-` indicate the live response value
+- Lines prefixed with `+` indicate the shadow response value
+- Unmarked lines are identical in both responses
 
 ---
 
-## Authentication
-
-**Current:** No authentication required (v1)
-
-**Future:** API key authentication planned for production deployment
+<!-- Authentication details are documented in the Authentication section above -->
 
 ---
 
 ## Rate Limiting
 
-**Current:** No rate limiting (v1)
+**Status:** ✅ Implemented
 
-**Future:** Per-IP or per-API-key rate limiting planned for production
+Per-IP rate limiting using token bucket algorithm.
+
+- Default: 1000 requests per minute per IP
+- Configurable via `MROKI_API_RATE_LIMIT` (or `MROKI_APP_RATE_LIMIT`)
+- Supports `X-Forwarded-For` header for proxy-aware IP extraction
+- Returns `429 Too Many Requests` with `Retry-After` header when exceeded
+
+**Rate limit error response:**
+```json
+{
+  "type": "/errors/rate-limit-exceeded",
+  "title": "Rate Limit Exceeded",
+  "status": 429,
+  "detail": "Rate limit exceeded. Try again in 3 seconds.",
+  "instance": "/gates"
+}
+```
 
 ---
 
@@ -659,14 +678,21 @@ Response includes pagination metadata:
 
 ## CORS
 
-**Current:** No CORS headers (v1)
+**Status:** ✅ Implemented
 
-**Planned (v2):** Configurable CORS for hub integration
+CORS is configurable via the `MROKI_APP_CORS_ORIGINS` environment variable. When configured, the following headers are set using the `rs/cors` library:
 
 ```
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: <configured origin>
 Access-Control-Allow-Methods: GET, POST, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
+Access-Control-Max-Age: 86400
+```
+
+**Configuration:**
+```bash
+# Comma-separated list of allowed origins (empty = CORS disabled)
+MROKI_APP_CORS_ORIGINS=http://localhost:5173,https://hub.example.com
 ```
 
 ---
@@ -677,7 +703,8 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 
 ```bash
 # 1. Create a gate
-GATE_RESPONSE=$(curl -s -X POST http://localhost:8081/gates \
+GATE_RESPONSE=$(curl -s -X POST http://localhost:8090/gates \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
     "live_url": "https://httpbin.org/anything?service=live",
@@ -692,11 +719,13 @@ echo "Gate ID: $GATE_ID"
 # 3. Send traffic through agent (agent will POST to API)
 
 # 4. List captured requests
-curl http://localhost:8081/gates/$GATE_ID/requests | jq .
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates/$GATE_ID/requests | jq .
 
 # 5. Get specific request details
 REQUEST_ID="7c9e6679-7425-40de-944b-e07fc1f90ae7"
-curl http://localhost:8081/gates/$GATE_ID/requests/$REQUEST_ID | jq .
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates/$GATE_ID/requests/$REQUEST_ID | jq .
 ```
 
 ---

@@ -1,18 +1,19 @@
 # mroki Production Readiness TODO
 
-**Last Updated:** 2026-02-03  
+**Last Updated:** 2026-02-07  
 **Target:** Usable in dev environments immediately, production deployment within 2-3 weeks  
-**Current Status:** **Phase 1: 100% COMPLETE (7/7 tasks)** | Overall: 90% production-ready 🎉
+**Current Status:** **Phase 1: COMPLETE** | **Phase 4: COMPLETE** | **Hub: Next** | Overall: ~50% production-ready
 
 ---
 
 ## 📊 Overview
 
-This document tracks tasks required to make mroki production-ready and highly usable in development environments. The codebase has excellent architecture and test coverage (62.8%), with Phase 1 security complete.
+This document tracks tasks required to make mroki production-ready and highly usable in development environments. The codebase has excellent architecture and test coverage (62.8%), with Phases 1 and 4 complete.
 
 **Phases:**
 - **Phase 1:** Security & Stability (Week 1) ✅ **COMPLETE**
-- **Phase 4:** Developer Experience (NEW - HIGH PRIORITY) 🔥
+- **Phase 4:** Developer Experience ✅ **COMPLETE**
+- **Phase 5:** mroki-hub (Web UI) 🔥 **CURRENT FOCUS**
 - **Phase 2:** Observability & Resilience (Week 2)
 - **Phase 3:** Production Hardening (Week 3)
 
@@ -416,11 +417,11 @@ MROKI_API_RATE_LIMIT=1000
 
 ---
 
-## 🎯 Phase 4: Developer Experience (HIGH PRIORITY) 🔥
+## 🎯 Phase 4: Developer Experience ✅ COMPLETE
 
-**Status:** 🔴 **0% COMPLETE (0/2 tasks)**  
+**Status:** ✅ **100% COMPLETE (2/2 tasks)**  
 **Priority:** CRITICAL for dev environment usability  
-**Target:** Complete before wider team adoption
+**Completion Date:** 2026-02-06
 
 These features make mroki practical and usable in development environments. Without field ignoring, diffs are cluttered with irrelevant changes (timestamps, IDs). Without TTL, databases fill with test data.
 
@@ -433,567 +434,80 @@ These features make mroki practical and usable in development environments. With
 ---
 
 ### DEV-1: Diff Engine Rewrite + Field Filtering ⏱️ 3-4 days
-**Status:** 🔴 Not Started  
+**Status:** ✅ Phase 1 COMPLETE | Phases 2-3 DEFERRED  
 **Priority:** CRITICAL (blocks useful diff analysis)  
-**Effort:** 3-4 days (includes replacing JD library)
+**Effort:** 3-4 days (Phase 1 only)
 
-**Problem:** Every diff shows irrelevant differences in timestamps, request IDs, and dynamic fields. This makes it impossible to spot actual semantic changes between live and shadow responses.
+**Problem:** Every diff shows irrelevant differences in timestamps, request IDs, and dynamic fields.
 
-**Example of the problem:**
-```json
-{
-  "timestamp": "2026-02-03T10:30:45Z",  // Always different!
-  "request_id": "uuid-abc-123",         // Always different!
-  "data": {
-    "user_id": 42,
-    "name": "Alice",                    // Actual change we care about
-    "created_at": "2026-01-01T00:00:00Z"  // Always different!
-  }
-}
-```
+**What was implemented (Phase 1 - Core Diff Engine):**
+- Replaced JD library with gjson/sjson + go-cmp (30%+ faster)
+- `pkg/diff/normalizer.go` — Field filtering with whitelist/blacklist strategies and wildcard support (`users.#.created_at`)
+- `pkg/diff/options.go` — Functional options pattern for diff configuration
+- `pkg/diff/reporter.go` — Clean human-readable diff output
+- `pkg/diff/json.go` — New diff engine using go-cmp
+- Full test coverage for all new code
 
-Without field ignoring, all 3 timestamp/ID fields show as diffs, hiding the real change to `name`.
+**What was NOT implemented (Phases 2-3 - Deferred):**
+- Per-gate DiffConfig stored in database (migration, domain model, repository)
+- API endpoints for configuring diff options per gate
+- Agent integration to fetch and apply per-gate diff config
+- These phases are deferred until there is a concrete need for per-gate configuration
 
-**Solution:** Replace JD library with gjson/sjson + go-cmp and add hybrid field filtering.
-
-**Architecture Decision:**
-After performance testing, we're replacing the current JD-based diff engine with:
-- **gjson/sjson**: Zero-allocation JSON manipulation (30% faster baseline)
-- **go-cmp**: Google's comparison library with powerful options
-- **Hybrid strategy**: Support both whitelist (included_fields) and blacklist (ignored_fields)
-
-**Performance Benchmarks:**
-```
-Current (JD):                93.4ms baseline
-Proposed (gjson + go-cmp):   65.4ms baseline (30% faster)
-With field filtering:        7.4-25ms (60-90% faster!)
-```
-
-**Design:**
-- Per-gate configuration stored in database
-- Hybrid field filtering: `included_fields` OR `ignored_fields`
-- gjson path syntax (simpler than JSONPath): `timestamp`, `data.created_at`, `users.#.id`
-- Applied during diff computation (transparent to agent)
-- Bytes API for zero allocations
-
-**Implementation:**
-
-**1. Domain Model**
-```go
-type Gate struct {
-    ID            uuid.UUID
-    LiveURL       string
-    ShadowURL     string
-    DiffConfig    DiffConfig `json:"diff_config"`
-    CreatedAt     time.Time
-    UpdatedAt     time.Time
-}
-
-type DiffConfig struct {
-    IncludedFields []string `json:"included_fields"` // Whitelist (priority)
-    IgnoredFields  []string `json:"ignored_fields"`  // Blacklist (fallback)
-    SortArrays     bool     `json:"sort_arrays"`     // Ignore array order
-    FloatTolerance float64  `json:"float_tolerance"` // Float comparison epsilon
-}
-```
-
-**2. Field Normalizer (NEW)**
-```go
-// pkg/diff/normalizer.go
-type FieldNormalizer struct {
-    includedFields []string
-    ignoredFields  []string
-}
-
-func (n *FieldNormalizer) NormalizeBytes(data []byte) ([]byte, error) {
-    // Strategy 1: Whitelist (faster, priority)
-    if len(n.includedFields) > 0 {
-        return n.normalizeByInclude(data)
-    }
-    
-    // Strategy 2: Blacklist (flexible, fallback)
-    if len(n.ignoredFields) > 0 {
-        return n.normalizeByIgnore(data)
-    }
-    
-    return data, nil // No filtering
-}
-
-func (n *FieldNormalizer) normalizeByInclude(data []byte) ([]byte, error) {
-    result := []byte("{}")
-    for _, field := range n.includedFields {
-        value := gjson.GetBytes(data, field)
-        if value.Exists() {
-            result, _ = sjson.SetBytes(result, field, value.Value())
-        }
-    }
-    return result, nil
-}
-
-func (n *FieldNormalizer) normalizeByIgnore(data []byte) ([]byte, error) {
-    result := data
-    for _, pattern := range n.ignoredFields {
-        if isWildcardPattern(pattern) {
-            result = removeWildcardPattern(result, pattern)
-        } else {
-            result, _ = sjson.DeleteBytes(result, pattern)
-        }
-    }
-    return result, nil
-}
-
-// Support wildcards: "users.#.created_at"
-func removeWildcardPattern(data []byte, pattern string) []byte {
-    parts := strings.Split(pattern, ".#.")
-    if len(parts) != 2 {
-        return data
-    }
-    
-    basePath, fieldName := parts[0], parts[1]
-    result := data
-    
-    gjson.ParseBytes(data).Get(basePath).ForEach(func(idx, value gjson.Result) bool {
-        path := fmt.Sprintf("%s.%d.%s", basePath, idx.Int(), fieldName)
-        result, _ = sjson.DeleteBytes(result, path)
-        return true
-    })
-    
-    return result
-}
-```
-
-**3. New JSON Differ**
-```go
-// pkg/diff/json.go (REWRITE)
-type JSONOptions struct {
-    IncludedFields []string
-    IgnoredFields  []string
-    SortArrays     bool
-    FloatTolerance float64
-}
-
-func JSON(a, b []byte, opts JSONOptions) (string, error) {
-    // Step 1: Normalize (apply field filtering)
-    normalizer := NewFieldNormalizer(opts.IncludedFields, opts.IgnoredFields)
-    normalizedA, _ := normalizer.NormalizeBytes(a)
-    normalizedB, _ := normalizer.NormalizeBytes(b)
-    
-    // Step 2: Parse to interface{}
-    dataA := gjson.ParseBytes(normalizedA).Value()
-    dataB := gjson.ParseBytes(normalizedB).Value()
-    
-    // Step 3: Build go-cmp options
-    cmpOpts := []cmp.Option{}
-    if opts.SortArrays {
-        cmpOpts = append(cmpOpts, cmpopts.SortSlices(func(a, b any) bool {
-            return fmt.Sprint(a) < fmt.Sprint(b)
-        }))
-    }
-    if opts.FloatTolerance > 0 {
-        cmpOpts = append(cmpOpts, cmp.Comparer(func(a, b float64) bool {
-            return math.Abs(a-b) < opts.FloatTolerance
-        }))
-    }
-    
-    // Step 4: Compute diff
-    return cmp.Diff(dataA, dataB, cmpOpts...), nil
-}
-```
-
-**4. Updated ProxyResponseDiffer**
-```go
-// pkg/proxy/diff.go
-func (p *proxyResponseDiffer) Diff(a, b ProxyResponse) (string, error) {
-    ah, _ := json.Marshal(a.Response.Header)
-    bh, _ := json.Marshal(b.Response.Header)
-    
-    live := createEnvelopeBytes(a.StatusCode, ah, a.Body)
-    shadow := createEnvelopeBytes(b.StatusCode, bh, b.Body)
-    
-    // Use new JSON differ with options from gate config
-    return diff.JSON(live, shadow, p.opts)
-}
-```
-
-**API Request Examples:**
-
-**Example 1: Blacklist (ignore few fields)**
-```bash
-curl -X POST http://localhost:8080/gates \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "live_url": "http://api.example.com",
-    "shadow_url": "http://shadow.example.com",
-    "diff_config": {
-      "ignored_fields": [
-        "timestamp",
-        "request_id", 
-        "data.created_at",
-        "data.updated_at",
-        "users.#.last_login"
-      ],
-      "sort_arrays": false,
-      "float_tolerance": 0
-    }
-  }'
-```
-
-**Example 2: Whitelist (keep only specific fields) - FASTER**
-```bash
-curl -X POST http://localhost:8080/gates \
-  -d '{
-    "live_url": "http://api.example.com",
-    "shadow_url": "http://shadow.example.com",
-    "diff_config": {
-      "included_fields": [
-        "name",
-        "email",
-        "data.user_id",
-        "data.value"
-      ]
-    }
-  }'
-```
-
-**Database Schema:**
-```sql
--- migrations/006_add_diff_config_to_gates.sql
-ALTER TABLE gates 
-ADD COLUMN diff_config JSONB DEFAULT '{
-  "included_fields": [],
-  "ignored_fields": [],
-  "sort_arrays": false,
-  "float_tolerance": 0
-}'::jsonb;
-
-CREATE INDEX idx_gates_diff_config ON gates USING GIN (diff_config);
-
-COMMENT ON COLUMN gates.diff_config IS 
-'Diff computation configuration. If included_fields is set, uses whitelist (faster). Otherwise uses ignored_fields blacklist.';
-```
-
-**Dependencies:**
-```bash
-go get github.com/tidwall/gjson@latest      # Fast JSON getter
-go get github.com/tidwall/sjson@latest      # Fast JSON setter
-go get github.com/google/go-cmp/cmp@latest  # Google's diff library
-
-# Remove old dependency
-go mod tidy  # Will remove github.com/josephburnett/jd/v2
-```
-
-**Files to create:**
-- `migrations/006_add_diff_config_to_gates.sql`
-- `pkg/diff/normalizer.go` (NEW - field filtering logic)
-- `pkg/diff/normalizer_test.go`
-- `pkg/diff/options.go` (NEW - JSONOptions type)
-
-**Files to modify:**
-- `pkg/diff/json.go` - **REWRITE** with go-cmp (replace JD)
-- `pkg/diff/json_test.go` - Update tests for new implementation
-- `pkg/proxy/diff.go` - Pass JSONOptions from gate config
-- `internal/domain/traffictesting/gate.go` - Add DiffConfig field
-- `internal/application/commands/create_gate.go` - Validate diff_config
-- `internal/application/commands/update_gate.go` - Support updates
-- `internal/infrastructure/persistence/postgres/gate_repository.go` - Persist JSONB
-- `internal/interfaces/http/handlers/gate_handlers.go` - Accept/return diff_config
-- `cmd/mroki-agent/handlers/proxy_handler.go` - Fetch gate config, pass to proxy
-- `docs/architecture/API_CONTRACTS.md` - Document diff_config field
-
-**Detailed Implementation Plan:**
-
-**Phase 1: Core Diff Engine (Day 1-2)**
-1. [ ] Add dependencies: `go get github.com/tidwall/gjson github.com/tidwall/sjson github.com/google/go-cmp/cmp`
-2. [ ] Create `pkg/diff/options.go` with JSONOptions struct
-3. [ ] Create `pkg/diff/normalizer.go` with FieldNormalizer
-   - [ ] Implement `NormalizeBytes()` with hybrid strategy
-   - [ ] Support simple paths: `timestamp`, `data.created_at`
-   - [ ] Support wildcards: `users.#.created_at`
-4. [ ] Write `pkg/diff/normalizer_test.go`
-   - [ ] Test included_fields (whitelist) strategy
-   - [ ] Test ignored_fields (blacklist) strategy
-   - [ ] Test wildcard patterns
-   - [ ] Test edge cases (empty config, invalid patterns)
-5. [ ] Rewrite `pkg/diff/json.go` to use go-cmp
-   - [ ] Update signature to accept []byte (not string)
-   - [ ] Integrate normalizer
-   - [ ] Apply go-cmp options (SortSlices, Comparer)
-   - [ ] Maintain backward compatibility with old signature
-6. [ ] Update `pkg/diff/json_test.go`
-   - [ ] All existing tests pass
-   - [ ] Add tests for new features (field filtering, array sorting)
-7. [ ] Run benchmarks: `go test -bench=. ./pkg/diff/...`
-8. [ ] Remove JD dependency: verify no imports remain
-
-**Phase 2: Domain & Database (Day 2-3)**
-1. [ ] Create migration `migrations/006_add_diff_config_to_gates.sql`
-2. [ ] Update `internal/domain/traffictesting/gate.go`
-   - [ ] Add DiffConfig struct and field
-   - [ ] Update NewGate constructor
-3. [ ] Update repository layer
-   - [ ] Modify `gate_repository.go` to handle JSONB column
-   - [ ] Update sqlc queries if needed
-4. [ ] Update application commands
-   - [ ] `create_gate.go` - Parse and validate diff_config
-   - [ ] `update_gate.go` - Allow updating diff_config
-   - [ ] Validate: if both included/ignored set, warn user
-5. [ ] Write domain tests
-   - [ ] Test gate creation with diff_config
-   - [ ] Test config validation
-
-**Phase 3: API & Proxy Integration (Day 3-4)**
-1. [ ] Update `pkg/proxy/diff.go`
-   - [ ] Add opts field to proxyResponseDiffer
-   - [ ] Pass JSONOptions to diff.JSON()
-   - [ ] Update createEnvelopeBytes to use []byte
-2. [ ] Update API handlers
-   - [ ] `gate_handlers.go` - Accept diff_config in request
-   - [ ] Return diff_config in response
-   - [ ] Add validation (field patterns, numeric ranges)
-3. [ ] Update agent proxy handler
-   - [ ] Fetch gate from API (or cache)
-   - [ ] Extract diff_config
-   - [ ] Pass to ProxyResponseDiffer
-4. [ ] Integration tests
-   - [ ] Create gate with diff_config via API
-   - [ ] Proxy request through agent
-   - [ ] Verify diff excludes configured fields
-5. [ ] Update `docs/architecture/API_CONTRACTS.md`
-   - [ ] Document diff_config field
-   - [ ] Add request/response examples
-   - [ ] List common field patterns
-
-**Testing Strategy:**
-1. **Unit tests** (pkg/diff)
-   - [ ] Normalizer with included_fields (whitelist)
-   - [ ] Normalizer with ignored_fields (blacklist)
-   - [ ] Wildcard patterns: `users.#.created_at`
-   - [ ] Edge cases: empty config, malformed patterns
-   - [ ] Performance: benchmark vs JD baseline
-2. **Integration tests** (internal/application)
-   - [ ] Create/update gate with diff_config
-   - [ ] Invalid config returns 400
-   - [ ] Config persists to database
-3. **End-to-end tests** (pkg/proxy)
-   - [ ] Proxy request with field filtering
-   - [ ] Verify diff output excludes configured fields
-   - [ ] Test with both strategies (included vs ignored)
-4. **Performance tests**
-   - [ ] Large JSON responses (>1MB)
-   - [ ] Many fields to filter (>50)
-   - [ ] Wildcard patterns on large arrays
-
-**Acceptance criteria:**
-- [ ] JD library completely removed (verify: `go mod graph | grep jd`)
-- [ ] New diff engine 30%+ faster than JD baseline
-- [ ] Gates can be created with diff_config (included or ignored fields)
-- [ ] Field patterns validated at creation (gjson path syntax)
-- [ ] Invalid config returns 400 with helpful error message
-- [ ] Diffs exclude/include fields per configuration
-- [ ] Wildcard patterns work: `users.#.created_at`
-- [ ] Agent doesn't need code changes (config passed through)
-- [ ] All existing tests pass (backward compatibility)
-- [ ] Documentation includes field pattern examples
-- [ ] Performance: no slowdown for large responses (>1MB)
-
-**Common Field Patterns (gjson syntax):**
-```go
-// Simple paths
-"timestamp"              // Top-level field
-"data.created_at"        // Nested field
-"metadata"               // Entire object
-
-// Array wildcards
-"users.#.id"             // All user IDs
-"items.#.created_at"     // All item timestamps
-"data.teams.#.name"      // All team names
-
-// Useful for diffs
-"request_id"             // Request tracking
-"trace_id"               // Distributed tracing
-"data.metadata.session"  // Session data
-```
-
-**Rollback Plan:**
-If issues found after deployment:
-1. Feature flag: `MROKI_USE_LEGACY_DIFF=true` (keep JD code temporarily)
-2. Database: diff_config column nullable, ignored if legacy mode
-3. Revert commits if critical bug found
-4. Full rollback: restore JD, remove new code
+**Acceptance criteria (Phase 1):**
+- [x] JD library completely removed
+- [x] New diff engine 30%+ faster than JD baseline
+- [x] Field normalizer supports whitelist, blacklist, and wildcards
+- [x] All existing tests pass (backward compatibility)
+- [x] Benchmarks demonstrate performance improvement
 
 ---
 
 ### DEV-2: TTL for Diffs/Requests ⏱️ 6-8h
-**Status:** 🔴 Not Started  
+**Status:** ✅ COMPLETE  
 **Priority:** HIGH (prevents database bloat)  
-**Effort:** 6-8 hours
+**Effort:** 6-8 hours  
+**Completion Date:** 2026-02-05  
+**Commit:** c584cb7
 
-**Problem:** Test data accumulates forever. In dev environments, databases grow unbounded with experimental traffic. No way to automatically clean up old requests/diffs.
+**Problem:** Test data accumulates forever. In dev environments, databases grow unbounded with experimental traffic.
 
-**Solution:** Per-gate retention policies with global default + automatic background cleanup.
-
-**Design:**
-- Per-gate `retention_days` (overrides global default)
-- Global `default_retention_days` via config (e.g., 7 days for dev, 30 for prod)
-- Background cleanup job runs every hour
-- `retention_days = 0` means "keep forever"
-- `retention_days = NULL` means "use global default"
-
-**Implementation:**
-```go
-// Domain Model
-type Gate struct {
-    // ... existing fields
-    RetentionDays *int `json:"retention_days"` // NULL = use default, 0 = forever
-}
-
-// Cleanup Job
-type CleanupJob struct {
-    repo                 *postgres.RequestRepository
-    gateRepo             *postgres.GateRepository
-    defaultRetentionDays int
-    interval             time.Duration
-}
-
-func (j *CleanupJob) Start(ctx context.Context) {
-    ticker := time.NewTicker(j.interval) // 1 hour
-    defer ticker.Stop()
-    
-    for {
-        select {
-        case <-ticker.C:
-            deleted, err := j.cleanupExpiredRecords(ctx)
-            if err != nil {
-                slog.Error("cleanup failed", "error", err)
-            } else {
-                slog.Info("cleanup completed", "deleted_records", deleted)
-            }
-        case <-ctx.Done():
-            slog.Info("cleanup job stopped")
-            return
-        }
-    }
-}
-
-func (j *CleanupJob) cleanupExpiredRecords(ctx context.Context) (int, error) {
-    // Delete requests where:
-    // - Gate has retention_days > 0 (not forever)
-    // - created_at < NOW() - retention_days
-    // Uses per-gate retention_days if set, else global default
-    query := `
-        DELETE FROM requests 
-        WHERE gate_id IN (
-            SELECT id FROM gates 
-            WHERE COALESCE(retention_days, $1) > 0
-        )
-        AND created_at < NOW() - INTERVAL '1 day' * COALESCE(
-            (SELECT retention_days FROM gates WHERE id = requests.gate_id),
-            $1
-        )
-    `
-    result, err := j.repo.Exec(ctx, query, j.defaultRetentionDays)
-    return result.RowsAffected(), err
-}
-```
+**What was implemented:**
+A global retention-based cleanup job that periodically deletes expired requests. Simpler than the originally planned per-gate `retention_days` design — uses global config instead.
 
 **Configuration:**
 ```bash
-# Global default (used when gate.retention_days is NULL)
-MROKI_API_DEFAULT_RETENTION_DAYS=7
+# How long to keep requests (Go duration format)
+MROKI_APP_RETENTION=168h  # 7 days
 
-# Cleanup job interval
-MROKI_API_CLEANUP_INTERVAL=1h
+# How often to run cleanup
+MROKI_APP_CLEANUP_INTERVAL=1h
 ```
 
-**Database Schema:**
-```sql
--- migrations/007_add_retention_to_gates.sql
-ALTER TABLE gates 
-ADD COLUMN retention_days INTEGER DEFAULT NULL;
+**Architecture:**
+- Consumer-defined `RequestCleaner` interface (follows existing codebase patterns)
+- Background goroutine with configurable interval
+- Deletes requests older than retention duration
+- Graceful shutdown via context cancellation
+- Structured logging of cleanup results
 
--- NULL = use global default
--- 0 = keep forever
--- > 0 = delete after N days
-
--- Index for efficient cleanup queries
-CREATE INDEX idx_requests_created_at_gate_id 
-ON requests(created_at, gate_id);
-
-COMMENT ON COLUMN gates.retention_days IS 
-'Days to retain requests. NULL=use default, 0=forever, >0=delete after N days';
-```
-
-**API Examples:**
-```bash
-# Create gate with 3-day retention
-curl -X POST http://localhost:8080/gates \
-  -H "Authorization: Bearer key" \
-  -d '{
-    "live_url": "http://api.example.com",
-    "shadow_url": "http://shadow.example.com",
-    "retention_days": 3
-  }'
-
-# Keep forever (for important experiments)
-curl -X POST http://localhost:8080/gates \
-  -d '{ ..., "retention_days": 0 }'
-
-# Use global default (omit field)
-curl -X POST http://localhost:8080/gates \
-  -d '{ ... }'  # retention_days not specified
-```
-
-**Files to create:**
-- `migrations/007_add_retention_to_gates.sql`
+**Files created:**
 - `internal/infrastructure/jobs/cleanup.go`
 - `internal/infrastructure/jobs/cleanup_test.go`
 
-**Files to modify:**
-- `internal/domain/traffictesting/gate.go` - Add RetentionDays field
-- `cmd/mroki-api/config/config.go` - Add DefaultRetentionDays
-- `cmd/mroki-api/main.go` - Start cleanup job
-- `internal/infrastructure/persistence/postgres/request_repository.go` - Add cleanup method
-- `internal/application/commands/create_gate.go` - Accept retention_days
-- `internal/application/commands/update_gate.go` - Allow updating retention
-- `cmd/mroki-api/handlers/gates.go` - Include in request/response
-- `docs/architecture/API_CONTRACTS.md` - Document retention field
-
-**Testing Strategy:**
-1. Unit test cleanup logic with mocked time
-2. Test per-gate retention overrides global default
-3. Test retention_days=0 keeps records forever
-4. Test retention_days=NULL uses global default
-5. Integration test: create requests, advance time, verify cleanup
-6. Test cleanup job handles errors gracefully
-7. Test cleanup doesn't delete records from gates with retention_days=0
+**Files modified:**
+- `cmd/mroki-api/config/config.go` — Added `Retention` and `CleanupInterval` fields
+- `cmd/mroki-api/main.go` — Start cleanup job in background
 
 **Acceptance criteria:**
-- [ ] Gates can specify retention_days (NULL, 0, or positive integer)
-- [ ] Global default configurable via MROKI_API_DEFAULT_RETENTION_DAYS
-- [ ] Cleanup job runs on configurable interval
-- [ ] Records older than retention period are deleted
-- [ ] retention_days=0 keeps records forever
-- [ ] retention_days=NULL uses global default
-- [ ] Cleanup logs deleted record count
-- [ ] Cleanup handles database errors gracefully
-- [ ] Performance: cleanup indexed efficiently, doesn't lock tables
-- [ ] Documentation explains retention strategies
+- [x] Cleanup job runs on configurable interval
+- [x] Records older than retention period are deleted
+- [x] Cleanup logs deleted record count
+- [x] Cleanup handles database errors gracefully
+- [x] Graceful shutdown stops cleanup job
+- [x] All tests passing
 
-**Monitoring & Observability:**
-```go
-// Add metrics
-slog.Info("cleanup completed",
-    "deleted_records", deleted,
-    "duration_ms", duration.Milliseconds(),
-    "gates_processed", gateCount,
-)
-```
-
-**Future Enhancement (Phase 3):**
-- PostgreSQL table partitioning by date for efficient cleanup
-- Separate retention policies for requests vs responses vs diffs
-- Compression of old records before deletion (archive to S3)
+**Note:** The per-gate `retention_days` design originally described here (with database migration, per-gate override, etc.) was not implemented. The simpler global approach was chosen as sufficient for current needs.
 
 ---
 
@@ -1153,55 +667,37 @@ MROKI_APP_MAX_IDLE_CONNS_PER_HOST=10
 
 ---
 
-### P1-4: Add CORS Middleware ⏱️ 2h
-**Status:** 🔴 Not Started  
+### P1-4: Add CORS Support ⏱️ 2h
+**Status:** ✅ COMPLETE  
 **Priority:** MEDIUM  
-**Effort:** 2 hours
+**Effort:** 2 hours  
+**Completion Date:** 2026-02-06  
+**Commit:** 560ddef
 
-**Problem:** Future Hub (web UI) can't call API from browser.
+**Problem:** Hub (web UI) can't call API from browser without CORS headers.
 
-**Implementation:**
-```go
-// internal/interfaces/http/middleware/cors.go
-func CORS(allowedOrigins []string) Middleware {
-    return func(next http.Handler) http.Handler {
-        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            origin := r.Header.Get("Origin")
-            if contains(allowedOrigins, origin) || contains(allowedOrigins, "*") {
-                w.Header().Set("Access-Control-Allow-Origin", origin)
-                w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-            }
-            
-            if r.Method == "OPTIONS" {
-                w.WriteHeader(http.StatusOK)
-                return
-            }
-            
-            next.ServeHTTP(w, r)
-        })
-    }
-}
-```
+**What was implemented:**
+- Used `github.com/rs/cors` v1.11.1 (battle-tested library instead of hand-rolled middleware)
+- Configurable origins via `MROKI_APP_CORS_ORIGINS` env var (comma-separated, empty=disabled)
+- `ParseCORSOrigins()` method on config splits into `[]string`
+- Wraps entire mux with `cors.New(cors.Options{...}).Handler(mux)` when origins configured
 
 **Configuration:**
 ```bash
-MROKI_API_CORS_ORIGINS=https://hub.example.com,http://localhost:3000
+# Comma-separated allowed origins (empty = CORS disabled)
+MROKI_APP_CORS_ORIGINS=http://localhost:5173,https://hub.example.com
 ```
 
-**Files to create:**
-- `internal/interfaces/http/middleware/cors.go`
-- `internal/interfaces/http/middleware/cors_test.go`
-
-**Files to modify:**
-- `cmd/mroki-api/main.go`
-- `cmd/mroki-api/config/config.go`
+**Settings:**
+- Allowed methods: GET, POST, OPTIONS
+- Allowed headers: Content-Type, Authorization
+- Max-age: 86400s (24h preflight cache)
 
 **Acceptance criteria:**
-- [ ] OPTIONS requests handled correctly
-- [ ] CORS headers set for allowed origins
-- [ ] Non-allowed origins rejected
-- [ ] Tests cover all scenarios
+- [x] OPTIONS requests handled correctly
+- [x] CORS headers set for allowed origins
+- [x] Configurable via environment variable
+- [x] Disabled when no origins configured
 
 ---
 
@@ -1437,19 +933,19 @@ func Compression() Middleware {
 - Not Started: 0
 - Progress: 100% ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
 
-**Phase 4: Developer Experience** 🔥 **CURRENT FOCUS**
+**Phase 4: Developer Experience** ✅
 - Total tasks: 2
-- Completed: 0
+- Completed: 2
 - In Progress: 0
-- Not Started: 2
-- Progress: 0% ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜
+- Not Started: 0
+- Progress: 100% ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
 
-**Phase 2: Observability & Resilience**
-- Total tasks: 6
-- Completed: 0
+**Phase 2: Observability & Resilience** (P1-4 CORS moved to complete)
+- Total tasks: 5
+- Completed: 1 (P1-4 CORS)
 - In Progress: 0
-- Not Started: 6
-- Progress: 0% ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜
+- Not Started: 4
+- Progress: 20% ⬛⬛⬜⬜⬜⬜⬜⬜⬜⬜
 
 **Phase 3: Production Hardening**
 - Total tasks: 4
@@ -1466,48 +962,67 @@ func Compression() Middleware {
 - Progress: 33% ⬛⬛⬛⬜⬜⬜⬜⬜⬜⬜
 
 ### Overall Progress
-- Total tasks: 22 (added 2 new Phase 4 tasks)
-- Estimated total effort: 17-23 days (updated with diff engine rewrite)
+- Total tasks: 21
+- Completed: 10 (7 Phase 1 + 2 Phase 4 + 1 Phase 2 CORS)
+- Progress: ~48%
 - **Phase 1 (Security):** ✅ Complete
-- **Phase 4 (Dev Experience):** 🔥 Next priority (4-5 days)
-  - DEV-1: Diff engine rewrite + field filtering (3-4 days)
-  - DEV-2: TTL cleanup (6-8 hours)
+- **Phase 4 (Dev Experience):** ✅ Complete
+- **Next:** mroki-hub (Web UI) — see below
 - **Phase 2 (Observability):** Queue (1 week)
 - **Phase 3 (Hardening):** Nice-to-have (1 week)
-- Completed: 7
-- Progress: 32%
 
 ---
 
 ## 🎯 Recommended Next Steps
 
-### For Dev Environment Usage (Recommended) 🔥
+### mroki-hub (Web UI) 🔥 CURRENT FOCUS
 
-**Phase 4 tasks make mroki immediately useful for development:**
+**Goal:** Build a Vue 3 SPA for visualizing diffs and managing gates.
 
-1. **DEV-1: Diff Engine Rewrite + Field Filtering** (3-4 days) - CRITICAL
-   - Replace JD library with gjson/sjson + go-cmp (30% faster)
-   - Add hybrid field filtering (whitelist OR blacklist)
-   - Support wildcards: `users.#.created_at`
-   - Filters out timestamps, IDs, and other noise
-   - Makes diffs actually readable and useful
-   - Prerequisite for meaningful diff analysis
+**Tech Stack:**
+- Vue 3 + Composition API + `<script setup>`
+- TypeScript
+- Vite
+- TailwindCSS v4
+- `vue-diff` for diff visualization
+- Native `fetch()` (no Axios)
+- `createWebHistory` router
+- NO Pinia for v1 (component-local state only)
 
-2. **DEV-2: TTL for Diffs** (6-8 hours) - HIGH
-   - Prevents database bloat from test data
-   - Automatic cleanup every hour
-   - Essential for long-running dev environments
+**Location:** `web/` directory (fresh start, NOT rebasing `feature/mroki-hub` branch)
 
-**Total time: 4-5 days**  
-**Impact: Transforms mroki from "works" to "actually usable" + major performance boost**
+**v1 Scope:**
+1. Gate creation (create new gate, view gate list)
+2. Request browser (list requests with filters, sort, pagination)
+3. Diff visualization (side-by-side view of live vs shadow responses)
+
+**NOT in v1:**
+- Agent monitoring (no backend endpoint)
+- Dashboard stats (no backend endpoint)
+- Gate edit/delete (no backend endpoints)
+
+**API Integration:**
+- Base URL: `http://localhost:8090`
+- Auth: `Authorization: Bearer <key>`
+- Responses wrapped in `{"data": ...}` envelope
+- Paginated responses add `{"pagination": {limit, offset, total, has_more}}`
+- Errors: RFC 7807 format
+- CORS: `MROKI_APP_CORS_ORIGINS=http://localhost:5173`
+
+**Implementation Phases:**
+1. Scaffold Vite + Vue 3 + TypeScript + TailwindCSS v4 project
+2. API client + TypeScript types
+3. Gate page (list + create)
+4. Request browser (list + filters + pagination)
+5. Diff viewer (request detail with side-by-side diff)
 
 ### For Production Readiness (Later)
 
-After Phase 4, focus on Phase 2 (Observability) before production deployment:
+After hub, focus on Phase 2 (Observability) before production deployment:
 
-1. **P1-1: Request ID Middleware** (4 hours) - For debugging
-2. **P1-5: Structured Logging** (4 hours) - For troubleshooting
-3. **P1-6: Update API_CONTRACTS.md** (1 hour) - Document auth/rate limiting
+1. **P1-1: Request ID Middleware** (4 hours) — For debugging
+2. **P1-5: Structured Logging** (4 hours) — For troubleshooting
+3. **P1-6: Update API_CONTRACTS.md** (1 hour) — Document auth/rate limiting
 
 ---
 
@@ -1531,10 +1046,14 @@ All Phase 1 security tasks are complete:
 
 ### Dependencies Between Tasks
 
-**Phase 4 (Dev Experience):**
-- DEV-1 (Field Ignoring) and DEV-2 (TTL) are independent - can be done in parallel
-- DEV-1 recommended first - higher immediate value for diff analysis
-- Both can be completed before Phase 2
+**Phase 4 (Dev Experience):** ✅ COMPLETE
+- DEV-1 Phase 1 (core diff engine): Done
+- DEV-2 (TTL cleanup): Done
+- DEV-1 Phases 2-3 (per-gate config): Deferred
+
+**Next: mroki-hub**
+- Depends on CORS (done) and working API
+- Can proceed independently of Phase 2/3
 
 **Phase 2 (Observability):**
 - P1-1 (Request ID) should come before P1-5 (Structured logging)
@@ -1547,41 +1066,37 @@ All Phase 1 security tasks are complete:
 - Not blockers for dev environment usage
 
 **Cross-phase:**
-- Phase 1 ✅ Complete - provides security foundation
-- Phase 4 🔥 Next - makes tool usable
-- Phase 2 - Needed before production scale
-- Phase 3 - Nice-to-have optimizations
+- Phase 1 ✅ Complete — provides security foundation
+- Phase 4 ✅ Complete — makes tool usable
+- mroki-hub 🔥 Next — web interface for visualization
+- Phase 2 — Needed before production scale
+- Phase 3 — Nice-to-have optimizations
 
 ### Team Allocation Suggestions
 
-**If working solo (recommended order):**
+**If working solo (current status):**
 1. Week 1: ✅ Phase 1 complete
-2. Week 2: DEV-1 (Field Ignoring) - 2 days
-3. Week 2: DEV-2 (TTL) - 1 day
-4. Week 2: Start using in dev, gather feedback - 2 days
-5. Week 3+: Phase 2 tasks based on production timeline
+2. Week 2: ✅ Phase 4 complete (DEV-1 Phase 1 + DEV-2 + CORS)
+3. Week 3: 🔥 mroki-hub v1 (gate page + request browser + diff viewer)
+4. Week 4+: Phase 2 tasks based on production timeline
 
 **If multiple developers:**
-- **Dev 1:** DEV-1 (Field Ignoring) - Core usability feature
-- **Dev 2:** DEV-2 (TTL) - Database cleanup
-- **Dev 3:** P1-1 + P1-5 (Request ID + Logging) - Can start in parallel
-- **Dev 4:** Documentation updates - P1-6, DOC-1, DOC-2
+- **Dev 1:** mroki-hub — Web UI implementation
+- **Dev 2:** P1-1 + P1-5 (Request ID + Logging) — Can start in parallel
+- **Dev 3:** Documentation updates — P1-6, DOC-1, DOC-2
 
-**Phase 4 focus allows:**
-- ✅ Parallel development (tasks are independent)
-- ✅ Quick time-to-value (2-3 days to usable tool)
-- ✅ Early feedback from dev environment usage
-- ✅ Production readiness comes after proving value
+**Current priority:**
+- ✅ Phase 1 and Phase 4 complete
+- 🔥 mroki-hub v1 is the next high-impact deliverable
+- ✅ CORS already done, enabling hub development
 
 ### Testing Strategy
 
-**Phase 4 (Dev Experience):**
+**Phase 4 (Dev Experience):** ✅ All tests passing
 - Unit tests for field normalization (whitelist + blacklist strategies)
 - Wildcard pattern tests: `users.#.created_at`
 - Performance benchmarks: gjson+go-cmp vs JD baseline
 - Integration tests for TTL cleanup job
-- End-to-end tests: agent → diff with field filtering
-- Large response tests: >1MB JSON with many fields
 
 **Phase 2 (Observability):**
 - Unit tests for all middleware
@@ -1596,12 +1111,12 @@ All Phase 1 security tasks are complete:
 
 ### Deployment Strategy
 
-**For Dev Environments (Immediate):**
-1. ✅ Phase 1 complete - API is secure and stable
-2. 🔥 Deploy Phase 4 - Makes tool usable + major performance boost
-3. Start using in local/staging environments
-4. Gather feedback on field filtering patterns (whitelist vs blacklist)
-5. Iterate on usability improvements
+**For Dev Environments (Current):**
+1. ✅ Phase 1 complete — API is secure and stable
+2. ✅ Phase 4 complete — Diff engine rewritten, TTL cleanup active, CORS enabled
+3. 🔥 Build mroki-hub — Web interface for visualization
+4. Start using in local/staging environments
+5. Gather feedback
 
 **For Production (Later):**
 1. Complete Phase 2 - Add observability and resilience

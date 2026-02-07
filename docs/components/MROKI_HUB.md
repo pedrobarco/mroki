@@ -1,63 +1,38 @@
 # mroki-hub
 
-**Web interface for visualizing diffs and managing the platform**
+**Web interface for visualizing diffs and managing gates**
 
-mroki-hub is a Vue 3 web application that provides a user-friendly interface for managing gates, browsing captured traffic, visualizing response diffs, and monitoring agent health.
+mroki-hub is a Vue 3 single-page application that provides a user-friendly interface for managing gates, browsing captured traffic, and visualizing response diffs.
 
 ## Status
 
-**🚧 In Development**
+**Not yet implemented** — planned as the next major deliverable after documentation update.
 
-This component is currently being designed and implemented. This document outlines the planned features and architecture.
+## v1 Scope
 
-## Features (Planned)
+### In Scope
 
-### Gate Management
-- Create new gates (live/shadow service pairs)
-- View all gates in a dashboard
-- Edit gate configuration
-- Delete gates
-- View gate statistics (request count, diff rate)
+- **Gate Management:** Create new gates (live/shadow service pairs), list all gates
+- **Request Browser:** List captured requests for a gate with filters (method, path, timestamp), sorting, and pagination
+- **Diff Visualization:** View response diffs using `vue-diff` library
 
-### Request Browser
-- List all captured requests for a gate
-- Filter by method, path, timestamp
-- Search request content
-- Sort by various criteria
-- Pagination for large datasets
+### Out of Scope (v1)
 
-### Diff Visualization
-- Side-by-side comparison of live vs shadow responses
-- Syntax-highlighted JSON
-- Visual indicators for additions, deletions, changes
-- Expandable/collapsible diff sections
-- Copy to clipboard functionality
-- Download diff as JSON
+These features require backend endpoints that don't exist yet:
 
-### Agent Monitoring
-- View active agents
-- Agent health status
-- Request distribution per agent
-- Agent uptime tracking
-
-### Dashboard
-- Overview of all gates
-- Recent requests
-- Diff statistics (% requests with diffs)
-- Traffic volume over time
-- Quick access to problematic requests
+- Agent monitoring (no backend endpoint)
+- Dashboard statistics (no backend endpoint)
+- Gate edit/delete (no backend endpoints)
 
 ## Technology Stack
 
-- **Framework:** Vue 3 with Composition API
+- **Framework:** Vue 3 with Composition API + `<script setup>`
 - **Language:** TypeScript
 - **Build Tool:** Vite
-- **State Management:** Pinia (for global state)
-- **Routing:** Vue Router
-- **HTTP Client:** Axios / Fetch API
-- **UI Components:** Custom component library
-- **Diff Library:** vue-diff or diff2html
-- **Styling:** TailwindCSS (likely)
+- **Routing:** Vue Router with `createWebHistory`
+- **HTTP Client:** Native `fetch()` (no Axios, no Pinia)
+- **Diff Library:** `vue-diff`
+- **Styling:** TailwindCSS v4
 - **Testing:** Vitest + Vue Test Utils
 
 ## Architecture
@@ -72,14 +47,13 @@ This component is currently being designed and implemented. This document outlin
 │  │  ┌─────────────┐  ┌────────────┐ │  │
 │  │  │   Pages     │  │  Components│ │  │
 │  │  │             │  │            │ │  │
-│  │  │ - Dashboard │  │ - GateCard │ │  │
-│  │  │ - Gates     │  │ - DiffView │ │  │
-│  │  │ - Requests  │  │ - ReqList  │ │  │
-│  │  │ - DiffView  │  │ - AgentList│ │  │
+│  │  │ - Gates     │  │ - GateCard │ │  │
+│  │  │ - GateDetail│  │ - DiffView │ │  │
+│  │  │ - ReqDetail │  │ - ReqList  │ │  │
 │  │  └─────────────┘  └────────────┘ │  │
 │  │                                   │  │
 │  │  ┌─────────────────────────────┐ │  │
-│  │  │  API Client (axios)         │ │  │
+│  │  │  API Client (native fetch)  │ │  │
 │  │  └──────────────┬──────────────┘ │  │
 │  └─────────────────┼─────────────────┘  │
 └────────────────────┼────────────────────┘
@@ -93,15 +67,15 @@ This component is currently being designed and implemented. This document outlin
 ## Planned Project Structure
 
 ```
-cmd/mroki-hub/
+web/
 ├── public/
 │   └── favicon.ico
 ├── src/
 │   ├── api/
-│   │   ├── client.ts          # Axios instance
+│   │   ├── client.ts          # fetch wrapper with auth
 │   │   ├── gates.ts           # Gate endpoints
 │   │   ├── requests.ts        # Request endpoints
-│   │   └── types.ts           # API types
+│   │   └── types.ts           # API response types
 │   ├── components/
 │   │   ├── common/
 │   │   │   ├── Button.vue
@@ -116,180 +90,112 @@ cmd/mroki-hub/
 │   │   │   ├── RequestCard.vue
 │   │   │   └── RequestFilters.vue
 │   │   ├── diff/
-│   │   │   ├── DiffViewer.vue
-│   │   │   ├── JsonView.vue
-│   │   │   └── SideBySide.vue
+│   │   │   └── DiffViewer.vue
 │   │   └── layout/
 │   │       ├── Header.vue
-│   │       ├── Sidebar.vue
 │   │       └── Footer.vue
 │   ├── pages/
-│   │   ├── Dashboard.vue
 │   │   ├── Gates.vue
 │   │   ├── GateDetail.vue
 │   │   ├── RequestDetail.vue
 │   │   └── NotFound.vue
 │   ├── router/
 │   │   └── index.ts
-│   ├── stores/
-│   │   ├── gates.ts           # Gate state
-│   │   ├── requests.ts        # Request state
-│   │   └── ui.ts              # UI state
-│   ├── utils/
-│   │   ├── format.ts          # Date/time formatting
-│   │   ├── diff.ts            # Diff utilities
-│   │   └── http.ts            # HTTP status helpers
 │   ├── App.vue
 │   ├── main.ts
 │   └── env.d.ts
 ├── index.html
 ├── package.json
 ├── tsconfig.json
-├── vite.config.ts
-└── README.md
+├── tailwind.config.ts
+└── vite.config.ts
 ```
 
-## Planned Routes
+## Routes
 
 ```
-/                           # Dashboard (overview)
-/gates                      # Gate list
-/gates/new                  # Create new gate
+/gates                      # Gate list + create gate form
 /gates/:id                  # Gate detail (requests for gate)
 /gates/:id/requests/:rid    # Request detail (full diff view)
 ```
 
 ## API Integration
 
-The hub communicates with mroki-api via REST endpoints:
+The hub communicates with mroki-api via REST. All requests include an API key via the `Authorization: Bearer <key>` header.
+
+**Response format:**
+- Success: `{ "data": ... }`
+- Paginated: `{ "data": [...], "pagination": { "limit": 20, "offset": 0, "total": 100, "has_more": true } }`
+- Errors: RFC 7807 (`{ "type": "/errors/...", "title": "...", "status": 400, "detail": "..." }`)
 
 ```typescript
 // Example API client usage
 
 // Get all gates
-const gates = await api.gates.getAll();
+const response = await fetch(`${API_BASE}/gates`, {
+  headers: { "Authorization": `Bearer ${apiKey}` },
+});
+const { data } = await response.json();
 
 // Create gate
-const newGate = await api.gates.create({
-  live_url: "https://api.production.example.com",
-  shadow_url: "https://api.shadow.example.com",
+const response = await fetch(`${API_BASE}/gates`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${apiKey}`,
+  },
+  body: JSON.stringify({
+    live_url: "https://api.production.example.com",
+    shadow_url: "https://api.shadow.example.com",
+  }),
 });
 
-// Get requests for gate
-const requests = await api.requests.getByGate(gateId);
-
-// Get request details
-const request = await api.requests.getById(gateId, requestId);
+// Get requests for gate (paginated)
+const response = await fetch(
+  `${API_BASE}/gates/${gateId}/requests?limit=20&offset=0`,
+  { headers: { "Authorization": `Bearer ${apiKey}` } },
+);
+const { data, pagination } = await response.json();
 ```
 
-## UI Mockups (Conceptual)
+## Configuration
 
-### Dashboard Page
-```
-┌──────────────────────────────────────────────────┐
-│  mroki                                    [User] │
-├──────────────────────────────────────────────────┤
-│                                                  │
-│  Dashboard                                       │
-│                                                  │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────┐│
-│  │ Total Gates │  │  Requests   │  │  Diffs   ││
-│  │     12      │  │   1,234     │  │   567    ││
-│  └─────────────┘  └─────────────┘  └──────────┘│
-│                                                  │
-│  Recent Requests                                 │
-│  ┌────────────────────────────────────────────┐ │
-│  │ POST /api/users       200 vs 200     ✓ Diff││
-│  │ GET  /api/products    200 vs 404     ✗ Err ││
-│  │ PUT  /api/orders/123  201 vs 201     — Same││
-│  └────────────────────────────────────────────┘ │
-│                                                  │
-│  Active Gates                                    │
-│  ┌────────────────┐  ┌────────────────┐         │
-│  │ Production API │  │ Checkout API   │         │
-│  │ 523 requests   │  │ 234 requests   │         │
-│  │ 45% diffs      │  │ 12% diffs      │         │
-│  └────────────────┘  └────────────────┘         │
-│                                                  │
-└──────────────────────────────────────────────────┘
+Environment variables (via `.env`):
+
+```bash
+# API base URL (required)
+VITE_API_BASE_URL=http://localhost:8090
+
+# API key for authentication
+VITE_API_KEY=your-api-key
 ```
 
-### Gate List Page
-```
-┌──────────────────────────────────────────────────┐
-│  mroki                                    [User] │
-├──────────────────────────────────────────────────┤
-│                                                  │
-│  Gates                          [+ Create Gate]  │
-│                                                  │
-│  ┌────────────────────────────────────────────┐ │
-│  │ Production API                             │ │
-│  │ Live:   https://api.prod.example.com       │ │
-│  │ Shadow: https://api.shadow.example.com     │ │
-│  │ 523 requests | 45% with diffs              │ │
-│  │                         [View] [Edit] [Del]│ │
-│  └────────────────────────────────────────────┘ │
-│                                                  │
-│  ┌────────────────────────────────────────────┐ │
-│  │ Checkout API                               │ │
-│  │ Live:   https://checkout.prod.example.com  │ │
-│  │ Shadow: https://checkout.shadow.example.com│ │
-│  │ 234 requests | 12% with diffs              │ │
-│  │                         [View] [Edit] [Del]│ │
-│  └────────────────────────────────────────────┘ │
-│                                                  │
-└──────────────────────────────────────────────────┘
+CORS must be configured on mroki-api to allow requests from the hub dev server:
+
+```bash
+# In mroki-api .env
+MROKI_APP_CORS_ORIGINS=http://localhost:5173
 ```
 
-### Diff View Page
-```
-┌──────────────────────────────────────────────────┐
-│  mroki                                    [User] │
-├──────────────────────────────────────────────────┤
-│                                                  │
-│  Request: POST /api/users                        │
-│  Timestamp: 2026-01-31 20:00:00                  │
-│  Agent: MacBook-Pro-a1b2c3d4                     │
-│                                                  │
-│  ┌──────────────────┬──────────────────────────┐│
-│  │   Live (200)     │   Shadow (200)           ││
-│  ├──────────────────┼──────────────────────────┤│
-│  │ {                │ {                        ││
-│  │   "id": 123,     │   "id": 456,       [CHG]││
-│  │   "name": "Alice"│   "name": "Alice"        ││
-│  │   "age": 30      │   "age": 30              ││
-│  │ }                │   "created": "2026-01-31"││
-│  │                  │                      [ADD]││
-│  │                  │ }                        ││
-│  └──────────────────┴──────────────────────────┘│
-│                                                  │
-│  Diff Summary:                                   │
-│  - Changed: id (123 → 456)                       │
-│  - Added: created                                │
-│                                                  │
-│  [Copy Diff] [Download JSON] [Back to List]     │
-│                                                  │
-└──────────────────────────────────────────────────┘
-```
-
-## Development Setup (Future)
+## Development Setup
 
 ### Prerequisites
 - Node.js 18+
-- npm or yarn
-- mroki-api running (for backend)
+- npm
+- mroki-api running on port 8090
 
 ### Installation
 
 ```bash
-cd cmd/mroki-hub
+cd web
 
 # Install dependencies
 npm install
 
 # Create .env file
 cat > .env << 'EOF'
-VITE_API_BASE_URL=http://localhost:8081
+VITE_API_BASE_URL=http://localhost:8090
+VITE_API_KEY=your-api-key
 EOF
 
 # Start dev server
@@ -306,7 +212,7 @@ npm run build
 npm run preview
 ```
 
-## Deployment (Future)
+## Deployment
 
 ### Static Hosting
 
@@ -320,7 +226,6 @@ npm run build
 # - Netlify
 # - Vercel
 # - AWS S3 + CloudFront
-# - GitHub Pages
 # - Any static file server
 ```
 
@@ -341,138 +246,13 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
 
-### Kubernetes
+## Implementation Phases
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mroki-hub
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: mroki-hub
-  template:
-    metadata:
-      labels:
-        app: mroki-hub
-    spec:
-      containers:
-      - name: mroki-hub
-        image: mroki-hub:latest
-        ports:
-        - containerPort: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mroki-hub
-spec:
-  selector:
-    app: mroki-hub
-  ports:
-  - port: 80
-    targetPort: 80
-  type: LoadBalancer
-```
-
-## Configuration (Future)
-
-Environment variables (via `.env`):
-
-```bash
-# API base URL (required)
-VITE_API_BASE_URL=http://localhost:8081
-
-# Optional: enable features
-VITE_ENABLE_AGENT_MONITORING=true
-VITE_ENABLE_ANALYTICS=false
-```
-
-## Key Features Detail
-
-### Diff Visualization
-
-**Syntax Highlighting:**
-- JSON responses syntax highlighted
-- Different colors for live vs shadow
-- Visual indicators for changes
-
-**Change Types:**
-- **Green:** Added fields (in shadow, not in live)
-- **Red:** Removed fields (in live, not in shadow)
-- **Yellow:** Changed values
-- **Gray:** Unchanged fields
-
-**Interaction:**
-- Click to expand/collapse nested objects
-- Hover for tooltips with old/new values
-- Copy individual fields or entire response
-
-### Real-Time Updates (Future)
-
-WebSocket connection to mroki-api for live updates:
-
-```typescript
-// Subscribe to gate updates
-const ws = new WebSocket('ws://localhost:8081/gates/:id/subscribe');
-ws.onmessage = (event) => {
-  const newRequest = JSON.parse(event.data);
-  store.addRequest(newRequest);
-};
-```
-
-### Performance Considerations
-
-- **Virtual scrolling:** For large request lists
-- **Lazy loading:** Load diff details on demand
-- **Caching:** Cache API responses in memory
-- **Pagination:** Limit requests loaded per page
-- **Debouncing:** Search/filter inputs debounced
-
-## Testing Strategy (Future)
-
-```bash
-# Unit tests (components)
-npm run test:unit
-
-# E2E tests (Playwright/Cypress)
-npm run test:e2e
-
-# Type checking
-npm run type-check
-
-# Linting
-npm run lint
-```
-
-## Accessibility
-
-- **Keyboard navigation:** All features accessible via keyboard
-- **Screen reader support:** ARIA labels and semantic HTML
-- **Color contrast:** WCAG AA compliance
-- **Focus indicators:** Clear focus states
-
-## Browser Support
-
-- Chrome/Edge: Last 2 versions
-- Firefox: Last 2 versions
-- Safari: Last 2 versions
-- Mobile: iOS Safari 12+, Chrome Android
-
-## Next Steps
-
-1. **Initialize Vue 3 project** with Vite
-2. **Set up TypeScript** configuration
-3. **Create API client** module
-4. **Build core components** (GateCard, DiffViewer)
-5. **Implement routing** (Dashboard, Gates, Requests)
-6. **Add state management** with Pinia
-7. **Integrate diff visualization** library
-8. **Style with TailwindCSS**
-9. **Add tests** (unit + E2E)
-10. **Deploy** to staging environment
+1. **Scaffold** — Vite + Vue 3 + TypeScript + TailwindCSS v4 + Vue Router
+2. **API client + types** — Native fetch wrapper, TypeScript types matching API contracts
+3. **Gate page** — List gates, create gate form
+4. **Request browser** — List requests with filters, sorting, pagination
+5. **Diff viewer** — Request detail page with `vue-diff` visualization
 
 ## Related Documentation
 

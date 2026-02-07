@@ -77,6 +77,9 @@ Configuration is via environment variables with the `MROKI_APP_` prefix.
 ```bash
 # PostgreSQL connection string
 MROKI_APP_DATABASE_URL=postgres://postgres:postgres@localhost:5432/mroki
+
+# API key for authentication (required)
+MROKI_APP_API_KEY=your-secret-api-key
 ```
 
 ### Optional Configuration
@@ -84,6 +87,21 @@ MROKI_APP_DATABASE_URL=postgres://postgres:postgres@localhost:5432/mroki
 ```bash
 # Server port (default: 8090)
 MROKI_APP_PORT=8090
+
+# Rate limiting (default: 1000 requests per minute per IP)
+MROKI_APP_RATE_LIMIT=1000
+
+# Request body size limit in bytes (default: 10485760 = 10MB)
+MROKI_APP_MAX_BODY_SIZE=10485760
+
+# CORS allowed origins (comma-separated, empty = disabled)
+MROKI_APP_CORS_ORIGINS=http://localhost:5173
+
+# Request retention duration (Go duration format, default: 168h = 7 days)
+MROKI_APP_RETENTION=168h
+
+# Cleanup job interval (Go duration format, default: 1h)
+MROKI_APP_CLEANUP_INTERVAL=1h
 
 # Connection pool settings
 MROKI_APP_DATABASE_MAX_CONNS=25           # default: 25
@@ -115,8 +133,9 @@ cd cmd/mroki-api
 
 # Create .env file
 cat > .env << 'EOF'
-MROKI_APP_PORT=8081
+MROKI_APP_PORT=8090
 MROKI_APP_DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres
+MROKI_APP_API_KEY=my-secret-key
 EOF
 
 # Run
@@ -125,18 +144,18 @@ go run .
 
 **Output:**
 ```
-INFO Started server address=:8081
+INFO Started server address=:8090
 ```
 
 ### Verify Health
 
 ```bash
 # Liveness check
-curl http://localhost:8081/health/live
+curl http://localhost:8090/health/live
 # Output: OK
 
 # Readiness check (verifies DB connection)
-curl http://localhost:8081/health/ready
+curl http://localhost:8090/health/ready
 # Output: OK
 ```
 
@@ -197,20 +216,26 @@ Currently, schema is applied automatically on startup. Future versions will use 
 ### Local Development
 
 ```bash
-MROKI_APP_PORT=8081
+MROKI_APP_PORT=8090
 MROKI_APP_DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres
+MROKI_APP_API_KEY=dev-api-key
 MROKI_APP_DATABASE_MAX_CONNS=10
+MROKI_APP_CORS_ORIGINS=http://localhost:5173
 ```
 
 ### Production
 
 ```bash
-MROKI_APP_PORT=8081
+MROKI_APP_PORT=8090
 MROKI_APP_DATABASE_URL=postgres://apiuser:secure_password@postgres.internal:5432/mroki?sslmode=require
+MROKI_APP_API_KEY=secure-production-key
 MROKI_APP_DATABASE_MAX_CONNS=50
 MROKI_APP_DATABASE_MIN_CONNS=10
 MROKI_APP_DATABASE_MAX_CONN_IDLE=10m
 MROKI_APP_DATABASE_MAX_CONN_LIFE=2h
+MROKI_APP_RATE_LIMIT=1000
+MROKI_APP_RETENTION=720h
+MROKI_APP_CLEANUP_INTERVAL=1h
 ```
 
 ### Using Connection String Components
@@ -226,7 +251,7 @@ MROKI_APP_DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT
 ### Docker
 
 ```dockerfile
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o mroki-api ./cmd/mroki-api
@@ -241,8 +266,9 @@ CMD ["./mroki-api"]
 **Run:**
 ```bash
 docker build -t mroki-api .
-docker run -p 8081:8081 \
+docker run -p 8090:8090 \
   -e MROKI_APP_DATABASE_URL=postgres://postgres:postgres@postgres:5432/postgres \
+  -e MROKI_APP_API_KEY=my-secret-key \
   mroki-api
 ```
 
@@ -267,31 +293,36 @@ spec:
       - name: mroki-api
         image: mroki-api:latest
         ports:
-        - containerPort: 8081
+        - containerPort: 8090
         env:
         - name: MROKI_APP_PORT
-          value: "8081"
+          value: "8090"
         - name: MROKI_APP_DATABASE_URL
           valueFrom:
             secretKeyRef:
               name: mroki-secrets
               key: database-url
+        - name: MROKI_APP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mroki-secrets
+              key: api-key
         livenessProbe:
           httpGet:
             path: /health/live
-            port: 8081
+            port: 8090
           periodSeconds: 10
           failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /health/ready
-            port: 8081
+            port: 8090
           periodSeconds: 5
           failureThreshold: 2
         startupProbe:
           httpGet:
             path: /health/ready
-            port: 8081
+            port: 8090
           periodSeconds: 5
           failureThreshold: 12
         resources:
@@ -311,7 +342,7 @@ spec:
     app: mroki-api
   ports:
   - port: 80
-    targetPort: 8081
+    targetPort: 8090
   type: ClusterIP
 ---
 apiVersion: v1
@@ -343,10 +374,11 @@ services:
   mroki-api:
     build: .
     ports:
-      - "8081:8081"
+      - "8090:8090"
     environment:
-      MROKI_APP_PORT: 8081
+      MROKI_APP_PORT: 8090
       MROKI_APP_DATABASE_URL: postgres://postgres:postgres@postgres:5432/mroki
+      MROKI_APP_API_KEY: my-secret-key
     depends_on:
       - postgres
     restart: unless-stopped
@@ -360,8 +392,9 @@ volumes:
 ### Create a Gate
 
 ```bash
-curl -X POST http://localhost:8081/gates \
+curl -X POST http://localhost:8090/gates \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
   -d '{
     "live_url": "https://api.production.example.com",
     "shadow_url": "https://api.shadow.example.com"
@@ -380,7 +413,8 @@ curl -X POST http://localhost:8081/gates \
 ### List All Gates
 
 ```bash
-curl http://localhost:8081/gates | jq .
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates | jq .
 
 # Response:
 # {
@@ -398,14 +432,16 @@ curl http://localhost:8081/gates | jq .
 
 ```bash
 GATE_ID="550e8400-e29b-41d4-a716-446655440000"
-curl http://localhost:8081/gates/$GATE_ID | jq .
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates/$GATE_ID | jq .
 ```
 
 ### List Captured Requests
 
 ```bash
 GATE_ID="550e8400-e29b-41d4-a716-446655440000"
-curl http://localhost:8081/gates/$GATE_ID/requests | jq .
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates/$GATE_ID/requests | jq .
 
 # Response:
 # {
@@ -425,7 +461,8 @@ curl http://localhost:8081/gates/$GATE_ID/requests | jq .
 ```bash
 GATE_ID="550e8400-e29b-41d4-a716-446655440000"
 REQUEST_ID="7c9e6679-7425-40de-944b-e07fc1f90ae7"
-curl http://localhost:8081/gates/$GATE_ID/requests/$REQUEST_ID | jq .
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/gates/$GATE_ID/requests/$REQUEST_ID | jq .
 
 # Response includes full request, responses, and diff
 ```
@@ -442,7 +479,7 @@ All logs use structured logging (slog) with JSON output.
 
 **Example Log Output:**
 ```json
-{"time":"2026-01-31T20:00:00Z","level":"INFO","msg":"Started server","address":":8081"}
+{"time":"2026-01-31T20:00:00Z","level":"INFO","msg":"Started server","address":":8090"}
 {"time":"2026-01-31T20:00:15Z","level":"INFO","msg":"gate created","gate_id":"550e8400-e29b-41d4-a716-446655440000"}
 {"time":"2026-01-31T20:00:30Z","level":"INFO","msg":"request created","gate_id":"550e8400","request_id":"7c9e6679","agent_id":"MacBook-Pro-a1b2c3d4"}
 ```
@@ -537,25 +574,29 @@ psql -U postgres -d postgres
 SELECT COUNT(*) FROM requests WHERE gate_id = '550e8400-e29b-41d4-a716-446655440000';
 ```
 
-## Security Considerations
+## Security
 
-**Current Status (v1):**
-- **No authentication:** Anyone can create/query gates
-- **No TLS:** HTTP only - use reverse proxy for HTTPS
-- **No rate limiting:** Can be overwhelmed by traffic
+**Implemented:**
+- API key authentication (`Authorization: Bearer <key>`, configured via `MROKI_APP_API_KEY`)
+- Rate limiting (token bucket, configurable via `MROKI_APP_RATE_LIMIT`, default 1000 req/min/IP)
+- Request body size limits (configurable via `MROKI_APP_MAX_BODY_SIZE`, default 10MB)
+- Input validation via domain value objects
+- SQL injection prevention via parameterized queries (sqlc)
+- CORS with configurable allowed origins (`MROKI_APP_CORS_ORIGINS`)
+- HTTP timeouts and graceful shutdown
+- RFC 7807 error responses
 
-**What's secure:**
-- ✅ SQL injection prevented by parameterized queries (sqlc)
-- ✅ Input validation in domain layer
-- ✅ Connection pooling configured
-- ✅ Health checks available
+**Not yet implemented:**
+- TLS/HTTPS — use a reverse proxy (nginx, Caddy, cloud LB) to terminate TLS
+- RBAC / multi-tenant authorization
+- PII redaction in captured requests
+- Agent-to-API mutual TLS
 
 **Production recommendations:**
-- Add API key authentication
-- Use TLS/HTTPS (terminate at load balancer)
-- Implement rate limiting (nginx, API gateway, or application-level)
+- Use a strong, randomly generated API key
+- Terminate TLS at load balancer or reverse proxy
 - Restrict database user permissions
-- Store database credentials securely (Kubernetes secrets, AWS Secrets Manager, etc.)
+- Store secrets securely (Kubernetes secrets, AWS Secrets Manager, etc.)
 
 ## Testing
 
@@ -584,38 +625,6 @@ go tool cover -html=coverage.out
 - Interface layer: 80%+
 
 ---
-
-## Performance
-
-**Expected baseline:**
-- Throughput: ~500 req/s per instance (database-bound)
-- Memory: ~100MB baseline + connection pool overhead
-
-**Database Connection Pool:**
-- Min: 5 (always maintained)
-- Max: 25 (default, configurable)
-- Idle timeout: 5m
-- Max lifetime: 1h
-
-**Tuning:**
-```bash
-# High traffic configuration
-MROKI_APP_DATABASE_MAX_CONNS=100
-MROKI_APP_DATABASE_MIN_CONNS=20
-MROKI_APP_DATABASE_MAX_CONN_IDLE=10m
-MROKI_APP_DATABASE_MAX_CONN_LIFE=2h
-```
-
-**Bottlenecks:**
-- PostgreSQL write throughput
-- Request body size (stored as JSONB)
-- Diff computation size
-
-**Optimization tips:**
-- Use read replicas for GET endpoints
-- Increase `MAX_CONNS` for high traffic
-- Consider partitioning `requests` table by `created_at`
-- Scale horizontally with load balancer
 
 ## Related Documentation
 

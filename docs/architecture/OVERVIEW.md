@@ -59,9 +59,9 @@ mroki consists of four main components:
 - Persist agent identity across restarts
 
 **Technology:**
-- Language: Go 1.21+
+- Language: Go 1.24+
 - HTTP Proxy: Custom `pkg/proxy`
-- Diff Engine: Custom JSON differ `pkg/diff` with field filtering, array sorting, float tolerance
+- Diff Engine: Custom JSON differ `pkg/diff` (gjson/sjson + go-cmp) with field filtering and normalization
 - API Client: `pkg/client` with exponential backoff
 
 **Deployment:** Runs as a sidecar proxy or standalone service in production environment
@@ -80,8 +80,8 @@ mroki consists of four main components:
 - Health check endpoints for Kubernetes
 
 **Technology:**
-- Language: Go 1.21+
-- Framework: net/http (stdlib)
+- Language: Go 1.24+
+- Framework: net/http (stdlib, Go 1.22+ routing)
 - Database: PostgreSQL with pgx/v5
 - Query Builder: sqlc (type-safe SQL)
 
@@ -101,11 +101,11 @@ mroki consists of four main components:
 - Manage gate configuration
 
 **Technology:**
-- Framework: Vue 3 + TypeScript
+- Framework: Vue 3 + TypeScript + Composition API + `<script setup>`
 - Build Tool: Vite
-- State Management: Pinia (planned)
-- UI Components: Custom component library
-- Diff Visualization: vue-diff library
+- HTTP Client: Native `fetch()`
+- Diff Visualization: `vue-diff`
+- Styling: TailwindCSS v4
 
 **Deployment:** Static SPA served via CDN or web server
 
@@ -121,7 +121,7 @@ mroki consists of four main components:
 - Enable mroki without standalone agent deployment
 
 **Technology:**
-- Language: Go 1.21+
+- Language: Go 1.24+
 - Integration: Caddy module system
 
 **Deployment:** Compiled into Caddy binary
@@ -298,17 +298,25 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 ## Security Considerations
 
-### Current State (v1)
+### Implemented
 
-- **No authentication:** API is open (not production-ready)
+- [x] API key authentication (`Authorization: Bearer <key>`)
+- [x] Rate limiting (token bucket, 1000 req/min/IP default)
+- [x] Request body size limits (10MB default)
+- [x] Input validation via domain value objects
+- [x] SQL injection prevention (parameterized queries via sqlc)
+- [x] CORS with configurable allowed origins
+- [x] HTTP timeouts and graceful shutdown
+- [x] RFC 7807 structured error responses
+
+### Not Yet Implemented
+
 - **No TLS:** HTTP only (use reverse proxy for HTTPS)
-- **No authorization:** Anyone can create/view gates
+- **No authorization:** All authenticated users have full access
 - **No request filtering:** All traffic captured (may contain PII)
 
-### Planned (v2)
+### Planned
 
-- [ ] API key authentication
-- [ ] TLS/HTTPS support
 - [ ] RBAC for multi-tenant usage
 - [ ] PII redaction in captured requests
 - [ ] Agent-to-API mutual TLS
@@ -364,8 +372,8 @@ log.Info("request captured",
 
 ### Health Checks
 
-- **API:** `GET /health/readiness` - DB connectivity
-- **API:** `GET /health/liveness` - Service up
+- **API:** `GET /health/ready` - DB connectivity
+- **API:** `GET /health/live` - Service up
 - **Agent:** HTTP server accepting connections
 
 ---
@@ -442,7 +450,7 @@ log.Info("request captured",
 - Reactive and performant
 - Excellent TypeScript support
 - Composition API for reusable logic
-- Strong ecosystem (Vite, Pinia, etc.)
+- Strong ecosystem (Vite, TailwindCSS, etc.)
 - Smaller bundle size than React
 
 ### Why PostgreSQL?
@@ -465,11 +473,14 @@ log.Info("request captured",
 
 ## Future Enhancements
 
-### Phase 2 (✅ Completed)
+### Phase 2 (Completed)
 - [x] Agent fetches gate configuration from API
 - [x] Dual operating modes (API vs standalone)
-- [x] Configurable diff options (field filtering, array sorting, float tolerance)
+- [x] Configurable diff options (field filtering via normalizer, go-cmp based diffing)
 - [x] API key authentication
+- [x] Rate limiting (token bucket, configurable per IP)
+- [x] CORS support (`rs/cors`)
+- [x] TTL cleanup job for expired requests
 
 ### Phase 3
 - [ ] Sampling configuration per gate
