@@ -34,6 +34,35 @@ pnpm lint
 pnpm format
 ```
 
+## Coding Conventions
+
+### TypeScript Requirement
+
+**All Vue components MUST use TypeScript.** Plain JavaScript is not allowed.
+
+```vue
+<!-- ✅ Correct: TypeScript with lang="ts" -->
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const count = ref<number>(0)
+const increment = (): void => {
+  count.value++
+}
+</script>
+
+<!-- ❌ Incorrect: Plain JavaScript (will fail ESLint) -->
+<script setup>
+const count = ref(0)
+</script>
+```
+
+This is enforced by ESLint via the `vue/block-lang` rule. Any component without `lang="ts"` will fail linting and be blocked by pre-commit hooks.
+
+### Theming
+
+See the [Theming](#theming) section below for CSS variables usage.
+
 ## Pre-commit Hooks
 
 This project uses `pre-commit` hooks to automatically run linters and formatters before commits. The hooks are configured at the repository root level.
@@ -46,7 +75,7 @@ pre-commit install
 
 The following checks run automatically on commit:
 - **Prettier** - Formats Vue, TypeScript, and other files
-- **ESLint** - Lints Vue and TypeScript code
+- **ESLint** - Lints Vue and TypeScript code (enforces TypeScript requirement)
 
 ## Project Structure
 
