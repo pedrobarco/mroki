@@ -1,0 +1,119 @@
+// Core API entities matching mroki-api contracts
+
+/**
+ * Gate represents a live/shadow service pair
+ */
+export interface Gate {
+  id: string
+  live_url: string
+  shadow_url: string
+}
+
+/**
+ * Request represents a captured HTTP request
+ */
+export interface Request {
+  id: string
+  gate_id: string
+  agent_id: string
+  method: string
+  path: string
+  headers: Record<string, string[]>
+  body: string
+  created_at: string
+}
+
+/**
+ * Response represents a single HTTP response (live or shadow)
+ */
+export interface Response {
+  id: string
+  type: 'live' | 'shadow'
+  status_code: number
+  headers: Record<string, string[]>
+  body: string
+  created_at: string
+}
+
+/**
+ * Diff contains the computed difference between responses
+ */
+export interface Diff {
+  content: string
+}
+
+/**
+ * RequestDetail extends Request with responses and diff
+ */
+export interface RequestDetail extends Request {
+  responses: Response[]
+  diff: Diff
+}
+
+// API Response Wrappers
+
+/**
+ * Generic API response wrapper
+ */
+export interface ApiResponse<T> {
+  data: T
+}
+
+/**
+ * Pagination metadata
+ */
+export interface PaginationMeta {
+  limit: number
+  offset: number
+  total: number
+  has_more: boolean
+}
+
+/**
+ * Paginated API response wrapper
+ */
+export interface PaginatedResponse<T> {
+  data: T
+  pagination: PaginationMeta
+}
+
+// Error Types (RFC 7807)
+
+/**
+ * API error following RFC 7807 Problem Details format
+ */
+export interface ApiError {
+  type: string
+  title: string
+  status: number
+  detail: string
+  instance?: string
+}
+
+/**
+ * Custom error class for API errors
+ */
+export class ApiErrorException extends Error {
+  constructor(public error: ApiError) {
+    super(error.detail)
+    this.name = 'ApiErrorException'
+  }
+}
+
+// Request Payloads
+
+/**
+ * Payload for creating a new gate
+ */
+export interface CreateGatePayload {
+  live_url: string
+  shadow_url: string
+}
+
+/**
+ * Query parameters for listing requests
+ */
+export interface ListRequestsParams {
+  limit?: number
+  offset?: number
+}
