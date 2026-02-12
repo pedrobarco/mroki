@@ -145,10 +145,30 @@ golangci-lint run
 - Use Prettier for formatting
 
 ```bash
-cd cmd/mroki-hub
-npm run lint
-npm run format
+cd web/mroki-hub
+pnpm lint
+pnpm format
 ```
+
+### Pre-commit Hooks
+
+The project uses `pre-commit` to automatically run linters and formatters before commits:
+
+```bash
+# Install pre-commit hooks (first time only)
+pre-commit install
+
+# Run hooks manually on all files
+pre-commit run --all-files
+
+# Run hooks on staged files
+pre-commit run
+```
+
+**Hooks configured:**
+- Go: `go mod tidy`, `golangci-lint`
+- Vue/TypeScript: `prettier`, `eslint` (for mroki-hub)
+- YAML/JSON validation
 
 ## Testing Guidelines
 

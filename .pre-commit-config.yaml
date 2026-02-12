@@ -27,3 +27,22 @@ repos:
     hooks:
       - id: commitizen
         stages: [commit-msg]
+
+  # Vue/TypeScript linting and formatting for mroki-hub
+  - repo: local
+    hooks:
+      - id: mroki-hub-prettier
+        name: Format mroki-hub (Prettier)
+        entry: bash -c 'cd web/mroki-hub && pnpm format'
+        language: system
+        files: ^web/mroki-hub/src/.*\.(vue|ts|js|json|css|scss|md)$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: mroki-hub-eslint
+        name: Lint mroki-hub (ESLint)
+        entry: bash -c 'cd web/mroki-hub && pnpm lint'
+        language: system
+        files: ^web/mroki-hub/src/.*\.(vue|ts|js)$
+        pass_filenames: false
+        stages: [pre-commit]
