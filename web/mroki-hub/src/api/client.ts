@@ -1,4 +1,5 @@
-import { ApiError, ApiErrorException } from './types'
+import type { ApiError } from './types'
+import { ApiErrorException } from './types'
 
 /**
  * Base API client configuration
