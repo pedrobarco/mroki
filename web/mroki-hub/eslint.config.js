@@ -11,6 +11,9 @@ export default tseslint.config(
   {
     files: ['**/*.vue'],
     languageOptions: {
+      globals: {
+        URL: 'readonly',
+      },
       parserOptions: {
         parser: tseslint.parser,
         ecmaVersion: 'latest',
