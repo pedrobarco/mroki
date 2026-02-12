@@ -27,7 +27,7 @@ These features require backend endpoints that don't exist yet:
 ## Technology Stack
 
 - **Framework:** Vue 3 with Composition API + `<script setup>`
-- **Language:** TypeScript
+- **Language:** TypeScript (required in all Vue components via ESLint)
 - **Build Tool:** Vite
 - **Routing:** Vue Router with `createWebHistory`
 - **HTTP Client:** Native `fetch()` (no Axios, no Pinia)
@@ -220,7 +220,28 @@ pnpm lint
 pnpm format
 ```
 
-### Theming
+### Coding Conventions
+
+#### TypeScript Requirement
+
+**All Vue components MUST use TypeScript.** This is enforced by ESLint.
+
+```vue
+<!-- ✅ Correct: TypeScript with lang="ts" -->
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const count = ref<number>(0)
+</script>
+
+<!-- ❌ Incorrect: Plain JavaScript (ESLint error) -->
+<script setup>
+const count = ref(0)
+// Error: The 'lang' attribute of '<script>' is missing
+</script>
+```
+
+#### Theming
 
 mroki-hub uses **CSS variables** for theming following [shadcn-vue conventions](https://www.shadcn-vue.com/docs/theming.html).
 
@@ -248,7 +269,7 @@ mroki-hub uses **CSS variables** for theming following [shadcn-vue conventions](
 - `destructive` / `destructive-foreground` - Destructive actions
 - `border`, `input`, `ring` - Borders and focus
 
-See `web/mroki-hub/README.md` for complete theming documentation.
+See `web/mroki-hub/README.md` for complete documentation.
 
 ## Deployment
 

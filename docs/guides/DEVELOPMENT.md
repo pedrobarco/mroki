@@ -140,7 +140,7 @@ golangci-lint run
 ### Vue/TypeScript Code
 
 - Follow Vue 3 Composition API style
-- Use TypeScript for type safety
+- **TypeScript is required** - All Vue components must use `lang="ts"`
 - Use ESLint for linting
 - Use Prettier for formatting
 - **Use CSS variables for theming** (see Theming section below)
@@ -150,6 +150,34 @@ cd web/mroki-hub
 pnpm lint
 pnpm format
 ```
+
+### TypeScript Requirement
+
+**All Vue components MUST use TypeScript.** This is enforced by ESLint.
+
+```vue
+<!-- ✅ Correct: TypeScript with lang="ts" -->
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const count = ref<number>(0)
+const increment = (): void => {
+  count.value++
+}
+</script>
+
+<!-- ❌ Incorrect: Plain JavaScript (ESLint error) -->
+<script setup>
+const count = ref(0)
+// Error: The 'lang' attribute of '<script>' is missing
+</script>
+```
+
+**Why this matters:**
+- Ensures type safety across all components
+- Catches errors at compile time
+- Provides better IDE support and autocomplete
+- Maintains consistency across the codebase
 
 ### Theming Convention
 
