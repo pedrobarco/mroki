@@ -1,7 +1,7 @@
 <template>
   <div class="container mx-auto py-8">
     <h1 class="text-3xl font-bold mb-6">Gates</h1>
-    <p class="text-gray-600">Gate list and create form will go here.</p>
+    <p class="text-muted-foreground">Gate list and create form will go here.</p>
   </div>
 </template>
 
