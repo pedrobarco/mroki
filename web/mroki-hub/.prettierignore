@@ -1,0 +1,8 @@
+dist
+node_modules
+.vite
+pnpm-lock.yaml
+*.min.js
+*.min.css
+src/components/ui
+
