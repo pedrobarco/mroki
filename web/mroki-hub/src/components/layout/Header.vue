@@ -1,24 +1,24 @@
 <template>
-  <header class="border-b bg-white">
+  <header class="border-b bg-background">
     <div class="container mx-auto px-4 py-4 flex items-center justify-between">
       <div class="flex items-center gap-8">
         <router-link to="/" class="flex items-center gap-2">
-          <div class="text-2xl font-bold text-blue-600">mroki</div>
-          <div class="text-sm text-gray-500">hub</div>
+          <div class="text-2xl font-bold text-primary">mroki</div>
+          <div class="text-sm text-muted-foreground">hub</div>
         </router-link>
 
         <nav class="flex gap-6">
           <router-link
             to="/gates"
-            class="text-gray-700 hover:text-blue-600 transition-colors"
-            active-class="text-blue-600 font-semibold"
+            class="text-foreground hover:text-primary transition-colors"
+            active-class="text-primary font-semibold"
           >
             Gates
           </router-link>
         </nav>
       </div>
 
-      <div class="text-sm text-gray-500">Shadow Traffic Analysis</div>
+      <div class="text-sm text-muted-foreground">Shadow Traffic Analysis</div>
     </div>
   </header>
 </template>
