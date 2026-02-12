@@ -70,6 +70,66 @@ src/
 └── main.ts
 ```
 
+## Theming
+
+This project uses **CSS variables** for theming, following the [shadcn-vue theming conventions](https://www.shadcn-vue.com/docs/theming.html).
+
+### Using CSS Variables
+
+Always use semantic color tokens instead of hardcoded Tailwind colors:
+
+```vue
+<!-- ✅ Good: Uses CSS variables -->
+<div class="bg-background text-foreground">
+  <h1 class="text-primary">Title</h1>
+  <p class="text-muted-foreground">Description</p>
+  <button class="bg-primary text-primary-foreground">Click me</button>
+</div>
+
+<!-- ❌ Bad: Hardcoded colors -->
+<div class="bg-white text-gray-900">
+  <h1 class="text-blue-600">Title</h1>
+  <p class="text-gray-500">Description</p>
+  <button class="bg-blue-600 text-white">Click me</button>
+</div>
+```
+
+### Available Color Tokens
+
+| Token | Usage |
+|-------|-------|
+| `background` / `foreground` | Main background and text colors |
+| `card` / `card-foreground` | Card backgrounds |
+| `popover` / `popover-foreground` | Popover/dropdown backgrounds |
+| `primary` / `primary-foreground` | Primary actions and branding |
+| `secondary` / `secondary-foreground` | Secondary actions |
+| `muted` / `muted-foreground` | Muted backgrounds and secondary text |
+| `accent` / `accent-foreground` | Accent colors for highlights |
+| `destructive` / `destructive-foreground` | Destructive actions (delete, etc.) |
+| `border` | Border colors |
+| `input` | Input field borders |
+| `ring` | Focus ring colors |
+
+### Dark Mode Support
+
+The app automatically supports dark mode through CSS variables. All color tokens have both light and dark mode values defined in `src/style.css`.
+
+To enable dark mode, add the `dark` class to the root element (implementation coming soon).
+
+### Customizing Colors
+
+To customize the theme, edit the CSS variables in `src/style.css`:
+
+```css
+:root {
+  --primary: oklch(0.205 0 0);  /* Change primary color */
+  --primary-foreground: oklch(0.985 0 0);
+  /* ... other variables */
+}
+```
+
+See the [shadcn-vue theming docs](https://www.shadcn-vue.com/docs/theming.html) for more details.
+
 ## Environment Variables
 
 Create a `.env` file in this directory:
@@ -84,4 +144,5 @@ VITE_API_KEY=your-api-key-here
 - [Vue 3 Documentation](https://vuejs.org/)
 - [Vite Documentation](https://vitejs.dev/)
 - [shadcn-vue Documentation](https://www.shadcn-vue.com/)
+- [shadcn-vue Theming](https://www.shadcn-vue.com/docs/theming.html)
 - [Tailwind CSS Documentation](https://tailwindcss.com/)
