@@ -6,7 +6,7 @@ mroki-hub is a Vue 3 single-page application that provides a user-friendly inter
 
 ## Status
 
-**Not yet implemented** — planned as the next major deliverable after documentation update.
+**In Development** — Basic structure and theming implemented. Features being built incrementally.
 
 ## v1 Scope
 
@@ -32,8 +32,10 @@ These features require backend endpoints that don't exist yet:
 - **Routing:** Vue Router with `createWebHistory`
 - **HTTP Client:** Native `fetch()` (no Axios, no Pinia)
 - **Diff Library:** `vue-diff`
-- **Styling:** TailwindCSS v4
+- **Styling:** Tailwind CSS v4 with CSS variables theming
+- **UI Components:** shadcn-vue
 - **Testing:** Vitest + Vue Test Utils
+- **Code Quality:** ESLint + Prettier with pre-commit hooks
 
 ## Architecture
 
@@ -181,16 +183,16 @@ MROKI_APP_CORS_ORIGINS=http://localhost:5173
 
 ### Prerequisites
 - Node.js 18+
-- npm
+- pnpm (required for mroki-hub)
 - mroki-api running on port 8090
 
 ### Installation
 
 ```bash
-cd web
+cd web/mroki-hub
 
 # Install dependencies
-npm install
+pnpm install
 
 # Create .env file
 cat > .env << 'EOF'
@@ -199,18 +201,54 @@ VITE_API_KEY=your-api-key
 EOF
 
 # Start dev server
-npm run dev
+pnpm dev
 ```
 
 ### Build
 
 ```bash
 # Production build
-npm run build
+pnpm build
 
 # Preview production build
-npm run preview
+pnpm preview
+
+# Lint code
+pnpm lint
+
+# Format code
+pnpm format
 ```
+
+### Theming
+
+mroki-hub uses **CSS variables** for theming following [shadcn-vue conventions](https://www.shadcn-vue.com/docs/theming.html).
+
+**Always use semantic color tokens:**
+
+```vue
+<!-- ✅ Correct: CSS variables -->
+<div class="bg-background text-foreground">
+  <button class="bg-primary text-primary-foreground">Action</button>
+  <p class="text-muted-foreground">Secondary text</p>
+</div>
+
+<!-- ❌ Incorrect: Hardcoded colors -->
+<div class="bg-white text-gray-900">
+  <button class="bg-blue-600 text-white">Action</button>
+  <p class="text-gray-500">Secondary text</p>
+</div>
+```
+
+**Available color tokens:**
+- `background` / `foreground` - Main colors
+- `primary` / `primary-foreground` - Primary actions
+- `muted` / `muted-foreground` - Secondary content
+- `card` / `card-foreground` - Cards
+- `destructive` / `destructive-foreground` - Destructive actions
+- `border`, `input`, `ring` - Borders and focus
+
+See `web/mroki-hub/README.md` for complete theming documentation.
 
 ## Deployment
 
@@ -248,11 +286,13 @@ CMD ["nginx", "-g", "daemon off;"]
 
 ## Implementation Phases
 
-1. **Scaffold** — Vite + Vue 3 + TypeScript + TailwindCSS v4 + Vue Router
-2. **API client + types** — Native fetch wrapper, TypeScript types matching API contracts
-3. **Gate page** — List gates, create gate form
-4. **Request browser** — List requests with filters, sorting, pagination
-5. **Diff viewer** — Request detail page with `vue-diff` visualization
+1. ✅ **Scaffold** — Vite + Vue 3 + TypeScript + Tailwind CSS v4 + Vue Router
+2. ✅ **Theming** — CSS variables with shadcn-vue conventions, dark mode support
+3. ✅ **Code Quality** — ESLint + Prettier + pre-commit hooks
+4. 🚧 **API client + types** — Native fetch wrapper, TypeScript types matching API contracts
+5. 🚧 **Gate page** — List gates, create gate form
+6. 🚧 **Request browser** — List requests with filters, sorting, pagination
+7. 🚧 **Diff viewer** — Request detail page with `vue-diff` visualization
 
 ## Related Documentation
 

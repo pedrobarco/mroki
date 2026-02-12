@@ -143,12 +143,44 @@ golangci-lint run
 - Use TypeScript for type safety
 - Use ESLint for linting
 - Use Prettier for formatting
+- **Use CSS variables for theming** (see Theming section below)
 
 ```bash
 cd web/mroki-hub
 pnpm lint
 pnpm format
 ```
+
+### Theming Convention
+
+mroki-hub uses **CSS variables** for theming following [shadcn-vue conventions](https://www.shadcn-vue.com/docs/theming.html).
+
+**Always use semantic color tokens:**
+
+```vue
+<!-- ✅ Correct: CSS variables -->
+<div class="bg-background text-foreground">
+  <button class="bg-primary text-primary-foreground">Action</button>
+  <p class="text-muted-foreground">Secondary text</p>
+</div>
+
+<!-- ❌ Incorrect: Hardcoded colors -->
+<div class="bg-white text-gray-900">
+  <button class="bg-blue-600 text-white">Action</button>
+  <p class="text-gray-500">Secondary text</p>
+</div>
+```
+
+**Common color tokens:**
+- `bg-background` / `text-foreground` - Main colors
+- `bg-primary` / `text-primary-foreground` - Primary actions
+- `text-muted-foreground` - Secondary text
+- `bg-card` / `text-card-foreground` - Cards
+- `bg-destructive` / `text-destructive-foreground` - Destructive actions
+- `border` - Borders
+- `ring` - Focus rings
+
+See `web/mroki-hub/README.md` for complete theming documentation.
 
 ### Pre-commit Hooks
 
