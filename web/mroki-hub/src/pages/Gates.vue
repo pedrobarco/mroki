@@ -17,6 +17,9 @@
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Gate</DialogTitle>
+            <DialogDescription>
+              Enter the URLs for your live and shadow services to create a new gate.
+            </DialogDescription>
           </DialogHeader>
           <GateForm @success="handleGateCreated" />
         </DialogContent>
@@ -36,6 +39,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
