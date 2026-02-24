@@ -11,6 +11,27 @@ interface Props {
 
 const props = defineProps<Props>()
 
+// Parse the diff content to extract the structured comparison
+// The diff content is a go-cmp text format, but we'll construct the comparison
+// from the actual response objects instead
+interface ComparisonData {
+  statusCode: number
+  headers: Record<string, string[]>
+  body: string
+}
+
+// Build comparison data from response
+const buildComparisonData = (response: Response): ComparisonData => {
+  return {
+    statusCode: response.status_code,
+    headers: response.headers,
+    body: response.body,
+  }
+}
+
+const liveData = computed(() => buildComparisonData(props.liveResponse))
+const shadowData = computed(() => buildComparisonData(props.shadowResponse))
+
 // Decode base64 body
 const decodeBody = (body: string): string => {
   try {
@@ -90,11 +111,19 @@ const formatBody = (body: string): { formatted: string; type: string; isBinary: 
   }
 }
 
-const liveFormatted = computed(() => formatBody(props.liveResponse.body))
-const shadowFormatted = computed(() => formatBody(props.shadowResponse.body))
+const liveFormatted = computed(() => formatBody(liveData.value.body))
+const shadowFormatted = computed(() => formatBody(shadowData.value.body))
 
 const liveBody = computed(() => liveFormatted.value.formatted)
 const shadowBody = computed(() => shadowFormatted.value.formatted)
+
+// Format headers for display
+const formatHeaders = (headers: Record<string, string[]>): string => {
+  return JSON.stringify(headers, null, 2)
+}
+
+const liveHeaders = computed(() => formatHeaders(liveData.value.headers))
+const shadowHeaders = computed(() => formatHeaders(shadowData.value.headers))
 
 // Determine language for syntax highlighting
 const language = computed(() => {
@@ -156,15 +185,21 @@ const hasDifferences = computed(() => {
       </div>
     </div>
 
-    <!-- Diff Summary -->
-    <div v-if="hasDifferences" class="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-      <h3 class="text-sm font-semibold text-yellow-800 mb-2">⚠️ Differences Detected</h3>
-      <pre class="text-xs text-yellow-700 whitespace-pre-wrap font-mono">{{ diffContent }}</pre>
-    </div>
-
-    <div v-else class="rounded-lg border border-green-200 bg-green-50 p-4">
-      <h3 class="text-sm font-semibold text-green-800">✓ No Differences</h3>
-      <p class="text-sm text-green-700 mt-1">Live and shadow responses are identical.</p>
+    <!-- Headers Comparison -->
+    <div class="rounded-lg border">
+      <div class="border-b bg-muted/50 px-4 py-2">
+        <h3 class="text-sm font-semibold">Headers Comparison</h3>
+      </div>
+      <div class="p-4">
+        <CodeDiff
+          :old-string="liveHeaders"
+          :new-string="shadowHeaders"
+          language="json"
+          output-format="side-by-side"
+          :filename="'Live Headers'"
+          :new-filename="'Shadow Headers'"
+        />
+      </div>
     </div>
 
     <!-- Side-by-Side Body Comparison -->
