@@ -47,15 +47,18 @@ func buildCountFilteredRequestsParams(
 	}
 }
 
-// buildMethodsParam converts HTTPMethod slice to []string or nil
-func buildMethodsParam(filters traffictesting.RequestFilters) interface{} {
+// buildMethodsParam converts HTTPMethod slice to []string
+// Always returns a valid slice (empty if no filter) to avoid PostgreSQL type inference issues
+func buildMethodsParam(filters traffictesting.RequestFilters) []string {
 	if !filters.HasMethodFilter() {
-		return nil
+		// Return empty slice
+		return []string{}
 	}
 
 	methods := filters.Methods()
 	if len(methods) == 0 {
-		return nil
+		// Return empty slice
+		return []string{}
 	}
 
 	methodStrings := make([]string, len(methods))
@@ -65,16 +68,16 @@ func buildMethodsParam(filters traffictesting.RequestFilters) interface{} {
 	return methodStrings
 }
 
-// buildPathPatternParam converts PathPattern to SQL LIKE pattern or nil
+// buildPathPatternParam converts PathPattern to SQL LIKE pattern or pgtype.Text{Valid: false}
 // Escapes SQL LIKE special characters (%, _) before converting glob wildcards
-func buildPathPatternParam(filters traffictesting.RequestFilters) interface{} {
+func buildPathPatternParam(filters traffictesting.RequestFilters) pgtype.Text {
 	if !filters.HasPathFilter() {
-		return nil
+		return pgtype.Text{Valid: false}
 	}
 
 	pathPattern := filters.PathPattern()
 	if pathPattern.IsEmpty() {
-		return nil
+		return pgtype.Text{Valid: false}
 	}
 
 	pattern := pathPattern.String()
@@ -87,53 +90,53 @@ func buildPathPatternParam(filters traffictesting.RequestFilters) interface{} {
 
 	// Now convert glob wildcards (*) to SQL wildcards (%)
 	sqlPattern := strings.ReplaceAll(pattern, "*", "%")
-	return sqlPattern
+	return pgtype.Text{String: sqlPattern, Valid: true}
 }
 
-// buildFromDateParam extracts From date from DateRange or returns nil
-func buildFromDateParam(filters traffictesting.RequestFilters) interface{} {
+// buildFromDateParam extracts From date from DateRange or returns pgtype.Timestamptz{Valid: false}
+func buildFromDateParam(filters traffictesting.RequestFilters) pgtype.Timestamptz {
 	dateRange := filters.DateRange()
 	if !dateRange.HasFrom() {
-		return nil
+		return pgtype.Timestamptz{Valid: false}
 	}
 	return pgtype.Timestamptz{Time: *dateRange.From(), Valid: true}
 }
 
-// buildToDateParam extracts To date from DateRange or returns nil
-func buildToDateParam(filters traffictesting.RequestFilters) interface{} {
+// buildToDateParam extracts To date from DateRange or returns pgtype.Timestamptz{Valid: false}
+func buildToDateParam(filters traffictesting.RequestFilters) pgtype.Timestamptz {
 	dateRange := filters.DateRange()
 	if !dateRange.HasTo() {
-		return nil
+		return pgtype.Timestamptz{Valid: false}
 	}
 	return pgtype.Timestamptz{Time: *dateRange.To(), Valid: true}
 }
 
-// buildAgentIDParam extracts agent ID or returns nil
-func buildAgentIDParam(filters traffictesting.RequestFilters) interface{} {
+// buildAgentIDParam extracts agent ID or returns pgtype.Text{Valid: false}
+func buildAgentIDParam(filters traffictesting.RequestFilters) pgtype.Text {
 	if !filters.HasAgentFilter() {
-		return nil
+		return pgtype.Text{Valid: false}
 	}
 
 	agentID := filters.AgentID()
 	if agentID == "" {
-		return nil
+		return pgtype.Text{Valid: false}
 	}
 
-	return agentID
+	return pgtype.Text{String: agentID, Valid: true}
 }
 
-// buildHasDiffParam extracts has_diff boolean or returns nil
-func buildHasDiffParam(filters traffictesting.RequestFilters) interface{} {
+// buildHasDiffParam extracts has_diff boolean or returns pgtype.Bool{Valid: false}
+func buildHasDiffParam(filters traffictesting.RequestFilters) pgtype.Bool {
 	if !filters.HasDiffFilter() {
-		return nil
+		return pgtype.Bool{Valid: false}
 	}
 
 	hasDiff := filters.HasDiff()
 	if hasDiff == nil {
-		return nil
+		return pgtype.Bool{Valid: false}
 	}
 
-	return *hasDiff
+	return pgtype.Bool{Bool: *hasDiff, Valid: true}
 }
 
 // buildSortOrderParam converts SortOrder to string

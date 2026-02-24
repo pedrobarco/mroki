@@ -51,38 +51,37 @@ WHERE req.gate_id = $1 AND req.id = $2;
 -- name: GetFilteredRequests :many
 SELECT id, gate_id, agent_id, method, path, headers, body, created_at
 FROM requests
-WHERE 
+WHERE
   gate_id = sqlc.arg('gate_id')
-  -- Optional method filter: empty array or NULL = no filter
+  -- Optional method filter: empty array = no filter
   AND (
-    sqlc.narg('methods') IS NULL 
-    OR cardinality(sqlc.narg('methods')::text[]) = 0 
+    cardinality(sqlc.narg('methods')::text[]) = 0
     OR method = ANY(sqlc.narg('methods')::text[])
   )
   -- Optional path pattern filter: NULL = no filter
   AND (
-    sqlc.narg('path_pattern') IS NULL 
-    OR sqlc.narg('path_pattern') = '' 
-    OR path LIKE sqlc.narg('path_pattern')
+    sqlc.narg('path_pattern')::text IS NULL
+    OR sqlc.narg('path_pattern')::text = ''
+    OR path LIKE sqlc.narg('path_pattern')::text
   )
   -- Optional date range filters
-  AND (sqlc.narg('from_date') IS NULL OR created_at >= sqlc.narg('from_date'))
-  AND (sqlc.narg('to_date') IS NULL OR created_at <= sqlc.narg('to_date'))
+  AND (sqlc.narg('from_date')::timestamptz IS NULL OR created_at >= sqlc.narg('from_date')::timestamptz)
+  AND (sqlc.narg('to_date')::timestamptz IS NULL OR created_at <= sqlc.narg('to_date')::timestamptz)
   -- Optional agent ID filter: NULL or empty = no filter
   AND (
-    sqlc.narg('agent_id') IS NULL 
-    OR sqlc.narg('agent_id') = '' 
-    OR agent_id = sqlc.narg('agent_id')
+    sqlc.narg('agent_id')::text IS NULL
+    OR sqlc.narg('agent_id')::text = ''
+    OR agent_id = sqlc.narg('agent_id')::text
   )
   -- Optional diff existence filter: NULL = no filter
   AND (
-    sqlc.narg('has_diff') IS NULL 
+    sqlc.narg('has_diff')::boolean IS NULL
     OR (
-      sqlc.narg('has_diff') = true 
+      sqlc.narg('has_diff')::boolean = true
       AND EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
     )
     OR (
-      sqlc.narg('has_diff') = false 
+      sqlc.narg('has_diff')::boolean = false
       AND NOT EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
     )
   )
@@ -112,34 +111,33 @@ OFFSET sqlc.arg('offset');
 -- name: CountFilteredRequests :one
 SELECT COUNT(*)
 FROM requests
-WHERE 
+WHERE
   gate_id = sqlc.arg('gate_id')
   -- Same filters as GetFilteredRequests for consistency
   AND (
-    sqlc.narg('methods') IS NULL 
-    OR cardinality(sqlc.narg('methods')::text[]) = 0 
+    cardinality(sqlc.narg('methods')::text[]) = 0
     OR method = ANY(sqlc.narg('methods')::text[])
   )
   AND (
-    sqlc.narg('path_pattern') IS NULL 
-    OR sqlc.narg('path_pattern') = '' 
-    OR path LIKE sqlc.narg('path_pattern')
+    sqlc.narg('path_pattern')::text IS NULL
+    OR sqlc.narg('path_pattern')::text = ''
+    OR path LIKE sqlc.narg('path_pattern')::text
   )
-  AND (sqlc.narg('from_date') IS NULL OR created_at >= sqlc.narg('from_date'))
-  AND (sqlc.narg('to_date') IS NULL OR created_at <= sqlc.narg('to_date'))
+  AND (sqlc.narg('from_date')::timestamptz IS NULL OR created_at >= sqlc.narg('from_date')::timestamptz)
+  AND (sqlc.narg('to_date')::timestamptz IS NULL OR created_at <= sqlc.narg('to_date')::timestamptz)
   AND (
-    sqlc.narg('agent_id') IS NULL 
-    OR sqlc.narg('agent_id') = '' 
-    OR agent_id = sqlc.narg('agent_id')
+    sqlc.narg('agent_id')::text IS NULL
+    OR sqlc.narg('agent_id')::text = ''
+    OR agent_id = sqlc.narg('agent_id')::text
   )
   AND (
-    sqlc.narg('has_diff') IS NULL 
+    sqlc.narg('has_diff')::boolean IS NULL
     OR (
-      sqlc.narg('has_diff') = true 
+      sqlc.narg('has_diff')::boolean = true
       AND EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
     )
     OR (
-      sqlc.narg('has_diff') = false 
+      sqlc.narg('has_diff')::boolean = false
       AND NOT EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
     )
   );
