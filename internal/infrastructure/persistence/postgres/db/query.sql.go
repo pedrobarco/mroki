@@ -14,34 +14,33 @@ import (
 const countFilteredRequests = `-- name: CountFilteredRequests :one
 SELECT COUNT(*)
 FROM requests
-WHERE 
+WHERE
   gate_id = $1
   -- Same filters as GetFilteredRequests for consistency
   AND (
-    $2 IS NULL 
-    OR cardinality($2::text[]) = 0 
+    cardinality($2::text[]) = 0
     OR method = ANY($2::text[])
   )
   AND (
-    $3 IS NULL 
-    OR $3 = '' 
-    OR path LIKE $3
+    $3::text IS NULL
+    OR $3::text = ''
+    OR path LIKE $3::text
   )
-  AND ($4 IS NULL OR created_at >= $4)
-  AND ($5 IS NULL OR created_at <= $5)
+  AND ($4::timestamptz IS NULL OR created_at >= $4::timestamptz)
+  AND ($5::timestamptz IS NULL OR created_at <= $5::timestamptz)
   AND (
-    $6 IS NULL 
-    OR $6 = '' 
-    OR agent_id = $6
+    $6::text IS NULL
+    OR $6::text = ''
+    OR agent_id = $6::text
   )
   AND (
-    $7 IS NULL 
+    $7::boolean IS NULL
     OR (
-      $7 = true 
+      $7::boolean = true
       AND EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
     )
     OR (
-      $7 = false 
+      $7::boolean = false
       AND NOT EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
     )
   )
@@ -49,12 +48,12 @@ WHERE
 
 type CountFilteredRequestsParams struct {
 	GateID      pgtype.UUID
-	Methods     interface{}
-	PathPattern interface{}
-	FromDate    interface{}
-	ToDate      interface{}
-	AgentID     interface{}
-	HasDiff     interface{}
+	Methods     []string
+	PathPattern pgtype.Text
+	FromDate    pgtype.Timestamptz
+	ToDate      pgtype.Timestamptz
+	AgentID     pgtype.Text
+	HasDiff     pgtype.Bool
 }
 
 func (q *Queries) CountFilteredRequests(ctx context.Context, arg CountFilteredRequestsParams) (int64, error) {
@@ -119,38 +118,37 @@ func (q *Queries) GetAllGates(ctx context.Context, arg GetAllGatesParams) ([]Gat
 const getFilteredRequests = `-- name: GetFilteredRequests :many
 SELECT id, gate_id, agent_id, method, path, headers, body, created_at
 FROM requests
-WHERE 
+WHERE
   gate_id = $1
-  -- Optional method filter: empty array or NULL = no filter
+  -- Optional method filter: empty array = no filter
   AND (
-    $2 IS NULL 
-    OR cardinality($2::text[]) = 0 
+    cardinality($2::text[]) = 0
     OR method = ANY($2::text[])
   )
   -- Optional path pattern filter: NULL = no filter
   AND (
-    $3 IS NULL 
-    OR $3 = '' 
-    OR path LIKE $3
+    $3::text IS NULL
+    OR $3::text = ''
+    OR path LIKE $3::text
   )
   -- Optional date range filters
-  AND ($4 IS NULL OR created_at >= $4)
-  AND ($5 IS NULL OR created_at <= $5)
+  AND ($4::timestamptz IS NULL OR created_at >= $4::timestamptz)
+  AND ($5::timestamptz IS NULL OR created_at <= $5::timestamptz)
   -- Optional agent ID filter: NULL or empty = no filter
   AND (
-    $6 IS NULL 
-    OR $6 = '' 
-    OR agent_id = $6
+    $6::text IS NULL
+    OR $6::text = ''
+    OR agent_id = $6::text
   )
   -- Optional diff existence filter: NULL = no filter
   AND (
-    $7 IS NULL 
+    $7::boolean IS NULL
     OR (
-      $7 = true 
+      $7::boolean = true
       AND EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
     )
     OR (
-      $7 = false 
+      $7::boolean = false
       AND NOT EXISTS (SELECT 1 FROM diffs d WHERE d.request_id = requests.id)
     )
   )
@@ -180,12 +178,12 @@ OFFSET $10
 
 type GetFilteredRequestsParams struct {
 	GateID      pgtype.UUID
-	Methods     interface{}
-	PathPattern interface{}
-	FromDate    interface{}
-	ToDate      interface{}
-	AgentID     interface{}
-	HasDiff     interface{}
+	Methods     []string
+	PathPattern pgtype.Text
+	FromDate    pgtype.Timestamptz
+	ToDate      pgtype.Timestamptz
+	AgentID     pgtype.Text
+	HasDiff     pgtype.Bool
 	SortOrder   interface{}
 	SortField   interface{}
 	Offset      int32
