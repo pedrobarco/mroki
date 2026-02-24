@@ -43,9 +43,14 @@ export interface Diff {
 }
 
 /**
- * RequestDetail extends Request with responses and diff
+ * RequestDetail represents a request with full response details and diff
+ * Note: This has fewer fields than Request (used in listings)
  */
-export interface RequestDetail extends Request {
+export interface RequestDetail {
+  id: string
+  method: string
+  path: string
+  created_at: string
   responses: Response[]
   diff: Diff
 }
