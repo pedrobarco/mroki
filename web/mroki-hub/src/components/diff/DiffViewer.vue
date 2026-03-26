@@ -137,7 +137,7 @@ const isBinary = computed(() => {
 })
 
 // Check if there are differences
-const hasDifferences = computed(() => {
+const _hasDifferences = computed(() => {
   return props.diffContent && props.diffContent.trim() !== ''
 })
 </script>
@@ -154,8 +154,10 @@ const hasDifferences = computed(() => {
             <span
               class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium"
               :class="{
-                'bg-green-100 text-green-700': liveResponse.status_code >= 200 && liveResponse.status_code < 300,
-                'bg-yellow-100 text-yellow-700': liveResponse.status_code >= 300 && liveResponse.status_code < 400,
+                'bg-green-100 text-green-700':
+                  liveResponse.status_code >= 200 && liveResponse.status_code < 300,
+                'bg-yellow-100 text-yellow-700':
+                  liveResponse.status_code >= 300 && liveResponse.status_code < 400,
                 'bg-red-100 text-red-700': liveResponse.status_code >= 400,
               }"
             >
@@ -173,8 +175,10 @@ const hasDifferences = computed(() => {
             <span
               class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium"
               :class="{
-                'bg-green-100 text-green-700': shadowResponse.status_code >= 200 && shadowResponse.status_code < 300,
-                'bg-yellow-100 text-yellow-700': shadowResponse.status_code >= 300 && shadowResponse.status_code < 400,
+                'bg-green-100 text-green-700':
+                  shadowResponse.status_code >= 200 && shadowResponse.status_code < 300,
+                'bg-yellow-100 text-yellow-700':
+                  shadowResponse.status_code >= 300 && shadowResponse.status_code < 400,
                 'bg-red-100 text-red-700': shadowResponse.status_code >= 400,
               }"
             >
@@ -231,4 +235,3 @@ const hasDifferences = computed(() => {
     </div>
   </div>
 </template>
-

@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getRequest } from '@/api'
-import type { RequestDetail, Response } from '@/api'
+import type { RequestDetail } from '@/api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,12 +20,10 @@ const gateId = computed(() => route.params.id as string)
 const requestId = computed(() => route.params.rid as string)
 
 // Find live and shadow responses
-const liveResponse = computed(() =>
-  request.value?.responses.find((r) => r.type === 'live') || null
-)
+const liveResponse = computed(() => request.value?.responses.find((r) => r.type === 'live') || null)
 
-const shadowResponse = computed(() =>
-  request.value?.responses.find((r) => r.type === 'shadow') || null
+const shadowResponse = computed(
+  () => request.value?.responses.find((r) => r.type === 'shadow') || null
 )
 
 async function loadRequest() {
@@ -59,16 +57,16 @@ onMounted(() => {
   <div class="container mx-auto py-8 space-y-6">
     <!-- Header with Back Button -->
     <div class="flex items-center gap-4">
-      <Button variant="outline" size="sm" @click="goBack">
-        ← Back to Gate
-      </Button>
+      <Button variant="outline" size="sm" @click="goBack"> ← Back to Gate </Button>
       <h1 class="text-3xl font-bold">Request Detail</h1>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-12">
       <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <div
+          class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"
+        ></div>
         <p class="text-muted-foreground">Loading request...</p>
       </div>
     </div>

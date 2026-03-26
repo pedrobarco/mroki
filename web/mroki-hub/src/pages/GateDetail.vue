@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getGate } from '@/api'
 import type { Gate } from '@/api'
 import RequestList from '@/components/requests/RequestList.vue'
+import RequestFilters from '@/components/requests/RequestFilters.vue'
+import type { FilterState } from '@/components/requests/RequestFilters.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +19,18 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 const gateId = computed(() => route.params.id as string)
+
+const filters = reactive<FilterState>({
+  methods: [],
+  path: '',
+  hasDiff: undefined,
+  sort: 'created_at',
+  order: 'desc',
+})
+
+function onFiltersUpdate(newFilters: FilterState) {
+  Object.assign(filters, newFilters)
+}
 
 async function loadGate() {
   loading.value = true
@@ -94,7 +108,10 @@ onMounted(() => {
       <!-- Requests Section -->
       <div>
         <h2 class="text-2xl font-bold mb-4">Captured Requests</h2>
-        <RequestList :gate-id="gateId" />
+        <div class="mb-4">
+          <RequestFilters :model-value="filters" @update:model-value="onFiltersUpdate" />
+        </div>
+        <RequestList :gate-id="gateId" :filters="filters" />
       </div>
     </div>
   </div>

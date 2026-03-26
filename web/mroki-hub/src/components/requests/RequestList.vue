@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getRequests } from '@/api'
 import type { Request } from '@/api'
+import type { FilterState } from '@/components/requests/RequestFilters.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +18,7 @@ import {
 
 interface Props {
   gateId: string
+  filters: FilterState
 }
 
 const props = defineProps<Props>()
@@ -35,6 +37,16 @@ const hasMore = ref(false)
 const currentPage = computed(() => Math.floor(offset.value / limit) + 1)
 const totalPages = computed(() => Math.ceil(total.value / limit))
 
+// Reset pagination and reload when filters change
+watch(
+  () => props.filters,
+  () => {
+    offset.value = 0
+    loadRequests()
+  },
+  { deep: true }
+)
+
 async function loadRequests() {
   loading.value = true
   error.value = null
@@ -43,6 +55,11 @@ async function loadRequests() {
     const response = await getRequests(props.gateId, {
       limit,
       offset: offset.value,
+      method: props.filters.methods.length > 0 ? props.filters.methods : undefined,
+      path: props.filters.path || undefined,
+      has_diff: props.filters.hasDiff,
+      sort: props.filters.sort,
+      order: props.filters.order,
     })
     requests.value = response.data
     total.value = response.pagination.total
@@ -169,12 +186,9 @@ onMounted(() => {
           <span class="flex items-center px-3 text-sm text-muted-foreground">
             Page {{ currentPage }} of {{ totalPages }}
           </span>
-          <Button variant="outline" size="sm" :disabled="!hasMore" @click="nextPage">
-            Next
-          </Button>
+          <Button variant="outline" size="sm" :disabled="!hasMore" @click="nextPage"> Next </Button>
         </div>
       </div>
     </div>
   </div>
 </template>
-
