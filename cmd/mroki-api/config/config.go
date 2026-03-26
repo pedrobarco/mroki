@@ -23,7 +23,7 @@ type Config config.Config[struct {
 		MinConns    int32    `env:"MIN_CONNS, default=5"`
 		MaxConnIdle string   `env:"MAX_CONN_IDLE, default=5m"`
 		MaxConnLife string   `env:"MAX_CONN_LIFE, default=1h"`
-	} `envPrefix:"DATABASE_"`
+	} `env:", prefix=DATABASE_"`
 }]
 
 // Validate checks all configuration values and returns a ValidationError

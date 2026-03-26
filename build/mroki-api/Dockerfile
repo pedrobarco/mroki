@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
@@ -22,6 +22,9 @@ WORKDIR /root/
 
 # Copy the binary from builder
 COPY --from=builder /app/mroki-api .
+
+# Skip .env file loading in container
+ENV APP_ENV=production
 
 # Expose default port
 EXPOSE 8090
