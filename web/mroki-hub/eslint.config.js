@@ -1,4 +1,5 @@
 import js from '@eslint/js'
+import globals from 'globals'
 import pluginVue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
 import prettier from 'eslint-plugin-prettier/recommended'
@@ -12,7 +13,7 @@ export default tseslint.config(
     files: ['**/*.vue'],
     languageOptions: {
       globals: {
-        URL: 'readonly',
+        ...globals.browser,
       },
       parserOptions: {
         parser: tseslint.parser,
@@ -48,6 +49,7 @@ export default tseslint.config(
       // General rules
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-debugger': 'warn',
+      'no-useless-assignment': 'off',
     },
   },
   {

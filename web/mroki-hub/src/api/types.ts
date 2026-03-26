@@ -116,9 +116,24 @@ export interface CreateGatePayload {
 }
 
 /**
+ * Valid sort fields for request listing
+ */
+export type RequestSortField = 'created_at' | 'method' | 'path'
+
+/**
+ * Valid sort directions
+ */
+export type SortOrder = 'asc' | 'desc'
+
+/**
  * Query parameters for listing requests
  */
 export interface ListRequestsParams {
   limit?: number
   offset?: number
+  method?: string[]
+  path?: string
+  has_diff?: boolean
+  sort?: RequestSortField
+  order?: SortOrder
 }
