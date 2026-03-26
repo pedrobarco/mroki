@@ -82,8 +82,8 @@ func (c Config) Validate() error {
 		}
 	}
 
-	// Validate standalone mode configuration
-	if hasStandaloneConfig {
+	// Validate standalone mode configuration (only when not in API mode)
+	if !hasAPIConfig && hasStandaloneConfig {
 		// Validate live URL
 		if c.App.LiveURL.Scheme != "http" && c.App.LiveURL.Scheme != "https" {
 			verr.Add(fmt.Errorf("live_url must use http or https scheme, got %q", c.App.LiveURL.Scheme))

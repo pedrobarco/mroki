@@ -1,6 +1,6 @@
 module github.com/pedrobarco/mroki
 
-go 1.24.5
+go 1.26.1
 
 require (
 	github.com/caddyserver/caddy/v2 v2.10.0
