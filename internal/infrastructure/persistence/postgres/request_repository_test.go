@@ -293,12 +293,12 @@ func TestRequestRepository_GetAllByGateID_success(t *testing.T) {
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM requests WHERE`).
 		WithArgs(
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
-			nil, // methods
-			nil, // path_pattern
-			nil, // from_date
-			nil, // to_date
-			nil, // agent_id
-			nil, // has_diff
+			[]string{},                        // methods (empty slice, not nil)
+			pgtype.Text{Valid: false},          // path_pattern
+			pgtype.Timestamptz{Valid: false},   // from_date
+			pgtype.Timestamptz{Valid: false},   // to_date
+			pgtype.Text{Valid: false},          // agent_id
+			pgtype.Bool{Valid: false},          // has_diff
 		).
 		WillReturnRows(countRows)
 
@@ -331,16 +331,16 @@ func TestRequestRepository_GetAllByGateID_success(t *testing.T) {
 	mock.ExpectQuery(`SELECT id, gate_id, agent_id, method, path, headers, body, created_at FROM requests WHERE`).
 		WithArgs(
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
-			nil,          // methods
-			nil,          // path_pattern
-			nil,          // from_date
-			nil,          // to_date
-			nil,          // agent_id
-			nil,          // has_diff
-			"desc",       // sort_order
-			"created_at", // sort_field
-			int32(0),     // offset
-			int32(50),    // limit
+			[]string{},                        // methods (empty slice, not nil)
+			pgtype.Text{Valid: false},          // path_pattern
+			pgtype.Timestamptz{Valid: false},   // from_date
+			pgtype.Timestamptz{Valid: false},   // to_date
+			pgtype.Text{Valid: false},          // agent_id
+			pgtype.Bool{Valid: false},          // has_diff
+			"desc",                            // sort_order
+			"created_at",                      // sort_field
+			int32(0),                          // offset
+			int32(50),                         // limit
 		).
 		WillReturnRows(rows)
 
@@ -377,12 +377,12 @@ func TestRequestRepository_GetAllByGateID_empty_result(t *testing.T) {
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM requests WHERE`).
 		WithArgs(
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
-			nil, // methods
-			nil, // path_pattern
-			nil, // from_date
-			nil, // to_date
-			nil, // agent_id
-			nil, // has_diff
+			[]string{},                        // methods (empty slice, not nil)
+			pgtype.Text{Valid: false},          // path_pattern
+			pgtype.Timestamptz{Valid: false},   // from_date
+			pgtype.Timestamptz{Valid: false},   // to_date
+			pgtype.Text{Valid: false},          // agent_id
+			pgtype.Bool{Valid: false},          // has_diff
 		).
 		WillReturnRows(countRows)
 
@@ -394,16 +394,16 @@ func TestRequestRepository_GetAllByGateID_empty_result(t *testing.T) {
 	mock.ExpectQuery(`SELECT id, gate_id, agent_id, method, path, headers, body, created_at FROM requests WHERE`).
 		WithArgs(
 			pgtype.UUID{Bytes: gateID.UUID(), Valid: true},
-			nil,          // methods
-			nil,          // path_pattern
-			nil,          // from_date
-			nil,          // to_date
-			nil,          // agent_id
-			nil,          // has_diff
-			"desc",       // sort_order
-			"created_at", // sort_field
-			int32(0),     // offset
-			int32(50),    // limit
+			[]string{},                        // methods (empty slice, not nil)
+			pgtype.Text{Valid: false},          // path_pattern
+			pgtype.Timestamptz{Valid: false},   // from_date
+			pgtype.Timestamptz{Valid: false},   // to_date
+			pgtype.Text{Valid: false},          // agent_id
+			pgtype.Bool{Valid: false},          // has_diff
+			"desc",                            // sort_order
+			"created_at",                      // sort_field
+			int32(0),                          // offset
+			int32(50),                         // limit
 		).
 		WillReturnRows(rows)
 
