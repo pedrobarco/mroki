@@ -10,13 +10,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
 	"github.com/pedrobarco/mroki/internal/application/commands"
-	appqueries "github.com/pedrobarco/mroki/internal/application/queries"
+	"github.com/pedrobarco/mroki/internal/application/queries"
 	"github.com/pedrobarco/mroki/internal/infrastructure/jobs"
-	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/postgres"
-	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/postgres/db"
+	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/ent"
 	"github.com/rs/cors"
 
 	"github.com/pedrobarco/mroki/internal/interfaces/http/handlers"
@@ -27,8 +28,6 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
-
 	cfg := config.Load()
 
 	logger := logger.New()
@@ -37,46 +36,41 @@ func main() {
 	maxConnIdleDuration, _ := time.ParseDuration(cfg.App.Database.MaxConnIdle)
 	maxConnLifeDuration, _ := time.ParseDuration(cfg.App.Database.MaxConnLife)
 
-	// Configure connection pool
-	poolConfig, err := pgxpool.ParseConfig(cfg.App.Database.URL.String())
+	// Open database connection via pgx stdlib driver
+	db, err := sql.Open("pgx", cfg.App.Database.URL.String())
 	if err != nil {
-		panic(fmt.Errorf("failed to parse database URL: %w", err))
+		panic(fmt.Errorf("failed to open database connection: %w", err))
 	}
+	db.SetMaxOpenConns(int(cfg.App.Database.MaxConns))
+	db.SetMaxIdleConns(int(cfg.App.Database.MinConns))
+	db.SetConnMaxIdleTime(maxConnIdleDuration)
+	db.SetConnMaxLifetime(maxConnLifeDuration)
 
-	poolConfig.MaxConns = cfg.App.Database.MaxConns
-	poolConfig.MinConns = cfg.App.Database.MinConns
-	poolConfig.MaxConnIdleTime = maxConnIdleDuration
-	poolConfig.MaxConnLifetime = maxConnLifeDuration
+	// Create Ent client from the sql.DB connection
+	client := ent.NewPostgresClient(db)
 
-	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
-	if err != nil {
-		panic(fmt.Errorf("failed to create connection pool: %w", err))
-	}
-
-	// Ensure pool is closed if initialization fails
-	var poolClosed bool
+	// Ensure client is closed if initialization fails
+	var clientClosed bool
 	defer func() {
-		if !poolClosed && pool != nil {
-			pool.Close()
-			logger.Info("Database connection pool closed (cleanup)")
+		if !clientClosed && client != nil {
+			_ = client.Close()
+			logger.Info("Database connection closed (cleanup)")
 		}
 	}()
 
-	queries := db.New(pool)
-
 	// Infrastructure Layer: Repository implementations
-	gateRepo := postgres.NewGateRepository(queries)
-	reqRepo := postgres.NewRequestRepository(queries, pool)
+	gateRepo := ent.NewGateRepository(client)
+	reqRepo := ent.NewRequestRepository(client)
 
 	// Application Layer: Command Handlers (Write operations)
 	createGateHandler := commands.NewCreateGateHandler(gateRepo)
 	createRequestHandler := commands.NewCreateRequestHandler(reqRepo)
 
 	// Application Layer: Query Handlers (Read operations)
-	getGateHandler := appqueries.NewGetGateHandler(gateRepo)
-	listGatesHandler := appqueries.NewListGatesHandler(gateRepo)
-	getRequestHandler := appqueries.NewGetRequestHandler(reqRepo)
-	listRequestsHandler := appqueries.NewListRequestsHandler(reqRepo)
+	getGateHandler := queries.NewGetGateHandler(gateRepo)
+	listGatesHandler := queries.NewListGatesHandler(gateRepo)
+	getRequestHandler := queries.NewGetRequestHandler(reqRepo)
+	listRequestsHandler := queries.NewListRequestsHandler(reqRepo)
 
 	// Auth error handler maps middleware errors to dto errors
 	handleAuthError := func(w http.ResponseWriter, r *http.Request, err error) {
@@ -160,7 +154,7 @@ func main() {
 
 	// Health check endpoints (no middleware to avoid logging noise)
 	mux.Handle("GET /health/live", handlers.Liveness())
-	mux.Handle("GET /health/ready", handlers.Readiness(pool))
+	mux.Handle("GET /health/ready", handlers.Readiness(healthChecker{db: db}))
 
 	// API endpoints (with middleware)
 	mux.Handle("GET /gates", baseChain.Then(getAllGates))
@@ -222,10 +216,19 @@ func main() {
 		logger.Info("Server stopped")
 	}
 
-	// Close database pool
-	if pool != nil {
-		pool.Close()
-		poolClosed = true
-		logger.Info("Database connection pool closed")
+	// Close database connection
+	if client != nil {
+		_ = client.Close()
+		clientClosed = true
+		logger.Info("Database connection closed")
 	}
+}
+
+// healthChecker wraps *sql.DB to implement the handlers.HealthChecker interface.
+type healthChecker struct {
+	db *sql.DB
+}
+
+func (h healthChecker) Ping(ctx context.Context) error {
+	return h.db.PingContext(ctx)
 }
