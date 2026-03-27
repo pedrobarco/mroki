@@ -135,11 +135,6 @@ const language = computed(() => {
 const isBinary = computed(() => {
   return liveFormatted.value.isBinary || shadowFormatted.value.isBinary
 })
-
-// Check if there are differences
-const _hasDifferences = computed(() => {
-  return props.diffContent && props.diffContent.trim() !== ''
-})
 </script>
 
 <template>

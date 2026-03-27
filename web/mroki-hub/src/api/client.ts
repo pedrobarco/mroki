@@ -69,7 +69,7 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
       throw error
     }
 
-    // Wrap other errors with cause
+    // Wrap other errors
     if (error instanceof Error) {
       throw new Error(`API request failed: ${error.message}`, { cause: error })
     }

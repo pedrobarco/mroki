@@ -20,6 +20,7 @@ repos:
         args: [--allow-multiple-documents]
         stages: [pre-commit]
       - id: check-json
+        exclude: tsconfig.*\.json$
         stages: [pre-commit]
 
   - repo: https://github.com/commitizen-tools/commitizen

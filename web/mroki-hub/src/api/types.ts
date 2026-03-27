@@ -99,9 +99,12 @@ export interface ApiError {
  * Custom error class for API errors
  */
 export class ApiErrorException extends Error {
-  constructor(public error: ApiError) {
+  error: ApiError
+
+  constructor(error: ApiError) {
     super(error.detail)
     this.name = 'ApiErrorException'
+    this.error = error
   }
 }
 
