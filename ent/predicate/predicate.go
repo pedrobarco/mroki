@@ -6,7 +6,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// Diff is the predicate function for diff builders.
+// Diff is the predicate function for entdiff builders.
 type Diff func(*sql.Selector)
 
 // Gate is the predicate function for gate builders.

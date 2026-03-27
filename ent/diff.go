@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,9 +11,10 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
+	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 // Diff is the model entity for the Diff schema.
@@ -27,7 +29,7 @@ type Diff struct {
 	// ToResponseID holds the value of the "to_response_id" field.
 	ToResponseID uuid.UUID `json:"to_response_id,omitempty"`
 	// Content holds the value of the "content" field.
-	Content string `json:"content,omitempty"`
+	Content []diff.PatchOp `json:"content,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -87,11 +89,11 @@ func (*Diff) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case diff.FieldContent:
-			values[i] = new(sql.NullString)
-		case diff.FieldCreatedAt:
+		case entdiff.FieldContent:
+			values[i] = new([]byte)
+		case entdiff.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
-		case diff.FieldID, diff.FieldRequestID, diff.FieldFromResponseID, diff.FieldToResponseID:
+		case entdiff.FieldID, entdiff.FieldRequestID, entdiff.FieldFromResponseID, entdiff.FieldToResponseID:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -108,37 +110,39 @@ func (_m *Diff) assignValues(columns []string, values []any) error {
 	}
 	for i := range columns {
 		switch columns[i] {
-		case diff.FieldID:
+		case entdiff.FieldID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
 			} else if value != nil {
 				_m.ID = *value
 			}
-		case diff.FieldRequestID:
+		case entdiff.FieldRequestID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field request_id", values[i])
 			} else if value != nil {
 				_m.RequestID = *value
 			}
-		case diff.FieldFromResponseID:
+		case entdiff.FieldFromResponseID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field from_response_id", values[i])
 			} else if value != nil {
 				_m.FromResponseID = *value
 			}
-		case diff.FieldToResponseID:
+		case entdiff.FieldToResponseID:
 			if value, ok := values[i].(*uuid.UUID); !ok {
 				return fmt.Errorf("unexpected type %T for field to_response_id", values[i])
 			} else if value != nil {
 				_m.ToResponseID = *value
 			}
-		case diff.FieldContent:
-			if value, ok := values[i].(*sql.NullString); !ok {
+		case entdiff.FieldContent:
+			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field content", values[i])
-			} else if value.Valid {
-				_m.Content = value.String
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Content); err != nil {
+					return fmt.Errorf("unmarshal field content: %w", err)
+				}
 			}
-		case diff.FieldCreatedAt:
+		case entdiff.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
@@ -205,7 +209,7 @@ func (_m *Diff) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.ToResponseID))
 	builder.WriteString(", ")
 	builder.WriteString("content=")
-	builder.WriteString(_m.Content)
+	builder.WriteString(fmt.Sprintf("%v", _m.Content))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

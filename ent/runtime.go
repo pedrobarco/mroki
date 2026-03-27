@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/gate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
@@ -17,16 +17,16 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
-	diffFields := schema.Diff{}.Fields()
-	_ = diffFields
-	// diffDescCreatedAt is the schema descriptor for created_at field.
-	diffDescCreatedAt := diffFields[5].Descriptor()
-	// diff.DefaultCreatedAt holds the default value on creation for the created_at field.
-	diff.DefaultCreatedAt = diffDescCreatedAt.Default.(func() time.Time)
-	// diffDescID is the schema descriptor for id field.
-	diffDescID := diffFields[0].Descriptor()
-	// diff.DefaultID holds the default value on creation for the id field.
-	diff.DefaultID = diffDescID.Default.(func() uuid.UUID)
+	entdiffFields := schema.Diff{}.Fields()
+	_ = entdiffFields
+	// entdiffDescCreatedAt is the schema descriptor for created_at field.
+	entdiffDescCreatedAt := entdiffFields[5].Descriptor()
+	// entdiff.DefaultCreatedAt holds the default value on creation for the created_at field.
+	entdiff.DefaultCreatedAt = entdiffDescCreatedAt.Default.(func() time.Time)
+	// entdiffDescID is the schema descriptor for id field.
+	entdiffDescID := entdiffFields[0].Descriptor()
+	// entdiff.DefaultID holds the default value on creation for the id field.
+	entdiff.DefaultID = entdiffDescID.Default.(func() uuid.UUID)
 	gateFields := schema.Gate{}.Fields()
 	_ = gateFields
 	// gateDescLiveURL is the schema descriptor for live_url field.

@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/gate"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
@@ -375,7 +375,7 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{request.DiffColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -388,7 +388,7 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{request.DiffColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -789,7 +789,7 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 			Columns: []string{request.DiffColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -802,7 +802,7 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 			Columns: []string{request.DiffColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

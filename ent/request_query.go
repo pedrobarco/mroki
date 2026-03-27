@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/gate"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
@@ -123,7 +123,7 @@ func (_q *RequestQuery) QueryDiff() *DiffQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(request.Table, request.FieldID, selector),
-			sqlgraph.To(diff.Table, diff.FieldID),
+			sqlgraph.To(entdiff.Table, entdiff.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, request.DiffTable, request.DiffColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
@@ -557,7 +557,7 @@ func (_q *RequestQuery) loadDiff(ctx context.Context, query *DiffQuery, nodes []
 		nodeids[nodes[i].ID] = nodes[i]
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(diff.FieldRequestID)
+		query.ctx.AppendFieldOnce(entdiff.FieldRequestID)
 	}
 	query.Where(predicate.Diff(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(request.DiffColumn), fks...))

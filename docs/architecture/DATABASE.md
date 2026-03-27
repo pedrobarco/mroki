@@ -316,11 +316,10 @@ ORDER BY created_at DESC;
 
 ### Current State (v1)
 
-Schema is applied automatically on startup by mroki-api. No migration tool yet.
+Schema is applied automatically on startup by mroki-api via ent's auto-migration.
 
-**Schema File:** `internal/infrastructure/persistence/postgres/schema.sql`
-**Query File:** `internal/infrastructure/persistence/postgres/query.sql`
-**Generated Code:** `internal/infrastructure/persistence/postgres/db/` (via sqlc)
+**Schema Directory:** `ent/schema/`
+**Generated Code:** `ent/` (via `go generate ./ent/...`)
 
 ### Future (v2+)
 
@@ -458,13 +457,10 @@ Partition `requests` table by `created_at` for efficient archival.
 
 The definitive schema is maintained in:
 
-**Schema File:** `internal/infrastructure/persistence/postgres/schema.sql`
-**Query File:** `internal/infrastructure/persistence/postgres/query.sql`
-**Generated Code:** `internal/infrastructure/persistence/postgres/db/` (via sqlc)
+**Schema Directory:** `ent/schema/`
+**Generated Code:** `ent/` (via `go generate ./ent/...`)
 
-**Applied by:** mroki-api on startup
-
-**Query generation:** sqlc generates type-safe queries from `query.sql`
+**Applied by:** mroki-api on startup via ent auto-migration
 
 ---
 

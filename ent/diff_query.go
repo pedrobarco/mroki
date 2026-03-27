@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
@@ -22,7 +22,7 @@ import (
 type DiffQuery struct {
 	config
 	ctx              *QueryContext
-	order            []diff.OrderOption
+	order            []entdiff.OrderOption
 	inters           []Interceptor
 	predicates       []predicate.Diff
 	withRequest      *RequestQuery
@@ -59,7 +59,7 @@ func (_q *DiffQuery) Unique(unique bool) *DiffQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (_q *DiffQuery) Order(o ...diff.OrderOption) *DiffQuery {
+func (_q *DiffQuery) Order(o ...entdiff.OrderOption) *DiffQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
@@ -76,9 +76,9 @@ func (_q *DiffQuery) QueryRequest() *RequestQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(diff.Table, diff.FieldID, selector),
+			sqlgraph.From(entdiff.Table, entdiff.FieldID, selector),
 			sqlgraph.To(request.Table, request.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, diff.RequestTable, diff.RequestColumn),
+			sqlgraph.Edge(sqlgraph.O2O, true, entdiff.RequestTable, entdiff.RequestColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -98,9 +98,9 @@ func (_q *DiffQuery) QueryFromResponse() *ResponseQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(diff.Table, diff.FieldID, selector),
+			sqlgraph.From(entdiff.Table, entdiff.FieldID, selector),
 			sqlgraph.To(response.Table, response.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, diff.FromResponseTable, diff.FromResponseColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, entdiff.FromResponseTable, entdiff.FromResponseColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -120,9 +120,9 @@ func (_q *DiffQuery) QueryToResponse() *ResponseQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(diff.Table, diff.FieldID, selector),
+			sqlgraph.From(entdiff.Table, entdiff.FieldID, selector),
 			sqlgraph.To(response.Table, response.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, diff.ToResponseTable, diff.ToResponseColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, entdiff.ToResponseTable, entdiff.ToResponseColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -138,7 +138,7 @@ func (_q *DiffQuery) First(ctx context.Context) (*Diff, error) {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{diff.Label}
+		return nil, &NotFoundError{entdiff.Label}
 	}
 	return nodes[0], nil
 }
@@ -160,7 +160,7 @@ func (_q *DiffQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{diff.Label}
+		err = &NotFoundError{entdiff.Label}
 		return
 	}
 	return ids[0], nil
@@ -187,9 +187,9 @@ func (_q *DiffQuery) Only(ctx context.Context) (*Diff, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{diff.Label}
+		return nil, &NotFoundError{entdiff.Label}
 	default:
-		return nil, &NotSingularError{diff.Label}
+		return nil, &NotSingularError{entdiff.Label}
 	}
 }
 
@@ -214,9 +214,9 @@ func (_q *DiffQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{diff.Label}
+		err = &NotFoundError{entdiff.Label}
 	default:
-		err = &NotSingularError{diff.Label}
+		err = &NotSingularError{entdiff.Label}
 	}
 	return
 }
@@ -255,7 +255,7 @@ func (_q *DiffQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(diff.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(entdiff.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -319,7 +319,7 @@ func (_q *DiffQuery) Clone() *DiffQuery {
 	return &DiffQuery{
 		config:           _q.config,
 		ctx:              _q.ctx.Clone(),
-		order:            append([]diff.OrderOption{}, _q.order...),
+		order:            append([]entdiff.OrderOption{}, _q.order...),
 		inters:           append([]Interceptor{}, _q.inters...),
 		predicates:       append([]predicate.Diff{}, _q.predicates...),
 		withRequest:      _q.withRequest.Clone(),
@@ -375,14 +375,14 @@ func (_q *DiffQuery) WithToResponse(opts ...func(*ResponseQuery)) *DiffQuery {
 //	}
 //
 //	client.Diff.Query().
-//		GroupBy(diff.FieldRequestID).
+//		GroupBy(entdiff.FieldRequestID).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *DiffQuery) GroupBy(field string, fields ...string) *DiffGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
 	grbuild := &DiffGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = diff.Label
+	grbuild.label = entdiff.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -397,12 +397,12 @@ func (_q *DiffQuery) GroupBy(field string, fields ...string) *DiffGroupBy {
 //	}
 //
 //	client.Diff.Query().
-//		Select(diff.FieldRequestID).
+//		Select(entdiff.FieldRequestID).
 //		Scan(ctx, &v)
 func (_q *DiffQuery) Select(fields ...string) *DiffSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
 	sbuild := &DiffSelect{DiffQuery: _q}
-	sbuild.label = diff.Label
+	sbuild.label = entdiff.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
@@ -424,7 +424,7 @@ func (_q *DiffQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !diff.ValidColumn(f) {
+		if !entdiff.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -585,7 +585,7 @@ func (_q *DiffQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (_q *DiffQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(diff.Table, diff.Columns, sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID))
+	_spec := sqlgraph.NewQuerySpec(entdiff.Table, entdiff.Columns, sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -594,20 +594,20 @@ func (_q *DiffQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, diff.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, entdiff.FieldID)
 		for i := range fields {
-			if fields[i] != diff.FieldID {
+			if fields[i] != entdiff.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
 		if _q.withRequest != nil {
-			_spec.Node.AddColumnOnce(diff.FieldRequestID)
+			_spec.Node.AddColumnOnce(entdiff.FieldRequestID)
 		}
 		if _q.withFromResponse != nil {
-			_spec.Node.AddColumnOnce(diff.FieldFromResponseID)
+			_spec.Node.AddColumnOnce(entdiff.FieldFromResponseID)
 		}
 		if _q.withToResponse != nil {
-			_spec.Node.AddColumnOnce(diff.FieldToResponseID)
+			_spec.Node.AddColumnOnce(entdiff.FieldToResponseID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -635,10 +635,10 @@ func (_q *DiffQuery) querySpec() *sqlgraph.QuerySpec {
 
 func (_q *DiffQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(diff.Table)
+	t1 := builder.Table(entdiff.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = diff.Columns
+		columns = entdiff.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {

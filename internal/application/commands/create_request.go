@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
+	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 // CreateRequestCommand represents the intent to create a new request with responses and diff
@@ -35,7 +36,7 @@ type CreateRequestResponseProps struct {
 
 // CreateRequestDiffProps represents diff data in the command
 type CreateRequestDiffProps struct {
-	Content string
+	Content []diff.PatchOp
 }
 
 // CreateRequestHandler handles the CreateRequest command

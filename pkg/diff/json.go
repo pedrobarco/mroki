@@ -7,41 +7,37 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// JSON compares two JSON strings with configurable options.
-// It supports field filtering (whitelist/blacklist), array sorting, and float tolerance.
+// JSON compares two JSON strings with configurable options and returns
+// a list of RFC 6902 JSON Patch operations describing the differences.
 //
 // The comparison process:
 // 1. Normalize JSON (filter fields based on options)
 // 2. Parse normalized JSON into Go values
-// 3. Compare using go-cmp with custom reporter for clean output
-// 4. Return human-readable diff string without Go type annotations
-//
-// Returns empty string if inputs are equal, or a clean diff string describing differences.
-// The output format is readable and doesn't include Go-specific type annotations like
-// float64(), string(), or map[string]any.
+// 3. Compare using go-cmp with a patch reporter
+// 4. Return []PatchOp (empty slice if inputs are equal)
 //
 // Example usage:
 //
 //	// No filtering (compare everything)
-//	diff, err := diff.JSON(a, b)
+//	ops, err := diff.JSON(a, b)
 //
 //	// Ignore timestamp fields (blacklist)
-//	diff, err := diff.JSON(a, b,
+//	ops, err := diff.JSON(a, b,
 //	    diff.WithIgnoredFields("timestamp", "users.#.created_at"),
 //	)
 //
 //	// Only compare specific fields (whitelist - faster)
-//	diff, err := diff.JSON(a, b,
+//	ops, err := diff.JSON(a, b,
 //	    diff.WithIncludedFields("name", "email"),
 //	)
 //
 //	// Hybrid: include + exclude (with multiple options)
-//	diff, err := diff.JSON(a, b,
+//	ops, err := diff.JSON(a, b,
 //	    diff.WithIncludedFields("user", "metadata"),
 //	    diff.WithIgnoredFields("user.ssn", "metadata.internal_id"),
 //	    diff.WithSortArrays(),
 //	)
-func JSON(a, b string, opts ...Option) (string, error) {
+func JSON(a, b string, opts ...Option) ([]PatchOp, error) {
 	// Build options from functional options
 	cfg := &options{}
 	for _, opt := range opts {
@@ -53,10 +49,10 @@ func JSON(a, b string, opts ...Option) (string, error) {
 
 	// Validate JSON first
 	if !gjson.ValidBytes(aBytes) {
-		return "", fmt.Errorf("invalid JSON in first input")
+		return nil, fmt.Errorf("invalid JSON in first input")
 	}
 	if !gjson.ValidBytes(bBytes) {
-		return "", fmt.Errorf("invalid JSON in second input")
+		return nil, fmt.Errorf("invalid JSON in second input")
 	}
 
 	// Step 1: Normalize (filter fields)
@@ -64,29 +60,33 @@ func JSON(a, b string, opts ...Option) (string, error) {
 
 	normalizedA, err := normalizer.NormalizeBytes(aBytes)
 	if err != nil {
-		return "", fmt.Errorf("failed to normalize first input: %w", err)
+		return nil, fmt.Errorf("failed to normalize first input: %w", err)
 	}
 
 	normalizedB, err := normalizer.NormalizeBytes(bBytes)
 	if err != nil {
-		return "", fmt.Errorf("failed to normalize second input: %w", err)
+		return nil, fmt.Errorf("failed to normalize second input: %w", err)
 	}
 
 	// Step 2: Parse JSON into Go values
 	resultA := gjson.ParseBytes(normalizedA)
 	if !resultA.IsObject() && !resultA.IsArray() {
-		return "", fmt.Errorf("invalid JSON structure in first input: expected object or array")
+		return nil, fmt.Errorf("invalid JSON structure in first input: expected object or array")
 	}
 
 	resultB := gjson.ParseBytes(normalizedB)
 	if !resultB.IsObject() && !resultB.IsArray() {
-		return "", fmt.Errorf("invalid JSON structure in second input: expected object or array")
+		return nil, fmt.Errorf("invalid JSON structure in second input: expected object or array")
 	}
 
-	// Step 3: Compare using go-cmp with custom reporter for clean output
-	reporter := &cleanReporter{}
+	// Step 3: Compare using go-cmp with patch reporter
+	reporter := &patchReporter{}
 	cmpOpts := append(cfg.toCmpOptions(), cmp.Reporter(reporter))
 	cmp.Equal(resultA.Value(), resultB.Value(), cmpOpts...)
 
-	return reporter.String(), nil
+	ops := reporter.Ops()
+	if ops == nil {
+		ops = []PatchOp{}
+	}
+	return ops, nil
 }

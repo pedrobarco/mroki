@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
 )
@@ -251,7 +251,7 @@ func (_c *ResponseCreate) createSpec() (*Response, *sqlgraph.CreateSpec) {
 			Columns: []string{response.DiffsFromColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -267,7 +267,7 @@ func (_c *ResponseCreate) createSpec() (*Response, *sqlgraph.CreateSpec) {
 			Columns: []string{response.DiffsToColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

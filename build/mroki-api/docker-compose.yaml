@@ -7,8 +7,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ../../internal/infrastructure/persistence/postgres/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - ./seed.sql:/docker-entrypoint-initdb.d/01-seed.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s

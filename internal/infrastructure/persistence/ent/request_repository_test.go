@@ -12,6 +12,7 @@ import (
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/ent"
+	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +54,7 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 		Diff: traffictesting.Diff{
 			FromResponseID: liveRespID,
 			ToResponseID:   shadowRespID,
-			Content:        "no differences",
+			Content:        []diff.PatchOp{},
 			CreatedAt:      time.Now(),
 		},
 	}

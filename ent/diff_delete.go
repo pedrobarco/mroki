@@ -8,8 +8,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/predicate"
+
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 )
 
 // DiffDelete is the builder for deleting a Diff entity.
@@ -40,7 +41,7 @@ func (_d *DiffDelete) ExecX(ctx context.Context) int {
 }
 
 func (_d *DiffDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(diff.Table, sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID))
+	_spec := sqlgraph.NewDeleteSpec(entdiff.Table, sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID))
 	if ps := _d.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -74,7 +75,7 @@ func (_d *DiffDeleteOne) Exec(ctx context.Context) error {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{diff.Label}
+		return &NotFoundError{entdiff.Label}
 	default:
 		return nil
 	}

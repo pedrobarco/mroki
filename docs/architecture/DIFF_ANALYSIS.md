@@ -1,0 +1,120 @@
+# Diff Entity Analysis
+
+Analysis of the domain and persistence layers for the "diff" entity in mroki-hub.
+
+## 1. Semantic Role
+
+A **diff** in mroki-hub is a **delta-based comparison record** used for **shadow traffic testing**. It captures the computed difference between two HTTP responses: one from the **live** production service and one from the **shadow** (canary/candidate) service.
+
+The system operates as a traffic mirroring platform: `mroki-agent` proxies incoming requests to both live and shadow backends, computes a JSON diff of the two responses on the agent side, and then persists the entire capture (request + both responses + diff) to `mroki-api` for retrospective analysis in the `mroki-hub` dashboard.
+
+The diff is **not** used for state versioning or audit logging. It serves a purely **observational/analytical** function — answering the question: *"For this request, how did the shadow's response differ from the live's response?"*
+
+## 2. Persistence Layer Data Model
+
+The schema is defined via the **ent** ORM framework in `ent/schema/diff.go`.
+
+**Table: `diffs`**
+
+| Column | Type | Constraints |
+|---|---|---|
+| `id` | UUID | PK, immutable, auto-generated |
+| `request_id` | UUID | Unique, FK → `requests.id` |
+| `from_response_id` | UUID | Not null (no FK constraint) |
+| `to_response_id` | UUID | Not null (no FK constraint) |
+| `content` | TEXT (string) | Not null |
+
+**Key observations:**
+
+- **1:1 relationship with Request**: Enforced by the `Unique()` constraint on `request_id` and the ent edge definition. Each request has at most one diff.
+- **No formal FK on response IDs**: `from_response_id` and `to_response_id` reference the `responses` table by UUID, but are **not** declared as ent edges — they are plain UUID fields. No referential integrity enforcement or cascade behavior at the database level.
+- **Content is an opaque `TEXT` blob**: The diff content is stored as a plain Go string — the output of `go-cmp`'s custom `cleanReporter`, producing a proprietary human-readable format. This is neither a standard patch format (RFC 6902 JSON Patch, RFC 7396 JSON Merge Patch, unified diff) nor structured/queryable data.
+
+## 3. Domain Model Representation
+
+The domain model lives at `internal/domain/traffictesting/diff.go`.
+
+**Mapping analysis** (via `mapDiffToDomain` in `internal/infrastructure/persistence/ent/mapper.go`):
+
+- **The domain model is a simple Value Object** — it has no identity (`ID` is not carried into the domain), no behavior beyond `IsZero()`, and no validation logic. The `NewDiff()` constructor accepts any content string without validation, always returning `nil` error.
+- **The mapping is trivially thin** — a near 1:1 projection with no transformation, which is efficient but reveals the domain model adds very little encapsulation over the persistence model.
+- **Diff is embedded in Request as a field, not a separate aggregate** — this correctly models the lifecycle dependency (a diff cannot exist without a request).
+- **The `ID` field is dropped during domain mapping** — the persistence entity has an `id` column, but the domain `Diff` struct has no `ID` field. The diff is always accessed through its parent request.
+
+## 4. Diff Workflow
+
+### Full lifecycle
+
+```
+┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  mroki-agent │     │  pkg/proxy   │     │  pkg/diff    │     │  mroki-api   │
+│  (proxy)     │────▶│  Diff()      │────▶│  JSON()      │────▶│  Save()      │
+└─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+```
+
+**Step-by-step:**
+
+1. **Generation** (agent-side, `pkg/proxy/proxy.go`): After both live and shadow responses return, `proxyResponseDiffer.Diff()` marshals headers to JSON, constructs synthetic JSON documents, and calls `diff.JSON()`. Only JSON responses are diffed; non-JSON content is silently skipped.
+2. **Transmission** (agent → API, `pkg/client/converter.go`): The diff content string is placed into `dto.DiffPayload` and sent as part of `CreateRequestPayload` via HTTP POST.
+3. **Persistence** (API-side, `internal/infrastructure/persistence/ent/request_repository.go`): The entire request+responses+diff is saved in a single database transaction. `saveDiff()` checks `IsZero()` and skips if no diff exists.
+4. **Retrieval** (API-side): Diffs are always eager-loaded with their parent request via `WithDiff()`. A `has_diff` filter exists in `RequestFilters`.
+
+### Potential bottlenecks
+
+| Issue | Impact | Severity |
+|---|---|---|
+| Content stored as unbounded TEXT | Large JSON responses produce large diff strings; no size limit | Medium |
+| Non-standard, non-queryable diff format | Cannot filter/aggregate by changed fields at the DB level | Medium |
+| Body embedded in synthetic JSON | Diff wraps full response body into a JSON envelope, inflating content | Medium |
+| No indexing on response ID columns | Future joins/lookups by response ID would table-scan | Low |
+
+
+## 5. Recommendations
+
+### 5.1 Improve Relational Integrity (High Priority)
+
+`from_response_id` and `to_response_id` are plain UUID fields with no ent edges — no FK constraints, no cascade deletes, and no eager-loading. Define proper ent edges from `Diff` to `Response` to add FK constraints, enable eager-loading, and ensure cascade behavior.
+
+### 5.2 Adopt a Structured, Standard Diff Format (High Priority)
+
+The `cleanReporter` output is a proprietary human-readable format that is not machine-parseable, not queryable, and not interoperable. Store diffs in **RFC 6902 JSON Patch** format instead:
+
+```json
+[
+  {"op": "replace", "path": "/statusCode", "value": 500},
+  {"op": "replace", "path": "/body/user/name", "value": "Bob"}
+]
+```
+
+**Benefits:** Queryable with PostgreSQL JSONB (e.g., `WHERE content @> '[{"path": "/statusCode"}]'`), applicable (patches can reconstruct responses), and interoperable (RFC 6902 is widely supported). Change `content` from `field.String` to `field.JSON` (JSONB in PostgreSQL).
+
+### 5.3 Enrich the Domain Model (Medium Priority)
+
+The domain `Diff` is an anemic value object with no validation and a constructor that never fails. Add semantic richness with a structured `DiffOp` type and domain behavior methods like `HasChanges()`, `ChangedPaths()`, `HasStatusCodeChange()`, and `Summary()`.
+
+### 5.4 Bound and Optimize Content Storage (Medium Priority)
+
+No size limit on diff content; large response bodies produce large diff strings in unbounded TEXT.
+
+- Truncate or cap diff content at a configurable maximum (e.g., 64KB) with a `truncated` boolean flag.
+- Add a `change_count` integer column for lightweight filtering/aggregation without parsing the content blob.
+- Consider compression (zstd/gzip) for large diffs before storage.
+
+### 5.5 Add `created_at` Timestamp to Diff (Low Priority)
+
+The diff entity has no timestamp. Add a `created_at` field for operational debugging, stale-diff detection, and independent lifecycle tracking.
+
+### 5.6 Consider Async Diff Computation (Low Priority)
+
+Currently the diff is computed synchronously within the proxy callback goroutine. For high-throughput deployments, consider an async pipeline: agent sends raw captures without a diff, and a background worker computes diffs afterward. This decouples proxy latency from diff complexity but adds architectural overhead.
+
+## Summary
+
+| Area | Current State | Recommendation | Priority |
+|---|---|---|---|
+| Referential integrity | `from/to_response_id` are plain UUIDs | Add ent edges with FK constraints | High |
+| Content format | Proprietary text via `cleanReporter` | RFC 6902 JSON Patch in JSONB column | High |
+| Domain model | Anemic value object, no validation | Structured `DiffOp` list, domain behavior | Medium |
+| Storage bounds | Unbounded TEXT, no size limit | Cap content size, add `change_count` column | Medium |
+| Temporal metadata | No timestamp on diff | Add `created_at` field | Low |
+| Computation architecture | Synchronous on agent | Consider async worker pipeline at scale | Low |

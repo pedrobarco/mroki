@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pedrobarco/mroki/pkg/diff"
+	pkgdiff "github.com/pedrobarco/mroki/pkg/diff"
 )
 
 var (
@@ -30,8 +30,8 @@ type ProxyRequest struct {
 
 // DiffResult contains the result of comparing live and shadow responses
 type DiffResult struct {
-	Content string // The diff output (empty if responses match or not JSON)
-	Error   error  // Error from diffing, if any
+	Ops   []pkgdiff.PatchOp // RFC 6902 patch operations (empty if responses match or not JSON)
+	Error error          // Error from diffing, if any
 }
 
 type CallbackFunc func(req ProxyRequest, live, shadow ProxyResponse, diff DiffResult) error
@@ -80,7 +80,7 @@ func WithShouldProxyToShadow(checks ...CheckFunc) Option {
 
 // WithDiffOptions configures the differ with custom options
 // If not called, a default differ with no options is used
-func WithDiffOptions(opts ...diff.Option) Option {
+func WithDiffOptions(opts ...pkgdiff.Option) Option {
 	return func(p *Proxy) {
 		p.differ = NewProxyResponseDiffer(opts...)
 	}
@@ -326,10 +326,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			// Check if both responses are JSON
 			if isJSONContent(live.Response) && isJSONContent(shadow.Response) {
-				content, err := p.differ.Diff(live, shadow)
+				ops, err := p.differ.Diff(live, shadow)
 				diffResult = DiffResult{
-					Content: content,
-					Error:   err,
+					Ops:   ops,
+					Error: err,
 				}
 			} else {
 				// Skip diffing for non-JSON, log it
@@ -430,16 +430,17 @@ func defaultCallbackFn() CallbackFunc {
 		}
 
 		// Log diff result
-		if diff.Content != "" {
+		if len(diff.Ops) > 0 {
 			logger.Info("response diff detected",
 				slog.String("method", req.Method),
 				slog.String("path", req.Path),
 				slog.Int("live_status", live.StatusCode),
 				slog.Int("shadow_status", shadow.StatusCode),
+				slog.Int("changes", len(diff.Ops)),
 			)
-			// Print the diff content in human-readable format
+			// Print the diff in human-readable format
 			fmt.Println("Diff:")
-			fmt.Println(diff.Content)
+			fmt.Print(pkgdiff.FormatOps(diff.Ops))
 		} else {
 			logger.Debug("responses match",
 				slog.String("method", req.Method),

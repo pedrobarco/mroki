@@ -16,7 +16,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/gate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
@@ -239,13 +239,13 @@ func NewDiffClient(c config) *DiffClient {
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `diff.Hooks(f(g(h())))`.
+// A call to `Use(f, g, h)` equals to `entdiff.Hooks(f(g(h())))`.
 func (c *DiffClient) Use(hooks ...Hook) {
 	c.hooks.Diff = append(c.hooks.Diff, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `diff.Intercept(f(g(h())))`.
+// A call to `Intercept(f, g, h)` equals to `entdiff.Intercept(f(g(h())))`.
 func (c *DiffClient) Intercept(interceptors ...Interceptor) {
 	c.inters.Diff = append(c.inters.Diff, interceptors...)
 }
@@ -307,7 +307,7 @@ func (c *DiffClient) DeleteOne(_m *Diff) *DiffDeleteOne {
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
 func (c *DiffClient) DeleteOneID(id uuid.UUID) *DiffDeleteOne {
-	builder := c.Delete().Where(diff.ID(id))
+	builder := c.Delete().Where(entdiff.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
 	return &DiffDeleteOne{builder}
@@ -324,7 +324,7 @@ func (c *DiffClient) Query() *DiffQuery {
 
 // Get returns a Diff entity by its id.
 func (c *DiffClient) Get(ctx context.Context, id uuid.UUID) (*Diff, error) {
-	return c.Query().Where(diff.ID(id)).Only(ctx)
+	return c.Query().Where(entdiff.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
@@ -342,9 +342,9 @@ func (c *DiffClient) QueryRequest(_m *Diff) *RequestQuery {
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(diff.Table, diff.FieldID, id),
+			sqlgraph.From(entdiff.Table, entdiff.FieldID, id),
 			sqlgraph.To(request.Table, request.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, diff.RequestTable, diff.RequestColumn),
+			sqlgraph.Edge(sqlgraph.O2O, true, entdiff.RequestTable, entdiff.RequestColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -358,9 +358,9 @@ func (c *DiffClient) QueryFromResponse(_m *Diff) *ResponseQuery {
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(diff.Table, diff.FieldID, id),
+			sqlgraph.From(entdiff.Table, entdiff.FieldID, id),
 			sqlgraph.To(response.Table, response.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, diff.FromResponseTable, diff.FromResponseColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, entdiff.FromResponseTable, entdiff.FromResponseColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -374,9 +374,9 @@ func (c *DiffClient) QueryToResponse(_m *Diff) *ResponseQuery {
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := _m.ID
 		step := sqlgraph.NewStep(
-			sqlgraph.From(diff.Table, diff.FieldID, id),
+			sqlgraph.From(entdiff.Table, entdiff.FieldID, id),
 			sqlgraph.To(response.Table, response.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, diff.ToResponseTable, diff.ToResponseColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, entdiff.ToResponseTable, entdiff.ToResponseColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -705,7 +705,7 @@ func (c *RequestClient) QueryDiff(_m *Request) *DiffQuery {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(request.Table, request.FieldID, id),
-			sqlgraph.To(diff.Table, diff.FieldID),
+			sqlgraph.To(entdiff.Table, entdiff.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, request.DiffTable, request.DiffColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
@@ -870,7 +870,7 @@ func (c *ResponseClient) QueryDiffsFrom(_m *Response) *DiffQuery {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(response.Table, response.FieldID, id),
-			sqlgraph.To(diff.Table, diff.FieldID),
+			sqlgraph.To(entdiff.Table, entdiff.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, response.DiffsFromTable, response.DiffsFromColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
@@ -886,7 +886,7 @@ func (c *ResponseClient) QueryDiffsTo(_m *Response) *DiffQuery {
 		id := _m.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(response.Table, response.FieldID, id),
-			sqlgraph.To(diff.Table, diff.FieldID),
+			sqlgraph.To(entdiff.Table, entdiff.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, response.DiffsToTable, response.DiffsToColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)

@@ -52,7 +52,7 @@ const (
 	// DiffTable is the table that holds the diff relation/edge.
 	DiffTable = "diffs"
 	// DiffInverseTable is the table name for the Diff entity.
-	// It exists in this package in order to avoid circular dependency with the "diff" package.
+	// It exists in this package in order to avoid circular dependency with the "entdiff" package.
 	DiffInverseTable = "diffs"
 	// DiffColumn is the table column denoting the diff relation/edge.
 	DiffColumn = "request_id"

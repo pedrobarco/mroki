@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 	"github.com/stretchr/testify/assert"
 )
@@ -45,11 +46,11 @@ func TestConvertProxyToCapture(t *testing.T) {
 		Body: []byte(`{"id":2,"name":"John"}`),
 	}
 
-	diff := `[{"op":"replace","path":"/id","value":2}]`
+	diffOps := []diff.PatchOp{{Op: "replace", Path: "/id", Value: float64(2)}}
 	agentID := "agent-test-123"
 
 	// Convert
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, diff, agentID)
+	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, diffOps, agentID)
 
 	// Verify request fields
 	assert.Equal(t, agentID, captured.AgentID)
@@ -77,7 +78,7 @@ func TestConvertProxyToCapture(t *testing.T) {
 	assert.Equal(t, "eyJpZCI6MiwibmFtZSI6IkpvaG4ifQ==", shadowCapture.Body) // Base64 encoded {"id":2,"name":"John"}
 
 	// Verify diff
-	assert.Equal(t, diff, captured.Diff.Content)
+	assert.Equal(t, diffOps, captured.Diff.Content)
 
 	// Verify timestamps are consistent
 	assert.Equal(t, captured.CreatedAt, liveCapture.CreatedAt)
@@ -111,7 +112,7 @@ func TestConvertProxyToCapture_EmptyBody(t *testing.T) {
 		Body: []byte{},
 	}
 
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, "", "agent-123")
+	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, nil, "agent-123")
 
 	// Base64 encoding of empty byte array is empty string
 	assert.Equal(t, "", captured.Body)
@@ -153,7 +154,7 @@ func TestConvertProxyToCapture_MultipleHeaders(t *testing.T) {
 		Body: []byte(`{}`),
 	}
 
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, "", "agent-123")
+	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, nil, "agent-123")
 
 	// Verify request headers preserved
 	assert.Equal(t, []string{"application/json", "text/plain"}, captured.Headers["Accept"])
@@ -185,7 +186,7 @@ func TestConvertProxyToCapture_TimestampConsistency(t *testing.T) {
 	}
 
 	before := time.Now()
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, "", "agent-123")
+	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, nil, "agent-123")
 	after := time.Now()
 
 	// Verify timestamp is within reasonable range

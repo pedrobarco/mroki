@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { CodeDiff } from 'v-code-diff'
-import type { Response } from '@/api'
+import type { Response, PatchOp } from '@/api'
 
 interface Props {
   liveResponse: Response
   shadowResponse: Response
-  diffContent: string
+  diffContent: PatchOp[]
 }
 
 const props = defineProps<Props>()

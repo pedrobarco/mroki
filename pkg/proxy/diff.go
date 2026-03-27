@@ -19,15 +19,15 @@ func NewProxyResponseDiffer(opts ...diff.Option) *proxyResponseDiffer {
 }
 
 // Diff compares two proxy responses using configured diff options
-func (p *proxyResponseDiffer) Diff(a, b ProxyResponse) (string, error) {
+func (p *proxyResponseDiffer) Diff(a, b ProxyResponse) ([]diff.PatchOp, error) {
 	ah, err := json.Marshal(a.Response.Header)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal live response header: %w", err)
+		return nil, fmt.Errorf("failed to marshal live response header: %w", err)
 	}
 
 	bh, err := json.Marshal(b.Response.Header)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal shadow response header: %w", err)
+		return nil, fmt.Errorf("failed to marshal shadow response header: %w", err)
 	}
 
 	live := jsonString(a.StatusCode, ah, a.Body)

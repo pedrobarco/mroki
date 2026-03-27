@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"time"
 
+	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 )
 
@@ -11,7 +12,7 @@ import (
 func ConvertProxyToCapture(
 	req proxy.ProxyRequest,
 	live, shadow proxy.ProxyResponse,
-	diff string,
+	ops []diff.PatchOp,
 	agentID string,
 ) *CapturedRequest {
 	now := time.Now()
@@ -42,7 +43,7 @@ func ConvertProxyToCapture(
 		},
 
 		Diff: CapturedDiff{
-			Content: diff,
+			Content: ops,
 		},
 	}
 }

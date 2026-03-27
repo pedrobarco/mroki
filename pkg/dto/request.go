@@ -3,6 +3,8 @@ package dto
 import (
 	"net/http"
 	"time"
+
+	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 // CreateRequestPayload represents the payload for creating a request with responses and diff.
@@ -36,7 +38,7 @@ type ResponsePayload struct {
 
 // DiffPayload contains the computed difference between responses.
 type DiffPayload struct {
-	Content string `json:"content"` // JSON diff format
+	Content []diff.PatchOp `json:"content"` // RFC 6902 JSON Patch operations
 }
 
 // Request represents a summary of a captured request (used in listings).
@@ -70,5 +72,5 @@ type ResponseDetail struct {
 
 // DiffDetail represents diff content (used in request detail view).
 type DiffDetail struct {
-	Content string `json:"content"`
+	Content []diff.PatchOp `json:"content"` // RFC 6902 JSON Patch operations
 }

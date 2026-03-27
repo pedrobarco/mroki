@@ -12,11 +12,12 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/gate"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
+	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 const (
@@ -40,7 +41,8 @@ type DiffMutation struct {
 	op                   Op
 	typ                  string
 	id                   *uuid.UUID
-	content              *string
+	content              *[]diff.PatchOp
+	appendcontent        []diff.PatchOp
 	created_at           *time.Time
 	clearedFields        map[string]struct{}
 	request              *uuid.UUID
@@ -267,12 +269,13 @@ func (m *DiffMutation) ResetToResponseID() {
 }
 
 // SetContent sets the "content" field.
-func (m *DiffMutation) SetContent(s string) {
-	m.content = &s
+func (m *DiffMutation) SetContent(do []diff.PatchOp) {
+	m.content = &do
+	m.appendcontent = nil
 }
 
 // Content returns the value of the "content" field in the mutation.
-func (m *DiffMutation) Content() (r string, exists bool) {
+func (m *DiffMutation) Content() (r []diff.PatchOp, exists bool) {
 	v := m.content
 	if v == nil {
 		return
@@ -283,7 +286,7 @@ func (m *DiffMutation) Content() (r string, exists bool) {
 // OldContent returns the old "content" field's value of the Diff entity.
 // If the Diff object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *DiffMutation) OldContent(ctx context.Context) (v string, err error) {
+func (m *DiffMutation) OldContent(ctx context.Context) (v []diff.PatchOp, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldContent is only allowed on UpdateOne operations")
 	}
@@ -297,9 +300,23 @@ func (m *DiffMutation) OldContent(ctx context.Context) (v string, err error) {
 	return oldValue.Content, nil
 }
 
+// AppendContent adds do to the "content" field.
+func (m *DiffMutation) AppendContent(do []diff.PatchOp) {
+	m.appendcontent = append(m.appendcontent, do...)
+}
+
+// AppendedContent returns the list of values that were appended to the "content" field in this mutation.
+func (m *DiffMutation) AppendedContent() ([]diff.PatchOp, bool) {
+	if len(m.appendcontent) == 0 {
+		return nil, false
+	}
+	return m.appendcontent, true
+}
+
 // ResetContent resets all changes to the "content" field.
 func (m *DiffMutation) ResetContent() {
 	m.content = nil
+	m.appendcontent = nil
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -341,7 +358,7 @@ func (m *DiffMutation) ResetCreatedAt() {
 // ClearRequest clears the "request" edge to the Request entity.
 func (m *DiffMutation) ClearRequest() {
 	m.clearedrequest = true
-	m.clearedFields[diff.FieldRequestID] = struct{}{}
+	m.clearedFields[entdiff.FieldRequestID] = struct{}{}
 }
 
 // RequestCleared reports if the "request" edge to the Request entity was cleared.
@@ -368,7 +385,7 @@ func (m *DiffMutation) ResetRequest() {
 // ClearFromResponse clears the "from_response" edge to the Response entity.
 func (m *DiffMutation) ClearFromResponse() {
 	m.clearedfrom_response = true
-	m.clearedFields[diff.FieldFromResponseID] = struct{}{}
+	m.clearedFields[entdiff.FieldFromResponseID] = struct{}{}
 }
 
 // FromResponseCleared reports if the "from_response" edge to the Response entity was cleared.
@@ -395,7 +412,7 @@ func (m *DiffMutation) ResetFromResponse() {
 // ClearToResponse clears the "to_response" edge to the Response entity.
 func (m *DiffMutation) ClearToResponse() {
 	m.clearedto_response = true
-	m.clearedFields[diff.FieldToResponseID] = struct{}{}
+	m.clearedFields[entdiff.FieldToResponseID] = struct{}{}
 }
 
 // ToResponseCleared reports if the "to_response" edge to the Response entity was cleared.
@@ -455,19 +472,19 @@ func (m *DiffMutation) Type() string {
 func (m *DiffMutation) Fields() []string {
 	fields := make([]string, 0, 5)
 	if m.request != nil {
-		fields = append(fields, diff.FieldRequestID)
+		fields = append(fields, entdiff.FieldRequestID)
 	}
 	if m.from_response != nil {
-		fields = append(fields, diff.FieldFromResponseID)
+		fields = append(fields, entdiff.FieldFromResponseID)
 	}
 	if m.to_response != nil {
-		fields = append(fields, diff.FieldToResponseID)
+		fields = append(fields, entdiff.FieldToResponseID)
 	}
 	if m.content != nil {
-		fields = append(fields, diff.FieldContent)
+		fields = append(fields, entdiff.FieldContent)
 	}
 	if m.created_at != nil {
-		fields = append(fields, diff.FieldCreatedAt)
+		fields = append(fields, entdiff.FieldCreatedAt)
 	}
 	return fields
 }
@@ -477,15 +494,15 @@ func (m *DiffMutation) Fields() []string {
 // schema.
 func (m *DiffMutation) Field(name string) (ent.Value, bool) {
 	switch name {
-	case diff.FieldRequestID:
+	case entdiff.FieldRequestID:
 		return m.RequestID()
-	case diff.FieldFromResponseID:
+	case entdiff.FieldFromResponseID:
 		return m.FromResponseID()
-	case diff.FieldToResponseID:
+	case entdiff.FieldToResponseID:
 		return m.ToResponseID()
-	case diff.FieldContent:
+	case entdiff.FieldContent:
 		return m.Content()
-	case diff.FieldCreatedAt:
+	case entdiff.FieldCreatedAt:
 		return m.CreatedAt()
 	}
 	return nil, false
@@ -496,15 +513,15 @@ func (m *DiffMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *DiffMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
-	case diff.FieldRequestID:
+	case entdiff.FieldRequestID:
 		return m.OldRequestID(ctx)
-	case diff.FieldFromResponseID:
+	case entdiff.FieldFromResponseID:
 		return m.OldFromResponseID(ctx)
-	case diff.FieldToResponseID:
+	case entdiff.FieldToResponseID:
 		return m.OldToResponseID(ctx)
-	case diff.FieldContent:
+	case entdiff.FieldContent:
 		return m.OldContent(ctx)
-	case diff.FieldCreatedAt:
+	case entdiff.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown Diff field %s", name)
@@ -515,35 +532,35 @@ func (m *DiffMutation) OldField(ctx context.Context, name string) (ent.Value, er
 // type.
 func (m *DiffMutation) SetField(name string, value ent.Value) error {
 	switch name {
-	case diff.FieldRequestID:
+	case entdiff.FieldRequestID:
 		v, ok := value.(uuid.UUID)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRequestID(v)
 		return nil
-	case diff.FieldFromResponseID:
+	case entdiff.FieldFromResponseID:
 		v, ok := value.(uuid.UUID)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFromResponseID(v)
 		return nil
-	case diff.FieldToResponseID:
+	case entdiff.FieldToResponseID:
 		v, ok := value.(uuid.UUID)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetToResponseID(v)
 		return nil
-	case diff.FieldContent:
-		v, ok := value.(string)
+	case entdiff.FieldContent:
+		v, ok := value.([]diff.PatchOp)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContent(v)
 		return nil
-	case diff.FieldCreatedAt:
+	case entdiff.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
@@ -599,19 +616,19 @@ func (m *DiffMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *DiffMutation) ResetField(name string) error {
 	switch name {
-	case diff.FieldRequestID:
+	case entdiff.FieldRequestID:
 		m.ResetRequestID()
 		return nil
-	case diff.FieldFromResponseID:
+	case entdiff.FieldFromResponseID:
 		m.ResetFromResponseID()
 		return nil
-	case diff.FieldToResponseID:
+	case entdiff.FieldToResponseID:
 		m.ResetToResponseID()
 		return nil
-	case diff.FieldContent:
+	case entdiff.FieldContent:
 		m.ResetContent()
 		return nil
-	case diff.FieldCreatedAt:
+	case entdiff.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
 	}
@@ -622,13 +639,13 @@ func (m *DiffMutation) ResetField(name string) error {
 func (m *DiffMutation) AddedEdges() []string {
 	edges := make([]string, 0, 3)
 	if m.request != nil {
-		edges = append(edges, diff.EdgeRequest)
+		edges = append(edges, entdiff.EdgeRequest)
 	}
 	if m.from_response != nil {
-		edges = append(edges, diff.EdgeFromResponse)
+		edges = append(edges, entdiff.EdgeFromResponse)
 	}
 	if m.to_response != nil {
-		edges = append(edges, diff.EdgeToResponse)
+		edges = append(edges, entdiff.EdgeToResponse)
 	}
 	return edges
 }
@@ -637,15 +654,15 @@ func (m *DiffMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *DiffMutation) AddedIDs(name string) []ent.Value {
 	switch name {
-	case diff.EdgeRequest:
+	case entdiff.EdgeRequest:
 		if id := m.request; id != nil {
 			return []ent.Value{*id}
 		}
-	case diff.EdgeFromResponse:
+	case entdiff.EdgeFromResponse:
 		if id := m.from_response; id != nil {
 			return []ent.Value{*id}
 		}
-	case diff.EdgeToResponse:
+	case entdiff.EdgeToResponse:
 		if id := m.to_response; id != nil {
 			return []ent.Value{*id}
 		}
@@ -669,13 +686,13 @@ func (m *DiffMutation) RemovedIDs(name string) []ent.Value {
 func (m *DiffMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 3)
 	if m.clearedrequest {
-		edges = append(edges, diff.EdgeRequest)
+		edges = append(edges, entdiff.EdgeRequest)
 	}
 	if m.clearedfrom_response {
-		edges = append(edges, diff.EdgeFromResponse)
+		edges = append(edges, entdiff.EdgeFromResponse)
 	}
 	if m.clearedto_response {
-		edges = append(edges, diff.EdgeToResponse)
+		edges = append(edges, entdiff.EdgeToResponse)
 	}
 	return edges
 }
@@ -684,11 +701,11 @@ func (m *DiffMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *DiffMutation) EdgeCleared(name string) bool {
 	switch name {
-	case diff.EdgeRequest:
+	case entdiff.EdgeRequest:
 		return m.clearedrequest
-	case diff.EdgeFromResponse:
+	case entdiff.EdgeFromResponse:
 		return m.clearedfrom_response
-	case diff.EdgeToResponse:
+	case entdiff.EdgeToResponse:
 		return m.clearedto_response
 	}
 	return false
@@ -698,13 +715,13 @@ func (m *DiffMutation) EdgeCleared(name string) bool {
 // if that edge is not defined in the schema.
 func (m *DiffMutation) ClearEdge(name string) error {
 	switch name {
-	case diff.EdgeRequest:
+	case entdiff.EdgeRequest:
 		m.ClearRequest()
 		return nil
-	case diff.EdgeFromResponse:
+	case entdiff.EdgeFromResponse:
 		m.ClearFromResponse()
 		return nil
-	case diff.EdgeToResponse:
+	case entdiff.EdgeToResponse:
 		m.ClearToResponse()
 		return nil
 	}
@@ -715,13 +732,13 @@ func (m *DiffMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *DiffMutation) ResetEdge(name string) error {
 	switch name {
-	case diff.EdgeRequest:
+	case entdiff.EdgeRequest:
 		m.ResetRequest()
 		return nil
-	case diff.EdgeFromResponse:
+	case entdiff.EdgeFromResponse:
 		m.ResetFromResponse()
 		return nil
-	case diff.EdgeToResponse:
+	case entdiff.EdgeToResponse:
 		m.ResetToResponse()
 		return nil
 	}

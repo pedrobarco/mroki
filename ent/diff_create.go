@@ -11,9 +11,10 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
+	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 // DiffCreate is the builder for creating a Diff entity.
@@ -42,7 +43,7 @@ func (_c *DiffCreate) SetToResponseID(v uuid.UUID) *DiffCreate {
 }
 
 // SetContent sets the "content" field.
-func (_c *DiffCreate) SetContent(v string) *DiffCreate {
+func (_c *DiffCreate) SetContent(v []diff.PatchOp) *DiffCreate {
 	_c.mutation.SetContent(v)
 	return _c
 }
@@ -126,11 +127,11 @@ func (_c *DiffCreate) ExecX(ctx context.Context) {
 // defaults sets the default values of the builder before save.
 func (_c *DiffCreate) defaults() {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		v := diff.DefaultCreatedAt()
+		v := entdiff.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
-		v := diff.DefaultID()
+		v := entdiff.DefaultID()
 		_c.mutation.SetID(v)
 	}
 }
@@ -190,26 +191,26 @@ func (_c *DiffCreate) sqlSave(ctx context.Context) (*Diff, error) {
 func (_c *DiffCreate) createSpec() (*Diff, *sqlgraph.CreateSpec) {
 	var (
 		_node = &Diff{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(diff.Table, sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID))
+		_spec = sqlgraph.NewCreateSpec(entdiff.Table, sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID))
 	)
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
 	if value, ok := _c.mutation.Content(); ok {
-		_spec.SetField(diff.FieldContent, field.TypeString, value)
+		_spec.SetField(entdiff.FieldContent, field.TypeJSON, value)
 		_node.Content = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
-		_spec.SetField(diff.FieldCreatedAt, field.TypeTime, value)
+		_spec.SetField(entdiff.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
 	if nodes := _c.mutation.RequestIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2O,
 			Inverse: true,
-			Table:   diff.RequestTable,
-			Columns: []string{diff.RequestColumn},
+			Table:   entdiff.RequestTable,
+			Columns: []string{entdiff.RequestColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(request.FieldID, field.TypeUUID),
@@ -225,8 +226,8 @@ func (_c *DiffCreate) createSpec() (*Diff, *sqlgraph.CreateSpec) {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   diff.FromResponseTable,
-			Columns: []string{diff.FromResponseColumn},
+			Table:   entdiff.FromResponseTable,
+			Columns: []string{entdiff.FromResponseColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
@@ -242,8 +243,8 @@ func (_c *DiffCreate) createSpec() (*Diff, *sqlgraph.CreateSpec) {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   diff.ToResponseTable,
-			Columns: []string{diff.ToResponseColumn},
+			Table:   entdiff.ToResponseTable,
+			Columns: []string{entdiff.ToResponseColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),

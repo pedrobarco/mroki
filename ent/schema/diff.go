@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 // Diff holds the schema definition for the Diff entity.
@@ -24,7 +25,7 @@ func (Diff) Fields() []ent.Field {
 			Unique(),
 		field.UUID("from_response_id", uuid.UUID{}),
 		field.UUID("to_response_id", uuid.UUID{}),
-		field.String("content"),
+		field.JSON("content", []diff.PatchOp{}),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

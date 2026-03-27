@@ -183,7 +183,7 @@ See [API Contracts](../architecture/API_CONTRACTS.md) for full endpoint document
 
 ### Schema
 
-The API automatically creates tables on startup. Schema is defined in `internal/infrastructure/persistence/postgres/schema.sql`.
+The API automatically creates tables on startup using ent's auto-migration. Schema is defined in `ent/schema/`.
 
 **Core Tables:**
 - `gates` - Live/shadow service pairs

@@ -12,7 +12,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/pedrobarco/mroki/ent/diff"
+
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/gate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
@@ -76,7 +77,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			diff.Table:     diff.ValidColumn,
+			entdiff.Table:  entdiff.ValidColumn,
 			gate.Table:     gate.ValidColumn,
 			request.Table:  request.ValidColumn,
 			response.Table: response.ValidColumn,

@@ -26,10 +26,10 @@ func TestProxyResponseDiffer_Diff_identical_responses(t *testing.T) {
 		Body: []byte(`{"status":"ok"}`),
 	}
 
-	diff, err := differ.Diff(live, shadow)
+	ops, err := differ.Diff(live, shadow)
 
 	assert.NoError(t, err)
-	assert.Empty(t, diff)
+	assert.Empty(t, ops)
 }
 
 func TestProxyResponseDiffer_Diff_different_status_codes(t *testing.T) {
@@ -50,11 +50,16 @@ func TestProxyResponseDiffer_Diff_different_status_codes(t *testing.T) {
 		Body: []byte(`{"status":"error"}`),
 	}
 
-	diff, err := differ.Diff(live, shadow)
+	ops, err := differ.Diff(live, shadow)
 
 	assert.NoError(t, err)
-	assert.NotEmpty(t, diff)
-	assert.Contains(t, diff, "statusCode")
+	assert.NotEmpty(t, ops)
+
+	paths := map[string]bool{}
+	for _, op := range ops {
+		paths[op.Path] = true
+	}
+	assert.True(t, paths["/statusCode"])
 }
 
 func TestProxyResponseDiffer_Diff_different_bodies(t *testing.T) {
@@ -75,8 +80,8 @@ func TestProxyResponseDiffer_Diff_different_bodies(t *testing.T) {
 		Body: []byte(`{"user":"bob"}`),
 	}
 
-	diff, err := differ.Diff(live, shadow)
+	ops, err := differ.Diff(live, shadow)
 
 	assert.NoError(t, err)
-	assert.NotEmpty(t, diff)
+	assert.NotEmpty(t, ops)
 }

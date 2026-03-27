@@ -43,14 +43,14 @@ const (
 	// DiffsFromTable is the table that holds the diffs_from relation/edge.
 	DiffsFromTable = "diffs"
 	// DiffsFromInverseTable is the table name for the Diff entity.
-	// It exists in this package in order to avoid circular dependency with the "diff" package.
+	// It exists in this package in order to avoid circular dependency with the "entdiff" package.
 	DiffsFromInverseTable = "diffs"
 	// DiffsFromColumn is the table column denoting the diffs_from relation/edge.
 	DiffsFromColumn = "from_response_id"
 	// DiffsToTable is the table that holds the diffs_to relation/edge.
 	DiffsToTable = "diffs"
 	// DiffsToInverseTable is the table name for the Diff entity.
-	// It exists in this package in order to avoid circular dependency with the "diff" package.
+	// It exists in this package in order to avoid circular dependency with the "entdiff" package.
 	DiffsToInverseTable = "diffs"
 	// DiffsToColumn is the table column denoting the diffs_to relation/edge.
 	DiffsToColumn = "to_response_id"

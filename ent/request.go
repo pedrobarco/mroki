@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/gate"
 	"github.com/pedrobarco/mroki/ent/request"
 )
@@ -80,7 +80,7 @@ func (e RequestEdges) DiffOrErr() (*Diff, error) {
 	if e.Diff != nil {
 		return e.Diff, nil
 	} else if e.loadedTypes[2] {
-		return nil, &NotFoundError{label: diff.Label}
+		return nil, &NotFoundError{label: entdiff.Label}
 	}
 	return nil, &NotLoadedError{edge: "diff"}
 }

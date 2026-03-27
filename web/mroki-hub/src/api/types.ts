@@ -36,10 +36,19 @@ export interface Response {
 }
 
 /**
+ * PatchOp represents a single RFC 6902 JSON Patch operation
+ */
+export interface PatchOp {
+  op: 'add' | 'remove' | 'replace'
+  path: string
+  value?: unknown
+}
+
+/**
  * Diff contains the computed difference between responses
  */
 export interface Diff {
-  content: string
+  content: PatchOp[]
 }
 
 /**

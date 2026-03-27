@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
@@ -100,7 +100,7 @@ func (_q *ResponseQuery) QueryDiffsFrom() *DiffQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(response.Table, response.FieldID, selector),
-			sqlgraph.To(diff.Table, diff.FieldID),
+			sqlgraph.To(entdiff.Table, entdiff.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, response.DiffsFromTable, response.DiffsFromColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
@@ -122,7 +122,7 @@ func (_q *ResponseQuery) QueryDiffsTo() *DiffQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(response.Table, response.FieldID, selector),
-			sqlgraph.To(diff.Table, diff.FieldID),
+			sqlgraph.To(entdiff.Table, entdiff.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, response.DiffsToTable, response.DiffsToColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
@@ -530,7 +530,7 @@ func (_q *ResponseQuery) loadDiffsFrom(ctx context.Context, query *DiffQuery, no
 		}
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(diff.FieldFromResponseID)
+		query.ctx.AppendFieldOnce(entdiff.FieldFromResponseID)
 	}
 	query.Where(predicate.Diff(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(response.DiffsFromColumn), fks...))
@@ -560,7 +560,7 @@ func (_q *ResponseQuery) loadDiffsTo(ctx context.Context, query *DiffQuery, node
 		}
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(diff.FieldToResponseID)
+		query.ctx.AppendFieldOnce(entdiff.FieldToResponseID)
 	}
 	query.Where(predicate.Diff(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(response.DiffsToColumn), fks...))

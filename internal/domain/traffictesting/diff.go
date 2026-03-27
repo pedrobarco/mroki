@@ -4,18 +4,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 type Diff struct {
 	FromResponseID uuid.UUID
 	ToResponseID   uuid.UUID
-	Content        string
+	Content        []diff.PatchOp
 	CreatedAt      time.Time
 }
 
 type diffOption func(*Diff)
 
-func NewDiff(from, to uuid.UUID, content string, opts ...diffOption) (*Diff, error) {
+func NewDiff(from, to uuid.UUID, content []diff.PatchOp, opts ...diffOption) (*Diff, error) {
 	diff := &Diff{
 		FromResponseID: from,
 		ToResponseID:   to,
@@ -39,7 +40,16 @@ func (d Diff) IsZero() bool {
 // Equals compares two Diff value objects for equality.
 // Value objects are equal if all their attributes are equal.
 func (d Diff) Equals(other Diff) bool {
-	return d.FromResponseID == other.FromResponseID &&
-		d.ToResponseID == other.ToResponseID &&
-		d.Content == other.Content
+	if d.FromResponseID != other.FromResponseID || d.ToResponseID != other.ToResponseID {
+		return false
+	}
+	if len(d.Content) != len(other.Content) {
+		return false
+	}
+	for i, op := range d.Content {
+		if op.Op != other.Content[i].Op || op.Path != other.Content[i].Path {
+			return false
+		}
+	}
+	return true
 }

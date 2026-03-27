@@ -77,12 +77,13 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 		}
 
 		// Log diff result
-		if diff.Content != "" {
+		if len(diff.Ops) > 0 {
 			logger.Info("diff detected",
 				"method", req.Method,
 				"path", req.Path,
 				"live_status", live.StatusCode,
 				"shadow_status", shadow.StatusCode,
+				"changes", len(diff.Ops),
 			)
 		} else {
 			logger.Debug("responses match",
@@ -93,7 +94,7 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 
 		// Send to API if configured
 		if cfg.APIClient != nil {
-			captured := client.ConvertProxyToCapture(req, live, shadow, diff.Content, cfg.AgentID)
+			captured := client.ConvertProxyToCapture(req, live, shadow, diff.Ops, cfg.AgentID)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -110,7 +111,7 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 			logger.Debug("successfully sent request to API",
 				"method", req.Method,
 				"path", req.Path,
-				"has_diff", diff.Content != "",
+				"has_diff", len(diff.Ops) > 0,
 			)
 		}
 

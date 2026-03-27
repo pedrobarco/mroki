@@ -14,6 +14,7 @@ import (
 	"github.com/pedrobarco/mroki/internal/application/queries"
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
+	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/dto"
 )
 
@@ -80,7 +81,9 @@ func TestCreateRequest_Success(t *testing.T) {
 			},
 		},
 		"diff": map[string]interface{}{
-			"content": "diff content",
+			"content": []map[string]interface{}{
+				{"op": "replace", "path": "/status", "value": "error"},
+			},
 		},
 	}
 
@@ -140,7 +143,7 @@ func TestCreateRequest_MissingGateID(t *testing.T) {
 	repo := &mockRequestRepository{}
 	handler := commands.NewCreateRequestHandler(repo)
 
-	body := `{"agent_id":"test","method":"GET","path":"/test","headers":{},"body":"","responses":[],"diff":{"content":""}}`
+	body := `{"agent_id":"test","method":"GET","path":"/test","headers":{},"body":"","responses":[],"diff":{"content":[]}}`
 	req := httptest.NewRequest(http.MethodPost, "/gates//requests", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
 
@@ -190,7 +193,7 @@ func TestCreateRequest_InvalidGateID(t *testing.T) {
 			},
 		},
 		"diff": map[string]interface{}{
-			"content": "",
+			"content": []map[string]interface{}{},
 		},
 	}
 
@@ -246,7 +249,7 @@ func TestCreateRequest_RepositoryError(t *testing.T) {
 			},
 		},
 		"diff": map[string]interface{}{
-			"content": "",
+			"content": []map[string]interface{}{},
 		},
 	}
 
@@ -288,7 +291,7 @@ func TestGetRequestByID_Success(t *testing.T) {
 		time.Now(),
 	)
 
-	diff, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, "diff content")
+	diff, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{{Op: "replace", Path: "/status", Value: "error"}})
 	method, _ := traffictesting.NewHTTPMethod("GET")
 	path, _ := traffictesting.ParsePath("/test")
 	expectedRequest, _ := traffictesting.NewRequest(
@@ -612,7 +615,7 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 		time.Now(),
 	)
 
-	diff, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, "")
+	diff, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{})
 	method, _ := traffictesting.NewHTTPMethod("GET")
 	path, _ := traffictesting.ParsePath("/test")
 	return traffictesting.NewRequest(

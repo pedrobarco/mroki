@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/pedrobarco/mroki/ent/diff"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
@@ -319,7 +319,7 @@ func (_u *ResponseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{response.DiffsFromColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -332,7 +332,7 @@ func (_u *ResponseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{response.DiffsFromColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -348,7 +348,7 @@ func (_u *ResponseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{response.DiffsFromColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -364,7 +364,7 @@ func (_u *ResponseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{response.DiffsToColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -377,7 +377,7 @@ func (_u *ResponseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{response.DiffsToColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -393,7 +393,7 @@ func (_u *ResponseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Columns: []string{response.DiffsToColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -739,7 +739,7 @@ func (_u *ResponseUpdateOne) sqlSave(ctx context.Context) (_node *Response, err 
 			Columns: []string{response.DiffsFromColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -752,7 +752,7 @@ func (_u *ResponseUpdateOne) sqlSave(ctx context.Context) (_node *Response, err 
 			Columns: []string{response.DiffsFromColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -768,7 +768,7 @@ func (_u *ResponseUpdateOne) sqlSave(ctx context.Context) (_node *Response, err 
 			Columns: []string{response.DiffsFromColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -784,7 +784,7 @@ func (_u *ResponseUpdateOne) sqlSave(ctx context.Context) (_node *Response, err 
 			Columns: []string{response.DiffsToColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -797,7 +797,7 @@ func (_u *ResponseUpdateOne) sqlSave(ctx context.Context) (_node *Response, err 
 			Columns: []string{response.DiffsToColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -813,7 +813,7 @@ func (_u *ResponseUpdateOne) sqlSave(ctx context.Context) (_node *Response, err 
 			Columns: []string{response.DiffsToColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(entdiff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

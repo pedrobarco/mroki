@@ -8,99 +8,74 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCleanReporter_simple_fields(t *testing.T) {
+func TestPatchReporter_simple_fields(t *testing.T) {
 	a := `{"name":"alice","age":30}`
 	b := `{"name":"bob","age":25}`
 
-	result, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b)
 
 	require.NoError(t, err)
-	assert.NotEmpty(t, result)
+	assert.Len(t, ops, 2)
 
-	// Should not contain Go type annotations
-	assert.NotContains(t, result, "float64(")
-	assert.NotContains(t, result, "string(")
-	assert.NotContains(t, result, "map[string]any")
-
-	// Should contain field names and values
-	assert.Contains(t, result, "age")
-	assert.Contains(t, result, "name")
-	assert.Contains(t, result, "30")
-	assert.Contains(t, result, "25")
-	assert.Contains(t, result, `"alice"`)
-	assert.Contains(t, result, `"bob"`)
-
-	// Should use - and + for diffs
-	assert.Contains(t, result, "- ")
-	assert.Contains(t, result, "+ ")
+	paths := map[string]string{}
+	for _, op := range ops {
+		assert.Equal(t, "replace", op.Op)
+		paths[op.Path] = op.Op
+	}
+	assert.Contains(t, paths, "/name")
+	assert.Contains(t, paths, "/age")
 }
 
-func TestCleanReporter_nested_objects(t *testing.T) {
+func TestPatchReporter_nested_objects(t *testing.T) {
 	a := `{"user":{"name":"alice","age":30},"meta":{"count":5}}`
 	b := `{"user":{"name":"bob","age":25},"meta":{"count":10}}`
 
-	result, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b)
 
 	require.NoError(t, err)
-	assert.NotEmpty(t, result)
+	assert.Len(t, ops, 3)
 
-	// Should not contain Go type annotations
-	assert.NotContains(t, result, "float64(")
-	assert.NotContains(t, result, "string(")
-	assert.NotContains(t, result, "map[string]any")
-
-	// Should show dotted paths for nested fields
-	assert.Contains(t, result, "user.age")
-	assert.Contains(t, result, "user.name")
-	assert.Contains(t, result, "meta.count")
+	paths := map[string]bool{}
+	for _, op := range ops {
+		paths[op.Path] = true
+	}
+	assert.True(t, paths["/user/name"])
+	assert.True(t, paths["/user/age"])
+	assert.True(t, paths["/meta/count"])
 }
 
-func TestCleanReporter_arrays(t *testing.T) {
+func TestPatchReporter_arrays(t *testing.T) {
 	a := `{"items":["apple","banana","cherry"]}`
 	b := `{"items":["apple","orange","cherry"]}`
 
-	result, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b)
 
 	require.NoError(t, err)
-	assert.NotEmpty(t, result)
-
-	// Should not contain Go type annotations
-	assert.NotContains(t, result, "string(")
-	assert.NotContains(t, result, "[]any")
-
-	// Should show array index notation
-	assert.Contains(t, result, "items[1]")
-	assert.Contains(t, result, `"banana"`)
-	assert.Contains(t, result, `"orange"`)
+	assert.Len(t, ops, 1)
+	assert.Equal(t, "replace", ops[0].Op)
+	assert.Equal(t, "/items/1", ops[0].Path)
+	assert.Equal(t, "orange", ops[0].Value)
 }
 
-func TestCleanReporter_mixed_types(t *testing.T) {
+func TestPatchReporter_mixed_types(t *testing.T) {
 	a := `{"str":"hello","num":42,"bool":true,"null":null}`
 	b := `{"str":"world","num":99,"bool":false,"null":null}`
 
-	result, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b)
 
 	require.NoError(t, err)
-	assert.NotEmpty(t, result)
+	assert.Len(t, ops, 3, "null field has no difference and should not appear")
 
-	// Should not contain Go type annotations
-	assert.NotContains(t, result, "string(")
-	assert.NotContains(t, result, "float64(")
-	assert.NotContains(t, result, "bool(")
-
-	// Should contain clean values
-	assert.Contains(t, result, `"hello"`)
-	assert.Contains(t, result, `"world"`)
-	assert.Contains(t, result, "42")
-	assert.Contains(t, result, "99")
-	assert.Contains(t, result, "true")
-	assert.Contains(t, result, "false")
-
-	// null field shouldn't appear (no difference)
-	assert.NotContains(t, result, "null")
+	paths := map[string]bool{}
+	for _, op := range ops {
+		paths[op.Path] = true
+	}
+	assert.True(t, paths["/str"])
+	assert.True(t, paths["/num"])
+	assert.True(t, paths["/bool"])
 }
 
-func TestCleanReporter_complex_nested_structure(t *testing.T) {
+func TestPatchReporter_complex_nested_structure(t *testing.T) {
 	a := `{
 		"statusCode": 200,
 		"headers": {
@@ -133,124 +108,142 @@ func TestCleanReporter_complex_nested_structure(t *testing.T) {
 		}
 	}`
 
-	result, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b)
 
 	require.NoError(t, err)
-	assert.NotEmpty(t, result)
+	assert.NotEmpty(t, ops)
 
-	// Should not contain any Go type annotations
-	assert.NotContains(t, result, "float64(")
-	assert.NotContains(t, result, "string(")
-	assert.NotContains(t, result, "map[string]any")
-	assert.NotContains(t, result, "[]any")
+	paths := map[string]bool{}
+	for _, op := range ops {
+		assert.Equal(t, "replace", op.Op)
+		paths[op.Path] = true
+	}
 
-	// Should show proper paths for all differences
-	assert.Contains(t, result, "statusCode")
-	assert.Contains(t, result, "headers.X-Custom[1]")
-	assert.Contains(t, result, "body.status")
-	assert.Contains(t, result, "body.data.user")
-	assert.Contains(t, result, "body.data.age")
-	assert.Contains(t, result, "body.data.tags[1]")
-
-	// Should show clean values
-	assert.Contains(t, result, "200")
-	assert.Contains(t, result, "500")
-	assert.Contains(t, result, `"value2"`)
-	assert.Contains(t, result, `"value3"`)
-	assert.Contains(t, result, `"ok"`)
-	assert.Contains(t, result, `"error"`)
-	assert.Contains(t, result, `"alice"`)
-	assert.Contains(t, result, `"bob"`)
-	assert.Contains(t, result, "30")
-	assert.Contains(t, result, "25")
-	assert.Contains(t, result, `"active"`)
-	assert.Contains(t, result, `"inactive"`)
+	assert.True(t, paths["/statusCode"])
+	assert.True(t, paths["/headers/X-Custom/1"])
+	assert.True(t, paths["/body/status"])
+	assert.True(t, paths["/body/data/user"])
+	assert.True(t, paths["/body/data/age"])
+	assert.True(t, paths["/body/data/tags/1"])
 }
 
-func TestCleanReporter_floats_formatted_cleanly(t *testing.T) {
-	// Whole number floats should render without decimals
-	a := `{"price":10.0,"tax":1.5}`
-	b := `{"price":20.0,"tax":2.7}`
-
-	result, err := diff.JSON(a, b)
-
-	require.NoError(t, err)
-	assert.NotEmpty(t, result)
-
-	// Should not contain float64() wrapper
-	assert.NotContains(t, result, "float64(")
-
-	// Whole numbers should appear without .0
-	assert.Contains(t, result, "- 10\n")
-	assert.Contains(t, result, "+ 20\n")
-
-	// Decimals should be preserved
-	assert.Contains(t, result, "1.5")
-	assert.Contains(t, result, "2.7")
-}
-
-func TestCleanReporter_empty_diff_returns_empty_string(t *testing.T) {
+func TestPatchReporter_empty_diff_returns_empty_ops(t *testing.T) {
 	a := `{"name":"alice","age":30}`
 	b := `{"name":"alice","age":30}`
 
-	result, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b)
 
 	require.NoError(t, err)
-	assert.Empty(t, result, "identical JSON should produce empty diff")
+	assert.Empty(t, ops, "identical JSON should produce empty ops")
 }
 
-func TestCleanReporter_with_ignored_fields(t *testing.T) {
+func TestPatchReporter_with_ignored_fields(t *testing.T) {
 	a := `{"name":"alice","timestamp":"2024-01-01T10:00:00Z"}`
 	b := `{"name":"alice","timestamp":"2024-01-01T11:00:00Z"}`
 
-	result, err := diff.JSON(a, b, diff.WithIgnoredFields("timestamp"))
+	ops, err := diff.JSON(a, b, diff.WithIgnoredFields("timestamp"))
 
 	require.NoError(t, err)
-	assert.Empty(t, result, "should be identical when ignoring timestamp")
+	assert.Empty(t, ops, "should be identical when ignoring timestamp")
 }
 
-func TestCleanReporter_with_included_fields(t *testing.T) {
+func TestPatchReporter_with_included_fields(t *testing.T) {
 	a := `{"name":"alice","age":30,"email":"alice@example.com"}`
 	b := `{"name":"bob","age":25,"email":"alice@example.com"}`
 
-	result, err := diff.JSON(a, b, diff.WithIncludedFields("email"))
+	ops, err := diff.JSON(a, b, diff.WithIncludedFields("email"))
 
 	require.NoError(t, err)
-	assert.Empty(t, result, "should be identical when only comparing email")
+	assert.Empty(t, ops, "should be identical when only comparing email")
 }
 
-func TestCleanReporter_output_format_readable(t *testing.T) {
+func TestPatchReporter_json_pointer_format(t *testing.T) {
 	a := `{"user":"alice"}`
 	b := `{"user":"bob"}`
 
-	result, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b)
 
 	require.NoError(t, err)
-
-	// Output should be formatted with indentation and clear diff markers
-	lines := splitLines(result)
-	assert.GreaterOrEqual(t, len(lines), 3, "should have at least 3 lines (path, -, +)")
-
-	// Check that lines are indented
-	for _, line := range lines {
-		if line != "" {
-			assert.True(t, line[:2] == "  ", "lines should be indented with 2 spaces")
-		}
-	}
+	require.Len(t, ops, 1)
+	assert.Equal(t, "replace", ops[0].Op)
+	assert.Equal(t, "/user", ops[0].Path)
+	assert.Equal(t, "bob", ops[0].Value)
 }
 
-// Helper function to split string into lines
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i, c := range s {
-		if c == '\n' {
-			lines = append(lines, s[start:i])
-			start = i + 1
-		}
+
+func TestPatchReporter_add_operation(t *testing.T) {
+	a := `{"name":"alice"}`
+	b := `{"name":"alice","age":30}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "add", ops[0].Op)
+	assert.Equal(t, "/age", ops[0].Path)
+}
+
+func TestPatchReporter_remove_operation(t *testing.T) {
+	a := `{"name":"alice","age":30}`
+	b := `{"name":"alice"}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "remove", ops[0].Op)
+	assert.Equal(t, "/age", ops[0].Path)
+	assert.Nil(t, ops[0].Value)
+}
+
+func TestPatchReporter_null_value(t *testing.T) {
+	a := `{"name":"alice"}`
+	b := `{"name":null}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "replace", ops[0].Op)
+	assert.Equal(t, "/name", ops[0].Path)
+	assert.Nil(t, ops[0].Value)
+}
+
+func TestFormatOps_empty(t *testing.T) {
+	result := diff.FormatOps(nil)
+	assert.Empty(t, result)
+
+	result = diff.FormatOps([]diff.PatchOp{})
+	assert.Empty(t, result)
+}
+
+func TestFormatOps_multiple_ops(t *testing.T) {
+	ops := []diff.PatchOp{
+		{Op: "replace", Path: "/name", Value: "bob"},
+		{Op: "add", Path: "/age", Value: float64(30)},
+		{Op: "remove", Path: "/old_field"},
 	}
-	if start < len(s) {
-		lines = append(lines, s[start:])
+
+	result := diff.FormatOps(ops)
+
+	assert.Contains(t, result, "replace /name")
+	assert.Contains(t, result, "add /age")
+	assert.Contains(t, result, "remove /old_field")
+}
+
+func TestPatchReporter_rfc6901_escaping(t *testing.T) {
+	a := `{"a/b":1,"c~d":2}`
+	b := `{"a/b":3,"c~d":4}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	assert.Len(t, ops, 2)
+
+	paths := map[string]bool{}
+	for _, op := range ops {
+		paths[op.Path] = true
 	}
-	return lines
+	assert.True(t, paths["/a~1b"], "/ in key should be escaped as ~1")
+	assert.True(t, paths["/c~0d"], "~ in key should be escaped as ~0")
 }

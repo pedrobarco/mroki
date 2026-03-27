@@ -11,7 +11,7 @@ var (
 	// DiffsColumns holds the columns for the "diffs" table.
 	DiffsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "content", Type: field.TypeString},
+		{Name: "content", Type: field.TypeJSON},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "request_id", Type: field.TypeUUID, Unique: true},
 		{Name: "from_response_id", Type: field.TypeUUID},

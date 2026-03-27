@@ -72,7 +72,7 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 			},
 		},
 		Diff: CreateRequestDiffProps{
-			Content: "",
+			Content: nil,
 		},
 	}
 
@@ -128,7 +128,7 @@ func TestCreateRequestHandler_Handle_with_custom_ids(t *testing.T) {
 			},
 		},
 		Diff: CreateRequestDiffProps{
-			Content: "",
+			Content: nil,
 		},
 	}
 
@@ -360,7 +360,7 @@ func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
 			{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
 			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
 		},
-		Diff: CreateRequestDiffProps{Content: ""},
+		Diff: CreateRequestDiffProps{Content: nil},
 	}
 
 	// Act
