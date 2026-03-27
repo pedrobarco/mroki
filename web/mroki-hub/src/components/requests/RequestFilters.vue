@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import type { AcceptableValue } from 'reka-ui'
 import type { RequestSortField, SortOrder } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,12 +77,12 @@ function diffFilterLabel(): string {
   return 'Any diff'
 }
 
-function onSortChange(val: string) {
-  emitUpdate({ sort: val as RequestSortField })
+function onSortChange(val: AcceptableValue) {
+  emitUpdate({ sort: String(val) as RequestSortField })
 }
 
-function onOrderChange(val: string) {
-  emitUpdate({ order: val as SortOrder })
+function onOrderChange(val: AcceptableValue) {
+  emitUpdate({ order: String(val) as SortOrder })
 }
 
 function clearFilters() {

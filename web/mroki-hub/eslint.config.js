@@ -60,6 +60,7 @@ export default tseslint.config(
       '*.config.ts',
       '.vite/**',
       'src/components/ui/**',
+      'e2e/**',
     ],
   }
 )

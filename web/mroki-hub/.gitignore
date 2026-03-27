@@ -36,5 +36,11 @@ dist-ssr
 coverage
 *.coverprofile
 
+# Playwright
+test-results/
+e2e/test-results/
+playwright-report/
+blob-report/
+
 # Vite
 .vite
