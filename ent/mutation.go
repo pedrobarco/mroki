@@ -37,18 +37,21 @@ const (
 // DiffMutation represents an operation that mutates the Diff nodes in the graph.
 type DiffMutation struct {
 	config
-	op               Op
-	typ              string
-	id               *uuid.UUID
-	from_response_id *uuid.UUID
-	to_response_id   *uuid.UUID
-	content          *string
-	clearedFields    map[string]struct{}
-	request          *uuid.UUID
-	clearedrequest   bool
-	done             bool
-	oldValue         func(context.Context) (*Diff, error)
-	predicates       []predicate.Diff
+	op                   Op
+	typ                  string
+	id                   *uuid.UUID
+	content              *string
+	created_at           *time.Time
+	clearedFields        map[string]struct{}
+	request              *uuid.UUID
+	clearedrequest       bool
+	from_response        *uuid.UUID
+	clearedfrom_response bool
+	to_response          *uuid.UUID
+	clearedto_response   bool
+	done                 bool
+	oldValue             func(context.Context) (*Diff, error)
+	predicates           []predicate.Diff
 }
 
 var _ ent.Mutation = (*DiffMutation)(nil)
@@ -193,12 +196,12 @@ func (m *DiffMutation) ResetRequestID() {
 
 // SetFromResponseID sets the "from_response_id" field.
 func (m *DiffMutation) SetFromResponseID(u uuid.UUID) {
-	m.from_response_id = &u
+	m.from_response = &u
 }
 
 // FromResponseID returns the value of the "from_response_id" field in the mutation.
 func (m *DiffMutation) FromResponseID() (r uuid.UUID, exists bool) {
-	v := m.from_response_id
+	v := m.from_response
 	if v == nil {
 		return
 	}
@@ -224,17 +227,17 @@ func (m *DiffMutation) OldFromResponseID(ctx context.Context) (v uuid.UUID, err 
 
 // ResetFromResponseID resets all changes to the "from_response_id" field.
 func (m *DiffMutation) ResetFromResponseID() {
-	m.from_response_id = nil
+	m.from_response = nil
 }
 
 // SetToResponseID sets the "to_response_id" field.
 func (m *DiffMutation) SetToResponseID(u uuid.UUID) {
-	m.to_response_id = &u
+	m.to_response = &u
 }
 
 // ToResponseID returns the value of the "to_response_id" field in the mutation.
 func (m *DiffMutation) ToResponseID() (r uuid.UUID, exists bool) {
-	v := m.to_response_id
+	v := m.to_response
 	if v == nil {
 		return
 	}
@@ -260,7 +263,7 @@ func (m *DiffMutation) OldToResponseID(ctx context.Context) (v uuid.UUID, err er
 
 // ResetToResponseID resets all changes to the "to_response_id" field.
 func (m *DiffMutation) ResetToResponseID() {
-	m.to_response_id = nil
+	m.to_response = nil
 }
 
 // SetContent sets the "content" field.
@@ -299,6 +302,42 @@ func (m *DiffMutation) ResetContent() {
 	m.content = nil
 }
 
+// SetCreatedAt sets the "created_at" field.
+func (m *DiffMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DiffMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Diff entity.
+// If the Diff object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiffMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DiffMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
 // ClearRequest clears the "request" edge to the Request entity.
 func (m *DiffMutation) ClearRequest() {
 	m.clearedrequest = true
@@ -324,6 +363,60 @@ func (m *DiffMutation) RequestIDs() (ids []uuid.UUID) {
 func (m *DiffMutation) ResetRequest() {
 	m.request = nil
 	m.clearedrequest = false
+}
+
+// ClearFromResponse clears the "from_response" edge to the Response entity.
+func (m *DiffMutation) ClearFromResponse() {
+	m.clearedfrom_response = true
+	m.clearedFields[diff.FieldFromResponseID] = struct{}{}
+}
+
+// FromResponseCleared reports if the "from_response" edge to the Response entity was cleared.
+func (m *DiffMutation) FromResponseCleared() bool {
+	return m.clearedfrom_response
+}
+
+// FromResponseIDs returns the "from_response" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// FromResponseID instead. It exists only for internal usage by the builders.
+func (m *DiffMutation) FromResponseIDs() (ids []uuid.UUID) {
+	if id := m.from_response; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetFromResponse resets all changes to the "from_response" edge.
+func (m *DiffMutation) ResetFromResponse() {
+	m.from_response = nil
+	m.clearedfrom_response = false
+}
+
+// ClearToResponse clears the "to_response" edge to the Response entity.
+func (m *DiffMutation) ClearToResponse() {
+	m.clearedto_response = true
+	m.clearedFields[diff.FieldToResponseID] = struct{}{}
+}
+
+// ToResponseCleared reports if the "to_response" edge to the Response entity was cleared.
+func (m *DiffMutation) ToResponseCleared() bool {
+	return m.clearedto_response
+}
+
+// ToResponseIDs returns the "to_response" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ToResponseID instead. It exists only for internal usage by the builders.
+func (m *DiffMutation) ToResponseIDs() (ids []uuid.UUID) {
+	if id := m.to_response; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetToResponse resets all changes to the "to_response" edge.
+func (m *DiffMutation) ResetToResponse() {
+	m.to_response = nil
+	m.clearedto_response = false
 }
 
 // Where appends a list predicates to the DiffMutation builder.
@@ -360,18 +453,21 @@ func (m *DiffMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DiffMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 5)
 	if m.request != nil {
 		fields = append(fields, diff.FieldRequestID)
 	}
-	if m.from_response_id != nil {
+	if m.from_response != nil {
 		fields = append(fields, diff.FieldFromResponseID)
 	}
-	if m.to_response_id != nil {
+	if m.to_response != nil {
 		fields = append(fields, diff.FieldToResponseID)
 	}
 	if m.content != nil {
 		fields = append(fields, diff.FieldContent)
+	}
+	if m.created_at != nil {
+		fields = append(fields, diff.FieldCreatedAt)
 	}
 	return fields
 }
@@ -389,6 +485,8 @@ func (m *DiffMutation) Field(name string) (ent.Value, bool) {
 		return m.ToResponseID()
 	case diff.FieldContent:
 		return m.Content()
+	case diff.FieldCreatedAt:
+		return m.CreatedAt()
 	}
 	return nil, false
 }
@@ -406,6 +504,8 @@ func (m *DiffMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldToResponseID(ctx)
 	case diff.FieldContent:
 		return m.OldContent(ctx)
+	case diff.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown Diff field %s", name)
 }
@@ -442,6 +542,13 @@ func (m *DiffMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContent(v)
+		return nil
+	case diff.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Diff field %s", name)
@@ -504,15 +611,24 @@ func (m *DiffMutation) ResetField(name string) error {
 	case diff.FieldContent:
 		m.ResetContent()
 		return nil
+	case diff.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
 	}
 	return fmt.Errorf("unknown Diff field %s", name)
 }
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *DiffMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 3)
 	if m.request != nil {
 		edges = append(edges, diff.EdgeRequest)
+	}
+	if m.from_response != nil {
+		edges = append(edges, diff.EdgeFromResponse)
+	}
+	if m.to_response != nil {
+		edges = append(edges, diff.EdgeToResponse)
 	}
 	return edges
 }
@@ -525,13 +641,21 @@ func (m *DiffMutation) AddedIDs(name string) []ent.Value {
 		if id := m.request; id != nil {
 			return []ent.Value{*id}
 		}
+	case diff.EdgeFromResponse:
+		if id := m.from_response; id != nil {
+			return []ent.Value{*id}
+		}
+	case diff.EdgeToResponse:
+		if id := m.to_response; id != nil {
+			return []ent.Value{*id}
+		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *DiffMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 3)
 	return edges
 }
 
@@ -543,9 +667,15 @@ func (m *DiffMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *DiffMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 3)
 	if m.clearedrequest {
 		edges = append(edges, diff.EdgeRequest)
+	}
+	if m.clearedfrom_response {
+		edges = append(edges, diff.EdgeFromResponse)
+	}
+	if m.clearedto_response {
+		edges = append(edges, diff.EdgeToResponse)
 	}
 	return edges
 }
@@ -556,6 +686,10 @@ func (m *DiffMutation) EdgeCleared(name string) bool {
 	switch name {
 	case diff.EdgeRequest:
 		return m.clearedrequest
+	case diff.EdgeFromResponse:
+		return m.clearedfrom_response
+	case diff.EdgeToResponse:
+		return m.clearedto_response
 	}
 	return false
 }
@@ -567,6 +701,12 @@ func (m *DiffMutation) ClearEdge(name string) error {
 	case diff.EdgeRequest:
 		m.ClearRequest()
 		return nil
+	case diff.EdgeFromResponse:
+		m.ClearFromResponse()
+		return nil
+	case diff.EdgeToResponse:
+		m.ClearToResponse()
+		return nil
 	}
 	return fmt.Errorf("unknown Diff unique edge %s", name)
 }
@@ -577,6 +717,12 @@ func (m *DiffMutation) ResetEdge(name string) error {
 	switch name {
 	case diff.EdgeRequest:
 		m.ResetRequest()
+		return nil
+	case diff.EdgeFromResponse:
+		m.ResetFromResponse()
+		return nil
+	case diff.EdgeToResponse:
+		m.ResetToResponse()
 		return nil
 	}
 	return fmt.Errorf("unknown Diff edge %s", name)
@@ -1978,21 +2124,27 @@ func (m *RequestMutation) ResetEdge(name string) error {
 // ResponseMutation represents an operation that mutates the Response nodes in the graph.
 type ResponseMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *uuid.UUID
-	_type          *string
-	status_code    *int32
-	addstatus_code *int32
-	headers        *map[string][]string
-	body           *[]byte
-	created_at     *time.Time
-	clearedFields  map[string]struct{}
-	request        *uuid.UUID
-	clearedrequest bool
-	done           bool
-	oldValue       func(context.Context) (*Response, error)
-	predicates     []predicate.Response
+	op                Op
+	typ               string
+	id                *uuid.UUID
+	_type             *string
+	status_code       *int32
+	addstatus_code    *int32
+	headers           *map[string][]string
+	body              *[]byte
+	created_at        *time.Time
+	clearedFields     map[string]struct{}
+	request           *uuid.UUID
+	clearedrequest    bool
+	diffs_from        map[uuid.UUID]struct{}
+	removeddiffs_from map[uuid.UUID]struct{}
+	cleareddiffs_from bool
+	diffs_to          map[uuid.UUID]struct{}
+	removeddiffs_to   map[uuid.UUID]struct{}
+	cleareddiffs_to   bool
+	done              bool
+	oldValue          func(context.Context) (*Response, error)
+	predicates        []predicate.Response
 }
 
 var _ ent.Mutation = (*ResponseMutation)(nil)
@@ -2388,6 +2540,114 @@ func (m *ResponseMutation) ResetRequest() {
 	m.clearedrequest = false
 }
 
+// AddDiffsFromIDs adds the "diffs_from" edge to the Diff entity by ids.
+func (m *ResponseMutation) AddDiffsFromIDs(ids ...uuid.UUID) {
+	if m.diffs_from == nil {
+		m.diffs_from = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.diffs_from[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDiffsFrom clears the "diffs_from" edge to the Diff entity.
+func (m *ResponseMutation) ClearDiffsFrom() {
+	m.cleareddiffs_from = true
+}
+
+// DiffsFromCleared reports if the "diffs_from" edge to the Diff entity was cleared.
+func (m *ResponseMutation) DiffsFromCleared() bool {
+	return m.cleareddiffs_from
+}
+
+// RemoveDiffsFromIDs removes the "diffs_from" edge to the Diff entity by IDs.
+func (m *ResponseMutation) RemoveDiffsFromIDs(ids ...uuid.UUID) {
+	if m.removeddiffs_from == nil {
+		m.removeddiffs_from = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.diffs_from, ids[i])
+		m.removeddiffs_from[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDiffsFrom returns the removed IDs of the "diffs_from" edge to the Diff entity.
+func (m *ResponseMutation) RemovedDiffsFromIDs() (ids []uuid.UUID) {
+	for id := range m.removeddiffs_from {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DiffsFromIDs returns the "diffs_from" edge IDs in the mutation.
+func (m *ResponseMutation) DiffsFromIDs() (ids []uuid.UUID) {
+	for id := range m.diffs_from {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDiffsFrom resets all changes to the "diffs_from" edge.
+func (m *ResponseMutation) ResetDiffsFrom() {
+	m.diffs_from = nil
+	m.cleareddiffs_from = false
+	m.removeddiffs_from = nil
+}
+
+// AddDiffsToIDs adds the "diffs_to" edge to the Diff entity by ids.
+func (m *ResponseMutation) AddDiffsToIDs(ids ...uuid.UUID) {
+	if m.diffs_to == nil {
+		m.diffs_to = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.diffs_to[ids[i]] = struct{}{}
+	}
+}
+
+// ClearDiffsTo clears the "diffs_to" edge to the Diff entity.
+func (m *ResponseMutation) ClearDiffsTo() {
+	m.cleareddiffs_to = true
+}
+
+// DiffsToCleared reports if the "diffs_to" edge to the Diff entity was cleared.
+func (m *ResponseMutation) DiffsToCleared() bool {
+	return m.cleareddiffs_to
+}
+
+// RemoveDiffsToIDs removes the "diffs_to" edge to the Diff entity by IDs.
+func (m *ResponseMutation) RemoveDiffsToIDs(ids ...uuid.UUID) {
+	if m.removeddiffs_to == nil {
+		m.removeddiffs_to = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.diffs_to, ids[i])
+		m.removeddiffs_to[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedDiffsTo returns the removed IDs of the "diffs_to" edge to the Diff entity.
+func (m *ResponseMutation) RemovedDiffsToIDs() (ids []uuid.UUID) {
+	for id := range m.removeddiffs_to {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// DiffsToIDs returns the "diffs_to" edge IDs in the mutation.
+func (m *ResponseMutation) DiffsToIDs() (ids []uuid.UUID) {
+	for id := range m.diffs_to {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetDiffsTo resets all changes to the "diffs_to" edge.
+func (m *ResponseMutation) ResetDiffsTo() {
+	m.diffs_to = nil
+	m.cleareddiffs_to = false
+	m.removeddiffs_to = nil
+}
+
 // Where appends a list predicates to the ResponseMutation builder.
 func (m *ResponseMutation) Where(ps ...predicate.Response) {
 	m.predicates = append(m.predicates, ps...)
@@ -2636,9 +2896,15 @@ func (m *ResponseMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ResponseMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 3)
 	if m.request != nil {
 		edges = append(edges, response.EdgeRequest)
+	}
+	if m.diffs_from != nil {
+		edges = append(edges, response.EdgeDiffsFrom)
+	}
+	if m.diffs_to != nil {
+		edges = append(edges, response.EdgeDiffsTo)
 	}
 	return edges
 }
@@ -2651,27 +2917,65 @@ func (m *ResponseMutation) AddedIDs(name string) []ent.Value {
 		if id := m.request; id != nil {
 			return []ent.Value{*id}
 		}
+	case response.EdgeDiffsFrom:
+		ids := make([]ent.Value, 0, len(m.diffs_from))
+		for id := range m.diffs_from {
+			ids = append(ids, id)
+		}
+		return ids
+	case response.EdgeDiffsTo:
+		ids := make([]ent.Value, 0, len(m.diffs_to))
+		for id := range m.diffs_to {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ResponseMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 3)
+	if m.removeddiffs_from != nil {
+		edges = append(edges, response.EdgeDiffsFrom)
+	}
+	if m.removeddiffs_to != nil {
+		edges = append(edges, response.EdgeDiffsTo)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *ResponseMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case response.EdgeDiffsFrom:
+		ids := make([]ent.Value, 0, len(m.removeddiffs_from))
+		for id := range m.removeddiffs_from {
+			ids = append(ids, id)
+		}
+		return ids
+	case response.EdgeDiffsTo:
+		ids := make([]ent.Value, 0, len(m.removeddiffs_to))
+		for id := range m.removeddiffs_to {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ResponseMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 3)
 	if m.clearedrequest {
 		edges = append(edges, response.EdgeRequest)
+	}
+	if m.cleareddiffs_from {
+		edges = append(edges, response.EdgeDiffsFrom)
+	}
+	if m.cleareddiffs_to {
+		edges = append(edges, response.EdgeDiffsTo)
 	}
 	return edges
 }
@@ -2682,6 +2986,10 @@ func (m *ResponseMutation) EdgeCleared(name string) bool {
 	switch name {
 	case response.EdgeRequest:
 		return m.clearedrequest
+	case response.EdgeDiffsFrom:
+		return m.cleareddiffs_from
+	case response.EdgeDiffsTo:
+		return m.cleareddiffs_to
 	}
 	return false
 }
@@ -2703,6 +3011,12 @@ func (m *ResponseMutation) ResetEdge(name string) error {
 	switch name {
 	case response.EdgeRequest:
 		m.ResetRequest()
+		return nil
+	case response.EdgeDiffsFrom:
+		m.ResetDiffsFrom()
+		return nil
+	case response.EdgeDiffsTo:
+		m.ResetDiffsTo()
 		return nil
 	}
 	return fmt.Errorf("unknown Response edge %s", name)

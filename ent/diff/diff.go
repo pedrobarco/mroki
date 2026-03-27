@@ -3,6 +3,8 @@
 package diff
 
 import (
+	"time"
+
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
@@ -21,8 +23,14 @@ const (
 	FieldToResponseID = "to_response_id"
 	// FieldContent holds the string denoting the content field in the database.
 	FieldContent = "content"
+	// FieldCreatedAt holds the string denoting the created_at field in the database.
+	FieldCreatedAt = "created_at"
 	// EdgeRequest holds the string denoting the request edge name in mutations.
 	EdgeRequest = "request"
+	// EdgeFromResponse holds the string denoting the from_response edge name in mutations.
+	EdgeFromResponse = "from_response"
+	// EdgeToResponse holds the string denoting the to_response edge name in mutations.
+	EdgeToResponse = "to_response"
 	// Table holds the table name of the diff in the database.
 	Table = "diffs"
 	// RequestTable is the table that holds the request relation/edge.
@@ -32,6 +40,20 @@ const (
 	RequestInverseTable = "requests"
 	// RequestColumn is the table column denoting the request relation/edge.
 	RequestColumn = "request_id"
+	// FromResponseTable is the table that holds the from_response relation/edge.
+	FromResponseTable = "diffs"
+	// FromResponseInverseTable is the table name for the Response entity.
+	// It exists in this package in order to avoid circular dependency with the "response" package.
+	FromResponseInverseTable = "responses"
+	// FromResponseColumn is the table column denoting the from_response relation/edge.
+	FromResponseColumn = "from_response_id"
+	// ToResponseTable is the table that holds the to_response relation/edge.
+	ToResponseTable = "diffs"
+	// ToResponseInverseTable is the table name for the Response entity.
+	// It exists in this package in order to avoid circular dependency with the "response" package.
+	ToResponseInverseTable = "responses"
+	// ToResponseColumn is the table column denoting the to_response relation/edge.
+	ToResponseColumn = "to_response_id"
 )
 
 // Columns holds all SQL columns for diff fields.
@@ -41,6 +63,7 @@ var Columns = []string{
 	FieldFromResponseID,
 	FieldToResponseID,
 	FieldContent,
+	FieldCreatedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -54,6 +77,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
+	DefaultCreatedAt func() time.Time
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -86,10 +111,29 @@ func ByContent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContent, opts...).ToFunc()
 }
 
+// ByCreatedAt orders the results by the created_at field.
+func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
 // ByRequestField orders the results by request field.
 func ByRequestField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newRequestStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByFromResponseField orders the results by from_response field.
+func ByFromResponseField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newFromResponseStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByToResponseField orders the results by to_response field.
+func ByToResponseField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newToResponseStep(), sql.OrderByField(field, opts...))
 	}
 }
 func newRequestStep() *sqlgraph.Step {
@@ -97,5 +141,19 @@ func newRequestStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(RequestInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2O, true, RequestTable, RequestColumn),
+	)
+}
+func newFromResponseStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(FromResponseInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, FromResponseTable, FromResponseColumn),
+	)
+}
+func newToResponseStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ToResponseInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, ToResponseTable, ToResponseColumn),
 	)
 }

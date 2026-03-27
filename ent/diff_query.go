@@ -15,16 +15,19 @@ import (
 	"github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
+	"github.com/pedrobarco/mroki/ent/response"
 )
 
 // DiffQuery is the builder for querying Diff entities.
 type DiffQuery struct {
 	config
-	ctx         *QueryContext
-	order       []diff.OrderOption
-	inters      []Interceptor
-	predicates  []predicate.Diff
-	withRequest *RequestQuery
+	ctx              *QueryContext
+	order            []diff.OrderOption
+	inters           []Interceptor
+	predicates       []predicate.Diff
+	withRequest      *RequestQuery
+	withFromResponse *ResponseQuery
+	withToResponse   *ResponseQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -76,6 +79,50 @@ func (_q *DiffQuery) QueryRequest() *RequestQuery {
 			sqlgraph.From(diff.Table, diff.FieldID, selector),
 			sqlgraph.To(request.Table, request.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, true, diff.RequestTable, diff.RequestColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryFromResponse chains the current query on the "from_response" edge.
+func (_q *DiffQuery) QueryFromResponse() *ResponseQuery {
+	query := (&ResponseClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(diff.Table, diff.FieldID, selector),
+			sqlgraph.To(response.Table, response.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, diff.FromResponseTable, diff.FromResponseColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryToResponse chains the current query on the "to_response" edge.
+func (_q *DiffQuery) QueryToResponse() *ResponseQuery {
+	query := (&ResponseClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(diff.Table, diff.FieldID, selector),
+			sqlgraph.To(response.Table, response.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, diff.ToResponseTable, diff.ToResponseColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -270,12 +317,14 @@ func (_q *DiffQuery) Clone() *DiffQuery {
 		return nil
 	}
 	return &DiffQuery{
-		config:      _q.config,
-		ctx:         _q.ctx.Clone(),
-		order:       append([]diff.OrderOption{}, _q.order...),
-		inters:      append([]Interceptor{}, _q.inters...),
-		predicates:  append([]predicate.Diff{}, _q.predicates...),
-		withRequest: _q.withRequest.Clone(),
+		config:           _q.config,
+		ctx:              _q.ctx.Clone(),
+		order:            append([]diff.OrderOption{}, _q.order...),
+		inters:           append([]Interceptor{}, _q.inters...),
+		predicates:       append([]predicate.Diff{}, _q.predicates...),
+		withRequest:      _q.withRequest.Clone(),
+		withFromResponse: _q.withFromResponse.Clone(),
+		withToResponse:   _q.withToResponse.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -290,6 +339,28 @@ func (_q *DiffQuery) WithRequest(opts ...func(*RequestQuery)) *DiffQuery {
 		opt(query)
 	}
 	_q.withRequest = query
+	return _q
+}
+
+// WithFromResponse tells the query-builder to eager-load the nodes that are connected to
+// the "from_response" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *DiffQuery) WithFromResponse(opts ...func(*ResponseQuery)) *DiffQuery {
+	query := (&ResponseClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withFromResponse = query
+	return _q
+}
+
+// WithToResponse tells the query-builder to eager-load the nodes that are connected to
+// the "to_response" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *DiffQuery) WithToResponse(opts ...func(*ResponseQuery)) *DiffQuery {
+	query := (&ResponseClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withToResponse = query
 	return _q
 }
 
@@ -371,8 +442,10 @@ func (_q *DiffQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Diff, e
 	var (
 		nodes       = []*Diff{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [3]bool{
 			_q.withRequest != nil,
+			_q.withFromResponse != nil,
+			_q.withToResponse != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -396,6 +469,18 @@ func (_q *DiffQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Diff, e
 	if query := _q.withRequest; query != nil {
 		if err := _q.loadRequest(ctx, query, nodes, nil,
 			func(n *Diff, e *Request) { n.Edges.Request = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withFromResponse; query != nil {
+		if err := _q.loadFromResponse(ctx, query, nodes, nil,
+			func(n *Diff, e *Response) { n.Edges.FromResponse = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withToResponse; query != nil {
+		if err := _q.loadToResponse(ctx, query, nodes, nil,
+			func(n *Diff, e *Response) { n.Edges.ToResponse = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -431,6 +516,64 @@ func (_q *DiffQuery) loadRequest(ctx context.Context, query *RequestQuery, nodes
 	}
 	return nil
 }
+func (_q *DiffQuery) loadFromResponse(ctx context.Context, query *ResponseQuery, nodes []*Diff, init func(*Diff), assign func(*Diff, *Response)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*Diff)
+	for i := range nodes {
+		fk := nodes[i].FromResponseID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(response.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "from_response_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *DiffQuery) loadToResponse(ctx context.Context, query *ResponseQuery, nodes []*Diff, init func(*Diff), assign func(*Diff, *Response)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*Diff)
+	for i := range nodes {
+		fk := nodes[i].ToResponseID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(response.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "to_response_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
 
 func (_q *DiffQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -459,6 +602,12 @@ func (_q *DiffQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withRequest != nil {
 			_spec.Node.AddColumnOnce(diff.FieldRequestID)
+		}
+		if _q.withFromResponse != nil {
+			_spec.Node.AddColumnOnce(diff.FieldFromResponseID)
+		}
+		if _q.withToResponse != nil {
+			_spec.Node.AddColumnOnce(diff.FieldToResponseID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

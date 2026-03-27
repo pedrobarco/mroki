@@ -39,6 +39,8 @@ func (Response) Edges() []ent.Edge {
 			Field("request_id").
 			Unique().
 			Required(),
+		edge.To("diffs_from", Diff.Type),
+		edge.To("diffs_to", Diff.Type),
 	}
 }
 

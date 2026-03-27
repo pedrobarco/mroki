@@ -14,6 +14,7 @@ import (
 	"github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
+	"github.com/pedrobarco/mroki/ent/response"
 )
 
 // DiffUpdate is the builder for updating Diff entities.
@@ -90,6 +91,16 @@ func (_u *DiffUpdate) SetRequest(v *Request) *DiffUpdate {
 	return _u.SetRequestID(v.ID)
 }
 
+// SetFromResponse sets the "from_response" edge to the Response entity.
+func (_u *DiffUpdate) SetFromResponse(v *Response) *DiffUpdate {
+	return _u.SetFromResponseID(v.ID)
+}
+
+// SetToResponse sets the "to_response" edge to the Response entity.
+func (_u *DiffUpdate) SetToResponse(v *Response) *DiffUpdate {
+	return _u.SetToResponseID(v.ID)
+}
+
 // Mutation returns the DiffMutation object of the builder.
 func (_u *DiffUpdate) Mutation() *DiffMutation {
 	return _u.mutation
@@ -98,6 +109,18 @@ func (_u *DiffUpdate) Mutation() *DiffMutation {
 // ClearRequest clears the "request" edge to the Request entity.
 func (_u *DiffUpdate) ClearRequest() *DiffUpdate {
 	_u.mutation.ClearRequest()
+	return _u
+}
+
+// ClearFromResponse clears the "from_response" edge to the Response entity.
+func (_u *DiffUpdate) ClearFromResponse() *DiffUpdate {
+	_u.mutation.ClearFromResponse()
+	return _u
+}
+
+// ClearToResponse clears the "to_response" edge to the Response entity.
+func (_u *DiffUpdate) ClearToResponse() *DiffUpdate {
+	_u.mutation.ClearToResponse()
 	return _u
 }
 
@@ -133,6 +156,12 @@ func (_u *DiffUpdate) check() error {
 	if _u.mutation.RequestCleared() && len(_u.mutation.RequestIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Diff.request"`)
 	}
+	if _u.mutation.FromResponseCleared() && len(_u.mutation.FromResponseIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Diff.from_response"`)
+	}
+	if _u.mutation.ToResponseCleared() && len(_u.mutation.ToResponseIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Diff.to_response"`)
+	}
 	return nil
 }
 
@@ -147,12 +176,6 @@ func (_u *DiffUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := _u.mutation.FromResponseID(); ok {
-		_spec.SetField(diff.FieldFromResponseID, field.TypeUUID, value)
-	}
-	if value, ok := _u.mutation.ToResponseID(); ok {
-		_spec.SetField(diff.FieldToResponseID, field.TypeUUID, value)
 	}
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(diff.FieldContent, field.TypeString, value)
@@ -179,6 +202,64 @@ func (_u *DiffUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(request.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.FromResponseCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.FromResponseTable,
+			Columns: []string{diff.FromResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.FromResponseIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.FromResponseTable,
+			Columns: []string{diff.FromResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ToResponseCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.ToResponseTable,
+			Columns: []string{diff.ToResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ToResponseIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.ToResponseTable,
+			Columns: []string{diff.ToResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -267,6 +348,16 @@ func (_u *DiffUpdateOne) SetRequest(v *Request) *DiffUpdateOne {
 	return _u.SetRequestID(v.ID)
 }
 
+// SetFromResponse sets the "from_response" edge to the Response entity.
+func (_u *DiffUpdateOne) SetFromResponse(v *Response) *DiffUpdateOne {
+	return _u.SetFromResponseID(v.ID)
+}
+
+// SetToResponse sets the "to_response" edge to the Response entity.
+func (_u *DiffUpdateOne) SetToResponse(v *Response) *DiffUpdateOne {
+	return _u.SetToResponseID(v.ID)
+}
+
 // Mutation returns the DiffMutation object of the builder.
 func (_u *DiffUpdateOne) Mutation() *DiffMutation {
 	return _u.mutation
@@ -275,6 +366,18 @@ func (_u *DiffUpdateOne) Mutation() *DiffMutation {
 // ClearRequest clears the "request" edge to the Request entity.
 func (_u *DiffUpdateOne) ClearRequest() *DiffUpdateOne {
 	_u.mutation.ClearRequest()
+	return _u
+}
+
+// ClearFromResponse clears the "from_response" edge to the Response entity.
+func (_u *DiffUpdateOne) ClearFromResponse() *DiffUpdateOne {
+	_u.mutation.ClearFromResponse()
+	return _u
+}
+
+// ClearToResponse clears the "to_response" edge to the Response entity.
+func (_u *DiffUpdateOne) ClearToResponse() *DiffUpdateOne {
+	_u.mutation.ClearToResponse()
 	return _u
 }
 
@@ -323,6 +426,12 @@ func (_u *DiffUpdateOne) check() error {
 	if _u.mutation.RequestCleared() && len(_u.mutation.RequestIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Diff.request"`)
 	}
+	if _u.mutation.FromResponseCleared() && len(_u.mutation.FromResponseIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Diff.from_response"`)
+	}
+	if _u.mutation.ToResponseCleared() && len(_u.mutation.ToResponseIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Diff.to_response"`)
+	}
 	return nil
 }
 
@@ -355,12 +464,6 @@ func (_u *DiffUpdateOne) sqlSave(ctx context.Context) (_node *Diff, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.FromResponseID(); ok {
-		_spec.SetField(diff.FieldFromResponseID, field.TypeUUID, value)
-	}
-	if value, ok := _u.mutation.ToResponseID(); ok {
-		_spec.SetField(diff.FieldToResponseID, field.TypeUUID, value)
-	}
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(diff.FieldContent, field.TypeString, value)
 	}
@@ -386,6 +489,64 @@ func (_u *DiffUpdateOne) sqlSave(ctx context.Context) (_node *Diff, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(request.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.FromResponseCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.FromResponseTable,
+			Columns: []string{diff.FromResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.FromResponseIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.FromResponseTable,
+			Columns: []string{diff.FromResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ToResponseCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.ToResponseTable,
+			Columns: []string{diff.ToResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ToResponseIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.ToResponseTable,
+			Columns: []string{diff.ToResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

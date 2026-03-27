@@ -27,6 +27,10 @@ const (
 	FieldCreatedAt = "created_at"
 	// EdgeRequest holds the string denoting the request edge name in mutations.
 	EdgeRequest = "request"
+	// EdgeDiffsFrom holds the string denoting the diffs_from edge name in mutations.
+	EdgeDiffsFrom = "diffs_from"
+	// EdgeDiffsTo holds the string denoting the diffs_to edge name in mutations.
+	EdgeDiffsTo = "diffs_to"
 	// Table holds the table name of the response in the database.
 	Table = "responses"
 	// RequestTable is the table that holds the request relation/edge.
@@ -36,6 +40,20 @@ const (
 	RequestInverseTable = "requests"
 	// RequestColumn is the table column denoting the request relation/edge.
 	RequestColumn = "request_id"
+	// DiffsFromTable is the table that holds the diffs_from relation/edge.
+	DiffsFromTable = "diffs"
+	// DiffsFromInverseTable is the table name for the Diff entity.
+	// It exists in this package in order to avoid circular dependency with the "diff" package.
+	DiffsFromInverseTable = "diffs"
+	// DiffsFromColumn is the table column denoting the diffs_from relation/edge.
+	DiffsFromColumn = "from_response_id"
+	// DiffsToTable is the table that holds the diffs_to relation/edge.
+	DiffsToTable = "diffs"
+	// DiffsToInverseTable is the table name for the Diff entity.
+	// It exists in this package in order to avoid circular dependency with the "diff" package.
+	DiffsToInverseTable = "diffs"
+	// DiffsToColumn is the table column denoting the diffs_to relation/edge.
+	DiffsToColumn = "to_response_id"
 )
 
 // Columns holds all SQL columns for response fields.
@@ -100,10 +118,52 @@ func ByRequestField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newRequestStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByDiffsFromCount orders the results by diffs_from count.
+func ByDiffsFromCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDiffsFromStep(), opts...)
+	}
+}
+
+// ByDiffsFrom orders the results by diffs_from terms.
+func ByDiffsFrom(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDiffsFromStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByDiffsToCount orders the results by diffs_to count.
+func ByDiffsToCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newDiffsToStep(), opts...)
+	}
+}
+
+// ByDiffsTo orders the results by diffs_to terms.
+func ByDiffsTo(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDiffsToStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newRequestStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(RequestInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, RequestTable, RequestColumn),
+	)
+}
+func newDiffsFromStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DiffsFromInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DiffsFromTable, DiffsFromColumn),
+	)
+}
+func newDiffsToStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(DiffsToInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, DiffsToTable, DiffsToColumn),
 	)
 }

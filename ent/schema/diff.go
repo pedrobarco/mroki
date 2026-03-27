@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"time"
+
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
@@ -23,6 +25,9 @@ func (Diff) Fields() []ent.Field {
 		field.UUID("from_response_id", uuid.UUID{}),
 		field.UUID("to_response_id", uuid.UUID{}),
 		field.String("content"),
+		field.Time("created_at").
+			Default(time.Now).
+			Immutable(),
 	}
 }
 
@@ -32,6 +37,16 @@ func (Diff) Edges() []ent.Edge {
 		edge.From("request", Request.Type).
 			Ref("diff").
 			Field("request_id").
+			Unique().
+			Required(),
+		edge.From("from_response", Response.Type).
+			Ref("diffs_from").
+			Field("from_response_id").
+			Unique().
+			Required(),
+		edge.From("to_response", Response.Type).
+			Ref("diffs_to").
+			Field("to_response_id").
 			Unique().
 			Required(),
 	}

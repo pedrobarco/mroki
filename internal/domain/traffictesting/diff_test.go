@@ -2,6 +2,7 @@ package traffictesting_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
@@ -13,12 +14,17 @@ func TestNewDiff_creates_diff_with_values(t *testing.T) {
 	toID := uuid.New()
 	content := `{"status": "different"}`
 
+	before := time.Now()
 	diff, err := traffictesting.NewDiff(fromID, toID, content)
+	after := time.Now()
 
 	assert.NoError(t, err)
 	assert.Equal(t, fromID, diff.FromResponseID)
 	assert.Equal(t, toID, diff.ToResponseID)
 	assert.Equal(t, content, diff.Content)
+	assert.False(t, diff.CreatedAt.IsZero(), "CreatedAt should be set automatically")
+	assert.True(t, !diff.CreatedAt.Before(before) && !diff.CreatedAt.After(after),
+		"CreatedAt should be approximately now")
 }
 
 func TestDiff_IsZero(t *testing.T) {

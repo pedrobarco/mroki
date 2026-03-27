@@ -329,6 +329,52 @@ func HasRequestWith(preds ...predicate.Request) predicate.Response {
 	})
 }
 
+// HasDiffsFrom applies the HasEdge predicate on the "diffs_from" edge.
+func HasDiffsFrom() predicate.Response {
+	return predicate.Response(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, DiffsFromTable, DiffsFromColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDiffsFromWith applies the HasEdge predicate on the "diffs_from" edge with a given conditions (other predicates).
+func HasDiffsFromWith(preds ...predicate.Diff) predicate.Response {
+	return predicate.Response(func(s *sql.Selector) {
+		step := newDiffsFromStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasDiffsTo applies the HasEdge predicate on the "diffs_to" edge.
+func HasDiffsTo() predicate.Response {
+	return predicate.Response(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, DiffsToTable, DiffsToColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDiffsToWith applies the HasEdge predicate on the "diffs_to" edge with a given conditions (other predicates).
+func HasDiffsToWith(preds ...predicate.Diff) predicate.Response {
+	return predicate.Response(func(s *sql.Selector) {
+		step := newDiffsToStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Response) predicate.Response {
 	return predicate.Response(sql.AndPredicates(predicates...))

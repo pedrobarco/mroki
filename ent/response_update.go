@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
@@ -122,6 +123,36 @@ func (_u *ResponseUpdate) SetRequest(v *Request) *ResponseUpdate {
 	return _u.SetRequestID(v.ID)
 }
 
+// AddDiffsFromIDs adds the "diffs_from" edge to the Diff entity by IDs.
+func (_u *ResponseUpdate) AddDiffsFromIDs(ids ...uuid.UUID) *ResponseUpdate {
+	_u.mutation.AddDiffsFromIDs(ids...)
+	return _u
+}
+
+// AddDiffsFrom adds the "diffs_from" edges to the Diff entity.
+func (_u *ResponseUpdate) AddDiffsFrom(v ...*Diff) *ResponseUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDiffsFromIDs(ids...)
+}
+
+// AddDiffsToIDs adds the "diffs_to" edge to the Diff entity by IDs.
+func (_u *ResponseUpdate) AddDiffsToIDs(ids ...uuid.UUID) *ResponseUpdate {
+	_u.mutation.AddDiffsToIDs(ids...)
+	return _u
+}
+
+// AddDiffsTo adds the "diffs_to" edges to the Diff entity.
+func (_u *ResponseUpdate) AddDiffsTo(v ...*Diff) *ResponseUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDiffsToIDs(ids...)
+}
+
 // Mutation returns the ResponseMutation object of the builder.
 func (_u *ResponseUpdate) Mutation() *ResponseMutation {
 	return _u.mutation
@@ -131,6 +162,48 @@ func (_u *ResponseUpdate) Mutation() *ResponseMutation {
 func (_u *ResponseUpdate) ClearRequest() *ResponseUpdate {
 	_u.mutation.ClearRequest()
 	return _u
+}
+
+// ClearDiffsFrom clears all "diffs_from" edges to the Diff entity.
+func (_u *ResponseUpdate) ClearDiffsFrom() *ResponseUpdate {
+	_u.mutation.ClearDiffsFrom()
+	return _u
+}
+
+// RemoveDiffsFromIDs removes the "diffs_from" edge to Diff entities by IDs.
+func (_u *ResponseUpdate) RemoveDiffsFromIDs(ids ...uuid.UUID) *ResponseUpdate {
+	_u.mutation.RemoveDiffsFromIDs(ids...)
+	return _u
+}
+
+// RemoveDiffsFrom removes "diffs_from" edges to Diff entities.
+func (_u *ResponseUpdate) RemoveDiffsFrom(v ...*Diff) *ResponseUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDiffsFromIDs(ids...)
+}
+
+// ClearDiffsTo clears all "diffs_to" edges to the Diff entity.
+func (_u *ResponseUpdate) ClearDiffsTo() *ResponseUpdate {
+	_u.mutation.ClearDiffsTo()
+	return _u
+}
+
+// RemoveDiffsToIDs removes the "diffs_to" edge to Diff entities by IDs.
+func (_u *ResponseUpdate) RemoveDiffsToIDs(ids ...uuid.UUID) *ResponseUpdate {
+	_u.mutation.RemoveDiffsToIDs(ids...)
+	return _u
+}
+
+// RemoveDiffsTo removes "diffs_to" edges to Diff entities.
+func (_u *ResponseUpdate) RemoveDiffsTo(v ...*Diff) *ResponseUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDiffsToIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -231,6 +304,96 @@ func (_u *ResponseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(request.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DiffsFromCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsFromTable,
+			Columns: []string{response.DiffsFromColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDiffsFromIDs(); len(nodes) > 0 && !_u.mutation.DiffsFromCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsFromTable,
+			Columns: []string{response.DiffsFromColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiffsFromIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsFromTable,
+			Columns: []string{response.DiffsFromColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DiffsToCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsToTable,
+			Columns: []string{response.DiffsToColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDiffsToIDs(); len(nodes) > 0 && !_u.mutation.DiffsToCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsToTable,
+			Columns: []string{response.DiffsToColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiffsToIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsToTable,
+			Columns: []string{response.DiffsToColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -350,6 +513,36 @@ func (_u *ResponseUpdateOne) SetRequest(v *Request) *ResponseUpdateOne {
 	return _u.SetRequestID(v.ID)
 }
 
+// AddDiffsFromIDs adds the "diffs_from" edge to the Diff entity by IDs.
+func (_u *ResponseUpdateOne) AddDiffsFromIDs(ids ...uuid.UUID) *ResponseUpdateOne {
+	_u.mutation.AddDiffsFromIDs(ids...)
+	return _u
+}
+
+// AddDiffsFrom adds the "diffs_from" edges to the Diff entity.
+func (_u *ResponseUpdateOne) AddDiffsFrom(v ...*Diff) *ResponseUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDiffsFromIDs(ids...)
+}
+
+// AddDiffsToIDs adds the "diffs_to" edge to the Diff entity by IDs.
+func (_u *ResponseUpdateOne) AddDiffsToIDs(ids ...uuid.UUID) *ResponseUpdateOne {
+	_u.mutation.AddDiffsToIDs(ids...)
+	return _u
+}
+
+// AddDiffsTo adds the "diffs_to" edges to the Diff entity.
+func (_u *ResponseUpdateOne) AddDiffsTo(v ...*Diff) *ResponseUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddDiffsToIDs(ids...)
+}
+
 // Mutation returns the ResponseMutation object of the builder.
 func (_u *ResponseUpdateOne) Mutation() *ResponseMutation {
 	return _u.mutation
@@ -359,6 +552,48 @@ func (_u *ResponseUpdateOne) Mutation() *ResponseMutation {
 func (_u *ResponseUpdateOne) ClearRequest() *ResponseUpdateOne {
 	_u.mutation.ClearRequest()
 	return _u
+}
+
+// ClearDiffsFrom clears all "diffs_from" edges to the Diff entity.
+func (_u *ResponseUpdateOne) ClearDiffsFrom() *ResponseUpdateOne {
+	_u.mutation.ClearDiffsFrom()
+	return _u
+}
+
+// RemoveDiffsFromIDs removes the "diffs_from" edge to Diff entities by IDs.
+func (_u *ResponseUpdateOne) RemoveDiffsFromIDs(ids ...uuid.UUID) *ResponseUpdateOne {
+	_u.mutation.RemoveDiffsFromIDs(ids...)
+	return _u
+}
+
+// RemoveDiffsFrom removes "diffs_from" edges to Diff entities.
+func (_u *ResponseUpdateOne) RemoveDiffsFrom(v ...*Diff) *ResponseUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDiffsFromIDs(ids...)
+}
+
+// ClearDiffsTo clears all "diffs_to" edges to the Diff entity.
+func (_u *ResponseUpdateOne) ClearDiffsTo() *ResponseUpdateOne {
+	_u.mutation.ClearDiffsTo()
+	return _u
+}
+
+// RemoveDiffsToIDs removes the "diffs_to" edge to Diff entities by IDs.
+func (_u *ResponseUpdateOne) RemoveDiffsToIDs(ids ...uuid.UUID) *ResponseUpdateOne {
+	_u.mutation.RemoveDiffsToIDs(ids...)
+	return _u
+}
+
+// RemoveDiffsTo removes "diffs_to" edges to Diff entities.
+func (_u *ResponseUpdateOne) RemoveDiffsTo(v ...*Diff) *ResponseUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveDiffsToIDs(ids...)
 }
 
 // Where appends a list predicates to the ResponseUpdate builder.
@@ -489,6 +724,96 @@ func (_u *ResponseUpdateOne) sqlSave(ctx context.Context) (_node *Response, err 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(request.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DiffsFromCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsFromTable,
+			Columns: []string{response.DiffsFromColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDiffsFromIDs(); len(nodes) > 0 && !_u.mutation.DiffsFromCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsFromTable,
+			Columns: []string{response.DiffsFromColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiffsFromIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsFromTable,
+			Columns: []string{response.DiffsFromColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.DiffsToCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsToTable,
+			Columns: []string{response.DiffsToColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedDiffsToIDs(); len(nodes) > 0 && !_u.mutation.DiffsToCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsToTable,
+			Columns: []string{response.DiffsToColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DiffsToIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsToTable,
+			Columns: []string{response.DiffsToColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

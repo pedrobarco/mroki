@@ -54,6 +54,7 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 			FromResponseID: liveRespID,
 			ToResponseID:   shadowRespID,
 			Content:        "no differences",
+			CreatedAt:      time.Now(),
 		},
 	}
 }

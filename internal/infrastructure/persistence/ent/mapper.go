@@ -97,5 +97,6 @@ func mapDiffToDomain(raw *ent.Diff) traffictesting.Diff {
 		FromResponseID: raw.FromResponseID,
 		ToResponseID:   raw.ToResponseID,
 		Content:        raw.Content,
+		CreatedAt:      raw.CreatedAt,
 	}
 }

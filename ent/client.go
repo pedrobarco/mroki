@@ -352,6 +352,38 @@ func (c *DiffClient) QueryRequest(_m *Diff) *RequestQuery {
 	return query
 }
 
+// QueryFromResponse queries the from_response edge of a Diff.
+func (c *DiffClient) QueryFromResponse(_m *Diff) *ResponseQuery {
+	query := (&ResponseClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(diff.Table, diff.FieldID, id),
+			sqlgraph.To(response.Table, response.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, diff.FromResponseTable, diff.FromResponseColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryToResponse queries the to_response edge of a Diff.
+func (c *DiffClient) QueryToResponse(_m *Diff) *ResponseQuery {
+	query := (&ResponseClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(diff.Table, diff.FieldID, id),
+			sqlgraph.To(response.Table, response.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, diff.ToResponseTable, diff.ToResponseColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *DiffClient) Hooks() []Hook {
 	return c.hooks.Diff
@@ -824,6 +856,38 @@ func (c *ResponseClient) QueryRequest(_m *Response) *RequestQuery {
 			sqlgraph.From(response.Table, response.FieldID, id),
 			sqlgraph.To(request.Table, request.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, response.RequestTable, response.RequestColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDiffsFrom queries the diffs_from edge of a Response.
+func (c *ResponseClient) QueryDiffsFrom(_m *Response) *DiffQuery {
+	query := (&DiffClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(response.Table, response.FieldID, id),
+			sqlgraph.To(diff.Table, diff.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, response.DiffsFromTable, response.DiffsFromColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDiffsTo queries the diffs_to edge of a Response.
+func (c *ResponseClient) QueryDiffsTo(_m *Response) *DiffQuery {
+	query := (&DiffClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(response.Table, response.FieldID, id),
+			sqlgraph.To(diff.Table, diff.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, response.DiffsToTable, response.DiffsToColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

@@ -1,11 +1,16 @@
 package traffictesting
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Diff struct {
 	FromResponseID uuid.UUID
 	ToResponseID   uuid.UUID
 	Content        string
+	CreatedAt      time.Time
 }
 
 type diffOption func(*Diff)
@@ -15,6 +20,7 @@ func NewDiff(from, to uuid.UUID, content string, opts ...diffOption) (*Diff, err
 		FromResponseID: from,
 		ToResponseID:   to,
 		Content:        content,
+		CreatedAt:      time.Now(),
 	}
 
 	for _, o := range opts {

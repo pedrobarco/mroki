@@ -105,6 +105,7 @@ func (r *requestRepository) saveDiff(ctx context.Context, tx *ent.Tx, req *traff
 		SetFromResponseID(req.Diff.FromResponseID).
 		SetToResponseID(req.Diff.ToResponseID).
 		SetContent(req.Diff.Content).
+		SetCreatedAt(req.Diff.CreatedAt).
 		Save(ctx); err != nil {
 		return fmt.Errorf("failed to save diff: %w", err)
 	}

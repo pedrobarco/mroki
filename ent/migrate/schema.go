@@ -11,10 +11,11 @@ var (
 	// DiffsColumns holds the columns for the "diffs" table.
 	DiffsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
+		{Name: "content", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "request_id", Type: field.TypeUUID, Unique: true},
 		{Name: "from_response_id", Type: field.TypeUUID},
 		{Name: "to_response_id", Type: field.TypeUUID},
-		{Name: "content", Type: field.TypeString},
-		{Name: "request_id", Type: field.TypeUUID, Unique: true},
 	}
 	// DiffsTable holds the schema information for the "diffs" table.
 	DiffsTable = &schema.Table{
@@ -24,9 +25,21 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "diffs_requests_diff",
-				Columns:    []*schema.Column{DiffsColumns[4]},
+				Columns:    []*schema.Column{DiffsColumns[3]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.Cascade,
+			},
+			{
+				Symbol:     "diffs_responses_diffs_from",
+				Columns:    []*schema.Column{DiffsColumns[4]},
+				RefColumns: []*schema.Column{ResponsesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "diffs_responses_diffs_to",
+				Columns:    []*schema.Column{DiffsColumns[5]},
+				RefColumns: []*schema.Column{ResponsesColumns[0]},
+				OnDelete:   schema.NoAction,
 			},
 		},
 	}
@@ -136,6 +149,8 @@ var (
 
 func init() {
 	DiffsTable.ForeignKeys[0].RefTable = RequestsTable
+	DiffsTable.ForeignKeys[1].RefTable = ResponsesTable
+	DiffsTable.ForeignKeys[2].RefTable = ResponsesTable
 	RequestsTable.ForeignKeys[0].RefTable = GatesTable
 	ResponsesTable.ForeignKeys[0].RefTable = RequestsTable
 }

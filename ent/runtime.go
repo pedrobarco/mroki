@@ -3,6 +3,8 @@
 package ent
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/gate"
@@ -17,6 +19,10 @@ import (
 func init() {
 	diffFields := schema.Diff{}.Fields()
 	_ = diffFields
+	// diffDescCreatedAt is the schema descriptor for created_at field.
+	diffDescCreatedAt := diffFields[5].Descriptor()
+	// diff.DefaultCreatedAt holds the default value on creation for the created_at field.
+	diff.DefaultCreatedAt = diffDescCreatedAt.Default.(func() time.Time)
 	// diffDescID is the schema descriptor for id field.
 	diffDescID := diffFields[0].Descriptor()
 	// diff.DefaultID holds the default value on creation for the id field.

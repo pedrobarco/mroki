@@ -3,6 +3,8 @@
 package diff
 
 import (
+	"time"
+
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
@@ -74,6 +76,11 @@ func Content(v string) predicate.Diff {
 	return predicate.Diff(sql.FieldEQ(FieldContent, v))
 }
 
+// CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
+func CreatedAt(v time.Time) predicate.Diff {
+	return predicate.Diff(sql.FieldEQ(FieldCreatedAt, v))
+}
+
 // RequestIDEQ applies the EQ predicate on the "request_id" field.
 func RequestIDEQ(v uuid.UUID) predicate.Diff {
 	return predicate.Diff(sql.FieldEQ(FieldRequestID, v))
@@ -114,26 +121,6 @@ func FromResponseIDNotIn(vs ...uuid.UUID) predicate.Diff {
 	return predicate.Diff(sql.FieldNotIn(FieldFromResponseID, vs...))
 }
 
-// FromResponseIDGT applies the GT predicate on the "from_response_id" field.
-func FromResponseIDGT(v uuid.UUID) predicate.Diff {
-	return predicate.Diff(sql.FieldGT(FieldFromResponseID, v))
-}
-
-// FromResponseIDGTE applies the GTE predicate on the "from_response_id" field.
-func FromResponseIDGTE(v uuid.UUID) predicate.Diff {
-	return predicate.Diff(sql.FieldGTE(FieldFromResponseID, v))
-}
-
-// FromResponseIDLT applies the LT predicate on the "from_response_id" field.
-func FromResponseIDLT(v uuid.UUID) predicate.Diff {
-	return predicate.Diff(sql.FieldLT(FieldFromResponseID, v))
-}
-
-// FromResponseIDLTE applies the LTE predicate on the "from_response_id" field.
-func FromResponseIDLTE(v uuid.UUID) predicate.Diff {
-	return predicate.Diff(sql.FieldLTE(FieldFromResponseID, v))
-}
-
 // ToResponseIDEQ applies the EQ predicate on the "to_response_id" field.
 func ToResponseIDEQ(v uuid.UUID) predicate.Diff {
 	return predicate.Diff(sql.FieldEQ(FieldToResponseID, v))
@@ -152,26 +139,6 @@ func ToResponseIDIn(vs ...uuid.UUID) predicate.Diff {
 // ToResponseIDNotIn applies the NotIn predicate on the "to_response_id" field.
 func ToResponseIDNotIn(vs ...uuid.UUID) predicate.Diff {
 	return predicate.Diff(sql.FieldNotIn(FieldToResponseID, vs...))
-}
-
-// ToResponseIDGT applies the GT predicate on the "to_response_id" field.
-func ToResponseIDGT(v uuid.UUID) predicate.Diff {
-	return predicate.Diff(sql.FieldGT(FieldToResponseID, v))
-}
-
-// ToResponseIDGTE applies the GTE predicate on the "to_response_id" field.
-func ToResponseIDGTE(v uuid.UUID) predicate.Diff {
-	return predicate.Diff(sql.FieldGTE(FieldToResponseID, v))
-}
-
-// ToResponseIDLT applies the LT predicate on the "to_response_id" field.
-func ToResponseIDLT(v uuid.UUID) predicate.Diff {
-	return predicate.Diff(sql.FieldLT(FieldToResponseID, v))
-}
-
-// ToResponseIDLTE applies the LTE predicate on the "to_response_id" field.
-func ToResponseIDLTE(v uuid.UUID) predicate.Diff {
-	return predicate.Diff(sql.FieldLTE(FieldToResponseID, v))
 }
 
 // ContentEQ applies the EQ predicate on the "content" field.
@@ -239,6 +206,46 @@ func ContentContainsFold(v string) predicate.Diff {
 	return predicate.Diff(sql.FieldContainsFold(FieldContent, v))
 }
 
+// CreatedAtEQ applies the EQ predicate on the "created_at" field.
+func CreatedAtEQ(v time.Time) predicate.Diff {
+	return predicate.Diff(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// CreatedAtNEQ applies the NEQ predicate on the "created_at" field.
+func CreatedAtNEQ(v time.Time) predicate.Diff {
+	return predicate.Diff(sql.FieldNEQ(FieldCreatedAt, v))
+}
+
+// CreatedAtIn applies the In predicate on the "created_at" field.
+func CreatedAtIn(vs ...time.Time) predicate.Diff {
+	return predicate.Diff(sql.FieldIn(FieldCreatedAt, vs...))
+}
+
+// CreatedAtNotIn applies the NotIn predicate on the "created_at" field.
+func CreatedAtNotIn(vs ...time.Time) predicate.Diff {
+	return predicate.Diff(sql.FieldNotIn(FieldCreatedAt, vs...))
+}
+
+// CreatedAtGT applies the GT predicate on the "created_at" field.
+func CreatedAtGT(v time.Time) predicate.Diff {
+	return predicate.Diff(sql.FieldGT(FieldCreatedAt, v))
+}
+
+// CreatedAtGTE applies the GTE predicate on the "created_at" field.
+func CreatedAtGTE(v time.Time) predicate.Diff {
+	return predicate.Diff(sql.FieldGTE(FieldCreatedAt, v))
+}
+
+// CreatedAtLT applies the LT predicate on the "created_at" field.
+func CreatedAtLT(v time.Time) predicate.Diff {
+	return predicate.Diff(sql.FieldLT(FieldCreatedAt, v))
+}
+
+// CreatedAtLTE applies the LTE predicate on the "created_at" field.
+func CreatedAtLTE(v time.Time) predicate.Diff {
+	return predicate.Diff(sql.FieldLTE(FieldCreatedAt, v))
+}
+
 // HasRequest applies the HasEdge predicate on the "request" edge.
 func HasRequest() predicate.Diff {
 	return predicate.Diff(func(s *sql.Selector) {
@@ -254,6 +261,52 @@ func HasRequest() predicate.Diff {
 func HasRequestWith(preds ...predicate.Request) predicate.Diff {
 	return predicate.Diff(func(s *sql.Selector) {
 		step := newRequestStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasFromResponse applies the HasEdge predicate on the "from_response" edge.
+func HasFromResponse() predicate.Diff {
+	return predicate.Diff(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, FromResponseTable, FromResponseColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasFromResponseWith applies the HasEdge predicate on the "from_response" edge with a given conditions (other predicates).
+func HasFromResponseWith(preds ...predicate.Response) predicate.Diff {
+	return predicate.Diff(func(s *sql.Selector) {
+		step := newFromResponseStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasToResponse applies the HasEdge predicate on the "to_response" edge.
+func HasToResponse() predicate.Diff {
+	return predicate.Diff(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ToResponseTable, ToResponseColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasToResponseWith applies the HasEdge predicate on the "to_response" edge with a given conditions (other predicates).
+func HasToResponseWith(preds ...predicate.Response) predicate.Diff {
+	return predicate.Diff(func(s *sql.Selector) {
+		step := newToResponseStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

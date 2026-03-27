@@ -42,9 +42,13 @@ type Response struct {
 type ResponseEdges struct {
 	// Request holds the value of the request edge.
 	Request *Request `json:"request,omitempty"`
+	// DiffsFrom holds the value of the diffs_from edge.
+	DiffsFrom []*Diff `json:"diffs_from,omitempty"`
+	// DiffsTo holds the value of the diffs_to edge.
+	DiffsTo []*Diff `json:"diffs_to,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [3]bool
 }
 
 // RequestOrErr returns the Request value or an error if the edge
@@ -56,6 +60,24 @@ func (e ResponseEdges) RequestOrErr() (*Request, error) {
 		return nil, &NotFoundError{label: request.Label}
 	}
 	return nil, &NotLoadedError{edge: "request"}
+}
+
+// DiffsFromOrErr returns the DiffsFrom value or an error if the edge
+// was not loaded in eager-loading.
+func (e ResponseEdges) DiffsFromOrErr() ([]*Diff, error) {
+	if e.loadedTypes[1] {
+		return e.DiffsFrom, nil
+	}
+	return nil, &NotLoadedError{edge: "diffs_from"}
+}
+
+// DiffsToOrErr returns the DiffsTo value or an error if the edge
+// was not loaded in eager-loading.
+func (e ResponseEdges) DiffsToOrErr() ([]*Diff, error) {
+	if e.loadedTypes[2] {
+		return e.DiffsTo, nil
+	}
+	return nil, &NotLoadedError{edge: "diffs_to"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -148,6 +170,16 @@ func (_m *Response) Value(name string) (ent.Value, error) {
 // QueryRequest queries the "request" edge of the Response entity.
 func (_m *Response) QueryRequest() *RequestQuery {
 	return NewResponseClient(_m.config).QueryRequest(_m)
+}
+
+// QueryDiffsFrom queries the "diffs_from" edge of the Response entity.
+func (_m *Response) QueryDiffsFrom() *DiffQuery {
+	return NewResponseClient(_m.config).QueryDiffsFrom(_m)
+}
+
+// QueryDiffsTo queries the "diffs_to" edge of the Response entity.
+func (_m *Response) QueryDiffsTo() *DiffQuery {
+	return NewResponseClient(_m.config).QueryDiffsTo(_m)
 }
 
 // Update returns a builder for updating this Response.

@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
 )
@@ -75,6 +76,36 @@ func (_c *ResponseCreate) SetNillableID(v *uuid.UUID) *ResponseCreate {
 // SetRequest sets the "request" edge to the Request entity.
 func (_c *ResponseCreate) SetRequest(v *Request) *ResponseCreate {
 	return _c.SetRequestID(v.ID)
+}
+
+// AddDiffsFromIDs adds the "diffs_from" edge to the Diff entity by IDs.
+func (_c *ResponseCreate) AddDiffsFromIDs(ids ...uuid.UUID) *ResponseCreate {
+	_c.mutation.AddDiffsFromIDs(ids...)
+	return _c
+}
+
+// AddDiffsFrom adds the "diffs_from" edges to the Diff entity.
+func (_c *ResponseCreate) AddDiffsFrom(v ...*Diff) *ResponseCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDiffsFromIDs(ids...)
+}
+
+// AddDiffsToIDs adds the "diffs_to" edge to the Diff entity by IDs.
+func (_c *ResponseCreate) AddDiffsToIDs(ids ...uuid.UUID) *ResponseCreate {
+	_c.mutation.AddDiffsToIDs(ids...)
+	return _c
+}
+
+// AddDiffsTo adds the "diffs_to" edges to the Diff entity.
+func (_c *ResponseCreate) AddDiffsTo(v ...*Diff) *ResponseCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddDiffsToIDs(ids...)
 }
 
 // Mutation returns the ResponseMutation object of the builder.
@@ -210,6 +241,38 @@ func (_c *ResponseCreate) createSpec() (*Response, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.RequestID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DiffsFromIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsFromTable,
+			Columns: []string{response.DiffsFromColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.DiffsToIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   response.DiffsToTable,
+			Columns: []string{response.DiffsToColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(diff.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

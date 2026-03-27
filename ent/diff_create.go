@@ -6,12 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/request"
+	"github.com/pedrobarco/mroki/ent/response"
 )
 
 // DiffCreate is the builder for creating a Diff entity.
@@ -45,6 +47,20 @@ func (_c *DiffCreate) SetContent(v string) *DiffCreate {
 	return _c
 }
 
+// SetCreatedAt sets the "created_at" field.
+func (_c *DiffCreate) SetCreatedAt(v time.Time) *DiffCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *DiffCreate) SetNillableCreatedAt(v *time.Time) *DiffCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *DiffCreate) SetID(v uuid.UUID) *DiffCreate {
 	_c.mutation.SetID(v)
@@ -62,6 +78,16 @@ func (_c *DiffCreate) SetNillableID(v *uuid.UUID) *DiffCreate {
 // SetRequest sets the "request" edge to the Request entity.
 func (_c *DiffCreate) SetRequest(v *Request) *DiffCreate {
 	return _c.SetRequestID(v.ID)
+}
+
+// SetFromResponse sets the "from_response" edge to the Response entity.
+func (_c *DiffCreate) SetFromResponse(v *Response) *DiffCreate {
+	return _c.SetFromResponseID(v.ID)
+}
+
+// SetToResponse sets the "to_response" edge to the Response entity.
+func (_c *DiffCreate) SetToResponse(v *Response) *DiffCreate {
+	return _c.SetToResponseID(v.ID)
 }
 
 // Mutation returns the DiffMutation object of the builder.
@@ -99,6 +125,10 @@ func (_c *DiffCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *DiffCreate) defaults() {
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := diff.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := diff.DefaultID()
 		_c.mutation.SetID(v)
@@ -119,8 +149,17 @@ func (_c *DiffCreate) check() error {
 	if _, ok := _c.mutation.Content(); !ok {
 		return &ValidationError{Name: "content", err: errors.New(`ent: missing required field "Diff.content"`)}
 	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Diff.created_at"`)}
+	}
 	if len(_c.mutation.RequestIDs()) == 0 {
 		return &ValidationError{Name: "request", err: errors.New(`ent: missing required edge "Diff.request"`)}
+	}
+	if len(_c.mutation.FromResponseIDs()) == 0 {
+		return &ValidationError{Name: "from_response", err: errors.New(`ent: missing required edge "Diff.from_response"`)}
+	}
+	if len(_c.mutation.ToResponseIDs()) == 0 {
+		return &ValidationError{Name: "to_response", err: errors.New(`ent: missing required edge "Diff.to_response"`)}
 	}
 	return nil
 }
@@ -157,17 +196,13 @@ func (_c *DiffCreate) createSpec() (*Diff, *sqlgraph.CreateSpec) {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
-	if value, ok := _c.mutation.FromResponseID(); ok {
-		_spec.SetField(diff.FieldFromResponseID, field.TypeUUID, value)
-		_node.FromResponseID = value
-	}
-	if value, ok := _c.mutation.ToResponseID(); ok {
-		_spec.SetField(diff.FieldToResponseID, field.TypeUUID, value)
-		_node.ToResponseID = value
-	}
 	if value, ok := _c.mutation.Content(); ok {
 		_spec.SetField(diff.FieldContent, field.TypeString, value)
 		_node.Content = value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(diff.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
 	}
 	if nodes := _c.mutation.RequestIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -184,6 +219,40 @@ func (_c *DiffCreate) createSpec() (*Diff, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.RequestID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.FromResponseIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.FromResponseTable,
+			Columns: []string{diff.FromResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.FromResponseID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ToResponseIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   diff.ToResponseTable,
+			Columns: []string{diff.ToResponseColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(response.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.ToResponseID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
