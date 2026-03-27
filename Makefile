@@ -1,68 +1,176 @@
-.PHONY: help sqlc-generate test test-verbose test-coverage build build-all clean fmt lint
+HUB_DIR := web/mroki-hub
+DEV_COMPOSE := build/mroki-hub/docker-compose.yaml
 
-# Default target
+.PHONY: help build test lint clean \
+	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-clean \
+	agent-build agent-test agent-clean \
+	hub-build hub-test hub-test-ui hub-test-setup hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
+	dev-up dev-down dev-reset
+
+# ─── Global ──────────────────────────────────────────────────────────
+
 help:
-	@echo "Available targets:"
-	@echo "  sqlc-generate    - Generate Go code from SQL queries"
-	@echo "  test             - Run all tests"
-	@echo "  test-verbose     - Run tests with verbose output"
-	@echo "  test-coverage    - Run tests with coverage report"
-	@echo "  build            - Build all binaries"
-	@echo "  build-api        - Build mroki-api binary"
-	@echo "  build-agent      - Build mroki-agent binary"
-	@echo "  clean            - Remove build artifacts"
-	@echo "  fmt              - Format Go code"
-	@echo "  lint             - Run golangci-lint"
+	@echo "Usage: make <target>"
+	@echo ""
+	@echo "  Global"
+	@echo "  ────────────────────────────────────────"
+	@echo "  build              Build all components"
+	@echo "  test               Run all tests"
+	@echo "  lint               Lint all components"
+	@echo "  clean              Remove all build artifacts"
+	@echo ""
+	@echo "  API"
+	@echo "  ────────────────────────────────────────"
+	@echo "  api-build          Build mroki-api binary"
+	@echo "  api-test           Run API tests"
+	@echo "  api-test-verbose   Run API tests (verbose)"
+	@echo "  api-test-coverage  Run API tests with coverage"
+	@echo "  api-fmt            Format Go code"
+	@echo "  api-lint           Run golangci-lint"
+	@echo "  api-sqlc           Generate Go code from SQL"
+	@echo "  api-clean          Remove API build artifacts"
+	@echo ""
+	@echo "  Agent"
+	@echo "  ────────────────────────────────────────"
+	@echo "  agent-build        Build mroki-agent binary"
+	@echo "  agent-test         Run Agent tests"
+	@echo "  agent-clean        Remove Agent build artifacts"
+	@echo ""
+	@echo "  Hub"
+	@echo "  ────────────────────────────────────────"
+	@echo "  hub-build          Build hub for production"
+	@echo "  hub-test           Run Playwright e2e tests"
+	@echo "  hub-test-ui        Run e2e tests in UI mode"
+	@echo "  hub-test-setup     Start backend for e2e tests"
+	@echo "  hub-dev            Start hub dev server"
+	@echo "  hub-install        Install hub dependencies"
+	@echo "  hub-preview        Preview production build"
+	@echo "  hub-fmt            Format hub code"
+	@echo "  hub-lint           Lint hub code"
+	@echo "  hub-clean          Remove hub build artifacts"
+	@echo ""
+	@echo "  Dev Stack"
+	@echo "  ────────────────────────────────────────"
+	@echo "  dev-up             Start dev stack (db + api + agent)"
+	@echo "  dev-down           Stop dev stack"
+	@echo "  dev-reset          Reset dev stack (destroy + recreate)"
 
-# Generate code from SQL using sqlc
-sqlc-generate:
-	@echo "Generating Go code from SQL..."
-	go tool sqlc generate
+build: api-build agent-build hub-build
 
-# Run all tests
-test:
-	@echo "Running tests..."
-	go test ./...
+test: api-test agent-test hub-test
 
-# Run tests with verbose output
-test-verbose:
-	@echo "Running tests (verbose)..."
-	go test -v ./...
+lint: api-lint hub-lint
 
-# Run tests with coverage
-test-coverage:
-	@echo "Running tests with coverage..."
-	go test -race -coverprofile=coverage.out -covermode=atomic ./...
-	@echo "Coverage report generated: coverage.out"
-	@echo "View in browser: go tool cover -html=coverage.out"
+clean: api-clean agent-clean hub-clean
 
-# Build all binaries
-build: build-api build-agent
+# ─── API ─────────────────────────────────────────────────────────────
 
-# Build mroki-api
-build-api:
+api-build:
 	@echo "Building mroki-api..."
 	@mkdir -p bin
 	go build -o bin/mroki-api ./cmd/mroki-api
 
-# Build mroki-agent
-build-agent:
+api-test:
+	@echo "Running API tests..."
+	go test ./cmd/mroki-api/... ./internal/... ./pkg/...
+
+api-test-verbose:
+	@echo "Running API tests (verbose)..."
+	go test -v ./cmd/mroki-api/... ./internal/... ./pkg/...
+
+api-test-coverage:
+	@echo "Running API tests with coverage..."
+	go test -race -coverprofile=coverage.out -covermode=atomic ./cmd/mroki-api/... ./internal/... ./pkg/...
+	@echo "Coverage report: coverage.out"
+	@echo "View in browser: go tool cover -html=coverage.out"
+
+api-fmt:
+	@echo "Formatting Go code..."
+	go fmt ./...
+
+api-lint:
+	@echo "Running golangci-lint..."
+	golangci-lint run
+
+api-sqlc:
+	@echo "Generating Go code from SQL..."
+	go tool sqlc generate
+
+api-clean:
+	@echo "Cleaning API build artifacts..."
+	rm -rf bin/mroki-api
+	rm -f coverage.out
+
+# ─── Agent ───────────────────────────────────────────────────────────
+
+agent-build:
 	@echo "Building mroki-agent..."
 	@mkdir -p bin
 	go build -o bin/mroki-agent ./cmd/mroki-agent
 
-# Clean build artifacts
-clean:
-	@echo "Cleaning build artifacts..."
-	rm -rf bin/
-	rm -f coverage.out
+agent-test:
+	@echo "Running Agent tests..."
+	go test ./cmd/mroki-agent/...
 
-# Format Go code
-fmt:
-	@echo "Formatting Go code..."
-	go fmt ./...
+agent-clean:
+	@echo "Cleaning Agent build artifacts..."
+	rm -rf bin/mroki-agent
 
-# Run golangci-lint
-lint:
-	@echo "Running golangci-lint..."
-	golangci-lint run
+# ─── Hub ─────────────────────────────────────────────────────────────
+
+hub-build:
+	@echo "Building hub..."
+	cd $(HUB_DIR) && pnpm build
+
+hub-test:
+	@echo "Running hub e2e tests..."
+	cd $(HUB_DIR) && pnpm test:e2e
+
+hub-test-ui:
+	@echo "Running hub e2e tests (UI mode)..."
+	cd $(HUB_DIR) && pnpm test:e2e:ui
+
+hub-test-setup:
+	@echo "Starting backend for e2e tests..."
+	cd $(HUB_DIR) && pnpm test:e2e:setup
+
+hub-dev:
+	@echo "Starting hub dev server..."
+	cd $(HUB_DIR) && pnpm dev
+
+hub-install:
+	@echo "Installing hub dependencies..."
+	cd $(HUB_DIR) && pnpm install
+
+hub-preview:
+	@echo "Previewing hub build..."
+	cd $(HUB_DIR) && pnpm preview
+
+hub-fmt:
+	@echo "Formatting hub..."
+	cd $(HUB_DIR) && pnpm format
+
+hub-lint:
+	@echo "Linting hub..."
+	cd $(HUB_DIR) && pnpm lint
+
+hub-clean:
+	@echo "Cleaning hub build artifacts..."
+	rm -rf $(HUB_DIR)/dist
+	rm -rf $(HUB_DIR)/playwright-report
+	rm -rf $(HUB_DIR)/e2e/test-results
+
+# ─── Dev Stack ───────────────────────────────────────────────────────
+
+dev-up:
+	@echo "Starting dev stack..."
+	docker compose -f $(DEV_COMPOSE) up -d --build --wait
+
+dev-down:
+	@echo "Stopping dev stack..."
+	docker compose -f $(DEV_COMPOSE) down
+
+dev-reset:
+	@echo "Resetting dev stack..."
+	docker compose -f $(DEV_COMPOSE) down -v
+	docker compose -f $(DEV_COMPOSE) up -d --build --wait
