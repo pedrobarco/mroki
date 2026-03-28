@@ -145,7 +145,7 @@ Compare different algorithm implementations with actual production data.
 
 ## Technology Stack
 
-- **Backend:** Go 1.21+
+- **Backend:** Go 1.26+
 - **API Framework:** net/http (stdlib)
 - **Database:** PostgreSQL 15+
 - **Frontend:** Vue 3 + TypeScript
@@ -172,28 +172,28 @@ go build -o mroki-api ./cmd/mroki-api
 
 ## Project Status
 
-**Current State:** Phase 2 Complete
-
-- ✅ Agent → API integration
-- ✅ Agent fetches gate configuration from API (dual operating modes)
+- ✅ Agent → API integration (dual operating modes)
 - ✅ Configurable diff options (field filtering, array sorting, float tolerance)
 - ✅ Request capture and diff computation
 - ✅ Retry logic with exponential backoff
 - ✅ Agent ID persistence
+- ✅ Web UI (mroki-hub)
 - ✅ 250+ tests, 0 failures
-- 🚧 Web UI (mroki-hub) - In development
+
+See the [roadmap](docs/TODO.md) for upcoming work.
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License — see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions welcome! Please read our contributing guidelines before submitting PRs.
+Contributions welcome! Please read the [Contributing Guide](docs/CONTRIBUTING.md) before submitting PRs.
+
+This project follows the [Contributor Covenant Code of Conduct](docs/CODE_OF_CONDUCT.md).
 
 ## Support
 
-For issues and questions:
-- Open an issue on GitHub
+- Open an [issue](https://github.com/pedrobarco/mroki/issues) on GitHub
 - Check the [documentation](docs/)
 - Review the [Quick Start Guide](docs/guides/QUICK_START.md)

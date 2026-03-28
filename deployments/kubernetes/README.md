@@ -1,5 +1,7 @@
 # Kubernetes Deployment
 
+> **Full docs:** see the [Deployment Guide](../../docs/guides/DEPLOYMENT.md) for all deployment options.
+
 Production-grade Kubernetes deployment for mroki.
 
 ## Files

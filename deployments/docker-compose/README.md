@@ -1,5 +1,7 @@
 # Docker Compose Deployment
 
+> **Full docs:** see the [Deployment Guide](../../docs/guides/DEPLOYMENT.md) for all deployment options.
+
 Full-stack deployment of mroki using Docker Compose.
 
 ## Files
