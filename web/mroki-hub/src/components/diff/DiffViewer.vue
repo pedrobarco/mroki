@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Response, PatchOp } from '@/api'
-import { buildDiffLines, stripPathPrefix } from '@/lib/json-diff'
+import { buildDiffLines, buildSplitRows, stripPathPrefix } from '@/lib/json-diff'
 import type { DiffLine } from '@/lib/json-diff'
+
+type ViewMode = 'unified' | 'split'
+const viewMode = ref<ViewMode>('unified')
 
 interface Props {
   liveResponse: Response
@@ -58,6 +61,9 @@ const diffLines = computed<DiffLine[]>(() => {
   if (!isJson.value) return []
   return buildDiffLines(liveJson.value, shadowJson.value, bodyOps.value)
 })
+
+// Split view rows (derived from unified lines)
+const splitRows = computed(() => buildSplitRows(diffLines.value))
 
 // For non-JSON content, fall back to plain text display
 const livePlain = computed(() => liveDecoded.value ?? props.liveResponse.body)
@@ -134,11 +140,39 @@ function gutterClass(line: DiffLine): string {
             <span class="w-2.5 h-2.5 rounded-sm bg-green-500/10 border border-green-500/30" />
             Added
           </div>
+          <!-- View mode toggle -->
+          <div
+            v-if="isJson && !isBinary"
+            class="flex items-center rounded-md border border-border ml-2"
+          >
+            <button
+              class="px-2 py-0.5 text-xs rounded-l-md transition-colors"
+              :class="
+                viewMode === 'unified'
+                  ? 'bg-accent text-foreground'
+                  : 'text-dim hover:text-foreground'
+              "
+              @click="viewMode = 'unified'"
+            >
+              Unified
+            </button>
+            <button
+              class="px-2 py-0.5 text-xs rounded-r-md transition-colors border-l border-border"
+              :class="
+                viewMode === 'split'
+                  ? 'bg-accent text-foreground'
+                  : 'text-dim hover:text-foreground'
+              "
+              @click="viewMode = 'split'"
+            >
+              Split
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- JSON Diff View -->
-      <div v-if="isJson && !isBinary" class="overflow-x-auto">
+      <!-- Unified JSON Diff View -->
+      <div v-if="isJson && !isBinary && viewMode === 'unified'" class="overflow-x-auto">
         <pre class="text-xs font-mono leading-5 p-0 m-0"><template
             v-for="(line, idx) in diffLines"
             :key="idx"
@@ -151,6 +185,59 @@ function gutterClass(line: DiffLine): string {
               >{{ gutterChar(line) }}</span><span
                 class="whitespace-pre"
               >{{ '  '.repeat(line.indent) }}{{ line.content }}</span></div></template></pre>
+      </div>
+
+      <!-- Split JSON Diff View -->
+      <div v-else-if="isJson && !isBinary && viewMode === 'split'">
+        <!-- Column Headers -->
+        <div class="grid grid-cols-2 border-b border-border">
+          <div class="px-4 py-2 text-xs uppercase tracking-widest text-dim border-r border-border">
+            <span class="w-1.5 h-1.5 rounded-full bg-success inline-block mr-1.5" />
+            Live
+          </div>
+          <div class="px-4 py-2 text-xs uppercase tracking-widest text-dim">
+            <span class="w-1.5 h-1.5 rounded-full bg-info inline-block mr-1.5" />
+            Shadow
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <div class="grid grid-cols-2 divide-x divide-border">
+            <!-- Left (live) -->
+            <pre class="text-xs font-mono leading-5 p-0 m-0"><template
+                v-for="(row, idx) in splitRows"
+                :key="'l-' + idx"
+              ><div
+                  v-if="row.left"
+                  :class="lineClass(row.left)"
+                  class="px-4 min-w-fit"
+                ><span
+                    :class="gutterClass(row.left)"
+                    class="inline-block w-4 mr-2 select-none text-center"
+                  >{{ gutterChar(row.left) }}</span><span
+                    class="whitespace-pre"
+                  >{{ '  '.repeat(row.left.indent) }}{{ row.left.content }}</span></div><div
+                  v-else
+                  class="px-4 min-w-fit text-transparent select-none"
+                >&nbsp;</div></template></pre>
+            <!-- Right (shadow) -->
+            <pre class="text-xs font-mono leading-5 p-0 m-0"><template
+                v-for="(row, idx) in splitRows"
+                :key="'r-' + idx"
+              ><div
+                  v-if="row.right"
+                  :class="lineClass(row.right)"
+                  class="px-4 min-w-fit"
+                ><span
+                    :class="gutterClass(row.right)"
+                    class="inline-block w-4 mr-2 select-none text-center"
+                  >{{ gutterChar(row.right) }}</span><span
+                    class="whitespace-pre"
+                  >{{ '  '.repeat(row.right.indent) }}{{ row.right.content }}</span></div><div
+                  v-else
+                  class="px-4 min-w-fit text-transparent select-none"
+                >&nbsp;</div></template></pre>
+          </div>
+        </div>
       </div>
 
       <!-- Non-JSON fallback: plain text side-by-side -->

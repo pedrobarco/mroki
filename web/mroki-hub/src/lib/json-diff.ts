@@ -9,6 +9,11 @@ export interface DiffLine {
   path: string
 }
 
+export interface SplitRow {
+  left: DiffLine | null
+  right: DiffLine | null
+}
+
 /**
  * Build annotated diff lines from live and shadow JSON values using pre-computed PatchOps.
  * Produces a unified view: normal lines for unchanged content, removed (red) for live-only,
@@ -35,6 +40,43 @@ export function stripPathPrefix(ops: PatchOp[], prefix: string): PatchOp[] {
       ...op,
       path: op.path === prefix ? '/' : op.path.slice(prefix.length),
     }))
+}
+
+/**
+ * Convert unified DiffLines into paired left/right rows for a split view.
+ * - Normal lines appear on both sides
+ * - Removed lines appear on the left only (right is null)
+ * - Added lines appear on the right only (left is null)
+ * - Consecutive removed+added pairs (replace) are aligned on the same row
+ */
+export function buildSplitRows(lines: DiffLine[]): SplitRow[] {
+  const rows: SplitRow[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]!
+
+    if (line.type === 'normal') {
+      rows.push({ left: line, right: line })
+      i++
+    } else if (line.type === 'removed') {
+      // Check if next line is 'added' at the same path (replace pair)
+      const next = i + 1 < lines.length ? lines[i + 1]! : null
+      if (next && next.type === 'added' && next.path === line.path) {
+        rows.push({ left: line, right: next })
+        i += 2
+      } else {
+        rows.push({ left: line, right: null })
+        i++
+      }
+    } else {
+      // added
+      rows.push({ left: null, right: line })
+      i++
+    }
+  }
+
+  return rows
 }
 
 // --- Core walk logic ---
