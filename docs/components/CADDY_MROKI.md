@@ -51,6 +51,10 @@ mroki_gate {
     [sampling_rate <rate>]
     [live_timeout <duration>]
     [shadow_timeout <duration>]
+    [max_body_size <bytes>]
+    [diff_ignored_fields <comma-separated>]
+    [diff_included_fields <comma-separated>]
+    [diff_float_tolerance <float>]
 }
 ```
 
@@ -60,19 +64,23 @@ mroki_gate {
 - `sampling_rate` (optional) - Sample rate (0.0-1.0, default: 1.0 = 100%)
 - `live_timeout` (optional) - Live request timeout (default: 5s)
 - `shadow_timeout` (optional) - Shadow request timeout (default: 10s)
+- `max_body_size` (optional) - Skip shadow for requests above this size in bytes (0=unlimited)
+- `diff_ignored_fields` (optional) - Comma-separated fields to ignore in diff (gjson syntax)
+- `diff_included_fields` (optional) - Comma-separated fields to include in diff (whitelist)
+- `diff_float_tolerance` (optional) - Float comparison tolerance
 
 ### Complete Caddyfile Example
 
 ```caddyfile
-# Listen on port 8080
 :8080 {
-    # Apply mroki gate to all requests
     mroki_gate {
         live https://api.production.example.com
         shadow https://api.shadow.example.com
         sampling_rate 1.0
         live_timeout 3s
         shadow_timeout 15s
+        max_body_size 10485760
+        diff_ignored_fields timestamp,created_at
     }
 }
 ```
@@ -146,16 +154,15 @@ mroki_gate Handler
   Live URL         Shadow URL
      │                 │
      ↓                 ↓
-  Return Live      Discard Shadow
-  Response         (metadata logged)
+  Return Live      Shadow Response
+  Response         Captured
 ```
 
 **Key Behavior:**
 1. Caddy receives request
 2. `mroki_gate` handler forwards to both live and shadow
 3. Live response returned to client immediately
-4. Shadow response metadata logged in background (no diff computation)
-5. No API integration currently — responses are not stored or diffed
+4. Diff computed and printed locally in background
 
 ## Differences from mroki-agent
 
@@ -163,6 +170,9 @@ mroki_gate Handler
 - Same proxy logic (`pkg/proxy`)
 - Same timeout behavior
 - Same sampling support
+- Same max body size check
+- Same local diff computation and output
+- Same diff options (ignored fields, included fields, float tolerance)
 
 ### Differences
 
@@ -170,14 +180,11 @@ mroki_gate Handler
 |---------|-------------|-------------|
 | Deployment | Standalone binary | Compiled into Caddy |
 | Configuration | Environment variables | Caddyfile |
-| API Integration | ✅ Yes (sends raw responses to API) | ❌ Not yet implemented |
-| Diff Computation | ✅ Server-side (API mode) or local (standalone) | ❌ None — only logs metadata |
-| Agent ID | ✅ Persists to disk | ❌ Not applicable |
-| Retry Logic | ✅ Exponential backoff | ❌ Not applicable (no API) |
-| Max Body Size Check | ✅ Yes | ❌ Not yet implemented |
-| Use Case | Production deployments | Caddy-based infrastructures |
+| API Mode | ✅ Sends raw responses to mroki-api | ❌ Standalone only |
+| Agent ID | Persisted to disk | N/A |
+| Retry Logic | ✅ Exponential backoff | N/A |
 
-**Note:** caddy-mroki currently lacks API integration and diff computation. Shadow responses are captured but not stored or compared. This is planned for a future release to reach feature parity with mroki-agent.
+caddy-mroki operates in standalone mode only — it computes and prints diffs locally. For API integration (server-side diffing, storage, hub), use mroki-agent.
 
 ## Example Deployment
 
@@ -255,10 +262,17 @@ docker run -p 8080:8080 -v $(pwd)/Caddyfile:/root/Caddyfile caddy-mroki
 
 ## Logging
 
-Shadow response captures are logged via Caddy's logging system:
+Diff results are logged locally:
 
-```json
-{"level":"info","msg":"shadow response captured","method":"GET","path":"/api/test","live_status":200,"shadow_status":200}
+```
+INFO response diff detected method=GET path=/api/test live_status=200 shadow_status=200 changes=2
+Diff:
+ ~ /body/user: "alice" → "bob"
+```
+
+When responses match:
+```
+DEBUG responses match method=GET path=/api/test live_status=200 shadow_status=200
 ```
 
 **Configure logging in Caddyfile:**
@@ -329,18 +343,12 @@ mroki_gate {
 
 ## Limitations
 
-1. **No API Integration:** Responses are not sent to mroki-api (coming in future release)
-2. **No Diff Computation:** Shadow responses are logged but not compared with live responses
-3. **No Persistent State:** No agent ID persistence
-4. **No Max Body Size Check:** All requests forwarded to shadow regardless of body size
-5. **Limited Observability:** Only Caddy logs, no metrics yet
-6. **Caddyfile Only:** No JSON config support yet
+1. **Standalone Only:** No API integration — diffs are printed locally, not stored
+2. **Limited Observability:** Only Caddy logs, no metrics yet
+3. **Caddyfile Only:** No JSON config support yet
 
 ## Future Enhancements
 
-- [ ] API integration (send raw responses to mroki-api for server-side diffing)
-- [ ] Standalone diff mode (compute and log diffs locally, matching mroki-agent standalone)
-- [ ] Max body size check (skip shadow for large payloads)
 - [ ] Metrics export (Prometheus)
 - [ ] JSON configuration support
 - [ ] Per-route sampling configuration
@@ -350,18 +358,14 @@ mroki_gate {
 ### When to Use caddy-mroki
 
 - Already using Caddy as reverse proxy
-- Want zero-deployment shadow testing
-- Simple use cases (logging shadow captures, no storage)
-- Quick experimentation
+- Want quick local diff output without a separate binary
+- Don't need API storage or hub visualization
 
 ### When to Use mroki-agent Instead
 
-- Need API integration for diff storage and analysis
-- Need diff computation (server-side via API or local in standalone mode)
-- Want persistent agent identity
-- Need retry logic for reliability
-- Multi-service deployments
-- Production-critical scenarios
+- Need API integration (server-side diffing, storage, hub visualization)
+- Not using Caddy
+- Need persistent agent identity and retry logic
 
 ## Related Documentation
 

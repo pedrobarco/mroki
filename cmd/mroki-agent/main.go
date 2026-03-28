@@ -18,6 +18,7 @@ import (
 	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/dto"
 	"github.com/pedrobarco/mroki/pkg/logger"
+	"github.com/pedrobarco/mroki/pkg/proxy"
 )
 
 func main() {
@@ -122,16 +123,28 @@ func main() {
 	)
 
 	// Configure proxy handler
+	// Configure sampling rate
+	var samplingRate *proxy.SamplingRate
+	if cfg.App.SamplingRate != nil {
+		sr, err := proxy.NewSamplingRate(*cfg.App.SamplingRate)
+		if err != nil {
+			panic(fmt.Errorf("invalid sampling rate: %w", err))
+		}
+		samplingRate = sr
+		log.Info("Sampling rate configured", slog.Float64("rate", *cfg.App.SamplingRate))
+	}
+
 	proxyConfig := handlers.ProxyConfig{
 		Live:          liveURL,
 		Shadow:        shadowURL,
 		LiveTimeout:   cfg.App.LiveTimeout,
 		ShadowTimeout: cfg.App.ShadowTimeout,
 		MaxBodySize:   cfg.App.MaxBodySize,
+		SamplingRate:  samplingRate,
 		AgentID:       agentID,
 		Logger:        log,
 		APIClient:     apiClient, // nil if standalone mode
-		DiffOptions:   diffOpts,  // NEW: Pass diff options
+		DiffOptions:   diffOpts,  // Only used in standalone mode
 	}
 
 	mux := http.NewServeMux()

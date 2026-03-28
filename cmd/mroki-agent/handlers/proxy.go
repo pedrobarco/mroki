@@ -19,6 +19,7 @@ type ProxyConfig struct {
 	LiveTimeout   time.Duration
 	ShadowTimeout time.Duration
 	MaxBodySize   int64
+	SamplingRate  *proxy.SamplingRate
 
 	// API integration (optional)
 	APIClient *client.MrokiClient
@@ -35,11 +36,19 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 		proxy.WithShadowTimeout(cfg.ShadowTimeout),
 	}
 
-	// Add max body size check if configured
+	// Add shadow proxy checks
+	var checks []proxy.CheckFunc
+
 	if cfg.MaxBodySize > 0 {
-		opts = append(opts, proxy.WithShouldProxyToShadow(
-			proxy.MaxBodySizeCheck(cfg.MaxBodySize),
-		))
+		checks = append(checks, proxy.MaxBodySizeCheck(cfg.MaxBodySize))
+	}
+
+	if cfg.SamplingRate != nil {
+		checks = append(checks, proxy.SamplingRateCheck(cfg.SamplingRate))
+	}
+
+	if len(checks) > 0 {
+		opts = append(opts, proxy.WithShouldProxyToShadow(checks...))
 	}
 
 	if cfg.APIClient != nil {

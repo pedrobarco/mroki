@@ -14,6 +14,7 @@ All completed, pending, and planned work for mroki. Items use a consistent forma
 - [x] **Developer Experience** — Diff engine rewrite (gjson/sjson + go-cmp, 30%+ faster), field filtering (whitelist/blacklist + wildcards), TTL cleanup job, CORS support
 - [x] **mroki-hub v1** — Vue 3 + TypeScript SPA with gates (list, create, detail), request browser (filtering, sorting, pagination), diff viewer (side-by-side + unified), gate filtering/sorting/pagination, e2e test suite
 - [x] **Server-Side Diff Computation** — Moved diff computation from agent to mroki-api. Agent sends raw responses; API computes diffs on ingest. Standalone agent mode retains local diff computation. Backward compatible (API accepts pre-computed diffs).
+- [x] **Agent/Caddy Feature Parity** — Brought caddy-mroki to feature parity with standalone agent: sampling rate, max body size check, diff options (ignored/included fields, float tolerance). Added sampling rate support to agent. Caddy operates in standalone mode only (local diff + print).
 
 ---
 

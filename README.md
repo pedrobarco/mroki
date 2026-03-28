@@ -79,7 +79,7 @@ The **hub** is a web UI for managing gates, browsing captured requests, and visu
 | [mroki-agent](docs/components/MROKI_AGENT.md) | HTTP proxy — forwards traffic to live and shadow, sends responses to API | [docs](docs/components/MROKI_AGENT.md) |
 | [mroki-api](docs/components/MROKI_API.md) | REST API — gate management, request/diff storage, server-side diff computation | [docs](docs/components/MROKI_API.md) |
 | [mroki-hub](docs/components/MROKI_HUB.md) | Web UI — gate dashboard, request browser, diff viewer | [docs](docs/components/MROKI_HUB.md) |
-| [caddy-mroki](docs/components/CADDY_MROKI.md) | Caddy module — integrates mroki proxy into Caddy server | [docs](docs/components/CADDY_MROKI.md) |
+| [caddy-mroki](docs/components/CADDY_MROKI.md) | Caddy module — standalone shadow diffing embedded in Caddy server | [docs](docs/components/CADDY_MROKI.md) |
 
 ## Use Cases
 

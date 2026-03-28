@@ -16,6 +16,7 @@ type Config config.Config[struct {
 
 	Port          int           `env:"PORT, default=8080"`
 	MaxBodySize   int64         `env:"MAX_BODY_SIZE, default=10485760"` // 10MB, 0=unlimited
+	SamplingRate  *float64      `env:"SAMPLING_RATE"`                   // 0.0-1.0, nil=100%
 	LiveTimeout   time.Duration `env:"LIVE_TIMEOUT, default=5s"`
 	ShadowTimeout time.Duration `env:"SHADOW_TIMEOUT, default=10s"`
 
@@ -105,6 +106,13 @@ func (c Config) Validate() error {
 	// Validate max body size
 	if c.App.MaxBodySize < 0 {
 		verr.Add(fmt.Errorf("max_body_size must be non-negative (0=unlimited), got %d", c.App.MaxBodySize))
+	}
+
+	// Validate sampling rate
+	if c.App.SamplingRate != nil {
+		if *c.App.SamplingRate < 0 || *c.App.SamplingRate > 1 {
+			verr.Add(fmt.Errorf("sampling_rate must be between 0.0 and 1.0, got %f", *c.App.SamplingRate))
+		}
 	}
 
 	// Validate diff float tolerance

@@ -114,12 +114,13 @@ mroki consists of four main components:
 
 ### 4. caddy-mroki (Go)
 
-**Purpose:** Caddy server module for embedded mroki functionality
+**Purpose:** Caddy server module for standalone shadow traffic diffing
 
 **Responsibilities:**
 - Integrate mroki proxy into Caddy HTTP server
-- Provide Caddyfile configuration syntax
-- Enable mroki without standalone agent deployment
+- Provide Caddyfile configuration syntax for proxy, sampling, body size, and diff options
+- Compute JSON diffs locally and print results (standalone mode only — no API integration)
+- Enable mroki without a separate agent binary
 
 **Technology:**
 - Language: Go 1.24+
@@ -368,10 +369,11 @@ log.Info("request captured",
 ### Metrics (Planned)
 
 - `mroki_agent_requests_total` - Total requests proxied
-- `mroki_agent_diffs_detected` - Diffs found
+- `mroki_agent_shadow_skipped` - Shadow requests skipped (sampling / body size)
 - `mroki_agent_api_failures` - API send failures
 - `mroki_api_requests_total` - API request count
 - `mroki_api_request_duration` - API latency
+- `mroki_api_diffs_computed` - Diffs computed server-side
 
 ### Health Checks
 
@@ -433,8 +435,8 @@ log.Info("request captured",
             └────────┘    └──────────┘
 ```
 
-**Pros:** Integrated with existing Caddy setup
-**Cons:** Couples to Caddy lifecycle
+**Pros:** Integrated with existing Caddy setup, no extra binary
+**Cons:** Standalone only (no API/hub), couples to Caddy lifecycle
 
 ---
 

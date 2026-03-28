@@ -112,7 +112,7 @@ The diff entity has no timestamp. Add a `created_at` field for operational debug
 
 ### 5.6 Consider Async Diff Computation (Low Priority)
 
-Currently the diff is computed synchronously within the proxy callback goroutine. For high-throughput deployments, consider an async pipeline: agent sends raw captures without a diff, and a background worker computes diffs afterward. This decouples proxy latency from diff complexity but adds architectural overhead.
+Diff computation now happens server-side in mroki-api during request ingest (synchronous). The agent sends raw captures without a diff, and the API computes the diff before persisting. For even higher throughput, a future enhancement could move diff computation to an async worker pool: the API would store raw responses immediately and enqueue diff jobs for background processing. This would decouple ingest latency from diff complexity.
 
 ## Summary
 

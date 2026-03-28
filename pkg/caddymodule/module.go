@@ -3,15 +3,18 @@ package caddymodule
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 	"go.uber.org/zap"
 )
@@ -27,11 +30,20 @@ func init() {
 }
 
 type MrokiGate struct {
-	RawLive          string  `json:"live,omitempty"`
-	RawShadow        string  `json:"shadow,omitempty"`
+	// Required
+	RawLive   string `json:"live,omitempty"`
+	RawShadow string `json:"shadow,omitempty"`
+
+	// Proxy options
 	SamplingRate     *string `json:"sampling_rate,omitempty"`
 	RawLiveTimeout   *string `json:"live_timeout,omitempty"`
 	RawShadowTimeout *string `json:"shadow_timeout,omitempty"`
+	RawMaxBodySize   *string `json:"max_body_size,omitempty"`
+
+	// Diff options
+	DiffIgnoredFields  *string `json:"diff_ignored_fields,omitempty"`
+	DiffIncludedFields *string `json:"diff_included_fields,omitempty"`
+	DiffFloatTolerance *string `json:"diff_float_tolerance,omitempty"`
 
 	proxy  *proxy.Proxy
 	logger *zap.Logger
@@ -77,6 +89,9 @@ func (m *MrokiGate) Validate() error {
 
 	var opts []proxy.Option
 
+	// Shadow proxy checks
+	var checks []proxy.CheckFunc
+
 	if m.SamplingRate != nil {
 		rate, err := strconv.ParseFloat(*m.SamplingRate, 64)
 		if err != nil {
@@ -88,12 +103,22 @@ func (m *MrokiGate) Validate() error {
 			return fmt.Errorf("failed to create sampling rate: %w", err)
 		}
 
-		opts = append(opts, proxy.WithShouldProxyToShadow(
-			proxy.SamplingRateCheck(sr),
-		))
+		checks = append(checks, proxy.SamplingRateCheck(sr))
 	}
 
-	// Live timeout
+	if m.RawMaxBodySize != nil {
+		maxBytes, err := strconv.ParseInt(*m.RawMaxBodySize, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid max_body_size: %w", err)
+		}
+		checks = append(checks, proxy.MaxBodySizeCheck(maxBytes))
+	}
+
+	if len(checks) > 0 {
+		opts = append(opts, proxy.WithShouldProxyToShadow(checks...))
+	}
+
+	// Timeouts
 	if m.RawLiveTimeout != nil {
 		timeout, err := time.ParseDuration(*m.RawLiveTimeout)
 		if err != nil {
@@ -102,7 +127,6 @@ func (m *MrokiGate) Validate() error {
 		opts = append(opts, proxy.WithLiveTimeout(timeout))
 	}
 
-	// Shadow timeout
 	if m.RawShadowTimeout != nil {
 		timeout, err := time.ParseDuration(*m.RawShadowTimeout)
 		if err != nil {
@@ -111,8 +135,81 @@ func (m *MrokiGate) Validate() error {
 		opts = append(opts, proxy.WithShadowTimeout(timeout))
 	}
 
+	// Standalone mode: compute and print diffs locally
+	callback, err := m.createDiffCallback()
+	if err != nil {
+		return err
+	}
+	opts = append(opts, proxy.WithCallbackFn(callback))
+
 	m.proxy = proxy.NewProxy(live, shadow, opts...)
 	return nil
+}
+
+// createDiffCallback builds a callback that computes and prints diffs locally.
+func (m *MrokiGate) createDiffCallback() (proxy.CallbackFunc, error) {
+	// Build diff options
+	var diffOpts []diff.Option
+
+	if m.DiffIgnoredFields != nil {
+		fields := strings.Split(*m.DiffIgnoredFields, ",")
+		for i := range fields {
+			fields[i] = strings.TrimSpace(fields[i])
+		}
+		diffOpts = append(diffOpts, diff.WithIgnoredFields(fields...))
+	}
+
+	if m.DiffIncludedFields != nil {
+		fields := strings.Split(*m.DiffIncludedFields, ",")
+		for i := range fields {
+			fields[i] = strings.TrimSpace(fields[i])
+		}
+		diffOpts = append(diffOpts, diff.WithIncludedFields(fields...))
+	}
+
+	if m.DiffFloatTolerance != nil {
+		tolerance, err := strconv.ParseFloat(*m.DiffFloatTolerance, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid diff_float_tolerance: %w", err)
+		}
+		diffOpts = append(diffOpts, diff.WithFloatTolerance(tolerance))
+	}
+
+	differ := proxy.NewProxyResponseDiffer(diffOpts...)
+	logger := slog.Default()
+
+	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+		ops, err := differ.Diff(live, shadow)
+		if err != nil {
+			logger.Warn("failed to diff responses",
+				slog.String("error", err.Error()),
+				slog.Int("live_status", live.StatusCode),
+				slog.Int("shadow_status", shadow.StatusCode),
+			)
+			return nil
+		}
+
+		if len(ops) > 0 {
+			logger.Info("response diff detected",
+				slog.String("method", req.Method),
+				slog.String("path", req.Path),
+				slog.Int("live_status", live.StatusCode),
+				slog.Int("shadow_status", shadow.StatusCode),
+				slog.Int("changes", len(ops)),
+			)
+			fmt.Println("Diff:")
+			fmt.Print(diff.FormatOps(ops))
+		} else {
+			logger.Debug("responses match",
+				slog.String("method", req.Method),
+				slog.String("path", req.Path),
+				slog.Int("live_status", live.StatusCode),
+				slog.Int("shadow_status", shadow.StatusCode),
+			)
+		}
+
+		return nil
+	}, nil
 }
 
 func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
@@ -125,11 +222,15 @@ func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyh
 // It expects the following format:
 //
 //	mroki_gate {
-//	    live <live_url>
-//	    shadow <shadow_url>
-//	    [sampling_rate <rate>]
-//	    [live_timeout <duration>]
-//	    [shadow_timeout <duration>]
+//	    live                 <url>
+//	    shadow               <url>
+//	    [sampling_rate       <float>]
+//	    [live_timeout        <duration>]
+//	    [shadow_timeout      <duration>]
+//	    [max_body_size       <bytes>]
+//	    [diff_ignored_fields  <comma-separated>]
+//	    [diff_included_fields <comma-separated>]
+//	    [diff_float_tolerance <float>]
 //	}
 func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	d.Next()
@@ -164,6 +265,30 @@ func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			}
 			timeout := d.Val()
 			m.RawShadowTimeout = &timeout
+		case "max_body_size":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.RawMaxBodySize = &val
+		case "diff_ignored_fields":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.DiffIgnoredFields = &val
+		case "diff_included_fields":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.DiffIncludedFields = &val
+		case "diff_float_tolerance":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.DiffFloatTolerance = &val
 		default:
 			return d.Errf("unknown property '%s'", d.Val())
 		}

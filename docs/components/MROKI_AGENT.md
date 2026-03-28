@@ -8,6 +8,8 @@ mroki-agent is a lightweight proxy that intercepts HTTP traffic, forwards it to 
 
 - **Transparent Proxying**: Clients see no difference — live responses returned immediately
 - **Dual Operating Modes**: API mode (sends raw responses to mroki-api) or Standalone mode (computes and prints diffs locally)
+- **Sampling Rate**: Configurable percentage of traffic forwarded to shadow (0.0–1.0)
+- **Max Body Size**: Skip shadow proxying for requests exceeding a configurable body size
 - **Configurable Diff Options** (standalone mode only): Field filtering, array sorting, float tolerance
 - **Parallel Forwarding**: Live and shadow requests execute concurrently
 - **Server-Side Diffing** (API mode): Sends raw responses to mroki-api — diff computation happens server-side
@@ -131,8 +133,11 @@ Works in both modes:
 # Proxy server port (default: 8080)
 MROKI_APP_PORT=8080
 
-# Maximum request body size for diffing (default: 10MB, 0=unlimited)
+# Maximum request body size for shadow proxying (default: 10MB, 0=unlimited)
 MROKI_APP_MAX_BODY_SIZE=10485760
+
+# Sampling rate for shadow traffic (0.0-1.0, default: 1.0 = 100%)
+# MROKI_APP_SAMPLING_RATE=0.5
 
 # Live request timeout (default: 5s)
 # Blocks client response - keep tight!
