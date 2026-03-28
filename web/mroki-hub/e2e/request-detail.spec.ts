@@ -23,10 +23,10 @@ test.describe('Request Detail Page', () => {
     await expect(page.getByText('POST')).toBeVisible()
     await expect(page.getByText('/api/detail-test')).toBeVisible()
 
-    // Diff viewer sections
+    // Diff viewer section
     await expect(page.getByText('Response Comparison')).toBeVisible()
-    await expect(page.getByText('Live Response').first()).toBeVisible()
-    await expect(page.getByText('Shadow Response').first()).toBeVisible()
+    await expect(page.getByText('Live Status').first()).toBeVisible()
+    await expect(page.getByText('Shadow Status').first()).toBeVisible()
   })
 
   test('shows live and shadow status codes', async ({ page, api }) => {
