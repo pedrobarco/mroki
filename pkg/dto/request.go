@@ -22,8 +22,8 @@ type CreateRequestPayload struct {
 	// Responses from both services
 	Responses []ResponsePayload `json:"responses"` // Always 2: live + shadow
 
-	// Computed diff
-	Diff DiffPayload `json:"diff"`
+	// Computed diff (optional — if omitted, mroki-api computes it server-side)
+	Diff *DiffPayload `json:"diff,omitempty"`
 }
 
 // ResponsePayload represents a single HTTP response (live or shadow).

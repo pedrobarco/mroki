@@ -106,7 +106,9 @@ Environment="MROKI_APP_PORT=8080"
 Environment="MROKI_APP_API_URL=http://localhost:8081"
 Environment="MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000"
 Environment="MROKI_APP_API_KEY=your-secret-key-min-16-chars"
-Environment="MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at"
+# Note: DIFF_* options are only used in standalone mode (no API).
+# In API mode, diff computation is handled server-side by mroki-api.
+# Environment="MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at"
 ExecStart=/opt/mroki/mroki-agent
 Restart=always
 RestartSec=5

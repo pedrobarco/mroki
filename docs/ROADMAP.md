@@ -13,6 +13,7 @@ All completed, pending, and planned work for mroki. Items use a consistent forma
 - [x] **Security & Stability** — RFC 7807 errors, HTTP timeouts, body size limits, graceful shutdown, API key auth, rate limiting (1000 req/min), input validation via value objects
 - [x] **Developer Experience** — Diff engine rewrite (gjson/sjson + go-cmp, 30%+ faster), field filtering (whitelist/blacklist + wildcards), TTL cleanup job, CORS support
 - [x] **mroki-hub v1** — Vue 3 + TypeScript SPA with gates (list, create, detail), request browser (filtering, sorting, pagination), diff viewer (side-by-side + unified), gate filtering/sorting/pagination, e2e test suite
+- [x] **Server-Side Diff Computation** — Moved diff computation from agent to mroki-api. Agent sends raw responses; API computes diffs on ingest. Standalone agent mode retains local diff computation. Backward compatible (API accepts pre-computed diffs).
 
 ---
 
@@ -127,7 +128,7 @@ Larger capabilities not yet started, organized by priority.
 
 - [ ] **P2** Per-gate DiffConfig — Store field filtering rules per gate in database.
 - [ ] **P2** Diff config API — `PUT /gates/{id}/diff-config` to manage per-gate rules.
-- [ ] **P2** Agent integration — Fetch and apply per-gate diff config.
+- [ ] **P2** API-side diff options — Apply per-gate diff config during server-side diff computation (ignored fields, float tolerance, etc.).
 
 ### Export & Tooling
 

@@ -147,15 +147,15 @@ mroki_gate Handler
      │                 │
      ↓                 ↓
   Return Live      Discard Shadow
-  Response         (diff logged)
+  Response         (metadata logged)
 ```
 
 **Key Behavior:**
 1. Caddy receives request
 2. `mroki_gate` handler forwards to both live and shadow
 3. Live response returned to client immediately
-4. Shadow response compared in background
-5. Diff logged (future: send to mroki-api)
+4. Shadow response metadata logged in background (no diff computation)
+5. No API integration currently — responses are not stored or diffed
 
 ## Differences from mroki-agent
 
@@ -163,7 +163,6 @@ mroki_gate Handler
 - Same proxy logic (`pkg/proxy`)
 - Same timeout behavior
 - Same sampling support
-- Same diff computation
 
 ### Differences
 
@@ -171,12 +170,14 @@ mroki_gate Handler
 |---------|-------------|-------------|
 | Deployment | Standalone binary | Compiled into Caddy |
 | Configuration | Environment variables | Caddyfile |
-| API Integration | ✅ Yes (send diffs to API) | ❌ Not yet implemented |
+| API Integration | ✅ Yes (sends raw responses to API) | ❌ Not yet implemented |
+| Diff Computation | ✅ Server-side (API mode) or local (standalone) | ❌ None — only logs metadata |
 | Agent ID | ✅ Persists to disk | ❌ Not applicable |
 | Retry Logic | ✅ Exponential backoff | ❌ Not applicable (no API) |
+| Max Body Size Check | ✅ Yes | ❌ Not yet implemented |
 | Use Case | Production deployments | Caddy-based infrastructures |
 
-**Note:** caddy-mroki currently lacks API integration. Diffs are computed but not sent to mroki-api. This is planned for a future release.
+**Note:** caddy-mroki currently lacks API integration and diff computation. Shadow responses are captured but not stored or compared. This is planned for a future release to reach feature parity with mroki-agent.
 
 ## Example Deployment
 
@@ -254,10 +255,10 @@ docker run -p 8080:8080 -v $(pwd)/Caddyfile:/root/Caddyfile caddy-mroki
 
 ## Logging
 
-Diffs are logged via Caddy's logging system:
+Shadow response captures are logged via Caddy's logging system:
 
 ```json
-{"level":"info","msg":"response diff detected","live_status":200,"shadow_status":200}
+{"level":"info","msg":"shadow response captured","method":"GET","path":"/api/test","live_status":200,"shadow_status":200}
 ```
 
 **Configure logging in Caddyfile:**
@@ -328,18 +329,21 @@ mroki_gate {
 
 ## Limitations
 
-1. **No API Integration:** Diffs are not sent to mroki-api (coming in future release)
-2. **No Persistent State:** No agent ID persistence
-3. **Limited Observability:** Only Caddy logs, no metrics yet
-4. **Caddyfile Only:** No JSON config support yet
+1. **No API Integration:** Responses are not sent to mroki-api (coming in future release)
+2. **No Diff Computation:** Shadow responses are logged but not compared with live responses
+3. **No Persistent State:** No agent ID persistence
+4. **No Max Body Size Check:** All requests forwarded to shadow regardless of body size
+5. **Limited Observability:** Only Caddy logs, no metrics yet
+6. **Caddyfile Only:** No JSON config support yet
 
 ## Future Enhancements
 
-- [ ] API integration (send diffs to mroki-api)
+- [ ] API integration (send raw responses to mroki-api for server-side diffing)
+- [ ] Standalone diff mode (compute and log diffs locally, matching mroki-agent standalone)
+- [ ] Max body size check (skip shadow for large payloads)
 - [ ] Metrics export (Prometheus)
 - [ ] JSON configuration support
 - [ ] Per-route sampling configuration
-- [ ] Conditional diffing (filter by path, method, etc.)
 
 ## Use Cases
 
@@ -347,12 +351,13 @@ mroki_gate {
 
 - Already using Caddy as reverse proxy
 - Want zero-deployment shadow testing
-- Simple use cases (logging diffs, no storage)
+- Simple use cases (logging shadow captures, no storage)
 - Quick experimentation
 
 ### When to Use mroki-agent Instead
 
-- Need API integration for diff storage
+- Need API integration for diff storage and analysis
+- Need diff computation (server-side via API or local in standalone mode)
 - Want persistent agent identity
 - Need retry logic for reliability
 - Multi-service deployments

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"testing"
@@ -71,7 +72,7 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 				CreatedAt:  time.Now(),
 			},
 		},
-		Diff: CreateRequestDiffProps{
+		Diff: &CreateRequestDiffProps{
 			Content: nil,
 		},
 	}
@@ -87,6 +88,111 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 	assert.Equal(t, "GET", req.Method.String())
 	assert.Equal(t, "/api/test", req.Path.String())
 	assert.Len(t, req.Responses, 2)
+}
+
+func TestCreateRequestHandler_Handle_server_side_diff_computation(t *testing.T) {
+	// When Diff is nil (API mode), the handler should compute the diff server-side
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo)
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID: gateID.String(),
+		Method: "GET",
+		Path:   "/api/test",
+		Headers: map[string][]string{
+			"Content-Type": {"application/json"},
+		},
+		Body:      []byte(`{}`),
+		CreatedAt: time.Now(),
+		Responses: []CreateRequestResponseProps{
+			{
+				Type:       "live",
+				StatusCode: 200,
+				Headers:    http.Header{"Content-Type": []string{"application/json"}},
+				Body:       b64(`{"user":"alice"}`),
+				CreatedAt:  time.Now(),
+			},
+			{
+				Type:       "shadow",
+				StatusCode: 200,
+				Headers:    http.Header{"Content-Type": []string{"application/json"}},
+				Body:       b64(`{"user":"bob"}`),
+				CreatedAt:  time.Now(),
+			},
+		},
+		Diff: nil, // No diff provided — should be computed server-side
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	// The diff should have been computed and contain a replace op on /body/user
+	assert.NotEmpty(t, savedReq.Diff.Content, "server-side diff should detect differences")
+
+	found := false
+	for _, op := range savedReq.Diff.Content {
+		if op.Path == "/body/user" && op.Op == "replace" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected replace op on /body/user, got: %v", savedReq.Diff.Content)
+}
+
+func TestCreateRequestHandler_Handle_server_side_diff_identical_responses(t *testing.T) {
+	// When responses are identical and Diff is nil, server-side diff should produce empty ops
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo)
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID:    gateID.String(),
+		Method:    "GET",
+		Path:      "/api/test",
+		Headers:   map[string][]string{},
+		Body:      []byte(`{}`),
+		CreatedAt: time.Now(),
+		Responses: []CreateRequestResponseProps{
+			{
+				Type:       "live",
+				StatusCode: 200,
+				Headers:    http.Header{},
+				Body:       b64(`{"status":"ok"}`),
+				CreatedAt:  time.Now(),
+			},
+			{
+				Type:       "shadow",
+				StatusCode: 200,
+				Headers:    http.Header{},
+				Body:       b64(`{"status":"ok"}`),
+				CreatedAt:  time.Now(),
+			},
+		},
+		Diff: nil, // No diff provided
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+	assert.Empty(t, savedReq.Diff.Content, "identical responses should produce empty diff")
 }
 
 func TestCreateRequestHandler_Handle_with_custom_ids(t *testing.T) {
@@ -127,7 +233,7 @@ func TestCreateRequestHandler_Handle_with_custom_ids(t *testing.T) {
 				CreatedAt:  time.Now(),
 			},
 		},
-		Diff: CreateRequestDiffProps{
+		Diff: &CreateRequestDiffProps{
 			Content: nil,
 		},
 	}
@@ -360,7 +466,7 @@ func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
 			{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
 			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
 		},
-		Diff: CreateRequestDiffProps{Content: nil},
+		Diff: &CreateRequestDiffProps{Content: nil},
 	}
 
 	// Act
@@ -371,4 +477,116 @@ func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
 	assert.Nil(t, req)
 	assert.Contains(t, err.Error(), "failed to save request")
 	assert.ErrorIs(t, err, expectedErr)
+}
+
+
+// --- computeDiff tests ---
+
+func b64(s string) []byte {
+	return []byte(base64.StdEncoding.EncodeToString([]byte(s)))
+}
+
+func TestComputeDiff_identical_responses(t *testing.T) {
+	responses := []CreateRequestResponseProps{
+		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)},
+		{Type: "shadow", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)},
+	}
+
+	ops, err := computeDiff(responses)
+
+	require.NoError(t, err)
+	assert.Empty(t, ops)
+}
+
+func TestComputeDiff_different_bodies(t *testing.T) {
+	responses := []CreateRequestResponseProps{
+		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"alice"}`)},
+		{Type: "shadow", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"bob"}`)},
+	}
+
+	ops, err := computeDiff(responses)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, ops)
+
+	// Should have a replace op on /body/user
+	found := false
+	for _, op := range ops {
+		if op.Path == "/body/user" && op.Op == "replace" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected replace op on /body/user, got: %v", ops)
+}
+
+func TestComputeDiff_different_status_codes(t *testing.T) {
+	responses := []CreateRequestResponseProps{
+		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)},
+		{Type: "shadow", StatusCode: 500, Headers: http.Header{}, Body: b64(`{"ok":false}`)},
+	}
+
+	ops, err := computeDiff(responses)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, ops)
+
+	paths := map[string]bool{}
+	for _, op := range ops {
+		paths[op.Path] = true
+	}
+	assert.True(t, paths["/statusCode"], "expected diff on /statusCode")
+}
+
+func TestComputeDiff_different_headers(t *testing.T) {
+	responses := []CreateRequestResponseProps{
+		{
+			Type:       "live",
+			StatusCode: 200,
+			Headers:    http.Header{"X-Req-Id": []string{"abc"}},
+			Body:       b64(`{"ok":true}`),
+		},
+		{
+			Type:       "shadow",
+			StatusCode: 200,
+			Headers:    http.Header{"X-Req-Id": []string{"def"}},
+			Body:       b64(`{"ok":true}`),
+		},
+	}
+
+	ops, err := computeDiff(responses)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, ops, "expected diff on headers")
+}
+
+func TestComputeDiff_invalid_base64_body(t *testing.T) {
+	responses := []CreateRequestResponseProps{
+		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: []byte("not-valid-base64!!!")},
+		{Type: "shadow", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)},
+	}
+
+	_, err := computeDiff(responses)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode live response body")
+}
+
+func TestComputeDiff_missing_live_response(t *testing.T) {
+	responses := []CreateRequestResponseProps{
+		{Type: "shadow", StatusCode: 200, Headers: http.Header{}, Body: b64(`{}`)},
+	}
+
+	_, err := computeDiff(responses)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "both live and shadow responses are required")
+}
+
+func TestComputeDiff_missing_shadow_response(t *testing.T) {
+	responses := []CreateRequestResponseProps{
+		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: b64(`{}`)},
+	}
+
+	_, err := computeDiff(responses)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "both live and shadow responses are required")
 }

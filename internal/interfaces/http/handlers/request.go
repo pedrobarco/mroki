@@ -50,8 +50,12 @@ func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 			})
 		}
 
-		cmd.Diff = commands.CreateRequestDiffProps{
-			Content: req.Diff.Content,
+		// Diff is optional — if provided by the agent, pass it through;
+		// otherwise the command handler computes it server-side
+		if req.Diff != nil {
+			cmd.Diff = &commands.CreateRequestDiffProps{
+				Content: req.Diff.Content,
+			}
 		}
 
 		// Execute command

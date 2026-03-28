@@ -54,14 +54,14 @@ mroki consists of four main components:
 - Operate in dual modes: fetch gate config from API or use hardcoded URLs
 - Forward to both live and shadow services in parallel
 - Return live service response to client immediately
-- Compute JSON response differences with configurable filtering in background
-- Send captured data to mroki-api with retry logic
+- Send raw captured responses to mroki-api with retry logic (API mode)
+- Compute and print JSON diffs locally (standalone mode only)
 - Persist agent identity across restarts
 
 **Technology:**
 - Language: Go 1.24+
 - HTTP Proxy: Custom `pkg/proxy`
-- Diff Engine: Custom JSON differ `pkg/diff` (gjson/sjson + go-cmp) with field filtering and normalization
+- Diff Engine: Custom JSON differ `pkg/diff` (gjson/sjson + go-cmp) — used only in standalone mode
 - API Client: `pkg/client` with exponential backoff
 
 **Deployment:** Runs as a sidecar proxy or standalone service in production environment
@@ -70,12 +70,13 @@ mroki consists of four main components:
 
 ### 2. mroki-api (Go)
 
-**Purpose:** REST API for managing gates and persisting traffic diffs
+**Purpose:** REST API for managing gates, computing diffs, and persisting traffic data
 
 **Responsibilities:**
 - Gate CRUD operations (create, read, list)
-- Store captured requests and responses
-- Persist computed diffs
+- Receive raw captured requests and responses from agents
+- Compute JSON diffs server-side (when not provided by agent)
+- Persist requests, responses, and computed diffs
 - Serve request/response data to hub
 - Health check endpoints for Kubernetes
 
@@ -153,13 +154,13 @@ mroki consists of four main components:
    Client
    │
    ↓
-6. Background: Compute Diff
+6. Background: Send raw responses to mroki-api (with retry)
    │
    ↓
-7. Send to mroki-api (with retry)
+7. mroki-api: Compute Diff server-side
    │
    ↓
-8. Store in PostgreSQL
+8. Store in PostgreSQL (request + responses + diff)
 ```
 
 ### Key Properties
@@ -167,7 +168,8 @@ mroki consists of four main components:
 - **Non-blocking:** Live response returns immediately, shadow processing happens in background
 - **Best-effort:** API failures are logged but don't affect live traffic
 - **Idempotent:** Retries are safe (requests have unique IDs)
-- **JSON-only:** Only JSON responses are diffed (Content-Type check)
+- **Server-side diffing:** Diff computation happens in mroki-api, keeping the agent lightweight
+- **JSON-only:** Only JSON responses are diffed
 
 ---
 
@@ -223,15 +225,16 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 ## Key Design Decisions
 
-### 1. Agent-Side Diffing
+### 1. Server-Side Diffing
 
-**Decision:** Compute diffs in the agent, not the API
+**Decision:** Compute diffs in mroki-api, not the agent
 
 **Rationale:**
-- Reduces API processing load
-- Keeps diff logic close to capture point
-- Enables future sampling/filtering in agent
-- Agent already has both responses in memory
+- Agent stays lightweight — a thin HTTP forwarder with minimal CPU usage
+- Centralized diff logic — one place to change algorithms, options, or filters
+- Enables re-diffing with different config without replaying traffic
+- Scales independently from traffic proxying
+- In standalone mode (no API), the agent still computes diffs locally as a fallback
 
 ### 2. Best-Effort Delivery
 
@@ -328,12 +331,12 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 ### Bottlenecks
 
 1. **PostgreSQL writes:** High traffic gates = many DB writes
-2. **API processing:** Request parsing and validation
-3. **Diff computation:** Large JSON responses
+2. **API processing:** Request parsing, validation, and diff computation
+3. **Diff computation:** Large JSON responses computed server-side during ingest
 
 ### Mitigation Strategies
 
-1. **Batching:** Agents can batch multiple diffs per API request (future)
+1. **Batching:** Agents can batch multiple requests per API call (future)
 2. **Sampling:** Capture only N% of traffic (configurable per gate)
 3. **Async processing:** Queue diffs for background processing
 4. **Sharding:** Partition gates across multiple databases

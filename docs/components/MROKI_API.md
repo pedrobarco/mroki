@@ -1,13 +1,15 @@
 # mroki-api
 
-**REST API for managing gates and storing traffic diffs**
+**REST API for managing gates, computing diffs, and storing traffic data**
 
-mroki-api is a stateless REST API that manages gates (live/shadow service pairs), receives captured traffic from mroki-agent, and stores request/response diffs in PostgreSQL for later analysis.
+mroki-api is a stateless REST API that manages gates (live/shadow service pairs), receives raw captured traffic from mroki-agent, computes JSON diffs server-side, and stores results in PostgreSQL for later analysis.
 
 ## Features
 
 - **Gate Management**: Create and manage live/shadow service pairs with filtering and sorting
-- **Traffic Storage**: Persist captured requests, responses, and diffs
+- **Server-Side Diff Computation**: Computes JSON diffs from raw live/shadow responses on ingest
+- **Traffic Storage**: Persist captured requests, responses, and computed diffs
+- **Backward Compatibility**: Accepts pre-computed diffs from agents (if provided)
 - **Query API**: Retrieve captured traffic for analysis with filtering and sorting
 - **Health Checks**: Kubernetes-ready liveness/readiness probes
 - **Connection Pooling**: Efficient PostgreSQL connection management
@@ -189,7 +191,7 @@ The API automatically creates tables on startup using ent's auto-migration. Sche
 - `gates` - Live/shadow service pairs
 - `requests` - Captured HTTP requests
 - `responses` - Live and shadow responses
-- `diffs` - Computed differences
+- `diffs` - Computed differences (computed server-side from response bodies)
 
 ### Manual Schema Management
 
@@ -518,7 +520,7 @@ All logs use structured logging (slog) with JSON output.
 **Bottlenecks:**
 - PostgreSQL write throughput
 - Request body size (stored as JSONB)
-- Diff computation size
+- Server-side diff computation (synchronous during ingest — large JSON responses increase write latency)
 
 **Optimization:**
 - Use read replicas for query endpoints

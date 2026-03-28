@@ -2,15 +2,16 @@
 
 **Transparent HTTP proxy for shadow traffic testing**
 
-mroki-agent is a lightweight proxy that intercepts HTTP traffic, forwards it to both live (production) and shadow (experimental) services, computes response differences, and optionally sends captured data to mroki-api for storage and analysis.
+mroki-agent is a lightweight proxy that intercepts HTTP traffic, forwards it to both live (production) and shadow (experimental) services, and sends the raw responses to mroki-api for server-side diff computation and storage. In standalone mode (no API), the agent computes and prints diffs locally.
 
 ## Features
 
-- **Transparent Proxying**: Clients see no difference - live responses returned immediately
-- **Dual Operating Modes**: API mode (fetches gate config from API) or Standalone mode (hardcoded URLs)
-- **Configurable Diff Options**: Field filtering, array sorting, float tolerance
+- **Transparent Proxying**: Clients see no difference — live responses returned immediately
+- **Dual Operating Modes**: API mode (sends raw responses to mroki-api) or Standalone mode (computes and prints diffs locally)
+- **Configurable Diff Options** (standalone mode only): Field filtering, array sorting, float tolerance
 - **Parallel Forwarding**: Live and shadow requests execute concurrently
-- **JSON Diff Computing**: Automatically compares JSON responses with customizable filtering
+- **Server-Side Diffing** (API mode): Sends raw responses to mroki-api — diff computation happens server-side
+- **Local Diffing** (standalone mode): Computes JSON diffs and prints them to stdout
 - **Retry Logic**: Exponential backoff for API failures (1s, 2s, 4s)
 - **Best-Effort Delivery**: API failures never affect live traffic
 - **Agent ID Persistence**: Identity survives restarts
@@ -34,7 +35,12 @@ Client Request
 │    └──────┬──┘  └───┬──────┘       │
 │           │          │              │
 │  ┌────────▼──────────▼──────────┐  │
-│  │   Diff Computer (Background) │  │
+│  │   Callback (Background)     │  │
+│  │  ┌─────────────────────┐    │  │
+│  │  │ API mode: send raw  │    │  │
+│  │  │ Standalone: diff +  │    │  │
+│  │  │   print locally     │    │  │
+│  │  └─────────────────────┘    │  │
 │  └──────────────┬───────────────┘  │
 │                 │                   │
 │  ┌──────────────▼───────────────┐  │
@@ -43,7 +49,7 @@ Client Request
 └─────────────────┬──────────────────┘
                   │ HTTP
                   ↓
-            mroki-api
+      mroki-api (computes diff)
 ```
 
 ## Installation
@@ -139,7 +145,7 @@ MROKI_APP_SHADOW_TIMEOUT=10s
 
 ### Diff Configuration (Optional)
 
-Configure how responses are compared. Works in both API and Standalone modes.
+Configure how responses are compared. These options only apply in **Standalone mode** — in API mode, diff computation is handled server-side by mroki-api.
 
 #### `MROKI_APP_DIFF_IGNORED_FIELDS`
 
@@ -294,8 +300,12 @@ curl -X POST http://localhost:8080/test \
   -d '{"name": "Alice", "age": 30}'
 
 # Agent logs (API mode):
-# INFO response diff detected method=POST path=/test live_status=200 shadow_status=200
-# DEBUG successfully sent request to API method=POST path=/test has_diff=true
+# DEBUG successfully sent request to API method=POST path=/test live_status=200 shadow_status=200
+
+# Agent logs (standalone mode):
+# INFO response diff detected method=POST path=/test live_status=200 shadow_status=200 changes=2
+# Diff:
+#  ~ /body/user: "alice" → "bob"
 ```
 
 ## Agent ID
@@ -391,17 +401,16 @@ ERROR all retries exhausted attempts=4
 
 ## Configuration Examples
 
-### API Mode with Diff Options
+### API Mode (Recommended)
 
 ```bash
-# Agent fetches gate URLs from API
+# Agent fetches gate URLs from API, sends raw responses (diff computed server-side)
 MROKI_APP_API_URL=http://localhost:8081
 MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
 MROKI_APP_API_KEY=dev-test-key-min-16-chars
 MROKI_APP_PORT=8080
 
-# Ignore timestamp fields
-MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at,updated_at
+# Note: DIFF_* options are NOT used in API mode — diff is computed by mroki-api
 ```
 
 ### Standalone Mode with Field Filtering
@@ -420,17 +429,13 @@ MROKI_APP_DIFF_IGNORED_FIELDS=user.last_login
 ### Production with External Services
 
 ```bash
-# API Mode
+# API Mode — agent is a thin forwarder, diff computed server-side
 MROKI_APP_API_URL=https://mroki-api.internal.example.com
 MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
 MROKI_APP_API_KEY=production-key-min-16-chars
 MROKI_APP_PORT=80
 MROKI_APP_LIVE_TIMEOUT=3s
 MROKI_APP_SHADOW_TIMEOUT=15s
-
-# Diff configuration for production API
-MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,request_id,users.#.last_seen
-MROKI_APP_DIFF_FLOAT_TOLERANCE=0.0001
 ```
 
 ### Testing with httpbin

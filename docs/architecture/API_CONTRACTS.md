@@ -324,7 +324,7 @@ curl -H "Authorization: Bearer your-api-key" \
       "created_at": "2026-01-31T20:00:01Z"
     }
   ],
-  "diff": {
+  "diff": {                          // ← optional: omit to let mroki-api compute it
     "content": [
       {
         "op": "replace",
@@ -335,6 +335,8 @@ curl -H "Authorization: Bearer your-api-key" \
   }
 }
 ```
+
+> **Note:** The `diff` field is optional. When omitted, mroki-api computes the diff server-side by comparing the live and shadow response bodies. This is the default behavior for agents running in API mode. Pre-computed diffs are accepted for backward compatibility.
 
 **Field Descriptions:**
 - `id` (optional) - Request UUID, generated if omitted
@@ -351,8 +353,8 @@ curl -H "Authorization: Bearer your-api-key" \
   - `headers` (required) - Response headers
   - `body` (required) - Response body (string)
   - `created_at` (required) - Response timestamp
-- `diff` (required) - Computed difference (value object, no ID)
-  - `content` (required) - Array of RFC 6902 JSON Patch operations (empty array `[]` when no differences)
+- `diff` (optional) - Pre-computed difference (value object, no ID). If omitted, mroki-api computes the diff server-side from the response bodies.
+  - `content` (required if `diff` is present) - Array of RFC 6902 JSON Patch operations (empty array `[]` when no differences)
 
 **Response:**
 - `201 Created` on success
@@ -670,7 +672,7 @@ Headers are represented as maps with string arrays (to support multiple values):
 
 ### Diff Format
 
-Diffs use RFC 6902 JSON Patch format. The `content` field is an array of patch operations describing the differences between the live and shadow responses.
+Diffs use RFC 6902 JSON Patch format. The `content` field is an array of patch operations describing the differences between the live and shadow responses. Diffs are computed server-side by mroki-api when the `diff` field is omitted from the request payload.
 
 Each operation has the following structure:
 

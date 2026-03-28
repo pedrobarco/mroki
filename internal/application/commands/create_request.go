@@ -2,6 +2,8 @@ package commands
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -21,7 +23,7 @@ type CreateRequestCommand struct {
 	Body      []byte
 	CreatedAt time.Time
 	Responses []CreateRequestResponseProps
-	Diff      CreateRequestDiffProps
+	Diff      *CreateRequestDiffProps // Optional: if nil, diff is computed server-side
 }
 
 // CreateRequestResponseProps represents response data in the command
@@ -136,8 +138,23 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		return nil, fmt.Errorf("shadow response is required")
 	}
 
-	// Create diff
-	diff, err := traffictesting.NewDiff(live.ID, shadow.ID, cmd.Diff.Content)
+	// Compute or use provided diff content
+	var diffContent []diff.PatchOp
+	if cmd.Diff != nil {
+		// Agent provided pre-computed diff (backward compatibility)
+		diffContent = cmd.Diff.Content
+	} else {
+		// Compute diff server-side from response bodies
+		computed, err := computeDiff(cmd.Responses)
+		if err != nil {
+			// Diff computation errors are non-fatal — store empty diff
+			diffContent = []diff.PatchOp{}
+		} else {
+			diffContent = computed
+		}
+	}
+
+	d, err := traffictesting.NewDiff(live.ID, shadow.ID, diffContent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create diff: %w", err)
 	}
@@ -151,7 +168,7 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		cmd.Body,
 		cmd.CreatedAt,
 		responses,
-		*diff,
+		*d,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -171,4 +188,55 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	}
 
 	return request, nil
+}
+
+
+// computeDiff computes a JSON diff between live and shadow response bodies.
+// Response bodies are expected to be base64-encoded JSON strings.
+// Returns RFC 6902 JSON Patch operations describing the differences.
+func computeDiff(responses []CreateRequestResponseProps) ([]diff.PatchOp, error) {
+	var live, shadow *CreateRequestResponseProps
+	for i := range responses {
+		switch responses[i].Type {
+		case "live":
+			live = &responses[i]
+		case "shadow":
+			shadow = &responses[i]
+		}
+	}
+
+	if live == nil || shadow == nil {
+		return nil, fmt.Errorf("both live and shadow responses are required for diff computation")
+	}
+
+	// Decode base64 bodies
+	liveBody, err := base64.StdEncoding.DecodeString(string(live.Body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode live response body: %w", err)
+	}
+
+	shadowBody, err := base64.StdEncoding.DecodeString(string(shadow.Body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode shadow response body: %w", err)
+	}
+
+	// Marshal headers to JSON (same format as proxy-side diffing)
+	liveHeaders, err := json.Marshal(live.Headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal live headers: %w", err)
+	}
+
+	shadowHeaders, err := json.Marshal(shadow.Headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal shadow headers: %w", err)
+	}
+
+	// Construct synthetic JSON documents matching proxy-side format:
+	// {"statusCode": N, "headers": {...}, "body": ...}
+	liveJSON := fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`,
+		live.StatusCode, liveHeaders, liveBody)
+	shadowJSON := fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`,
+		shadow.StatusCode, shadowHeaders, shadowBody)
+
+	return diff.JSON(liveJSON, shadowJSON)
 }

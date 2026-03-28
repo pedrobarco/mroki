@@ -32,7 +32,7 @@ See the [Quick Start Guide](docs/guides/QUICK_START.md) for the full walkthrough
 
 A **gate** is a pair of services: a live (production) URL and a shadow (experimental) URL.
 
-An **agent** is an HTTP proxy that forwards each request to both services, computes a JSON diff of the responses, and reports it to the API — without affecting the live response.
+An **agent** is an HTTP proxy that forwards each request to both services and sends the raw responses to the API — without affecting the live response. The API computes the JSON diff server-side.
 
 The **hub** is a web UI for managing gates, browsing captured requests, and visualizing response diffs side-by-side.
 
@@ -57,10 +57,10 @@ The **hub** is a web UI for managing gates, browsing captured requests, and visu
      │                 │
      └────────┬────────┘
               ↓
-       Compute Diff
+       Send Responses
               ↓
     ┌─────────────────┐
-    │   mroki-api     │  (REST API)
+    │   mroki-api     │  (REST API + Diff)
     └────────┬────────┘
              ↓
     ┌─────────────────┐
@@ -76,8 +76,8 @@ The **hub** is a web UI for managing gates, browsing captured requests, and visu
 
 | Component | Description | Docs |
 |---|---|---|
-| [mroki-agent](docs/components/MROKI_AGENT.md) | HTTP proxy — forwards traffic to live and shadow, computes diffs | [docs](docs/components/MROKI_AGENT.md) |
-| [mroki-api](docs/components/MROKI_API.md) | REST API — gate management, request/diff storage | [docs](docs/components/MROKI_API.md) |
+| [mroki-agent](docs/components/MROKI_AGENT.md) | HTTP proxy — forwards traffic to live and shadow, sends responses to API | [docs](docs/components/MROKI_AGENT.md) |
+| [mroki-api](docs/components/MROKI_API.md) | REST API — gate management, request/diff storage, server-side diff computation | [docs](docs/components/MROKI_API.md) |
 | [mroki-hub](docs/components/MROKI_HUB.md) | Web UI — gate dashboard, request browser, diff viewer | [docs](docs/components/MROKI_HUB.md) |
 | [caddy-mroki](docs/components/CADDY_MROKI.md) | Caddy module — integrates mroki proxy into Caddy server | [docs](docs/components/CADDY_MROKI.md) |
 

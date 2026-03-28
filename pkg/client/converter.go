@@ -4,15 +4,14 @@ import (
 	"encoding/base64"
 	"time"
 
-	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 )
 
-// ConvertProxyToCapture converts proxy types to API types
+// ConvertProxyToCapture converts proxy types to API types.
+// Diff content is omitted — diff computation is handled server-side by mroki-api.
 func ConvertProxyToCapture(
 	req proxy.ProxyRequest,
 	live, shadow proxy.ProxyResponse,
-	ops []diff.PatchOp,
 	agentID string,
 ) *CapturedRequest {
 	now := time.Now()
@@ -40,10 +39,6 @@ func ConvertProxyToCapture(
 				Body:       base64.StdEncoding.EncodeToString(shadow.Body),
 				CreatedAt:  now,
 			},
-		},
-
-		Diff: CapturedDiff{
-			Content: ops,
 		},
 	}
 }

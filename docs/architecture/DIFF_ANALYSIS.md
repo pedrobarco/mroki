@@ -6,7 +6,7 @@ Analysis of the domain and persistence layers for the "diff" entity in mroki-hub
 
 A **diff** in mroki-hub is a **delta-based comparison record** used for **shadow traffic testing**. It captures the computed difference between two HTTP responses: one from the **live** production service and one from the **shadow** (canary/candidate) service.
 
-The system operates as a traffic mirroring platform: `mroki-agent` proxies incoming requests to both live and shadow backends, computes a JSON diff of the two responses on the agent side, and then persists the entire capture (request + both responses + diff) to `mroki-api` for retrospective analysis in the `mroki-hub` dashboard.
+The system operates as a traffic mirroring platform: `mroki-agent` proxies incoming requests to both live and shadow backends and sends the raw responses to `mroki-api`. The API computes a JSON diff of the two responses server-side and persists the entire capture (request + both responses + diff) for retrospective analysis in the `mroki-hub` dashboard. In standalone mode (no API), the agent computes and prints diffs locally.
 
 The diff is **not** used for state versioning or audit logging. It serves a purely **observational/analytical** function — answering the question: *"For this request, how did the shadow's response differ from the live's response?"*
 
@@ -47,17 +47,22 @@ The domain model lives at `internal/domain/traffictesting/diff.go`.
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  mroki-agent │     │  pkg/proxy   │     │  pkg/diff    │     │  mroki-api   │
-│  (proxy)     │────▶│  Diff()      │────▶│  JSON()      │────▶│  Save()      │
+│  mroki-agent │     │  mroki-api   │     │  pkg/diff    │     │  PostgreSQL  │
+│  (proxy)     │────▶│  Receive     │────▶│  JSON()      │────▶│  Save()      │
 └─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
 **Step-by-step:**
 
-1. **Generation** (agent-side, `pkg/proxy/proxy.go`): After both live and shadow responses return, `proxyResponseDiffer.Diff()` marshals headers to JSON, constructs synthetic JSON documents, and calls `diff.JSON()`. Only JSON responses are diffed; non-JSON content is silently skipped.
-2. **Transmission** (agent → API, `pkg/client/converter.go`): The diff content string is placed into `dto.DiffPayload` and sent as part of `CreateRequestPayload` via HTTP POST.
-3. **Persistence** (API-side, `internal/infrastructure/persistence/ent/request_repository.go`): The entire request+responses+diff is saved in a single database transaction. `saveDiff()` checks `IsZero()` and skips if no diff exists.
-4. **Retrieval** (API-side): Diffs are always eager-loaded with their parent request via `WithDiff()`. A `has_diff` filter exists in `RequestFilters`.
+1. **Capture** (agent-side, `pkg/proxy/proxy.go`): After both live and shadow responses return, the proxy invokes the callback with the raw `ProxyRequest`, live `ProxyResponse`, and shadow `ProxyResponse`. No diff computation occurs in the proxy.
+2. **Transmission** (agent → API, `pkg/client/converter.go`): The raw responses (base64-encoded bodies) are sent as part of `CreateRequestPayload` via HTTP POST. The `diff` field is omitted from the payload.
+3. **Diff computation** (API-side, `internal/application/commands/create_request.go`): When the `diff` field is absent, `computeDiff()` decodes the base64 response bodies, constructs synthetic JSON documents (statusCode + headers + body), and calls `diff.JSON()` to produce RFC 6902 patch operations. If the agent provides a pre-computed diff (backward compatibility), it is used as-is.
+4. **Persistence** (API-side, `internal/infrastructure/persistence/ent/request_repository.go`): The entire request+responses+diff is saved in a single database transaction. `saveDiff()` checks `IsZero()` and skips if no diff exists.
+5. **Retrieval** (API-side): Diffs are always eager-loaded with their parent request via `WithDiff()`. A `has_diff` filter exists in `RequestFilters`.
+
+**Standalone mode (no API):**
+
+In standalone mode, the agent creates its own `proxyResponseDiffer` in the callback, computes the diff locally using the same `pkg/diff` engine, and prints the result to stdout.
 
 ### Potential bottlenecks
 
@@ -66,6 +71,7 @@ The domain model lives at `internal/domain/traffictesting/diff.go`.
 | Content stored as unbounded TEXT | Large JSON responses produce large diff strings; no size limit | Medium |
 | Non-standard, non-queryable diff format | Cannot filter/aggregate by changed fields at the DB level | Medium |
 | Body embedded in synthetic JSON | Diff wraps full response body into a JSON envelope, inflating content | Medium |
+| Server-side diff computation at ingest | Diff computed synchronously during `CreateRequest` — blocks write path | Medium |
 | No indexing on response ID columns | Future joins/lookups by response ID would table-scan | Low |
 
 

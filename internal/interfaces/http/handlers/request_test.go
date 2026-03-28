@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/dto"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mockRequestRepository implements traffictesting.RequestRepository for testing
@@ -115,6 +118,77 @@ func TestCreateRequest_Success(t *testing.T) {
 	if response.Data.Path != "/api/test" {
 		t.Errorf("expected path /api/test, got %s", response.Data.Path)
 	}
+}
+
+func TestCreateRequest_Success_WithoutDiff(t *testing.T) {
+	// API-mode flow: agent sends request without diff field.
+	// The API should compute the diff server-side.
+	gateID := traffictesting.NewGateID()
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFunc: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+	handler := commands.NewCreateRequestHandler(repo)
+
+	now := time.Now()
+
+	// Base64 encode JSON response bodies (matching what the agent sends)
+	liveBody := base64.StdEncoding.EncodeToString([]byte(`{"user":"alice"}`))
+	shadowBody := base64.StdEncoding.EncodeToString([]byte(`{"user":"bob"}`))
+
+	body := map[string]interface{}{
+		"agent_id":   "test-host-12345678",
+		"method":     "GET",
+		"path":       "/api/users",
+		"headers":    map[string][]string{"Content-Type": {"application/json"}},
+		"body":       "",
+		"created_at": now.Format(time.RFC3339Nano),
+		"responses": []map[string]interface{}{
+			{
+				"type":        "live",
+				"status_code": 200,
+				"headers":     map[string][]string{"Content-Type": {"application/json"}},
+				"body":        liveBody,
+				"created_at":  now.Format(time.RFC3339Nano),
+			},
+			{
+				"type":        "shadow",
+				"status_code": 200,
+				"headers":     map[string][]string{"Content-Type": {"application/json"}},
+				"body":        shadowBody,
+				"created_at":  now.Format(time.RFC3339Nano),
+			},
+		},
+		// No "diff" field — server computes it
+	}
+
+	jsonBody, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/gates/"+gateID.String()+"/requests", bytes.NewBuffer(jsonBody))
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := CreateRequest(handler)
+	err := appHandler(rec, req)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	// Verify the saved request has a server-computed diff
+	require.NotNil(t, savedReq)
+	assert.NotEmpty(t, savedReq.Diff.Content, "server should have computed diff for different responses")
+
+	// Verify the diff detected the user field change
+	found := false
+	for _, op := range savedReq.Diff.Content {
+		if op.Path == "/body/user" && op.Op == "replace" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected replace op on /body/user, got: %v", savedReq.Diff.Content)
 }
 
 func TestCreateRequest_InvalidJSON(t *testing.T) {

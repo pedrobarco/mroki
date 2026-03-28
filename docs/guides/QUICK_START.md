@@ -119,13 +119,12 @@ curl -X POST http://localhost:8080/test \
 **What happens:**
 1. Agent forwards request to **both** live and shadow services
 2. Live response returned to you immediately
-3. Agent computes diff in background
-4. Diff sent to mroki-api and stored in PostgreSQL
+3. Agent sends raw responses to mroki-api in background
+4. mroki-api computes diff server-side and stores everything in PostgreSQL
 
 **Check agent logs:** You should see:
 ```
-INFO response diff detected method=POST path=/test live_status=200 shadow_status=200
-DEBUG successfully sent request to API method=POST path=/test has_diff=true
+DEBUG successfully sent request to API method=POST path=/test live_status=200 shadow_status=200
 ```
 
 ## Step 6: View Captured Requests
@@ -166,7 +165,7 @@ curl -H "Authorization: Bearer dev-test-key-min-16-chars" \
 - Original request (method, path, headers, body)
 - Live response (status, headers, body)
 - Shadow response (status, headers, body)
-- Computed diff (JSON patch format)
+- Computed diff (RFC 6902 JSON Patch format, computed server-side by mroki-api)
 
 ## Congratulations!
 
@@ -176,7 +175,7 @@ You've successfully:
 - ✅ Created a gate
 - ✅ Started mroki-agent
 - ✅ Sent traffic through the agent
-- ✅ Viewed captured diffs via API
+- ✅ Viewed captured requests and server-computed diffs via API
 
 ## What's Next?
 
@@ -254,12 +253,12 @@ EOF
 cd cmd/mroki-agent && go run .
 
 # Should see: "Starting in standalone mode"
-# Requests still work, but diffs are not stored
+# Requests still work — diffs are computed and printed locally (not stored)
 ```
 
-**Test Diff Configuration:**
+**Test Diff Configuration (standalone mode only):**
 ```bash
-# Add diff options to cmd/mroki-agent/.env
+# Add diff options to cmd/mroki-agent/.env (only applies in standalone mode)
 cat >> cmd/mroki-agent/.env << 'EOF'
 MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at,url
 EOF

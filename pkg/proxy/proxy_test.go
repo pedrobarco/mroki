@@ -190,7 +190,7 @@ func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 	p := proxy.NewProxy(
 		liveURL,
 		shadowURL,
-		proxy.WithCallbackFn(func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse, diff proxy.DiffResult) error {
+		proxy.WithCallbackFn(func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
 			capturedReq = req
 			capturedLive = live
 			capturedShadow = shadow
@@ -209,7 +209,7 @@ func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 	// so we need a reasonable timeout that accounts for:
 	// - Network roundtrips (even to localhost test servers)
 	// - Goroutine scheduling delays
-	// - Diff computation (if responses are JSON)
+	// - Callback execution
 	select {
 	case <-done:
 		// Callback was called successfully
@@ -408,7 +408,7 @@ func TestProxy_ServeHTTP_skips_shadow_when_body_too_large(t *testing.T) {
 	assert.False(t, shadowCalled.Load(), "shadow service should not be called for large bodies")
 }
 
-func TestProxy_ServeHTTP_diffs_when_body_under_limit(t *testing.T) {
+func TestProxy_ServeHTTP_proxies_shadow_when_body_under_limit(t *testing.T) {
 	var shadowCalled atomic.Bool
 
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
