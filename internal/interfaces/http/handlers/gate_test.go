@@ -20,7 +20,7 @@ import (
 type mockGateRepository struct {
 	saveFunc    func(ctx context.Context, gate *traffictesting.Gate) error
 	getByIDFunc func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error)
-	getAllFunc  func(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error)
+	getAllFunc  func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error)
 }
 
 func (m *mockGateRepository) Save(ctx context.Context, gate *traffictesting.Gate) error {
@@ -37,9 +37,9 @@ func (m *mockGateRepository) GetByID(ctx context.Context, id traffictesting.Gate
 	return nil, nil
 }
 
-func (m *mockGateRepository) GetAll(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+func (m *mockGateRepository) GetAll(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 	if m.getAllFunc != nil {
-		return m.getAllFunc(ctx, params)
+		return m.getAllFunc(ctx, filters, sort, params)
 	}
 	return nil, nil
 }
@@ -322,7 +322,7 @@ func TestGetAllGates_Success(t *testing.T) {
 	result := pagination.NewPagedResult(gates, 2, params)
 
 	repo := &mockGateRepository{
-		getAllFunc: func(ctx context.Context, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+		getAllFunc: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 			return result, nil
 		},
 	}
@@ -361,7 +361,7 @@ func TestGetAllGates_EmptyResults(t *testing.T) {
 	result := pagination.NewPagedResult([]*traffictesting.Gate{}, 0, params)
 
 	repo := &mockGateRepository{
-		getAllFunc: func(ctx context.Context, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+		getAllFunc: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 			return result, nil
 		},
 	}
@@ -413,7 +413,7 @@ func TestGetAllGates_InvalidPagination(t *testing.T) {
 
 func TestGetAllGates_PaginationValidationError(t *testing.T) {
 	repo := &mockGateRepository{
-		getAllFunc: func(ctx context.Context, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+		getAllFunc: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 			return nil, traffictesting.ErrInvalidPagination
 		},
 	}
@@ -432,5 +432,156 @@ func TestGetAllGates_PaginationValidationError(t *testing.T) {
 
 	if apiErr.Status != http.StatusBadRequest {
 		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+
+func TestGetAllGates_WithSortParams(t *testing.T) {
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gates := []*traffictesting.Gate{gate1}
+
+	params, _ := pagination.NewParams(50, 0)
+	result := pagination.NewPagedResult(gates, 1, params)
+
+	repo := &mockGateRepository{
+		getAllFunc: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+			return result, nil
+		},
+	}
+	handler := queries.NewListGatesHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/gates?sort=live_url&order=asc", nil)
+	rec := httptest.NewRecorder()
+
+	appHandler := GetAllGates(handler)
+	err := appHandler(rec, req)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+
+	var response dto.PaginatedResponse[[]dto.Gate]
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(response.Data) != 1 {
+		t.Errorf("expected 1 gate, got %d", len(response.Data))
+	}
+}
+
+func TestGetAllGates_WithFilterParams(t *testing.T) {
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gates := []*traffictesting.Gate{gate1}
+
+	params, _ := pagination.NewParams(50, 0)
+	result := pagination.NewPagedResult(gates, 1, params)
+
+	repo := &mockGateRepository{
+		getAllFunc: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+			return result, nil
+		},
+	}
+	handler := queries.NewListGatesHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/gates?live_url=example&shadow_url=shadow", nil)
+	rec := httptest.NewRecorder()
+
+	appHandler := GetAllGates(handler)
+	err := appHandler(rec, req)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+}
+
+func TestGetAllGates_InvalidSortField(t *testing.T) {
+	repo := &mockGateRepository{}
+	handler := queries.NewListGatesHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/gates?sort=invalid_field", nil)
+	rec := httptest.NewRecorder()
+
+	appHandler := GetAllGates(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+func TestGetAllGates_InvalidSortOrder(t *testing.T) {
+	repo := &mockGateRepository{}
+	handler := queries.NewListGatesHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/gates?order=invalid", nil)
+	rec := httptest.NewRecorder()
+
+	appHandler := GetAllGates(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+func TestGetAllGates_AllParamsCombined(t *testing.T) {
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+
+	params, _ := pagination.NewParams(10, 0)
+	result := pagination.NewPagedResult([]*traffictesting.Gate{gate1}, 1, params)
+
+	repo := &mockGateRepository{
+		getAllFunc: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+			return result, nil
+		},
+	}
+	handler := queries.NewListGatesHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/gates?limit=10&offset=0&live_url=example&shadow_url=shadow&sort=shadow_url&order=desc", nil)
+	rec := httptest.NewRecorder()
+
+	appHandler := GetAllGates(handler)
+	err := appHandler(rec, req)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+
+	var response dto.PaginatedResponse[[]dto.Gate]
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(response.Data) != 1 {
+		t.Errorf("expected 1 gate, got %d", len(response.Data))
 	}
 }

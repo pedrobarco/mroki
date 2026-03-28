@@ -230,6 +230,22 @@ func InvalidGatePagination(err error) *APIError {
 	)
 }
 
+// InvalidGateSort returns an RFC 7807 error for invalid gate sort parameters.
+// Used when sort or order query parameters are invalid for gate listing.
+func InvalidGateSort(err error) *APIError {
+	detail := "sort must be 'id', 'live_url', or 'shadow_url'; order must be 'asc' or 'desc'"
+	if err != nil {
+		detail = fmt.Sprintf("%s: %v", detail, err)
+	}
+	return NewError(
+		http.StatusBadRequest,
+		ErrorTypeInvalidQueryParam,
+		"Invalid Query Parameter",
+		detail,
+		err,
+	)
+}
+
 // Request-specific error constructors
 
 // InvalidRequestID returns an RFC 7807 error for invalid request ID format.

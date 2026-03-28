@@ -2,19 +2,23 @@ import { request } from './client'
 import type { Gate, ApiResponse, PaginatedResponse, CreateGatePayload } from './types'
 
 /**
- * List all gates with pagination
+ * List all gates with pagination, filtering, and sorting
  *
- * @param params - Pagination parameters (limit, offset)
+ * @param params - Pagination, filter, and sort parameters
  * @returns Paginated list of gates
  *
  * @example
- * const response = await getGates({ limit: 20, offset: 0 })
+ * const response = await getGates({ limit: 20, offset: 0, sort: 'live_url', order: 'asc' })
  * console.log(response.data) // Gate[]
  * console.log(response.pagination.total) // Total count
  */
 export async function getGates(params?: {
   limit?: number
   offset?: number
+  live_url?: string
+  shadow_url?: string
+  sort?: string
+  order?: string
 }): Promise<PaginatedResponse<Gate[]>> {
   const searchParams = new URLSearchParams()
 
@@ -23,6 +27,18 @@ export async function getGates(params?: {
   }
   if (params?.offset !== undefined) {
     searchParams.set('offset', params.offset.toString())
+  }
+  if (params?.live_url) {
+    searchParams.set('live_url', params.live_url)
+  }
+  if (params?.shadow_url) {
+    searchParams.set('shadow_url', params.shadow_url)
+  }
+  if (params?.sort) {
+    searchParams.set('sort', params.sort)
+  }
+  if (params?.order) {
+    searchParams.set('order', params.order)
   }
 
   const query = searchParams.toString()

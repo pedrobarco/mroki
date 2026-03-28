@@ -101,7 +101,9 @@ func TestGateRepository_GetAll_success(t *testing.T) {
 	require.NoError(t, repo.Save(context.Background(), gate2))
 
 	params, _ := pagination.NewParams(50, 0)
-	result, err := repo.GetAll(context.Background(), params)
+	filters := traffictesting.EmptyGateFilters()
+	sort := traffictesting.DefaultGateSort()
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -119,7 +121,9 @@ func TestGateRepository_GetAll_empty(t *testing.T) {
 	repo := ent.NewGateRepository(client)
 
 	params, _ := pagination.NewParams(50, 0)
-	result, err := repo.GetAll(context.Background(), params)
+	filters := traffictesting.EmptyGateFilters()
+	sort := traffictesting.DefaultGateSort()
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -144,10 +148,245 @@ func TestGateRepository_GetAll_pagination(t *testing.T) {
 
 	// Get first page (limit 2)
 	params, _ := pagination.NewParams(2, 0)
-	result, err := repo.GetAll(context.Background(), params)
+	filters := traffictesting.EmptyGateFilters()
+	sort := traffictesting.DefaultGateSort()
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
 
 	assert.NoError(t, err)
 	assert.Len(t, result.Items, 2)
 	assert.Equal(t, int64(3), result.Total)
 	assert.True(t, result.HasMore)
+}
+
+func TestGateRepository_GetAll_filter_by_live_url(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	repo := ent.NewGateRepository(client)
+
+	liveURL1, _ := traffictesting.ParseGateURL("http://api.production.example.com")
+	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow1.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+
+	liveURL2, _ := traffictesting.ParseGateURL("http://api.staging.example.com")
+	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow2.example.com")
+	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+
+	require.NoError(t, repo.Save(context.Background(), gate1))
+	require.NoError(t, repo.Save(context.Background(), gate2))
+
+	params, _ := pagination.NewParams(50, 0)
+	sort := traffictesting.DefaultGateSort()
+
+	// Filter for "production" in live_url
+	filters := traffictesting.NewGateFilters("production", "")
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Items, 1)
+	assert.Equal(t, int64(1), result.Total)
+	assert.Equal(t, "http://api.production.example.com", result.Items[0].LiveURL.String())
+}
+
+func TestGateRepository_GetAll_filter_by_shadow_url(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	repo := ent.NewGateRepository(client)
+
+	liveURL1, _ := traffictesting.ParseGateURL("http://live1.example.com")
+	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow-alpha.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+
+	liveURL2, _ := traffictesting.ParseGateURL("http://live2.example.com")
+	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow-beta.example.com")
+	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+
+	require.NoError(t, repo.Save(context.Background(), gate1))
+	require.NoError(t, repo.Save(context.Background(), gate2))
+
+	params, _ := pagination.NewParams(50, 0)
+	sort := traffictesting.DefaultGateSort()
+
+	// Filter for "beta" in shadow_url
+	filters := traffictesting.NewGateFilters("", "beta")
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Items, 1)
+	assert.Equal(t, int64(1), result.Total)
+	assert.Equal(t, "http://shadow-beta.example.com", result.Items[0].ShadowURL.String())
+}
+
+func TestGateRepository_GetAll_filter_by_both_urls(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	repo := ent.NewGateRepository(client)
+
+	liveURL1, _ := traffictesting.ParseGateURL("http://api.production.example.com")
+	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow-alpha.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+
+	liveURL2, _ := traffictesting.ParseGateURL("http://api.production.example.com")
+	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow-beta.example.com")
+	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+
+	liveURL3, _ := traffictesting.ParseGateURL("http://api.staging.example.com")
+	shadowURL3, _ := traffictesting.ParseGateURL("http://shadow-alpha.example.com")
+	gate3, _ := traffictesting.NewGate(liveURL3, shadowURL3)
+
+	require.NoError(t, repo.Save(context.Background(), gate1))
+	require.NoError(t, repo.Save(context.Background(), gate2))
+	require.NoError(t, repo.Save(context.Background(), gate3))
+
+	params, _ := pagination.NewParams(50, 0)
+	sort := traffictesting.DefaultGateSort()
+
+	// Filter for "production" in live_url AND "alpha" in shadow_url
+	filters := traffictesting.NewGateFilters("production", "alpha")
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Items, 1)
+	assert.Equal(t, int64(1), result.Total)
+	assert.Equal(t, "http://api.production.example.com", result.Items[0].LiveURL.String())
+	assert.Equal(t, "http://shadow-alpha.example.com", result.Items[0].ShadowURL.String())
+}
+
+func TestGateRepository_GetAll_filter_no_match(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	repo := ent.NewGateRepository(client)
+
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	require.NoError(t, repo.Save(context.Background(), gate1))
+
+	params, _ := pagination.NewParams(50, 0)
+	sort := traffictesting.DefaultGateSort()
+
+	filters := traffictesting.NewGateFilters("nonexistent", "")
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
+
+	assert.NoError(t, err)
+	assert.Empty(t, result.Items)
+	assert.Equal(t, int64(0), result.Total)
+}
+
+func TestGateRepository_GetAll_filter_case_insensitive(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	repo := ent.NewGateRepository(client)
+
+	liveURL, _ := traffictesting.ParseGateURL("http://api.Production.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	require.NoError(t, repo.Save(context.Background(), gate1))
+
+	params, _ := pagination.NewParams(50, 0)
+	sort := traffictesting.DefaultGateSort()
+
+	// Search with lowercase should match uppercase in URL
+	filters := traffictesting.NewGateFilters("production", "")
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Items, 1)
+}
+
+func TestGateRepository_GetAll_sort_by_live_url_asc(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	repo := ent.NewGateRepository(client)
+
+	liveURL1, _ := traffictesting.ParseGateURL("http://charlie.example.com")
+	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+
+	liveURL2, _ := traffictesting.ParseGateURL("http://alpha.example.com")
+	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+
+	liveURL3, _ := traffictesting.ParseGateURL("http://bravo.example.com")
+	shadowURL3, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate3, _ := traffictesting.NewGate(liveURL3, shadowURL3)
+
+	require.NoError(t, repo.Save(context.Background(), gate1))
+	require.NoError(t, repo.Save(context.Background(), gate2))
+	require.NoError(t, repo.Save(context.Background(), gate3))
+
+	params, _ := pagination.NewParams(50, 0)
+	filters := traffictesting.EmptyGateFilters()
+	sort := traffictesting.NewGateSort(traffictesting.SortByLiveURL(), traffictesting.Asc())
+
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Items, 3)
+	assert.Equal(t, "http://alpha.example.com", result.Items[0].LiveURL.String())
+	assert.Equal(t, "http://bravo.example.com", result.Items[1].LiveURL.String())
+	assert.Equal(t, "http://charlie.example.com", result.Items[2].LiveURL.String())
+}
+
+func TestGateRepository_GetAll_sort_by_live_url_desc(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	repo := ent.NewGateRepository(client)
+
+	liveURL1, _ := traffictesting.ParseGateURL("http://charlie.example.com")
+	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+
+	liveURL2, _ := traffictesting.ParseGateURL("http://alpha.example.com")
+	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+
+	require.NoError(t, repo.Save(context.Background(), gate1))
+	require.NoError(t, repo.Save(context.Background(), gate2))
+
+	params, _ := pagination.NewParams(50, 0)
+	filters := traffictesting.EmptyGateFilters()
+	sort := traffictesting.NewGateSort(traffictesting.SortByLiveURL(), traffictesting.Desc())
+
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Items, 2)
+	assert.Equal(t, "http://charlie.example.com", result.Items[0].LiveURL.String())
+	assert.Equal(t, "http://alpha.example.com", result.Items[1].LiveURL.String())
+}
+
+func TestGateRepository_GetAll_sort_by_shadow_url(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	repo := ent.NewGateRepository(client)
+
+	liveURL1, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL1, _ := traffictesting.ParseGateURL("http://zebra.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+
+	liveURL2, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL2, _ := traffictesting.ParseGateURL("http://apple.example.com")
+	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+
+	require.NoError(t, repo.Save(context.Background(), gate1))
+	require.NoError(t, repo.Save(context.Background(), gate2))
+
+	params, _ := pagination.NewParams(50, 0)
+	filters := traffictesting.EmptyGateFilters()
+	sort := traffictesting.NewGateSort(traffictesting.SortByShadowURL(), traffictesting.Asc())
+
+	result, err := repo.GetAll(context.Background(), filters, sort, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Items, 2)
+	assert.Equal(t, "http://apple.example.com", result.Items[0].ShadowURL.String())
+	assert.Equal(t, "http://zebra.example.com", result.Items[1].ShadowURL.String())
 }

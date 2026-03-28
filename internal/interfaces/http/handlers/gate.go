@@ -124,17 +124,25 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 			return dto.InvalidGatePagination(err)
 		}
 
+		// Parse filtering and sorting query parameters
+		liveURL, shadowURL, sortField, sortOrder := parseGateQueryParams(r.URL.Query())
+
 		query := queries.ListGatesQuery{
-			Limit:  limit,
-			Offset: offset,
+			Limit:     limit,
+			Offset:    offset,
+			LiveURL:   liveURL,
+			ShadowURL: shadowURL,
+			SortField: sortField,
+			SortOrder: sortOrder,
 		}
 
 		result, err := handler.Handle(r.Context(), query)
 		if err != nil {
-			// Check if it's a pagination validation error
 			switch {
 			case errors.Is(err, traffictesting.ErrInvalidPagination):
 				return dto.InvalidGatePagination(err)
+			case errors.Is(err, traffictesting.ErrInvalidGateSort):
+				return dto.InvalidGateSort(err)
 			default:
 				return dto.NewError(
 					http.StatusInternalServerError,

@@ -217,11 +217,23 @@ curl -H "Authorization: Bearer your-api-key" \
 
 #### GET /gates
 
-**Purpose:** List all gates
+**Purpose:** List all gates with optional filtering and sorting
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | integer | 50 | Results per page (max: 100) |
+| `offset` | integer | 0 | Number of results to skip |
+| `live_url` | string | — | Filter by live URL substring (case-insensitive) |
+| `shadow_url` | string | — | Filter by shadow URL substring (case-insensitive) |
+| `sort` | string | `id` | Sort field: `id`, `live_url`, or `shadow_url` |
+| `order` | string | `desc` | Sort direction: `asc` or `desc` |
 
 **Response:**
 - `200 OK` on success
-- Returns empty array if no gates exist
+- `400 Bad Request` if query parameters are invalid
+- Returns empty array if no gates match
 
 **Success Response Body:**
 ```json
@@ -237,14 +249,33 @@ curl -H "Authorization: Bearer your-api-key" \
       "live_url": "https://api2.production.example.com",
       "shadow_url": "https://api2.shadow.example.com"
     }
-  ]
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 2,
+    "has_more": false
+  }
 }
 ```
 
-**Example:**
+**Examples:**
 ```bash
+# List all gates (default: 50 per page, sorted by id desc)
 curl -H "Authorization: Bearer your-api-key" \
   http://localhost:8090/gates
+
+# Filter by live URL containing "production"
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates?live_url=production"
+
+# Filter by shadow URL and sort by live_url ascending
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates?shadow_url=staging&sort=live_url&order=asc"
+
+# Paginate with limit and offset
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates?limit=10&offset=20&sort=shadow_url&order=desc"
 ```
 
 ---

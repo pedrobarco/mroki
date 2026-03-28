@@ -6,9 +6,9 @@ mroki-api is a stateless REST API that manages gates (live/shadow service pairs)
 
 ## Features
 
-- **Gate Management**: Create and manage live/shadow service pairs
+- **Gate Management**: Create and manage live/shadow service pairs with filtering and sorting
 - **Traffic Storage**: Persist captured requests, responses, and diffs
-- **Query API**: Retrieve captured traffic for analysis
+- **Query API**: Retrieve captured traffic for analysis with filtering and sorting
 - **Health Checks**: Kubernetes-ready liveness/readiness probes
 - **Connection Pooling**: Efficient PostgreSQL connection management
 - **Type-Safe Queries**: Generated queries via sqlc
@@ -172,7 +172,7 @@ See [API Contracts](../architecture/API_CONTRACTS.md) for full endpoint document
 **Gates:**
 - `POST /gates` - Create gate
 - `GET /gates/:gate_id` - Get gate by ID
-- `GET /gates` - List all gates
+- `GET /gates` - List all gates (with filtering and sorting)
 
 **Requests:**
 - `POST /gates/:gate_id/requests` - Create captured request (agent-to-API)
@@ -413,8 +413,21 @@ curl -X POST http://localhost:8090/gates \
 ### List All Gates
 
 ```bash
+# List all gates (default sorting and pagination)
 curl -H "Authorization: Bearer your-api-key" \
   http://localhost:8090/gates | jq .
+
+# Filter by live URL containing "production"
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates?live_url=production" | jq .
+
+# Sort by shadow_url ascending
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates?sort=shadow_url&order=asc" | jq .
+
+# Combine filtering, sorting, and pagination
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates?live_url=api&sort=live_url&order=asc&limit=10&offset=0" | jq .
 
 # Response:
 # {
@@ -424,7 +437,13 @@ curl -H "Authorization: Bearer your-api-key" \
 #       "live_url": "https://api.production.example.com",
 #       "shadow_url": "https://api.shadow.example.com"
 #     }
-#   ]
+#   ],
+#   "pagination": {
+#     "limit": 50,
+#     "offset": 0,
+#     "total": 1,
+#     "has_more": false
+#   }
 # }
 ```
 

@@ -19,8 +19,10 @@ var (
 	ErrInvalidPath       = errors.New("invalid path")
 
 	// Filtering and sorting errors
-	ErrInvalidFilters   = errors.New("invalid request filters")
-	ErrInvalidSort      = errors.New("invalid request sort")
+	ErrInvalidFilters     = errors.New("invalid request filters")
+	ErrInvalidSort        = errors.New("invalid request sort")
+	ErrInvalidGateFilters = errors.New("invalid gate filters")
+	ErrInvalidGateSort    = errors.New("invalid gate sort")
 	ErrInvalidSortField = errors.New("invalid sort field")
 	ErrInvalidSortOrder = errors.New("invalid sort order")
 

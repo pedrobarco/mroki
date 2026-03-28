@@ -12,7 +12,7 @@ import (
 )
 
 type mockGateRepositoryForListGates struct {
-	getAllFn func(context.Context, *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error)
+	getAllFn func(context.Context, traffictesting.GateFilters, traffictesting.GateSort, *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error)
 }
 
 func (m *mockGateRepositoryForListGates) Save(ctx context.Context, gate *traffictesting.Gate) error {
@@ -23,9 +23,9 @@ func (m *mockGateRepositoryForListGates) GetByID(ctx context.Context, id traffic
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGateRepositoryForListGates) GetAll(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+func (m *mockGateRepositoryForListGates) GetAll(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 	if m.getAllFn != nil {
-		return m.getAllFn(ctx, params)
+		return m.getAllFn(ctx, filters, sort, params)
 	}
 	return nil, errors.New("not implemented")
 }
@@ -41,7 +41,7 @@ func TestListGatesHandler_Handle_success(t *testing.T) {
 	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
 
 	repo := &mockGateRepositoryForListGates{
-		getAllFn: func(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 			return pagination.NewPagedResult([]*traffictesting.Gate{gate1, gate2}, 2, params), nil
 		},
 	}
@@ -66,7 +66,7 @@ func TestListGatesHandler_Handle_success(t *testing.T) {
 func TestListGatesHandler_Handle_empty_result(t *testing.T) {
 	// Arrange
 	repo := &mockGateRepositoryForListGates{
-		getAllFn: func(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 			return pagination.NewPagedResult([]*traffictesting.Gate{}, 0, params), nil
 		},
 	}
@@ -90,7 +90,7 @@ func TestListGatesHandler_Handle_empty_result(t *testing.T) {
 func TestListGatesHandler_Handle_with_pagination(t *testing.T) {
 	// Arrange
 	repo := &mockGateRepositoryForListGates{
-		getAllFn: func(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 			assert.Equal(t, 20, params.Limit())
 			assert.Equal(t, 40, params.Offset())
 			return pagination.NewPagedResult([]*traffictesting.Gate{}, 100, params), nil
@@ -115,7 +115,7 @@ func TestListGatesHandler_Handle_repository_error(t *testing.T) {
 	// Arrange
 	expectedErr := errors.New("database connection failed")
 	repo := &mockGateRepositoryForListGates{
-		getAllFn: func(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 			return nil, expectedErr
 		},
 	}
@@ -133,4 +133,156 @@ func TestListGatesHandler_Handle_repository_error(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, expectedErr)
+}
+
+
+func TestListGatesHandler_Handle_with_filters(t *testing.T) {
+	// Arrange
+	liveURL, _ := traffictesting.ParseGateURL("https://api.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("https://api-staging.example.com")
+	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+
+	repo := &mockGateRepositoryForListGates{
+		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+			// Verify filters are passed through
+			assert.True(t, filters.HasLiveURLFilter())
+			assert.Equal(t, "example", filters.LiveURL())
+			assert.True(t, filters.HasShadowURLFilter())
+			assert.Equal(t, "staging", filters.ShadowURL())
+			return pagination.NewPagedResult([]*traffictesting.Gate{gate1}, 1, params), nil
+		},
+	}
+	handler := NewListGatesHandler(repo)
+
+	query := ListGatesQuery{
+		Limit:     10,
+		Offset:    0,
+		LiveURL:   "example",
+		ShadowURL: "staging",
+	}
+
+	// Act
+	result, err := handler.Handle(context.Background(), query)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Len(t, result.Items, 1)
+}
+
+func TestListGatesHandler_Handle_with_sort(t *testing.T) {
+	// Arrange
+	repo := &mockGateRepositoryForListGates{
+		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+			// Verify sort is passed through
+			assert.True(t, sort.Field().IsLiveURL())
+			assert.True(t, sort.Order().IsAsc())
+			return pagination.NewPagedResult([]*traffictesting.Gate{}, 0, params), nil
+		},
+	}
+	handler := NewListGatesHandler(repo)
+
+	query := ListGatesQuery{
+		Limit:     10,
+		Offset:    0,
+		SortField: "live_url",
+		SortOrder: "asc",
+	}
+
+	// Act
+	result, err := handler.Handle(context.Background(), query)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, result)
+}
+
+func TestListGatesHandler_Handle_invalid_sort_field(t *testing.T) {
+	// Arrange
+	repo := &mockGateRepositoryForListGates{}
+	handler := NewListGatesHandler(repo)
+
+	query := ListGatesQuery{
+		Limit:     10,
+		Offset:    0,
+		SortField: "invalid_field",
+	}
+
+	// Act
+	result, err := handler.Handle(context.Background(), query)
+
+	// Assert
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, traffictesting.ErrInvalidGateSort)
+}
+
+func TestListGatesHandler_Handle_invalid_sort_order(t *testing.T) {
+	// Arrange
+	repo := &mockGateRepositoryForListGates{}
+	handler := NewListGatesHandler(repo)
+
+	query := ListGatesQuery{
+		Limit:     10,
+		Offset:    0,
+		SortOrder: "invalid_order",
+	}
+
+	// Act
+	result, err := handler.Handle(context.Background(), query)
+
+	// Assert
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, traffictesting.ErrInvalidGateSort)
+}
+
+func TestListGatesHandler_Handle_default_sort(t *testing.T) {
+	// Arrange
+	repo := &mockGateRepositoryForListGates{
+		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+			// Default sort should be id asc
+			assert.True(t, sort.Field().IsID())
+			assert.True(t, sort.Order().IsDesc()) // NewSortOrder defaults to desc
+			return pagination.NewPagedResult([]*traffictesting.Gate{}, 0, params), nil
+		},
+	}
+	handler := NewListGatesHandler(repo)
+
+	query := ListGatesQuery{
+		Limit:  10,
+		Offset: 0,
+		// No sort field or order — should use defaults
+	}
+
+	// Act
+	result, err := handler.Handle(context.Background(), query)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, result)
+}
+
+func TestListGatesHandler_Handle_empty_filters(t *testing.T) {
+	// Arrange
+	repo := &mockGateRepositoryForListGates{
+		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+			// Empty strings should produce empty filters
+			assert.True(t, filters.IsEmpty())
+			return pagination.NewPagedResult([]*traffictesting.Gate{}, 0, params), nil
+		},
+	}
+	handler := NewListGatesHandler(repo)
+
+	query := ListGatesQuery{
+		Limit:  10,
+		Offset: 0,
+	}
+
+	// Act
+	result, err := handler.Handle(context.Background(), query)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, result)
 }

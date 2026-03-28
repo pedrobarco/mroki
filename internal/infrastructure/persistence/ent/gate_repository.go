@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"entgo.io/ent/dialect/sql"
 	"github.com/pedrobarco/mroki/ent"
 	"github.com/pedrobarco/mroki/ent/gate"
+	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 )
@@ -43,14 +45,27 @@ func (r *gateRepository) GetByID(ctx context.Context, id traffictesting.GateID) 
 	return mapGateToDomain(raw)
 }
 
-func (r *gateRepository) GetAll(ctx context.Context, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
-	total, err := r.client.Gate.Query().Count(ctx)
+func (r *gateRepository) GetAll(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+	// Build predicates — shared between count and list
+	preds := r.buildPredicates(filters)
+
+	query := r.client.Gate.Query()
+	if len(preds) > 0 {
+		query = query.Where(gate.And(preds...))
+	}
+
+	total, err := query.Count(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count gates: %w", err)
 	}
 
-	rows, err := r.client.Gate.Query().
-		Order(gate.ByID()).
+	listQuery := r.client.Gate.Query()
+	if len(preds) > 0 {
+		listQuery = listQuery.Where(gate.And(preds...))
+	}
+
+	rows, err := listQuery.
+		Order(r.buildOrderBy(sort)).
 		Limit(params.Limit()).
 		Offset(params.Offset()).
 		All(ctx)
@@ -68,4 +83,39 @@ func (r *gateRepository) GetAll(ctx context.Context, params *pagination.Params) 
 	}
 
 	return pagination.NewPagedResult(gates, int64(total), params), nil
+}
+
+// buildPredicates composes Ent predicates from domain gate filters.
+func (r *gateRepository) buildPredicates(filters traffictesting.GateFilters) []predicate.Gate {
+	var preds []predicate.Gate
+
+	if filters.HasLiveURLFilter() {
+		preds = append(preds, gate.LiveURLContainsFold(filters.LiveURL()))
+	}
+
+	if filters.HasShadowURLFilter() {
+		preds = append(preds, gate.ShadowURLContainsFold(filters.ShadowURL()))
+	}
+
+	return preds
+}
+
+// buildOrderBy maps domain sort to an Ent order option.
+func (r *gateRepository) buildOrderBy(sort traffictesting.GateSort) gate.OrderOption {
+	var opts []sql.OrderTermOption
+	if sort.Order().IsAsc() {
+		opts = append(opts, sql.OrderAsc())
+	} else {
+		opts = append(opts, sql.OrderDesc())
+	}
+
+	field := sort.Field()
+	switch {
+	case field.IsLiveURL():
+		return gate.ByLiveURL(opts...)
+	case field.IsShadowURL():
+		return gate.ByShadowURL(opts...)
+	default:
+		return gate.ByID(opts...)
+	}
 }
