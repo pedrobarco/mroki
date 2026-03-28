@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, shallowRef, watch, onMounted, onUnmounted } from 'vue'
 import type { Response, PatchOp } from '@/api'
-import { buildDiffLines, buildSplitRows, stripPathPrefix } from '@/lib/json-diff'
+import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from '@/lib/json-diff'
 import type { DiffLine, Token, TokenType } from '@/lib/json-diff'
 
 type ViewMode = 'unified' | 'split'
@@ -59,11 +59,27 @@ const shadowJson = computed(() => (shadowDecoded.value ? tryParseJson(shadowDeco
 const isJson = computed(() => liveJson.value !== null && shadowJson.value !== null)
 
 const bodyOps = computed(() => stripPathPrefix(props.diffContent, '/body'))
-const diffLines = computed<DiffLine[]>(() => {
-  if (!isJson.value) return []
-  return buildDiffLines(liveJson.value, shadowJson.value, bodyOps.value)
-})
+const diffLines = shallowRef<DiffLine[]>([])
+watch(
+  [isJson, liveJson, shadowJson, bodyOps],
+  () => {
+    diffLines.value = isJson.value
+      ? buildDiffLines(liveJson.value, shadowJson.value, bodyOps.value)
+      : []
+  },
+  { immediate: true }
+)
 const splitRows = computed(() => buildSplitRows(diffLines.value))
+
+function handleExpand(index: number) {
+  expandCollapsed(diffLines.value, index)
+  // Trigger reactivity on shallowRef by replacing the array reference
+  diffLines.value = [...diffLines.value]
+}
+function handleExpandLine(line: DiffLine) {
+  const idx = diffLines.value.indexOf(line)
+  if (idx >= 0) handleExpand(idx)
+}
 const livePlain = computed(() => liveDecoded.value ?? props.liveResponse.body)
 const shadowPlain = computed(() => shadowDecoded.value ?? props.shadowResponse.body)
 const diffCount = computed(() => props.diffContent.length)
@@ -198,6 +214,14 @@ function tokenClass(token: Token): string {
             v-for="(line, idx) in diffLines"
             :key="idx"
           ><div
+              v-if="line.type === 'collapsed'"
+              class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+              @click="handleExpand(idx)"
+            ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(line.indent) }}</span><template
+                v-for="(tok, ti) in line.tokens"
+                :key="ti"
+              ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
+              v-else
               :class="lineBg(line)"
               class="px-4 min-w-fit"
             ><span
@@ -227,7 +251,14 @@ function tokenClass(token: Token): string {
                 v-for="(row, idx) in splitRows"
                 :key="'l-' + idx"
               ><div
-                  v-if="row.left"
+                  v-if="row.left && row.left.type === 'collapsed'"
+                  class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+                  @click="handleExpandLine(row.left)"
+                ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.left.indent) }}</span><template
+                    v-for="(tok, ti) in row.left.tokens"
+                    :key="ti"
+                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
+                  v-else-if="row.left"
                   :class="lineBg(row.left)"
                   class="px-4 min-w-fit"
                 ><span
@@ -244,7 +275,14 @@ function tokenClass(token: Token): string {
                 v-for="(row, idx) in splitRows"
                 :key="'r-' + idx"
               ><div
-                  v-if="row.right"
+                  v-if="row.right && row.right.type === 'collapsed'"
+                  class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+                  @click="handleExpandLine(row.right)"
+                ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.right.indent) }}</span><template
+                    v-for="(tok, ti) in row.right.tokens"
+                    :key="ti"
+                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
+                  v-else-if="row.right"
                   :class="lineBg(row.right)"
                   class="px-4 min-w-fit"
                 ><span
