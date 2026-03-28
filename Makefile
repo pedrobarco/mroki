@@ -2,7 +2,7 @@ HUB_DIR := web/mroki-hub
 DEV_COMPOSE := build/mroki-hub/docker-compose.yaml
 
 .PHONY: help build test lint clean \
-	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-clean \
+	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-migrate api-clean \
 	agent-build agent-test agent-clean \
 	hub-build hub-test hub-test-ui hub-test-setup hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
 	dev-up dev-down dev-reset
@@ -28,6 +28,7 @@ help:
 	@echo "  api-fmt            Format Go code"
 	@echo "  api-lint           Run golangci-lint"
 	@echo "  api-sqlc           Generate Go code from SQL"
+	@echo "  api-migrate        Generate new migration file (usage: make api-migrate name=<name>)"
 	@echo "  api-clean          Remove API build artifacts"
 	@echo ""
 	@echo "  Agent"
@@ -95,6 +96,22 @@ api-lint:
 api-sqlc:
 	@echo "Generating Go code from SQL..."
 	go tool sqlc generate
+
+api-migrate:
+ifndef name
+	$(error name is required. Usage: make api-migrate name=<migration_name>)
+endif
+	@echo "Starting dev database..."
+	@docker run --rm -d --name atlas-dev-db \
+		-e POSTGRES_PASSWORD=pass -e POSTGRES_DB=test \
+		-p 5433:5432 postgres:15 > /dev/null
+	@until docker exec atlas-dev-db pg_isready -U postgres > /dev/null 2>&1; do sleep 0.5; done
+	@echo "Generating migration: $(name)..."
+	@go run -mod=mod ent/migrate/main.go $(name); \
+		EXIT=$$?; \
+		docker stop atlas-dev-db > /dev/null 2>&1; \
+		exit $$EXIT
+	@echo "Migration generated in ent/migrate/migrations/"
 
 api-clean:
 	@echo "Cleaning API build artifacts..."
