@@ -128,6 +128,23 @@ export interface CreateGatePayload {
 }
 
 /**
+ * Valid sort fields for gate listing
+ */
+export type GateSortField = 'id' | 'live_url' | 'shadow_url'
+
+/**
+ * Query parameters for listing gates
+ */
+export interface ListGatesParams {
+  limit?: number
+  offset?: number
+  live_url?: string
+  shadow_url?: string
+  sort?: GateSortField
+  order?: SortOrder
+}
+
+/**
  * Valid sort fields for request listing
  */
 export type RequestSortField = 'created_at' | 'method' | 'path'

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import GateList from '@/components/gates/GateList.vue'
 import GateForm from '@/components/gates/GateForm.vue'
+import GateFilters from '@/components/gates/GateFilters.vue'
+import type { GateFilterState } from '@/components/gates/GateFilters.vue'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -11,10 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Plus, Search, ChevronDown } from 'lucide-vue-next'
+import { Plus } from 'lucide-vue-next'
 
 const dialogOpen = ref(false)
-const searchQuery = ref('')
+
+const filters = reactive<GateFilterState>({
+  liveUrl: '',
+  shadowUrl: '',
+  sort: 'id',
+  order: 'desc',
+})
 
 const stats = [
   { label: 'TOTAL GATES', value: '4' },
@@ -27,6 +35,10 @@ const listKey = ref(0)
 function handleGateCreated() {
   dialogOpen.value = false
   listKey.value++ // Force GateList to reload
+}
+
+function onFiltersUpdate(newFilters: GateFilterState) {
+  Object.assign(filters, newFilters)
 }
 </script>
 
@@ -78,26 +90,12 @@ function handleGateCreated() {
       </div>
     </div>
 
-    <!-- Search & Sort Row -->
-    <div class="flex items-center gap-3 mb-5">
-      <div class="relative flex-1 max-w-sm">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-dim h-3.5 w-3.5" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search gates..."
-          class="w-full bg-card border border-border rounded-lg pl-8 pr-4 py-2 text-xs text-foreground placeholder:text-dim focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-        />
-      </div>
-      <button
-        class="flex items-center gap-1.5 text-xs text-dim border border-border rounded-lg px-3 py-2 bg-card hover:bg-accent transition-colors"
-      >
-        Sort by: Last active
-        <ChevronDown class="h-3 w-3" />
-      </button>
+    <!-- Filters & Sort Row -->
+    <div class="mb-5">
+      <GateFilters :model-value="filters" @update:model-value="onFiltersUpdate" />
     </div>
 
     <!-- Gates List -->
-    <GateList :key="listKey" />
+    <GateList :key="listKey" :filters="filters" />
   </div>
 </template>
