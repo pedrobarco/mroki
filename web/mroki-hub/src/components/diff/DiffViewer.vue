@@ -1,11 +1,24 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import type { Response, PatchOp } from '@/api'
 import { buildDiffLines, buildSplitRows, stripPathPrefix } from '@/lib/json-diff'
 import type { DiffLine, Token, TokenType } from '@/lib/json-diff'
 
 type ViewMode = 'unified' | 'split'
 const viewMode = ref<ViewMode>('unified')
+
+const MD_BREAKPOINT = 768
+const isMdScreen = ref(window.innerWidth >= MD_BREAKPOINT)
+
+function onResize() {
+  isMdScreen.value = window.innerWidth >= MD_BREAKPOINT
+  if (!isMdScreen.value && viewMode.value === 'split') {
+    viewMode.value = 'unified'
+  }
+}
+
+onMounted(() => window.addEventListener('resize', onResize))
+onUnmounted(() => window.removeEventListener('resize', onResize))
 
 interface Props {
   liveResponse: Response
@@ -148,9 +161,9 @@ function tokenClass(token: Token): string {
             <span class="w-2.5 h-2.5 rounded-sm bg-amber-500/10 border border-amber-500/30" />
             Changed
           </div>
-          <!-- View mode toggle -->
+          <!-- View mode toggle (md+ only) -->
           <div
-            v-if="isJson && !isBinary"
+            v-if="isJson && !isBinary && isMdScreen"
             class="flex items-center rounded-md border border-border ml-2"
           >
             <button
