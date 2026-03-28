@@ -4,29 +4,9 @@ Safe shadow traffic testing for production systems.
 
 mroki mirrors live HTTP traffic to a shadow service, diffs the JSON responses, and surfaces the differences — so you can validate changes against real production behavior before rolling out.
 
-### Gates
+![mroki-hub request detail](docs/assets/hub-request-detail-unified.png)
 
-Manage your live/shadow service pairs.
-
-![mroki-hub gates](docs/assets/hub-gates.png)
-
-### Gate Detail
-
-Browse captured requests for a gate.
-
-![mroki-hub gate detail](docs/assets/hub-gate-detail.png)
-
-### Request Detail — Unified
-
-Visualize JSON response diffs with smart collapsing of unchanged subtrees. Click any collapsed node to expand it inline.
-
-![mroki-hub request detail unified](docs/assets/hub-request-detail-unified.png)
-
-### Request Detail — Split
-
-Side-by-side comparison of live and shadow responses.
-
-![mroki-hub request detail split](docs/assets/hub-request-detail-split.png)
+> See the full [screenshot gallery](docs/SCREENSHOTS.md) for more views.
 
 ## Quick Start
 

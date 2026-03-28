@@ -121,7 +121,7 @@ test.describe('@screenshots', () => {
     await page.goto('/gates')
     await expect(page.getByRole('heading', { name: 'Gates' })).toBeVisible()
     await page.waitForTimeout(500)
-    await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-gates.png') })
+    await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-gates.png'), fullPage: true })
   })
 
   test('hub-gate-detail', async ({ page, api }) => {
@@ -130,7 +130,7 @@ test.describe('@screenshots', () => {
     await page.goto(`/gates/${gate.id}`)
     await expect(page.getByText(gate.id)).toBeVisible()
     await page.waitForTimeout(500)
-    await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-gate-detail.png') })
+    await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-gate-detail.png'), fullPage: true })
   })
 
   test('hub-request-detail-unified', async ({ page, api }) => {
@@ -164,3 +164,5 @@ test.describe('@screenshots', () => {
     })
   })
 })
+
+
