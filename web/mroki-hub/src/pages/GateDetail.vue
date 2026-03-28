@@ -8,8 +8,14 @@ import RequestFilters from '@/components/requests/RequestFilters.vue'
 import type { FilterState } from '@/components/requests/RequestFilters.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { truncateId } from '@/lib/utils'
+import { ChevronLeft, Settings, Pause } from 'lucide-vue-next'
+
+// Dummy metadata (not available in API yet)
+const dummyGateName = 'checkout-api'
+const dummyAgent = 'agent-us-east-1'
+const dummyCreated = 'Mar 12, 2026'
+const dummyRequests24h = '5,241'
+const dummyDiffRate = '3.1%'
 
 const route = useRoute()
 const router = useRouter()
@@ -60,11 +66,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto p-6">
-    <!-- Back Button -->
-    <div class="mb-6">
-      <Button variant="ghost" @click="goBack"> ← Back to Gates </Button>
-    </div>
+  <div class="max-w-6xl mx-auto px-6 py-6">
+    <!-- Back link -->
+    <a
+      class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5 cursor-pointer"
+      @click="goBack"
+    >
+      <ChevronLeft class="h-3.5 w-3.5" />
+      Back to Gates
+    </a>
 
     <!-- Loading State -->
     <div v-if="loading" class="text-center py-12">
@@ -74,45 +84,100 @@ onMounted(() => {
     <!-- Error State -->
     <Alert v-else-if="error" variant="destructive">
       <AlertTitle>Error</AlertTitle>
-      <AlertDescription>
-        {{ error }}
-      </AlertDescription>
+      <AlertDescription>{{ error }}</AlertDescription>
       <div class="mt-4">
-        <Button variant="outline" size="sm" @click="loadGate"> Retry </Button>
+        <Button variant="outline" size="sm" @click="loadGate">Retry</Button>
       </div>
     </Alert>
 
     <!-- Gate Details & Requests -->
     <div v-else-if="gate">
       <!-- Gate Info Card -->
-      <Card class="mb-6">
-        <CardHeader>
-          <CardTitle>Gate {{ truncateId(gate.id) }}</CardTitle>
-        </CardHeader>
-        <CardContent class="space-y-4">
+      <div class="bg-card border border-border rounded-xl p-5 mb-8">
+        <div class="flex items-start justify-between mb-5">
           <div>
-            <span class="text-sm font-medium text-muted-foreground">Live Service:</span>
-            <p class="text-sm text-foreground break-all font-mono">{{ gate.live_url }}</p>
+            <div class="flex items-center gap-2.5 mb-1.5">
+              <h1 class="text-xl font-semibold tracking-tight">{{ dummyGateName }}</h1>
+              <span
+                class="inline-flex items-center gap-1.5 text-xs text-success bg-success-dim/30 px-2 py-0.5 rounded-full"
+              >
+                <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                Active
+              </span>
+            </div>
+            <code class="text-xs font-mono text-dim">{{ gate.id }}</code>
           </div>
-          <div>
-            <span class="text-sm font-medium text-muted-foreground">Shadow Service:</span>
-            <p class="text-sm text-foreground break-all font-mono">{{ gate.shadow_url }}</p>
+          <div class="flex items-center gap-2">
+            <Button variant="outline" size="sm" class="gap-1.5 text-xs">
+              <Settings class="h-3.5 w-3.5" />
+              Configure
+            </Button>
+            <Button variant="outline" size="sm" class="gap-1.5 text-xs">
+              <Pause class="h-3.5 w-3.5" />
+              Pause
+            </Button>
           </div>
-          <div>
-            <span class="text-sm font-medium text-muted-foreground">Gate ID:</span>
-            <p class="text-sm text-foreground font-mono">{{ gate.id }}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <!-- Requests Section -->
-      <div>
-        <h2 class="text-2xl font-bold mb-4">Captured Requests</h2>
-        <div class="mb-4">
-          <RequestFilters :model-value="filters" @update:model-value="onFiltersUpdate" />
         </div>
-        <RequestList :gate-id="gateId" :filters="filters" />
+
+        <!-- Live / Shadow URLs -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-background/60 rounded-lg px-3.5 py-3 border border-border/50">
+            <div
+              class="text-xs uppercase tracking-widest text-dim mb-1.5 flex items-center gap-1.5"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-success" />
+              Live Service
+            </div>
+            <code class="text-xs font-mono text-muted-foreground">
+              {{ gate.live_url }}
+            </code>
+          </div>
+          <div class="bg-background/60 rounded-lg px-3.5 py-3 border border-border/50">
+            <div
+              class="text-xs uppercase tracking-widest text-dim mb-1.5 flex items-center gap-1.5"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-info" />
+              Shadow Service
+            </div>
+            <code class="text-xs font-mono text-muted-foreground">
+              {{ gate.shadow_url }}
+            </code>
+          </div>
+        </div>
+
+        <!-- Stats footer -->
+        <div class="flex items-center gap-6 text-xs pt-3 border-t border-border/50">
+          <div>
+            <span class="text-dim">Agent</span>
+            <span class="font-mono text-muted-foreground ml-1">{{ dummyAgent }}</span>
+          </div>
+          <div>
+            <span class="text-dim">Created</span>
+            <span class="text-muted-foreground ml-1">{{ dummyCreated }}</span>
+          </div>
+          <div>
+            <span class="text-dim">Requests 24h</span>
+            <span class="text-muted-foreground ml-1">{{ dummyRequests24h }}</span>
+          </div>
+          <div>
+            <span class="text-dim">Diff rate</span>
+            <span class="text-warning ml-1">{{ dummyDiffRate }}</span>
+          </div>
+        </div>
       </div>
+
+      <!-- Captured Requests Section -->
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold tracking-tight">Captured Requests</h2>
+        <span class="text-xs text-dim">Showing 6 of {{ dummyRequests24h }} requests</span>
+      </div>
+
+      <!-- Filters -->
+      <div class="mb-4">
+        <RequestFilters :model-value="filters" @update:model-value="onFiltersUpdate" />
+      </div>
+
+      <RequestList :gate-id="gateId" :filters="filters" />
     </div>
   </div>
 </template>

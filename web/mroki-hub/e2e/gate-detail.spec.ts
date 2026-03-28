@@ -52,8 +52,8 @@ test.describe('Gate Detail Page', () => {
     await expect(page.getByText('/api/filter-get')).toBeVisible()
     await expect(page.getByText('/api/filter-post')).toBeVisible()
 
-    // Click POST method badge in filters
-    await page.locator('.space-y-3').getByText('POST', { exact: true }).click()
+    // Click POST method button in filters
+    await page.getByRole('button', { name: 'POST' }).click()
 
     // Only POST visible
     await expect(page.getByText('/api/filter-post')).toBeVisible()
@@ -73,7 +73,7 @@ test.describe('Gate Detail Page', () => {
     await expect(page.getByText('/api/beta')).toBeVisible()
 
     // Type in path filter
-    await page.getByPlaceholder('Filter by path').fill('/api/alpha')
+    await page.getByPlaceholder('Filter by path...').fill('/api/alpha')
 
     // Wait for debounce + reload
     await expect(page.getByText('/api/alpha')).toBeVisible()
@@ -99,17 +99,15 @@ test.describe('Gate Detail Page', () => {
     await page.goto(`/gates/${gate.id}`)
 
     // Should show pagination info
-    await expect(page.getByText(/Showing 1-20 of 25/)).toBeVisible()
     await expect(page.getByText('Page 1 of 2')).toBeVisible()
 
     // Next page
     await page.getByRole('button', { name: 'Next' }).click()
-    await expect(page.getByText(/Showing 21-25 of 25/)).toBeVisible()
     await expect(page.getByText('Page 2 of 2')).toBeVisible()
 
     // Previous page
     await page.getByRole('button', { name: 'Previous' }).click()
-    await expect(page.getByText(/Showing 1-20 of 25/)).toBeVisible()
+    await expect(page.getByText('Page 1 of 2')).toBeVisible()
   })
 
   test('click request navigates to detail', async ({ page, api }) => {
@@ -131,7 +129,7 @@ test.describe('Gate Detail Page', () => {
     )
 
     await page.goto(`/gates/${gate.id}`)
-    await page.getByRole('button', { name: '← Back to Gates' }).click()
+    await page.getByText('Back to Gates').click()
     await expect(page).toHaveURL(/\/gates$/)
   })
 })

@@ -117,14 +117,6 @@ const shadowFormatted = computed(() => formatBody(shadowData.value.body))
 const liveBody = computed(() => liveFormatted.value.formatted)
 const shadowBody = computed(() => shadowFormatted.value.formatted)
 
-// Format headers for display
-const formatHeaders = (headers: Record<string, string[]>): string => {
-  return JSON.stringify(headers, null, 2)
-}
-
-const liveHeaders = computed(() => formatHeaders(liveData.value.headers))
-const shadowHeaders = computed(() => formatHeaders(shadowData.value.headers))
-
 // Determine language for syntax highlighting
 const language = computed(() => {
   // Use the detected type from live response
@@ -138,83 +130,54 @@ const isBinary = computed(() => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Response Status Comparison -->
-    <div class="grid grid-cols-2 gap-4">
-      <div class="rounded-lg border p-4">
-        <h3 class="text-sm font-semibold text-muted-foreground mb-2">Live Response</h3>
-        <div class="space-y-2">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium">Status:</span>
-            <span
-              class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium"
-              :class="{
-                'bg-green-100 text-green-700':
-                  liveResponse.status_code >= 200 && liveResponse.status_code < 300,
-                'bg-yellow-100 text-yellow-700':
-                  liveResponse.status_code >= 300 && liveResponse.status_code < 400,
-                'bg-red-100 text-red-700': liveResponse.status_code >= 400,
-              }"
-            >
-              {{ liveResponse.status_code }}
-            </span>
+  <div>
+    <!-- Response Body Comparison -->
+    <div class="bg-card border border-border rounded-xl overflow-hidden">
+      <!-- Card Header -->
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-border">
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold">Response Comparison</h3>
+          <span class="text-xs text-dim bg-accent px-2 py-0.5 rounded-md font-mono">
+            {{ language }}
+          </span>
+        </div>
+        <div class="flex items-center gap-3 text-xs">
+          <div class="flex items-center gap-1.5 text-dim">
+            <span class="w-2.5 h-2.5 rounded-sm bg-red-500/10 border border-red-500/30" />
+            Removed
+          </div>
+          <div class="flex items-center gap-1.5 text-dim">
+            <span class="w-2.5 h-2.5 rounded-sm bg-green-500/10 border border-green-500/30" />
+            Added
+          </div>
+          <div class="flex items-center gap-1.5 text-dim">
+            <span class="w-2.5 h-2.5 rounded-sm bg-amber-500/10 border border-amber-500/30" />
+            Changed
           </div>
         </div>
       </div>
 
-      <div class="rounded-lg border p-4">
-        <h3 class="text-sm font-semibold text-muted-foreground mb-2">Shadow Response</h3>
-        <div class="space-y-2">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium">Status:</span>
-            <span
-              class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium"
-              :class="{
-                'bg-green-100 text-green-700':
-                  shadowResponse.status_code >= 200 && shadowResponse.status_code < 300,
-                'bg-yellow-100 text-yellow-700':
-                  shadowResponse.status_code >= 300 && shadowResponse.status_code < 400,
-                'bg-red-100 text-red-700': shadowResponse.status_code >= 400,
-              }"
-            >
-              {{ shadowResponse.status_code }}
-            </span>
+      <!-- Column Headers -->
+      <div class="grid grid-cols-2 border-b border-border">
+        <div class="flex items-center justify-between px-4 py-2.5 border-r border-border">
+          <div class="flex items-center gap-1.5 text-xs uppercase tracking-widest text-dim">
+            <span class="w-1.5 h-1.5 rounded-full bg-success" />
+            Live Response
           </div>
+          <span class="text-xs font-mono text-success">{{ liveResponse.status_code }} OK</span>
+        </div>
+        <div class="flex items-center justify-between px-4 py-2.5">
+          <div class="flex items-center gap-1.5 text-xs uppercase tracking-widest text-dim">
+            <span class="w-1.5 h-1.5 rounded-full bg-info" />
+            Shadow Response
+          </div>
+          <span class="text-xs font-mono text-info">{{ shadowResponse.status_code }} OK</span>
         </div>
       </div>
-    </div>
 
-    <!-- Headers Comparison -->
-    <div class="rounded-lg border">
-      <div class="border-b bg-muted/50 px-4 py-2">
-        <h3 class="text-sm font-semibold">Headers Comparison</h3>
-      </div>
-      <div class="p-4">
+      <!-- Diff Content -->
+      <div v-if="!isBinary" class="p-4">
         <CodeDiff
-          :old-string="liveHeaders"
-          :new-string="shadowHeaders"
-          language="json"
-          output-format="side-by-side"
-          :filename="'Live Headers'"
-          :new-filename="'Shadow Headers'"
-        />
-      </div>
-    </div>
-
-    <!-- Side-by-Side Body Comparison -->
-    <div class="rounded-lg border">
-      <div class="border-b bg-muted/50 px-4 py-2">
-        <h3 class="text-sm font-semibold">Response Body Comparison</h3>
-        <p v-if="isBinary" class="text-xs text-muted-foreground mt-1">
-          ⚠️ Binary content detected - cannot display diff
-        </p>
-        <p v-else class="text-xs text-muted-foreground mt-1">
-          Format: {{ language.toUpperCase() }}
-        </p>
-      </div>
-      <div class="p-4">
-        <CodeDiff
-          v-if="!isBinary"
           :old-string="liveBody"
           :new-string="shadowBody"
           :language="language"
@@ -222,10 +185,10 @@ const isBinary = computed(() => {
           :filename="'Live Response'"
           :new-filename="'Shadow Response'"
         />
-        <div v-else class="text-center py-8 text-muted-foreground">
-          <p class="text-sm">Binary content cannot be displayed in diff viewer.</p>
-          <p class="text-xs mt-2">Consider downloading the responses to inspect them.</p>
-        </div>
+      </div>
+      <div v-else class="text-center py-8 text-muted-foreground">
+        <p class="text-sm">Binary content cannot be displayed in diff viewer.</p>
+        <p class="text-xs mt-2">Consider downloading the responses to inspect them.</p>
       </div>
     </div>
   </div>

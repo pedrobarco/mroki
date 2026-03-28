@@ -56,9 +56,9 @@ onMounted(() => {
       <p class="text-muted-foreground">No gates yet. Create your first gate to get started!</p>
     </div>
 
-    <!-- Gates Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <GateCard v-for="gate in gates" :key="gate.id" :gate="gate" />
+    <!-- Gates List -->
+    <div v-else class="space-y-3">
+      <GateCard v-for="(gate, i) in gates" :key="gate.id" :gate="gate" :index="i" />
     </div>
   </div>
 </template>

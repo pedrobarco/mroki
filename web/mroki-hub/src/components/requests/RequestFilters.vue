@@ -2,9 +2,7 @@
 import { ref, watch } from 'vue'
 import type { AcceptableValue } from 'reka-ui'
 import type { RequestSortField, SortOrder } from '@/api'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -12,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Search } from 'lucide-vue-next'
 
 export interface FilterState {
   methods: string[]
@@ -30,7 +29,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: FilterState): void
 }>()
 
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
+const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE'] as const
 
 const pathInput = ref(props.modelValue.path)
 
@@ -43,68 +42,30 @@ watch(pathInput, (val) => {
   }, 400)
 })
 
-function toggleMethod(method: string) {
-  const current = [...props.modelValue.methods]
-  const idx = current.indexOf(method)
-  if (idx >= 0) {
-    current.splice(idx, 1)
-  } else {
-    current.push(method)
-  }
-  emitUpdate({ methods: current })
-}
+const activeMethod = ref<string | null>(null)
 
-function isMethodActive(method: string): boolean {
-  return props.modelValue.methods.includes(method)
-}
-
-function cycleDiffFilter() {
-  const current = props.modelValue.hasDiff
-  // Cycle: undefined → true → false → undefined
-  if (current === undefined) {
-    emitUpdate({ hasDiff: true })
-  } else if (current === true) {
-    emitUpdate({ hasDiff: false })
+function selectMethod(method: string | null) {
+  if (activeMethod.value === method) {
+    activeMethod.value = null
+    emitUpdate({ methods: [] })
   } else {
-    emitUpdate({ hasDiff: undefined })
+    activeMethod.value = method
+    emitUpdate({ methods: method ? [method] : [] })
   }
 }
 
-function diffFilterLabel(): string {
-  const val = props.modelValue.hasDiff
-  if (val === true) return 'Has diff'
-  if (val === false) return 'No diff'
-  return 'Any diff'
+function onDiffToggle(checked: boolean) {
+  emitUpdate({ hasDiff: checked ? true : undefined })
 }
 
 function onSortChange(val: AcceptableValue) {
-  emitUpdate({ sort: String(val) as RequestSortField })
-}
-
-function onOrderChange(val: AcceptableValue) {
-  emitUpdate({ order: String(val) as SortOrder })
-}
-
-function clearFilters() {
-  pathInput.value = ''
-  emitUpdate({
-    methods: [],
-    path: '',
-    hasDiff: undefined,
-    sort: 'created_at',
-    order: 'desc',
-  })
-}
-
-function hasActiveFilters(): boolean {
-  const f = props.modelValue
-  return (
-    f.methods.length > 0 ||
-    f.path !== '' ||
-    f.hasDiff !== undefined ||
-    f.sort !== 'created_at' ||
-    f.order !== 'desc'
-  )
+  // Combine sort field and order into the sort select
+  const strVal = String(val)
+  if (strVal === 'newest') {
+    emitUpdate({ sort: 'created_at', order: 'desc' })
+  } else if (strVal === 'oldest') {
+    emitUpdate({ sort: 'created_at', order: 'asc' })
+  }
 }
 
 function emitUpdate(partial: Partial<FilterState>) {
@@ -113,72 +74,71 @@ function emitUpdate(partial: Partial<FilterState>) {
 </script>
 
 <template>
-  <div class="space-y-3">
-    <!-- Row 1: Method toggles + Diff filter + Clear -->
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="text-sm font-medium text-muted-foreground mr-1">Method:</span>
-      <Badge
+  <div class="flex items-center gap-3">
+    <!-- Method filter buttons -->
+    <div
+      class="flex items-center gap-0 text-xs border border-border rounded-lg bg-card overflow-hidden"
+    >
+      <button
+        class="px-2.5 py-1.5 transition-colors"
+        :class="
+          activeMethod === null
+            ? 'bg-accent text-foreground font-medium'
+            : 'text-dim hover:text-muted-foreground'
+        "
+        @click="selectMethod(null)"
+      >
+        All
+      </button>
+      <button
         v-for="method in HTTP_METHODS"
         :key="method"
-        :variant="isMethodActive(method) ? 'default' : 'outline'"
-        class="cursor-pointer select-none"
-        @click="toggleMethod(method)"
+        class="px-2.5 py-1.5 transition-colors"
+        :class="
+          activeMethod === method
+            ? 'bg-accent text-foreground font-medium'
+            : 'text-dim hover:text-muted-foreground'
+        "
+        @click="selectMethod(method)"
       >
         {{ method }}
-      </Badge>
-
-      <div class="w-px h-6 bg-border mx-1" />
-
-      <Badge
-        :variant="modelValue.hasDiff !== undefined ? 'default' : 'outline'"
-        class="cursor-pointer select-none"
-        @click="cycleDiffFilter"
-      >
-        {{ diffFilterLabel() }}
-      </Badge>
-
-      <Button
-        v-if="hasActiveFilters()"
-        variant="ghost"
-        size="sm"
-        class="ml-auto text-muted-foreground"
-        @click="clearFilters"
-      >
-        Clear filters
-      </Button>
+      </button>
     </div>
 
-    <!-- Row 2: Path search + Sort controls -->
-    <div class="flex flex-wrap items-center gap-2">
-      <Input
+    <!-- Path search -->
+    <div class="relative flex-1 max-w-xs">
+      <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-dim h-3.5 w-3.5" />
+      <input
         v-model="pathInput"
-        placeholder="Filter by path (e.g. /api/users)"
-        class="max-w-xs h-8 text-sm"
+        type="text"
+        placeholder="Filter by path..."
+        class="w-full bg-card border border-border rounded-lg pl-8 pr-4 py-1.5 text-xs text-foreground placeholder:text-dim focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
       />
-
-      <div class="w-px h-6 bg-border mx-1" />
-
-      <span class="text-sm text-muted-foreground">Sort:</span>
-      <Select :model-value="modelValue.sort" @update:model-value="onSortChange">
-        <SelectTrigger size="sm" class="w-[130px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="created_at">Date</SelectItem>
-          <SelectItem value="method">Method</SelectItem>
-          <SelectItem value="path">Path</SelectItem>
-        </SelectContent>
-      </Select>
-
-      <Select :model-value="modelValue.order" @update:model-value="onOrderChange">
-        <SelectTrigger size="sm" class="w-[100px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="desc">Newest</SelectItem>
-          <SelectItem value="asc">Oldest</SelectItem>
-        </SelectContent>
-      </Select>
     </div>
+
+    <!-- Has diff toggle -->
+    <label
+      class="flex items-center gap-2 text-xs text-dim border border-border rounded-lg px-3 py-1.5 bg-card cursor-pointer select-none"
+    >
+      <Switch :checked="modelValue.hasDiff === true" @update:checked="onDiffToggle" />
+      Has diff only
+    </label>
+
+    <!-- Sort -->
+    <Select
+      :model-value="modelValue.order === 'desc' ? 'newest' : 'oldest'"
+      @update:model-value="onSortChange"
+    >
+      <SelectTrigger
+        class="w-auto gap-1 text-xs text-dim border border-border rounded-lg px-3 py-1.5 bg-card h-auto"
+      >
+        <span class="text-dim">Sort:</span>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="newest">Newest first</SelectItem>
+        <SelectItem value="oldest">Oldest first</SelectItem>
+      </SelectContent>
+    </Select>
   </div>
 </template>

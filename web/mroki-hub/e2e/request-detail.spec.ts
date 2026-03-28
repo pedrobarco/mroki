@@ -13,22 +13,20 @@ test.describe('Request Detail Page', () => {
       shadowBody: btoa(JSON.stringify({ user: 'alice', id: 2 })),
       liveStatus: 200,
       shadowStatus: 201,
-      diffContent: 'id: 1 != 2',
+      diffContent: [{ op: 'replace', path: '/id', value: 2 }],
     })
 
     await page.goto(`/gates/${gate.id}/requests/${req.id}`)
 
     // Request info card
     await expect(page.getByRole('heading', { name: 'Request Detail' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Request Information' })).toBeVisible()
     await expect(page.getByText('POST')).toBeVisible()
     await expect(page.getByText('/api/detail-test')).toBeVisible()
-    await expect(page.getByText(req.id)).toBeVisible()
 
     // Diff viewer sections
-    await expect(page.getByRole('heading', { name: 'Response Comparison' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Live Response' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Shadow Response' })).toBeVisible()
+    await expect(page.getByText('Response Comparison')).toBeVisible()
+    await expect(page.getByText('Live Response').first()).toBeVisible()
+    await expect(page.getByText('Shadow Response').first()).toBeVisible()
   })
 
   test('shows live and shadow status codes', async ({ page, api }) => {
@@ -48,8 +46,8 @@ test.describe('Request Detail Page', () => {
     await page.goto(`/gates/${gate.id}/requests/${req.id}`)
 
     // Status codes should be visible in the diff viewer
-    await expect(page.getByText('200')).toBeVisible()
-    await expect(page.getByText('500')).toBeVisible()
+    await expect(page.getByText('200').first()).toBeVisible()
+    await expect(page.getByText('500').first()).toBeVisible()
   })
 
   test('back button navigates to gate detail', async ({ page, api }) => {
@@ -60,7 +58,7 @@ test.describe('Request Detail Page', () => {
     const req = await api.seedRequest(gate.id, { method: 'GET', path: '/api/back-test' })
 
     await page.goto(`/gates/${gate.id}/requests/${req.id}`)
-    await page.getByRole('button', { name: '← Back to Gate' }).click()
+    await page.getByText('Back to Gate').click()
     await expect(page).toHaveURL(`/gates/${gate.id}`)
   })
 })

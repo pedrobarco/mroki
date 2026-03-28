@@ -4,7 +4,7 @@ test.describe('Gates Page', () => {
   test('displays the gates page with heading', async ({ page }) => {
     await page.goto('/gates')
     await expect(page.getByRole('heading', { name: 'Gates' })).toBeVisible()
-    await expect(page.getByText('Manage your live/shadow service pairs')).toBeVisible()
+    await expect(page.getByText('Manage live/shadow service pairs')).toBeVisible()
   })
 
   test('shows seeded gate in the list', async ({ page, api }) => {
@@ -24,7 +24,7 @@ test.describe('Gates Page', () => {
     await page.goto('/gates')
 
     // Open dialog
-    await page.getByRole('button', { name: 'Create Gate' }).click()
+    await page.getByRole('button', { name: 'New Gate' }).click()
     await expect(page.getByRole('heading', { name: 'Create New Gate' })).toBeVisible()
 
     // Fill form
@@ -42,7 +42,7 @@ test.describe('Gates Page', () => {
 
   test('create gate form disables submit for invalid URLs', async ({ page }) => {
     await page.goto('/gates')
-    await page.getByRole('button', { name: 'Create Gate' }).click()
+    await page.getByRole('button', { name: 'New Gate' }).click()
 
     const submitButton = page.locator('form').getByRole('button', { name: 'Create Gate' })
 

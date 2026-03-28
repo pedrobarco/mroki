@@ -30,7 +30,7 @@ interface CreateRequestPayload {
     body: string
     created_at: string
   }[]
-  diff: { content: string }
+  diff: { content: { op: string; path: string; value?: unknown }[] }
 }
 
 export interface ApiHelper {
@@ -45,7 +45,7 @@ export interface ApiHelper {
       shadowBody?: string
       liveStatus?: number
       shadowStatus?: number
-      diffContent?: string
+      diffContent?: { op: string; path: string; value?: unknown }[]
       createdAt?: string
     }
   ): Promise<RequestSummary>
@@ -93,7 +93,7 @@ export const test = base.extend<{ api: ApiHelper }>({
           shadowBody = '{"result":"shadow"}',
           liveStatus = 200,
           shadowStatus = 200,
-          diffContent = 'result: "live" != "shadow"',
+          diffContent = [{ op: 'replace', path: '/result', value: 'shadow' }],
           createdAt = new Date().toISOString(),
         } = options
 
