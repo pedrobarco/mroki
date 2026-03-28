@@ -294,7 +294,13 @@ curl -H "Authorization: Bearer your-api-key" \
     }
   ],
   "diff": {
-    "content": "[{\"op\":\"replace\",\"path\":\"/id\",\"value\":456,\"oldValue\":123}]"
+    "content": [
+      {
+        "op": "replace",
+        "path": "/id",
+        "value": 456
+      }
+    ]
   }
 }
 ```
@@ -315,7 +321,7 @@ curl -H "Authorization: Bearer your-api-key" \
   - `body` (required) - Response body (string)
   - `created_at` (required) - Response timestamp
 - `diff` (required) - Computed difference (value object, no ID)
-  - `content` (required) - Diff content as human-readable text (go-cmp format, always present, may be empty string)
+  - `content` (required) - Array of RFC 6902 JSON Patch operations (empty array `[]` when no differences)
 
 **Response:**
 - `201 Created` on success
@@ -387,7 +393,13 @@ curl -X POST http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/re
       }
   ],
   "diff": {
-    "content": "[{\"op\":\"replace\",\"path\":\"/id\",\"value\":456,\"oldValue\":123}]"
+    "content": [
+      {
+        "op": "replace",
+        "path": "/id",
+        "value": 456
+      }
+    ]
   }
 }
 }
@@ -403,15 +415,30 @@ curl -H "Authorization: Bearer your-api-key" \
 
 #### GET /gates/:gate_id/requests
 
-**Purpose:** List all captured requests for a gate
+**Purpose:** List captured requests for a gate with optional filtering and sorting
 
 **Path Parameters:**
 - `gate_id` (UUID) - Parent gate identifier
 
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | integer | 50 | Results per page (max: 100) |
+| `offset` | integer | 0 | Number of results to skip |
+| `method` | string | — | Filter by HTTP method(s), comma-separated (e.g., `GET,POST`) |
+| `path` | string | — | Filter by path pattern, supports wildcards (e.g., `/api/users/*`) |
+| `from` | RFC3339 | — | Filter requests created on or after this timestamp |
+| `to` | RFC3339 | — | Filter requests created on or before this timestamp |
+| `agent_id` | string | — | Filter by agent ID (exact match) |
+| `has_diff` | boolean | — | Filter by diff existence (`true` = only with diffs, `false` = only without) |
+| `sort` | string | `created_at` | Sort field: `created_at`, `method`, or `path` |
+| `order` | string | `desc` | Sort direction: `asc` or `desc` |
+
 **Response:**
 - `200 OK` on success
-- `400 Bad Request` if gate_id is invalid UUID
-- Returns empty array if no requests exist
+- `400 Bad Request` if gate_id is invalid UUID or query parameters are invalid
+- Returns empty array if no requests match
 
 **Success Response Body:**
 ```json
@@ -429,14 +456,33 @@ curl -H "Authorization: Bearer your-api-key" \
       "path": "/api/users/123",
       "created_at": "2026-01-31T20:01:00Z"
     }
-  ]
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 2,
+    "has_more": false
+  }
 }
 ```
 
-**Example:**
+**Examples:**
 ```bash
+# List all requests (default: newest first, 50 per page)
 curl -H "Authorization: Bearer your-api-key" \
-  http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/requests
+  http://localhost:8090/gates/$GATE_ID/requests
+
+# Filter by method and path pattern
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates/$GATE_ID/requests?method=GET,POST&path=/api/users/*"
+
+# Filter by date range and only requests with diffs
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates/$GATE_ID/requests?from=2026-01-31T00:00:00Z&to=2026-02-01T00:00:00Z&has_diff=true"
+
+# Sort by path ascending, second page
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates/$GATE_ID/requests?sort=path&order=asc&limit=20&offset=20"
 ```
 
 ---
@@ -593,30 +639,52 @@ Headers are represented as maps with string arrays (to support multiple values):
 
 ### Diff Format
 
-Diffs use go-cmp's human-readable text format. The diff content compares an envelope containing `statusCode`, `headers`, and `body` from both live and shadow responses.
+Diffs use RFC 6902 JSON Patch format. The `content` field is an array of patch operations describing the differences between the live and shadow responses.
 
-**Example (no differences):**
-```
-""  (empty string)
-```
+Each operation has the following structure:
 
-**Example (with differences):**
-```
-map[string]any{
-        "body": map[string]any{
--               "id":   float64(123),
-+               "id":   float64(456),
-                "name": string("Alice"),
-        },
-        "headers": map[string]any{...},
-        "statusCode": float64(200),
+```json
+{
+  "op": "replace",
+  "path": "/id",
+  "value": 456
 }
 ```
 
-**Key:**
-- Lines prefixed with `-` indicate the live response value
-- Lines prefixed with `+` indicate the shadow response value
-- Unmarked lines are identical in both responses
+**Operation types:**
+- `add` — A field exists in the shadow response but not in the live response
+- `remove` — A field exists in the live response but not in the shadow response
+- `replace` — A field exists in both but has a different value
+
+**Fields:**
+- `op` (string, required) — The operation type
+- `path` (string, required) — JSON Pointer (RFC 6901) to the affected field
+- `value` (any, optional) — The shadow response value (omitted for `remove` operations)
+
+**Example (no differences):**
+```json
+[]
+```
+
+**Example (with differences):**
+```json
+[
+  {
+    "op": "replace",
+    "path": "/id",
+    "value": 456
+  },
+  {
+    "op": "add",
+    "path": "/new_field",
+    "value": "some_value"
+  },
+  {
+    "op": "remove",
+    "path": "/old_field"
+  }
+]
+```
 
 ---
 
