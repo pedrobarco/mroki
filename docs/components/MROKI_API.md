@@ -117,8 +117,8 @@ MROKI_APP_DATABASE_MAX_CONN_LIFE=1h       # default: 1h
 **PostgreSQL 15+** must be running. Use Docker Compose for local development:
 
 ```bash
-cd build/mroki-api
-docker-compose up -d
+cd build/dev
+docker compose up -d
 ```
 
 This starts PostgreSQL on port 5432 with:

@@ -1,0 +1,18 @@
+services:
+  mroki-api:
+    build:
+      context: ../../..
+      dockerfile: build/package/mroki-api/Dockerfile
+    environment:
+      MROKI_APP_PORT: ${MROKI_API_PORT:-8090}
+      MROKI_APP_DATABASE_URL: ${MROKI_APP_DATABASE_URL:-}
+      MROKI_APP_API_KEY: ${MROKI_APP_API_KEY:-}
+      MROKI_APP_CORS_ORIGINS: ${MROKI_APP_CORS_ORIGINS:-}
+    ports:
+      - "${MROKI_API_PORT:-8090}:${MROKI_API_PORT:-8090}"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:${MROKI_API_PORT:-8090}/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped

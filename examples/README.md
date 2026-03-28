@@ -2,17 +2,9 @@
 
 Working example configurations to help you get started with mroki.
 
+For a full local dev stack (PostgreSQL + API + Agent), see [`build/dev/`](../build/dev/) or the [Quick Start Guide](../docs/guides/QUICK_START.md).
+
 ## Available Examples
-
-### Docker Compose
-
-#### [simple-setup](docker-compose/simple-setup/)
-A minimal working setup for local development and testing.
-- PostgreSQL + mroki-api + mroki-agent
-- Ready to use with test configuration
-- Includes health checks and proper service dependencies
-
-**Use when:** You want to quickly test mroki locally or learn how the components work together.
 
 ### Caddyfile
 
@@ -26,17 +18,6 @@ Basic Caddy configuration showing how to shadow specific routes.
 
 ## Quick Start
 
-### Option 1: Docker Compose (Easiest)
-
-```bash
-cd examples/docker-compose/simple-setup
-docker-compose up -d
-```
-
-See the [README](docker-compose/simple-setup/README.md) for detailed instructions.
-
-### Option 2: Caddy Integration
-
 ```bash
 cd examples/caddyfile/basic-gate
 # Build Caddy with mroki module first (see README)
@@ -47,11 +28,11 @@ See the [README](caddyfile/basic-gate/README.md) for detailed instructions.
 
 ## Example Workflow
 
-1. **Start services** using Docker Compose example
+1. **Start services** using the [dev stack](../build/dev/) or [deployment configs](../deployments/)
 2. **Create a gate** via mroki-api
-3. **Configure agent or Caddy** with the gate ID
+3. **Configure Caddy** with the gate ID
 4. **Send test requests** through the proxy
-5. **Check for diffs** via the API or future web UI
+5. **View diffs** via the API or mroki-hub
 
 ## Need Help?
 

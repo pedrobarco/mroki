@@ -1,31 +1,31 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:15-alpine
+  mroki-db:
+    extends:
+      file: ../../build/package/mroki-db/compose.yaml
+      service: mroki-db
     environment:
-      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: mroki
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
 
   mroki-api:
+    extends:
+      file: ../../build/package/mroki-api/compose.yaml
+      service: mroki-api
     image: mroki-api:latest
-    ports:
-      - "8081:8081"
     environment:
       MROKI_APP_PORT: 8081
-      MROKI_APP_DATABASE_URL: postgres://postgres:${DB_PASSWORD}@postgres:5432/mroki
+      MROKI_APP_DATABASE_URL: postgres://postgres:${DB_PASSWORD}@mroki-db:5432/mroki
+    ports:
+      - "8081:8081"
     depends_on:
-      - postgres
-    restart: unless-stopped
+      mroki-db:
+        condition: service_healthy
 
   mroki-agent:
+    extends:
+      file: ../../build/package/mroki-agent/compose.yaml
+      service: mroki-agent
     image: mroki-agent:latest
-    ports:
-      - "8080:8080"
     environment:
       MROKI_APP_LIVE_URL: ${LIVE_URL}
       MROKI_APP_SHADOW_URL: ${SHADOW_URL}
@@ -34,7 +34,6 @@ services:
       MROKI_APP_GATE_ID: ${GATE_ID}
     depends_on:
       - mroki-api
-    restart: unless-stopped
 
 volumes:
-  postgres_data:
+  mroki-db-data:

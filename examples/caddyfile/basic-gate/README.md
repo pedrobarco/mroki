@@ -20,7 +20,7 @@ A simple Caddyfile that demonstrates shadow traffic testing with mroki.
 
 ```bash
 # From the repository root
-cd build/caddy-mroki
+cd build/package/caddy-mroki
 xcaddy build --with github.com/your-username/mroki/caddy-mroki=../../caddy-mroki
 ```
 

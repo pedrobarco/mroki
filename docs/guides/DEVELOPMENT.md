@@ -81,7 +81,7 @@ go test ./pkg/proxy/...
 
 **Terminal 1: PostgreSQL**
 ```bash
-docker-compose -f build/mroki-api/docker-compose.yaml up
+docker compose -f build/dev/compose.yaml up
 ```
 
 **Terminal 2: API**

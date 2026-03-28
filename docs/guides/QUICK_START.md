@@ -14,7 +14,7 @@ Get mroki up and running in 5 minutes.
 cd /Users/barco/repos/pedrobarco/mroki
 
 # Start PostgreSQL via Docker Compose
-docker-compose -f build/mroki-api/docker-compose.yaml up -d
+docker compose -f build/dev/compose.yaml up -d
 
 # Verify it's running
 docker ps | grep postgres
@@ -342,7 +342,7 @@ MROKI_APP_RATE_LIMIT=5000  # Increase to 5000 req/min
 docker ps
 
 # Restart PostgreSQL
-docker-compose -f build/mroki-api/docker-compose.yaml restart
+docker compose -f build/dev/compose.yaml restart
 ```
 
 ---
@@ -389,7 +389,7 @@ curl https://httpbin.org/anything?service=live
 **Start Stack:**
 ```bash
 # Terminal 1: PostgreSQL
-docker-compose -f build/mroki-api/docker-compose.yaml up -d
+docker compose -f build/dev/compose.yaml up -d
 
 # Terminal 2: API
 cd cmd/mroki-api && go run .
@@ -403,7 +403,7 @@ cd cmd/mroki-agent && go run .
 # Stop agent: Ctrl+C in terminal 3
 # Stop API: Ctrl+C in terminal 2
 # Stop PostgreSQL:
-docker-compose -f build/mroki-api/docker-compose.yaml down
+docker compose -f build/dev/compose.yaml down
 ```
 
 **Key Endpoints:**

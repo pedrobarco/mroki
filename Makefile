@@ -1,5 +1,5 @@
 HUB_DIR := web/mroki-hub
-DEV_COMPOSE := build/mroki-hub/docker-compose.yaml
+DEV_COMPOSE := build/dev/compose.yaml
 
 .PHONY: help build test lint clean \
 	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-migrate api-clean \

@@ -1,0 +1,40 @@
+services:
+  mroki-db:
+    extends:
+      file: ../package/mroki-db/compose.yaml
+      service: mroki-db
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ../../ent/migrate/migrations:/migrations:ro
+      - ./init-db.sh:/docker-entrypoint-initdb.d/00-init-db.sh:ro
+      - ./seed.sql:/docker-entrypoint-initdb.d/99-seed.sql:ro
+
+  mroki-api:
+    extends:
+      file: ../package/mroki-api/compose.yaml
+      service: mroki-api
+    environment:
+      MROKI_APP_PORT: 8090
+      MROKI_APP_DATABASE_URL: postgres://postgres:postgres@mroki-db:5432/postgres
+      MROKI_APP_API_KEY: mroki-dev-api-key-16
+      MROKI_APP_CORS_ORIGINS: http://localhost:5173
+    depends_on:
+      mroki-db:
+        condition: service_healthy
+
+  mroki-agent:
+    extends:
+      file: ../package/mroki-agent/compose.yaml
+      service: mroki-agent
+    environment:
+      MROKI_APP_API_URL: http://mroki-api:8090
+      MROKI_APP_API_KEY: mroki-dev-api-key-16
+      MROKI_APP_GATE_ID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+    depends_on:
+      mroki-api:
+        condition: service_healthy
+
+
+volumes:
+  mroki-db-data:

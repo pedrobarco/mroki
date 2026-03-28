@@ -101,7 +101,7 @@ Caddy module for integrating mroki proxy into Caddy server.
 
 Get mroki running in 5 minutes:
 
-1. **Start PostgreSQL** - `docker-compose -f build/mroki-api/docker-compose.yaml up -d`
+1. **Start PostgreSQL** - `docker compose -f build/dev/compose.yaml up -d`
 2. **Start API** - Configure and run mroki-api
 3. **Create a Gate** - Define your live/shadow service pair
 4. **Start Agent** - Run the proxy to capture traffic

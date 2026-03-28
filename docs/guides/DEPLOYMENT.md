@@ -8,7 +8,7 @@ Guide for deploying mroki to production environments.
 
 Best for: Small deployments, single-server setups
 
-See [`/deployments/docker-compose/`](../../deployments/docker-compose/) for complete manifests.
+See [`/deployments/compose/`](../../deployments/compose/) for complete manifests.
 
 **Quick start:**
 ```bash
@@ -20,10 +20,10 @@ GATE_ID=550e8400-e29b-41d4-a716-446655440000
 EOF
 
 # Deploy
-docker-compose -f deployments/docker-compose/full-stack.yaml up -d
+docker compose -f deployments/compose/full-stack.yaml up -d
 
 # Check status
-docker-compose -f deployments/docker-compose/full-stack.yaml ps
+docker compose -f deployments/compose/full-stack.yaml ps
 ```
 
 ---
@@ -254,9 +254,9 @@ MROKI_APP_DATABASE_READ_URL=postgres://replica:5432/mroki
 
 ```bash
 # Docker Compose
-docker-compose ps
-docker-compose logs mroki-api
-docker-compose logs mroki-agent
+docker compose ps
+docker compose logs mroki-api
+docker compose logs mroki-agent
 
 # Kubernetes
 kubectl get pods -n mroki
