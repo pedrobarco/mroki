@@ -96,7 +96,7 @@ The **hub** is a web UI for managing gates, browsing captured requests, and visu
 - [Deployment](docs/guides/DEPLOYMENT.md) — Production deployment with Docker Compose and Kubernetes
 - [System Overview](docs/architecture/OVERVIEW.md) — Architecture and data flow
 - [API Contracts](docs/architecture/API_CONTRACTS.md) — Endpoint specifications
-- [Roadmap](docs/TODO.md)
+- [Roadmap](docs/ROADMAP.md)
 
 ## Development
 
