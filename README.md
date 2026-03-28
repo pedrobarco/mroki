@@ -1,31 +1,54 @@
 # mroki
 
-**Safe shadow traffic testing for production systems**
+Safe shadow traffic testing for production systems.
 
-mroki is a platform for testing service changes by comparing production traffic against shadow deployments in real-time. Send live traffic to both your production and shadow services, compute response diffs, and analyze behavior differences without impacting users.
-
-## What is mroki?
-
-mroki enables you to:
-
-- **Mirror production traffic** to shadow services running experimental code
-- **Compare responses** between live and shadow deployments automatically
-- **Visualize differences** through a web interface
-- **Make confident releases** by understanding real-world behavior before rollout
-
-## Core Concepts
+mroki mirrors live HTTP traffic to a shadow service, diffs the JSON responses, and surfaces the differences — so you can validate changes against real production behavior before rolling out.
 
 ### Gates
-A **gate** represents a pair of services: a live (production) service and a shadow (experimental) service. Traffic flowing through a gate is forwarded to both services.
 
-### Agents
-An **agent** is a proxy deployed in your infrastructure that intercepts HTTP traffic, forwards it to both live and shadow services, and captures response differences.
+Manage your live/shadow service pairs.
 
-### Diffs
-A **diff** is the computed difference between live and shadow service responses. mroki automatically compares JSON responses and tracks what changed.
+![mroki-hub gates](docs/assets/hub-gates.png)
 
-### Hub
-The **hub** is a web interface for managing gates, viewing captured requests, analyzing diffs, and monitoring agent health.
+### Gate Detail
+
+Browse captured requests for a gate.
+
+![mroki-hub gate detail](docs/assets/hub-gate-detail.png)
+
+### Request Detail
+
+Visualize JSON response diffs side-by-side.
+
+![mroki-hub request detail](docs/assets/hub-request-detail.png)
+
+## Quick Start
+
+```bash
+# Start the dev stack (PostgreSQL + API + Agent)
+docker compose -f build/dev/compose.yaml up -d
+
+# Create a gate (live/shadow service pair)
+curl -s -X POST http://localhost:8090/gates \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer mroki-dev-api-key-16" \
+  -d '{"live_url": "https://httpbin.org/anything?env=live", "shadow_url": "https://httpbin.org/anything?env=shadow"}'
+
+# Send traffic through the agent proxy
+curl http://localhost:8080/get
+```
+
+Responses from both services are compared automatically. Open [mroki-hub](http://localhost:5173) to browse gates, requests, and diffs.
+
+See the [Quick Start Guide](docs/guides/QUICK_START.md) for the full walkthrough.
+
+## How It Works
+
+A **gate** is a pair of services: a live (production) URL and a shadow (experimental) URL.
+
+An **agent** is an HTTP proxy that forwards each request to both services, computes a JSON diff of the responses, and reports it to the API — without affecting the live response.
+
+The **hub** is a web UI for managing gates, browsing captured requests, and visualizing response diffs side-by-side.
 
 ## Architecture
 
@@ -65,135 +88,54 @@ The **hub** is a web interface for managing gates, viewing captured requests, an
 
 ## Components
 
-### [mroki-agent](docs/components/MROKI_AGENT.md)
-Proxy that intercepts traffic and forwards to live/shadow services. Computes diffs and sends to API.
-
-**Key Features:**
-- Transparent HTTP proxy
-- Dual operating modes (API-fetched config or standalone)
-- Configurable diff options (field filtering, array sorting, float tolerance)
-- Exponential backoff retry logic
-- Best-effort delivery (never fails live traffic)
-- Agent ID persistence
-
-### [mroki-api](docs/components/MROKI_API.md)
-REST API for managing gates and storing captured traffic diffs.
-
-**Key Features:**
-- Gate management (CRUD)
-- Request/response storage
-- Diff persistence
-- Health check endpoints
-
-### [mroki-hub](docs/components/MROKI_HUB.md)
-Web interface for visualizing diffs and managing the system.
-
-**Key Features:**
-- Gate dashboard
-- Request browser
-- Diff visualization
-- Agent monitoring
-
-### [caddy-mroki](docs/components/CADDY_MROKI.md)
-Caddy module for integrating mroki proxy into Caddy server.
-
-## Quick Start
-
-Get mroki running in 5 minutes:
-
-1. **Start PostgreSQL** - `docker compose -f build/dev/compose.yaml up -d`
-2. **Start API** - Configure and run mroki-api
-3. **Create a Gate** - Define your live/shadow service pair
-4. **Start Agent** - Run the proxy to capture traffic
-5. **Send Traffic** - Test with sample requests
-
-For detailed step-by-step instructions, see the [Quick Start Guide](docs/guides/QUICK_START.md).
-
-## Documentation
-
-### Architecture
-- [System Overview](docs/architecture/OVERVIEW.md) - Architecture, data flow, and design
-- [API Contracts](docs/architecture/API_CONTRACTS.md) - API endpoint specifications
-
-### Components
-- [mroki-agent](docs/components/MROKI_AGENT.md) - Agent documentation
-- [mroki-api](docs/components/MROKI_API.md) - API documentation
-- [mroki-hub](docs/components/MROKI_HUB.md) - Web UI documentation
-- [caddy-mroki](docs/components/CADDY_MROKI.md) - Caddy module documentation
-
-### Guides
-- [Quick Start](docs/guides/QUICK_START.md) - Get started in 5 minutes
-- [Development](docs/guides/DEVELOPMENT.md) - Development workflow
-- [Deployment](docs/guides/DEPLOYMENT.md) - Production deployment
+| Component | Description | Docs |
+|---|---|---|
+| [mroki-agent](docs/components/MROKI_AGENT.md) | HTTP proxy — forwards traffic to live and shadow, computes diffs | [docs](docs/components/MROKI_AGENT.md) |
+| [mroki-api](docs/components/MROKI_API.md) | REST API — gate management, request/diff storage | [docs](docs/components/MROKI_API.md) |
+| [mroki-hub](docs/components/MROKI_HUB.md) | Web UI — gate dashboard, request browser, diff viewer | [docs](docs/components/MROKI_HUB.md) |
+| [caddy-mroki](docs/components/CADDY_MROKI.md) | Caddy module — integrates mroki proxy into Caddy server | [docs](docs/components/CADDY_MROKI.md) |
 
 ## Use Cases
 
-### 1. API Refactoring
-Test refactored endpoints against production traffic to ensure behavioral compatibility.
+**API refactoring** — Test refactored endpoints against real production traffic to catch behavioral regressions before they ship.
 
-### 2. Performance Testing
-Compare response times between current and optimized implementations under real load.
+**Database migrations** — Run your new schema in shadow mode and verify it returns identical results to the current one.
 
-### 3. Database Migration
-Validate that new database schema produces identical results to the old one.
+**Framework upgrades** — Upgrade your framework on the shadow service and validate with real request patterns, not synthetic tests.
 
-### 4. Framework Upgrades
-Test major framework version upgrades with confidence using real production patterns.
+## Documentation
 
-### 5. A/B Testing
-Compare different algorithm implementations with actual production data.
-
-## Technology Stack
-
-- **Backend:** Go 1.26+
-- **API Framework:** net/http (stdlib)
-- **Database:** PostgreSQL 15+
-- **Frontend:** Vue 3 + TypeScript
-- **Build Tool:** Vite
-- **UI Components:** Custom component library
+- [Quick Start](docs/guides/QUICK_START.md) — Get running in 5 minutes
+- [Development](docs/guides/DEVELOPMENT.md) — Local setup, testing, code style
+- [Deployment](docs/guides/DEPLOYMENT.md) — Production deployment with Docker Compose and Kubernetes
+- [System Overview](docs/architecture/OVERVIEW.md) — Architecture and data flow
+- [API Contracts](docs/architecture/API_CONTRACTS.md) — Endpoint specifications
+- [Roadmap](docs/TODO.md)
 
 ## Development
 
 ```bash
+# Start dev stack
+make dev-up
+
 # Run all tests
-go test ./...
+make test
 
-# Run tests with race detection
-go test -race ./...
+# Build all binaries
+make build
 
-# Run specific component tests
-go test ./cmd/mroki-agent/...
-go test ./internal/domain/...
-
-# Build binaries
-go build -o mroki-agent ./cmd/mroki-agent
-go build -o mroki-api ./cmd/mroki-api
+# Lint
+make lint
 ```
 
-## Project Status
-
-- ✅ Agent → API integration (dual operating modes)
-- ✅ Configurable diff options (field filtering, array sorting, float tolerance)
-- ✅ Request capture and diff computation
-- ✅ Retry logic with exponential backoff
-- ✅ Agent ID persistence
-- ✅ Web UI (mroki-hub)
-- ✅ 250+ tests, 0 failures
-
-See the [roadmap](docs/TODO.md) for upcoming work.
-
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
+See the [Development Guide](docs/guides/DEVELOPMENT.md) for the full workflow.
 
 ## Contributing
 
-Contributions welcome! Please read the [Contributing Guide](docs/CONTRIBUTING.md) before submitting PRs.
+Contributions welcome. Please read the [Contributing Guide](docs/CONTRIBUTING.md) before submitting PRs.
 
 This project follows the [Contributor Covenant Code of Conduct](docs/CODE_OF_CONDUCT.md).
 
-## Support
+## License
 
-- Open an [issue](https://github.com/pedrobarco/mroki/issues) on GitHub
-- Check the [documentation](docs/)
-- Review the [Quick Start Guide](docs/guides/QUICK_START.md)
+[MIT](LICENSE)

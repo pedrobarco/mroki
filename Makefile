@@ -4,7 +4,7 @@ DEV_COMPOSE := build/dev/compose.yaml
 .PHONY: help build test lint clean \
 	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-migrate api-clean \
 	agent-build agent-test agent-clean \
-	hub-build hub-test hub-test-ui hub-test-setup hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
+	hub-build hub-test hub-test-ui hub-test-setup hub-screenshots hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
 	dev-up dev-down dev-reset
 
 # ─── Global ──────────────────────────────────────────────────────────
@@ -43,6 +43,7 @@ help:
 	@echo "  hub-test           Run Playwright e2e tests"
 	@echo "  hub-test-ui        Run e2e tests in UI mode"
 	@echo "  hub-test-setup     Start backend for e2e tests"
+	@echo "  hub-screenshots    Capture hub screenshots for docs"
 	@echo "  hub-dev            Start hub dev server"
 	@echo "  hub-install        Install hub dependencies"
 	@echo "  hub-preview        Preview production build"
@@ -150,6 +151,10 @@ hub-test-ui:
 hub-test-setup:
 	@echo "Starting backend for e2e tests..."
 	cd $(HUB_DIR) && pnpm test:e2e:setup
+
+hub-screenshots:
+	@echo "Capturing hub screenshots..."
+	cd $(HUB_DIR) && pnpm screenshots
 
 hub-dev:
 	@echo "Starting hub dev server..."

@@ -14,9 +14,10 @@
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "format": "prettier --write \"src/**/*.{js,ts,vue,json,css,scss,md}\"",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:setup": "docker compose -f ../../build/dev/compose.yaml down -v && docker compose -f ../../build/dev/compose.yaml up -d --wait"
+    "test:e2e": "playwright test --grep-invert @screenshots",
+    "test:e2e:ui": "playwright test --ui --grep-invert @screenshots",
+    "test:e2e:setup": "docker compose -f ../../build/dev/compose.yaml down -v && docker compose -f ../../build/dev/compose.yaml up -d --wait",
+    "screenshots": "playwright test --grep @screenshots"
   },
   "dependencies": {
     "@tanstack/vue-table": "^8.21.3",
