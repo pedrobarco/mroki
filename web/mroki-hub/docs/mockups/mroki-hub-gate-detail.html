@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>mroki hub — Gate Detail</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#09090b', card: '#111113', hover: '#18181b', border: '#27272a', subtle: '#1c1c1f' },
+        fg: { DEFAULT: '#fafafa', muted: '#a1a1aa', dim: '#71717a', accent: '#e4e4e7' },
+        accent: { green: '#22c55e', greenDim: '#166534', blue: '#3b82f6', blueDim: '#1e3a5f', amber: '#f59e0b', red: '#ef4444', redDim: '#7f1d1d' },
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+  .dot-pulse { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  ::selection { background: #3b82f6; color: white; }
+  .req-row { transition: background-color 0.1s ease; }
+  .req-row:hover { background-color: #18181b; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+
+<!-- Top Nav -->
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      </div>
+      <nav class="flex items-center gap-1 text-[13px]">
+        <a href="#" class="px-3 py-1.5 rounded-md bg-bg-hover text-fg font-medium">Gates</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Agents</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Requests</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Settings</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5 text-[12px] text-accent-green bg-accent-greenDim/30 px-2.5 py-1 rounded-full">
+        <span class="dot-pulse bg-accent-green"></span><span>API Connected</span>
+      </div>
+      <div class="w-7 h-7 rounded-full bg-bg-hover border border-bg-border flex items-center justify-center text-[11px] font-medium text-fg-muted">DK</div>
+    </div>
+  </div>
+</header>
+
+<!-- Page Content -->
+<main class="max-w-6xl mx-auto px-6 py-6">
+  <!-- Back link -->
+  <a href="#" class="inline-flex items-center gap-1.5 text-[13px] text-fg-muted hover:text-fg transition-colors mb-5">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Gates
+  </a>
+
+  <!-- Gate Info Card -->
+  <div class="bg-bg-card border border-bg-border rounded-xl p-5 mb-8">
+    <div class="flex items-start justify-between mb-5">
+      <div>
+        <div class="flex items-center gap-2.5 mb-1.5">
+          <h1 class="text-[20px] font-semibold tracking-tight">checkout-api</h1>
+          <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-accent-greenDim/30 text-accent-green font-medium">
+            <span class="dot-pulse bg-accent-green"></span>Active
+          </span>
+        </div>
+        <code class="text-[11px] font-mono text-fg-dim">a3f8c1d2-94e7-4b1a-af62-8d3c0e5f19b7</code>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-muted border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configure
+        </button>
+        <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-dim border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Pause
+        </button>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="bg-bg/60 rounded-lg px-3.5 py-3 border border-bg-border/50">
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1.5 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent-green"></span>Live Service
+        </div>
+        <code class="text-[12.5px] font-mono text-fg-muted">https://api.acme.io/v2/checkout</code>
+      </div>
+      <div class="bg-bg/60 rounded-lg px-3.5 py-3 border border-bg-border/50">
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1.5 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent-blue"></span>Shadow Service
+        </div>
+        <code class="text-[12.5px] font-mono text-fg-muted">https://api-canary.acme.io/v2/checkout</code>
+      </div>
+    </div>
+    <div class="flex items-center gap-6 text-[12px] pt-3 border-t border-bg-border/50">
+      <div><span class="text-fg-dim">Agent</span> <span class="font-mono text-fg-muted ml-1">agent-us-east-1</span></div>
+      <div><span class="text-fg-dim">Created</span> <span class="text-fg-muted ml-1">Mar 12, 2026</span></div>
+      <div><span class="text-fg-dim">Requests (24h)</span> <span class="text-fg font-medium ml-1">5,241</span></div>
+      <div><span class="text-fg-dim">Diff rate</span> <span class="text-amber-400 font-medium ml-1">3.1%</span></div>
+    </div>
+  </div>
+
+  <!-- Captured Requests Section -->
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-[16px] font-semibold tracking-tight">Captured Requests</h2>
+    <span class="text-[12px] text-fg-dim">Showing 6 of 5,241 requests</span>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex items-center gap-3 mb-4">
+    <div class="flex items-center gap-1 text-[12px] border border-bg-border rounded-lg bg-bg-card overflow-hidden">
+      <button class="px-2.5 py-1.5 bg-bg-hover text-fg font-medium">All</button>
+      <button class="px-2.5 py-1.5 text-fg-dim hover:text-fg-muted">GET</button>
+      <button class="px-2.5 py-1.5 text-fg-dim hover:text-fg-muted">POST</button>
+      <button class="px-2.5 py-1.5 text-fg-dim hover:text-fg-muted">PUT</button>
+      <button class="px-2.5 py-1.5 text-fg-dim hover:text-fg-muted">DELETE</button>
+    </div>
+    <div class="relative flex-1 max-w-xs">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-fg-dim" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Filter by path..." class="w-full bg-bg-card border border-bg-border rounded-lg pl-8 pr-4 py-1.5 text-[12px] text-fg placeholder:text-fg-dim focus:outline-none focus:border-[#3f3f46] focus:ring-1 focus:ring-[#3f3f46]">
+    </div>
+    <label class="flex items-center gap-2 text-[12px] text-fg-dim border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card cursor-pointer select-none">
+      <div class="w-[30px] h-[16px] bg-bg-hover rounded-full relative">
+        <div class="w-[12px] h-[12px] bg-fg-dim rounded-full absolute left-[2px] top-[2px]"></div>
+      </div>
+      Has diff only
+    </label>
+    <div class="flex items-center gap-1 text-[12px] text-fg-dim border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card">
+      <span>Sort:</span><span class="text-fg-muted font-medium ml-1">Newest first</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </div>
+
+  <!-- Request List -->
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden divide-y divide-bg-border" id="req-list"></div>
+
+  <!-- Pagination -->
+  <div class="flex items-center justify-between mt-4 text-[12px]">
+    <span class="text-fg-dim">Page 1 of 874</span>
+    <div class="flex items-center gap-1">
+      <button class="px-3 py-1.5 rounded-lg border border-bg-border bg-bg-card text-fg-dim opacity-40 cursor-not-allowed">Previous</button>
+      <button class="px-3 py-1.5 rounded-lg border border-bg-border bg-bg-hover text-fg font-medium">1</button>
+      <button class="px-3 py-1.5 rounded-lg border border-bg-border bg-bg-card text-fg-muted hover:bg-bg-hover">2</button>
+      <button class="px-3 py-1.5 rounded-lg border border-bg-border bg-bg-card text-fg-muted hover:bg-bg-hover">3</button>
+      <span class="px-2 text-fg-dim">…</span>
+      <button class="px-3 py-1.5 rounded-lg border border-bg-border bg-bg-card text-fg-muted hover:bg-bg-hover">874</button>
+      <button class="px-3 py-1.5 rounded-lg border border-bg-border bg-bg-card text-fg-muted hover:bg-bg-hover">Next</button>
+    </div>
+  </div>
+</main>
+
+<script>
+const requests = [
+  { id: 'req_7f2a9c4e81b3', method: 'POST', path: '/v2/checkout/complete', time: '00:32:14', ago: '12 min ago', statusLive: 200, statusShadow: 200, latencyLive: 142, latencyShadow: 187, hasDiff: true, diffs: 3, agent: 'agent-us-east-1' },
+  { id: 'req_a1d9e6f34c28', method: 'GET',  path: '/v2/checkout/orders/ord_8k3m2f', time: '00:31:58', ago: '12 min ago', statusLive: 200, statusShadow: 200, latencyLive: 38, latencyShadow: 42, hasDiff: false, diffs: 0, agent: 'agent-us-east-1' },
+  { id: 'req_c3b72e0f95a1', method: 'GET',  path: '/v2/checkout/health', time: '00:31:02', ago: '13 min ago', statusLive: 200, statusShadow: 200, latencyLive: 4, latencyShadow: 6, hasDiff: false, diffs: 0, agent: 'agent-us-east-1' },
+  { id: 'req_58d1fa37b6e9', method: 'POST', path: '/v2/checkout/validate', time: '00:30:47', ago: '14 min ago', statusLive: 200, statusShadow: 200, latencyLive: 89, latencyShadow: 124, hasDiff: true, diffs: 1, agent: 'agent-us-east-1' },
+  { id: 'req_e4c80d2a1f67', method: 'PUT',  path: '/v2/checkout/cart/itm_29f1c8', time: '00:29:33', ago: '15 min ago', statusLive: 200, statusShadow: 200, latencyLive: 67, latencyShadow: 71, hasDiff: false, diffs: 0, agent: 'agent-us-east-1' },
+  { id: 'req_b9a23f6c40d5', method: 'DELETE', path: '/v2/checkout/cart/itm_77e3a2', time: '00:28:51', ago: '16 min ago', statusLive: 204, statusShadow: 500, latencyLive: 23, latencyShadow: 312, hasDiff: true, diffs: 5, agent: 'agent-us-east-1' },
+];
+
+const methodColors = {
+  GET: 'bg-blue-500/15 text-blue-400',
+  POST: 'bg-green-500/15 text-green-400',
+  PUT: 'bg-amber-500/15 text-amber-400',
+  DELETE: 'bg-red-500/15 text-red-400',
+};
+
+const container = document.getElementById('req-list');
+requests.forEach(r => {
+  const diffBadge = r.hasDiff
+    ? `<span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-medium">
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+        ${r.diffs} diff${r.diffs > 1 ? 's' : ''}
+      </span>`
+    : `<span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 font-medium">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        No diff
+      </span>`;
+
+  const shadowStatusColor = r.statusShadow >= 500 ? 'text-red-400' : 'text-accent-green';
+
+  container.innerHTML += `
+  <a href="#" class="req-row flex items-center px-5 py-3.5 cursor-pointer">
+    <div class="flex items-center gap-3 flex-1 min-w-0">
+      <span class="inline-flex items-center justify-center ${methodColors[r.method]} text-[11px] font-bold font-mono px-2 py-0.5 rounded-md tracking-wide w-[52px] text-center shrink-0">${r.method}</span>
+      <code class="text-[13px] font-mono text-fg truncate">${r.path}</code>
+    </div>
+    <div class="flex items-center gap-5 shrink-0 ml-4">
+      ${diffBadge}
+      <div class="text-[11px] text-fg-dim w-[110px] text-right">
+        <span class="text-fg-muted font-mono">${r.statusLive}</span><span class="text-fg-dim/60"> / </span><span class="${shadowStatusColor} font-mono">${r.statusShadow}</span>
+        <span class="text-fg-dim/50 ml-1">${r.latencyLive}ms / ${r.latencyShadow}ms</span>
+      </div>
+      <div class="text-[11px] text-fg-dim w-[72px] text-right">${r.ago}</div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fg-dim/40 shrink-0"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </a>`;
+});
+</script>
+</body>
+</html>

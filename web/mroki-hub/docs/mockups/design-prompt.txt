@@ -1,0 +1,41 @@
+Design a clean, modern developer tool web dashboard called "mroki hub" — a shadow traffic analysis platform for comparing production vs. experimental service responses.
+
+What mroki is:
+mroki is a platform for testing service changes by comparing production traffic against shadow deployments in real-time. It mirrors live HTTP traffic to both a production ("live") service and an experimental ("shadow") service, computes JSON response diffs, and lets developers analyze behavior differences — all without impacting real users.
+
+Core concepts:
+- A "Gate" is a pair of services: a live (production) URL and a shadow (experimental) URL. Traffic flowing through a gate is forwarded to both services.
+- An "Agent" is a transparent HTTP proxy deployed in your infrastructure that intercepts traffic, forwards it to both live and shadow, and captures response differences.
+- A "Diff" is the computed difference between the live and shadow JSON responses for each captured request.
+- The "Hub" (this UI) is the web interface for managing gates, browsing captured requests, and visualizing diffs side-by-side.
+
+The system flow: Client → mroki-agent (proxy) → forwards to Live Service + Shadow Service → computes diff → sends to mroki-api (REST API + PostgreSQL) → mroki-hub (this web UI) displays it all.
+
+Page to show: {{PAGE_DESCRIPTION}}
+
+Visual style:
+- Component library: shadcn/ui aesthetic — minimal, utility-first, no heavy decoration
+- Color palette: Monochrome/neutral.
+- Typography: System font stack (system-ui, -apple-system, sans-serif). Monospace font for URLs, IDs, and code. Clean hierarchy with bold headings.
+
+Overall feel: A polished, professional developer tool dashboard — similar to Vercel, Linear, or Grafana's modern UI. Clean, data-focused, no clutter. The design communicates "infrastructure tooling" and "API observability." It should feel like a tool built by developers, for developers.
+
+Resolution: 1440x900 desktop viewport.
+
+Output: Generate a realistic high-fidelity screenshot of this web application as it would appear in a browser. It should look like an actual screenshot of a running app, not a wireframe or mockup.
+
+---
+
+Pages:
+
+1. Gates List (/gates)
+The Gates list page (main dashboard view). This page lists all configured gates (live/shadow service pairs), lets you create new ones, and each gate card links to its captured requests. Show 3-4 gate cards with realistic production URLs, truncated UUIDs as gate IDs, and creation timestamps.
+
+2. Gate Detail (/gates/:id)
+The Gate Detail page (request browser). This page shows a single gate's details and all its captured requests. At the top: a "← Back to Gates" ghost button, then a card showing the gate info — the truncated gate ID as title, the live service URL and shadow service URL in monospace, and the full gate UUID. Below that: a "Captured Requests" section with filter controls (filter by HTTP method, path search, has-diff toggle, sort by date) and a paginated list of request cards. Each request card shows the HTTP method as a badge (GET, POST, etc.), the request path in monospace, a timestamp, whether a diff was detected (green "No Diff" or red "Has Diff" indicator), and the agent ID. Show 5-6 realistic request entries with a mix of methods, paths like /api/users, /api/orders/123, /api/health, and some with diffs detected and some without.
+
+3. Request Detail (/gates/:id/requests/:rid)
+The Request Detail page (diff viewer). This page shows a single captured HTTP request and its response comparison. At the top: a back button ("← Back to Gate"), the page title "Request Detail", and a card with request metadata (HTTP method as a badge, path in monospace, timestamp, and request ID). Below that: a "Response Comparison" card with a side-by-side diff viewer showing the live response body on the left and the shadow response body on the right, with JSON differences highlighted. Show realistic JSON API response bodies with a few fields that differ between live and shadow (e.g., a changed timestamp, a different value in a nested field).
+
+4. Not Found (404)
+The 404 Not Found page. A minimal, centered error page. Show a large "404" number, a short message like "Page not found", a brief subtitle like "The page you're looking for doesn't exist or has been moved.", and a "Go to Gates" button that links back to the main dashboard. Keep it simple and on-brand — no illustrations or gimmicks, just clean typography.

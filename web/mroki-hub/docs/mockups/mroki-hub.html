@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>mroki hub — Gates</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#09090b', card: '#111113', hover: '#18181b', border: '#27272a', subtle: '#1c1c1f' },
+        fg: { DEFAULT: '#fafafa', muted: '#a1a1aa', dim: '#71717a', accent: '#e4e4e7' },
+        accent: { green: '#22c55e', greenDim: '#166534', blue: '#3b82f6', blueDim: '#1e3a5f', amber: '#f59e0b' },
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+  .gate-card { transition: border-color 0.15s ease, background-color 0.15s ease; }
+  .gate-card:hover { border-color: #3f3f46; background-color: #18181b; }
+  .dot-pulse { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  ::selection { background: #3b82f6; color: white; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+
+<!-- Top Nav -->
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      </div>
+      <nav class="flex items-center gap-1 text-[13px]">
+        <a href="#" class="px-3 py-1.5 rounded-md bg-bg-hover text-fg font-medium">Gates</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Agents</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Requests</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Settings</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5 text-[12px] text-accent-green bg-accent-greenDim/30 px-2.5 py-1 rounded-full">
+        <span class="dot-pulse bg-accent-green"></span>
+        <span>API Connected</span>
+      </div>
+      <div class="w-7 h-7 rounded-full bg-bg-hover border border-bg-border flex items-center justify-center text-[11px] font-medium text-fg-muted">DK</div>
+    </div>
+  </div>
+</header>
+
+<!-- Page Content -->
+<main class="max-w-6xl mx-auto px-6 py-8">
+  <!-- Page Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-[22px] font-semibold tracking-tight mb-1">Gates</h1>
+      <p class="text-[13px] text-fg-muted">Manage live/shadow service pairs and monitor traffic diffs.</p>
+    </div>
+    <button class="inline-flex items-center gap-2 bg-white text-black text-[13px] font-medium px-4 py-2 rounded-lg hover:bg-fg-accent transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Gate
+    </button>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="grid grid-cols-4 gap-4 mb-8">
+    <div class="bg-bg-card border border-bg-border rounded-lg px-4 py-3">
+      <div class="text-[11px] uppercase tracking-wider text-fg-dim mb-1">Total Gates</div>
+      <div class="text-[20px] font-semibold">4</div>
+    </div>
+    <div class="bg-bg-card border border-bg-border rounded-lg px-4 py-3">
+      <div class="text-[11px] uppercase tracking-wider text-fg-dim mb-1">Active Agents</div>
+      <div class="text-[20px] font-semibold">3</div>
+    </div>
+    <div class="bg-bg-card border border-bg-border rounded-lg px-4 py-3">
+      <div class="text-[11px] uppercase tracking-wider text-fg-dim mb-1">Requests (24h)</div>
+      <div class="text-[20px] font-semibold">12,847</div>
+    </div>
+    <div class="bg-bg-card border border-bg-border rounded-lg px-4 py-3">
+      <div class="text-[11px] uppercase tracking-wider text-fg-dim mb-1">Diff Rate</div>
+      <div class="text-[20px] font-semibold text-amber-400">4.2%</div>
+    </div>
+  </div>
+
+  <!-- Search / Filter Row -->
+  <div class="flex items-center gap-3 mb-5">
+    <div class="relative flex-1 max-w-xs">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-fg-dim" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search gates..." class="w-full bg-bg-card border border-bg-border rounded-lg pl-9 pr-4 py-2 text-[13px] text-fg placeholder:text-fg-dim focus:outline-none focus:border-[#3f3f46] focus:ring-1 focus:ring-[#3f3f46]">
+    </div>
+    <div class="flex items-center gap-1 text-[12px] text-fg-dim border border-bg-border rounded-lg px-3 py-2 bg-bg-card">
+      <span>Sort by:</span>
+      <span class="text-fg-muted font-medium ml-1">Last active</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </div>
+
+  <!-- Gate Cards -->
+  <div class="space-y-3" id="gate-cards"></div>
+</main>
+
+<script>
+const gates = [
+  {
+    id: 'a3f8c1d2', name: 'checkout-api', status: 'active',
+    live: 'https://api.acme.io/v2/checkout', shadow: 'https://api-canary.acme.io/v2/checkout',
+    agent: 'agent-us-east-1', requests24h: 5241, diffRate: 3.1, diffs: 162,
+    created: '2026-03-12T09:14:00Z', lastActive: '2 min ago'
+  },
+  {
+    id: 'e7b4a09f', name: 'user-profile-svc', status: 'active',
+    live: 'https://users.acme.io/api/v1/profile', shadow: 'https://users-exp.acme.io/api/v1/profile',
+    agent: 'agent-eu-west-1', requests24h: 4832, diffRate: 6.8, diffs: 328,
+    created: '2026-03-18T14:32:00Z', lastActive: '5 min ago'
+  },
+  {
+    id: '91c2fe38', name: 'search-ranking', status: 'active',
+    live: 'https://search.acme.io/v3/query', shadow: 'https://search-v4.acme.io/v3/query',
+    agent: 'agent-us-east-1', requests24h: 2774, diffRate: 1.4, diffs: 39,
+    created: '2026-03-22T11:05:00Z', lastActive: '12 min ago'
+  },
+  {
+    id: 'f4d6b2a1', name: 'notifications-api', status: 'paused',
+    live: 'https://notify.acme.io/api/send', shadow: 'https://notify-next.acme.io/api/send',
+    agent: '—', requests24h: 0, diffRate: 0, diffs: 0,
+    created: '2026-03-25T16:48:00Z', lastActive: 'Paused'
+  }
+];
+
+const container = document.getElementById('gate-cards');
+gates.forEach(g => {
+  const isActive = g.status === 'active';
+  const diffColor = g.diffRate > 5 ? 'text-amber-400' : g.diffRate > 0 ? 'text-fg-muted' : 'text-fg-dim';
+  const statusDot = isActive
+    ? '<span class="dot-pulse bg-accent-green"></span><span class="text-accent-green">Active</span>'
+    : '<span class="w-1.5 h-1.5 rounded-full bg-fg-dim"></span><span class="text-fg-dim">Paused</span>';
+
+  container.innerHTML += `
+  <a href="#" class="gate-card block bg-bg-card border border-bg-border rounded-xl p-5 cursor-pointer">
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-bg-hover border border-bg-border flex items-center justify-center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-fg-muted"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-[14px] text-fg">${g.name}</span>
+            <code class="text-[11px] font-mono text-fg-dim bg-bg-hover px-1.5 py-0.5 rounded">${g.id}</code>
+          </div>
+          <div class="flex items-center gap-1.5 mt-0.5 text-[11px]">${statusDot}</div>
+        </div>
+      </div>
+      <div class="text-[11px] text-fg-dim">${g.lastActive}</div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="bg-bg/60 rounded-lg px-3 py-2.5 border border-bg-border/50">
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1.5 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent-green"></span>Live
+        </div>
+        <code class="text-[12px] font-mono text-fg-muted break-all leading-relaxed">${g.live}</code>
+      </div>
+      <div class="bg-bg/60 rounded-lg px-3 py-2.5 border border-bg-border/50">
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1.5 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent-blue"></span>Shadow
+        </div>
+        <code class="text-[12px] font-mono text-fg-muted break-all leading-relaxed">${g.shadow}</code>
+      </div>
+    </div>
+    <div class="flex items-center justify-between pt-3 border-t border-bg-border/60">
+      <div class="flex items-center gap-5 text-[12px]">
+        <div><span class="text-fg-dim">Agent</span> <span class="text-fg-muted font-mono ml-1">${g.agent}</span></div>
+        <div><span class="text-fg-dim">Requests (24h)</span> <span class="text-fg font-medium ml-1">${g.requests24h.toLocaleString()}</span></div>
+        <div><span class="text-fg-dim">Diffs</span> <span class="${diffColor} font-medium ml-1">${g.diffs}</span></div>
+        <div><span class="text-fg-dim">Diff rate</span> <span class="${diffColor} font-medium ml-1">${g.diffRate}%</span></div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fg-dim"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </a>`;
+});
+</script>
+</body>
+</html>

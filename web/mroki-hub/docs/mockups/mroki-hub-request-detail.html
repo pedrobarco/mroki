@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>mroki hub — Request Detail</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#09090b', card: '#111113', hover: '#18181b', border: '#27272a', subtle: '#1c1c1f' },
+        fg: { DEFAULT: '#fafafa', muted: '#a1a1aa', dim: '#71717a', accent: '#e4e4e7' },
+        accent: { green: '#22c55e', greenDim: '#166534', blue: '#3b82f6', blueDim: '#1e3a5f', amber: '#f59e0b', red: '#ef4444', redDim: '#7f1d1d' },
+        diff: { add: '#16a34a', addBg: 'rgba(22,163,74,0.10)', del: '#ef4444', delBg: 'rgba(239,68,68,0.10)', changeBg: 'rgba(250,204,21,0.07)' }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+  .dot-pulse { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  ::selection { background: #3b82f6; color: white; }
+  .line-num { min-width: 2.2em; text-align: right; user-select: none; }
+  .diff-line-changed { background: rgba(250,204,21,0.06); }
+  .diff-text-old { background: rgba(239,68,68,0.18); color: #fca5a5; border-radius: 2px; padding: 0 2px; }
+  .diff-text-new { background: rgba(22,163,74,0.18); color: #86efac; border-radius: 2px; padding: 0 2px; }
+  .json-key { color: #93c5fd; }
+  .json-str { color: #86efac; }
+  .json-num { color: #fde68a; }
+  .json-bool { color: #c4b5fd; }
+  .json-null { color: #a1a1aa; font-style: italic; }
+  .json-brace { color: #a1a1aa; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+
+<!-- Top Nav -->
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      </div>
+      <nav class="flex items-center gap-1 text-[13px]">
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Gates</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Agents</a>
+        <a href="#" class="px-3 py-1.5 rounded-md bg-bg-hover text-fg font-medium">Requests</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Settings</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5 text-[12px] text-accent-green bg-accent-greenDim/30 px-2.5 py-1 rounded-full">
+        <span class="dot-pulse bg-accent-green"></span><span>API Connected</span>
+      </div>
+      <div class="w-7 h-7 rounded-full bg-bg-hover border border-bg-border flex items-center justify-center text-[11px] font-medium text-fg-muted">DK</div>
+    </div>
+  </div>
+</header>
+
+<!-- Page Content -->
+<main class="max-w-6xl mx-auto px-6 py-6">
+  <!-- Back link + breadcrumb -->
+  <div class="flex items-center gap-2 mb-5">
+    <a href="#" class="inline-flex items-center gap-1.5 text-[13px] text-fg-muted hover:text-fg transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Gate
+    </a>
+    <span class="text-fg-dim text-[13px]">·</span>
+    <span class="text-[12px] font-mono text-fg-dim">checkout-api</span>
+    <span class="text-fg-dim text-[13px]">·</span>
+    <code class="text-[11px] font-mono text-fg-dim bg-bg-hover px-1.5 py-0.5 rounded">a3f8c1d2</code>
+  </div>
+
+  <!-- Page Header -->
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-[22px] font-semibold tracking-tight">Request Detail</h1>
+    <div class="flex items-center gap-2">
+      <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-muted border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Copy cURL
+      </button>
+      <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-muted border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export JSON
+      </button>
+    </div>
+  </div>
+
+  <!-- Request Metadata Card -->
+  <div class="bg-bg-card border border-bg-border rounded-xl p-5 mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center justify-center bg-accent-green/15 text-accent-green text-[12px] font-bold font-mono px-2.5 py-1 rounded-md tracking-wide">POST</span>
+        <code class="text-[14px] font-mono text-fg">/v2/checkout/complete</code>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-accent-amber/15 text-amber-400 font-medium">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+          3 diffs found
+        </span>
+      </div>
+    </div>
+    <div class="grid grid-cols-4 gap-4">
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Request ID</div>
+        <code class="text-[12px] font-mono text-fg-muted">req_7f2a9c4e81b3</code>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Timestamp</div>
+        <span class="text-[12px] text-fg-muted">2026-03-28 00:32:14 UTC</span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Live Status</div>
+        <span class="inline-flex items-center gap-1.5 text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">OK · 142ms</span></span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Shadow Status</div>
+        <span class="inline-flex items-center gap-1.5 text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">OK · 187ms</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Response Comparison -->
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden">
+    <!-- Card Header -->
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-bg-border">
+      <div class="flex items-center gap-2">
+        <h2 class="text-[14px] font-semibold">Response Comparison</h2>
+        <span class="text-[11px] text-fg-dim bg-bg-hover px-2 py-0.5 rounded-md font-mono">application/json</span>
+      </div>
+      <div class="flex items-center gap-3 text-[11px]">
+        <div class="flex items-center gap-1.5 text-fg-dim">
+          <span class="w-2.5 h-2.5 rounded-sm bg-diff-delBg border border-accent-red/30"></span> Removed
+        </div>
+        <div class="flex items-center gap-1.5 text-fg-dim">
+          <span class="w-2.5 h-2.5 rounded-sm bg-diff-addBg border border-accent-green/30"></span> Added
+        </div>
+        <div class="flex items-center gap-1.5 text-fg-dim">
+          <span class="w-2.5 h-2.5 rounded-sm bg-diff-changeBg border border-amber-500/30"></span> Changed
+        </div>
+      </div>
+    </div>
+    <!-- Diff columns -->
+    <div class="grid grid-cols-2 divide-x divide-bg-border" id="diff-viewer"></div>
+  </div>
+</main>
+
+<script>
+const liveLines = [
+  ['{',                                          'brace', false],
+  ['  "status": "completed",',                   null,    false],
+  ['  "order_id": "ord_8k3m2f9x1a",',           null,    false],
+  ['  "amount": 149.99,',                        null,    false],
+  ['  "currency": "USD",',                       null,    false],
+  ['  "processed_at": "2026-03-28T00:32:14.102Z",', null, true, 'old'],
+  ['  "payment": {',                             null,    false],
+  ['    "method": "card",',                      null,    false],
+  ['    "last_four": "4242",',                   null,    false],
+  ['    "brand": "visa",',                       null,    false],
+  ['    "risk_score": 0.12,',                    null,    true, 'old'],
+  ['    "3ds_required": false',                  null,    false],
+  ['  },',                                       null,    false],
+  ['  "shipping": {',                            null,    false],
+  ['    "carrier": "fedex",',                    null,    false],
+  ['    "method": "express",',                   null,    false],
+  ['    "estimated_days": 3,',                   null,    true, 'old'],
+  ['    "tracking_id": null',                    null,    false],
+  ['  },',                                       null,    false],
+  ['  "items": [',                               null,    false],
+  ['    {',                                      null,    false],
+  ['      "sku": "WDG-1042",',                   null,    false],
+  ['      "name": "Wireless Charger Pro",',      null,    false],
+  ['      "qty": 1,',                            null,    false],
+  ['      "unit_price": 149.99',                 null,    false],
+  ['    }',                                      null,    false],
+  ['  ],',                                       null,    false],
+  ['  "metadata": {',                            null,    false],
+  ['    "source": "web",',                       null,    false],
+  ['    "session_id": "sess_3fa82c1e",',         null,    false],
+  ['    "api_version": "2026-03-01"',            null,    false],
+  ['  }',                                        null,    false],
+  ['}',                                          'brace', false],
+];
+const shadowLines = [
+  ['{',                                          'brace', false],
+  ['  "status": "completed",',                   null,    false],
+  ['  "order_id": "ord_8k3m2f9x1a",',           null,    false],
+  ['  "amount": 149.99,',                        null,    false],
+  ['  "currency": "USD",',                       null,    false],
+  ['  "processed_at": "2026-03-28T00:32:14.218Z",', null, true, 'new'],
+  ['  "payment": {',                             null,    false],
+  ['    "method": "card",',                      null,    false],
+  ['    "last_four": "4242",',                   null,    false],
+  ['    "brand": "visa",',                       null,    false],
+  ['    "risk_score": 0.08,',                    null,    true, 'new'],
+  ['    "3ds_required": false',                  null,    false],
+  ['  },',                                       null,    false],
+  ['  "shipping": {',                            null,    false],
+  ['    "carrier": "fedex",',                    null,    false],
+  ['    "method": "express",',                   null,    false],
+  ['    "estimated_days": 2,',                   null,    true, 'new'],
+  ['    "tracking_id": null',                    null,    false],
+  ['  },',                                       null,    false],
+  ['  "items": [',                               null,    false],
+  ['    {',                                      null,    false],
+  ['      "sku": "WDG-1042",',                   null,    false],
+  ['      "name": "Wireless Charger Pro",',      null,    false],
+  ['      "qty": 1,',                            null,    false],
+  ['      "unit_price": 149.99',                 null,    false],
+  ['    }',                                      null,    false],
+  ['  ],',                                       null,    false],
+  ['  "metadata": {',                            null,    false],
+  ['    "source": "web",',                       null,    false],
+  ['    "session_id": "sess_3fa82c1e",',         null,    false],
+  ['    "api_version": "2026-03-01"',            null,    false],
+  ['  }',                                        null,    false],
+  ['}',                                          'brace', false],
+];
+
+function syntaxHighlight(text) {
+  return text
+    .replace(/("(?:[^"\\]|\\.)*")\s*:/g, '<span class="json-key">$1</span>:')
+    .replace(/:\s*("(?:[^"\\]|\\.)*")/g, ': <span class="json-str">$1</span>')
+    .replace(/:\s*(\d+\.?\d*)/g, ': <span class="json-num">$1</span>')
+    .replace(/:\s*(true|false)/g, ': <span class="json-bool">$1</span>')
+    .replace(/:\s*(null)/g, ': <span class="json-null">$1</span>')
+    .replace(/([{}[\]])/g, '<span class="json-brace">$1</span>');
+}
+
+function renderColumn(lines, label, dotColor) {
+  let html = `<div>`;
+  html += `<div class="flex items-center gap-2 px-4 py-2.5 border-b border-bg-border bg-bg-subtle/50">
+    <span class="w-2 h-2 rounded-full ${dotColor}"></span>
+    <span class="text-[12px] font-semibold text-fg-muted uppercase tracking-wider">${label}</span>
+    <span class="text-[11px] font-mono text-fg-dim ml-auto">200 OK</span>
+  </div>`;
+  html += `<div class="font-mono text-[12.5px] leading-[1.65]">`;
+  lines.forEach((l, i) => {
+    const [text, cls, isDiff, diffType] = l;
+    const bgClass = isDiff ? 'diff-line-changed' : '';
+    const highlighted = syntaxHighlight(text);
+    let finalText = highlighted;
+    if (isDiff && diffType === 'old') {
+      const val = text.match(/:\s*(.+?),?\s*$/);
+      if (val) finalText = highlighted.replace(val[1], `<span class="diff-text-old">${syntaxHighlight(val[1])}</span>`);
+    }
+    if (isDiff && diffType === 'new') {
+      const val = text.match(/:\s*(.+?),?\s*$/);
+      if (val) finalText = highlighted.replace(val[1], `<span class="diff-text-new">${syntaxHighlight(val[1])}</span>`);
+    }
+    html += `<div class="flex px-1 ${bgClass} hover:bg-bg-hover/50">
+      <span class="line-num px-2 py-0 text-fg-dim/40 text-[11px] select-none border-r border-bg-border/40 mr-3">${i+1}</span>
+      <span class="flex-1 pr-4">${finalText}</span>
+    </div>`;
+  });
+  html += `</div></div>`;
+  return html;
+}
+
+const viewer = document.getElementById('diff-viewer');
+viewer.innerHTML = renderColumn(liveLines, 'Live Response', 'bg-accent-green') + renderColumn(shadowLines, 'Shadow Response', 'bg-accent-blue');
+</script>
+</body>
+</html>
