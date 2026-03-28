@@ -107,7 +107,6 @@ Environment="MROKI_APP_API_URL=http://localhost:8081"
 Environment="MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000"
 Environment="MROKI_APP_API_KEY=your-secret-key-min-16-chars"
 Environment="MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at"
-Environment="MROKI_APP_DIFF_SORT_ARRAYS=true"
 ExecStart=/opt/mroki/mroki-agent
 Restart=always
 RestartSec=5

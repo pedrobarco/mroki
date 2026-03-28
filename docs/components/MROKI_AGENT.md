@@ -176,17 +176,6 @@ MROKI_APP_DIFF_INCLUDED_FIELDS="user,order"
 MROKI_APP_DIFF_IGNORED_FIELDS="user.created_at,order.created_at"
 ```
 
-#### `MROKI_APP_DIFF_SORT_ARRAYS`
-
-Boolean flag to sort arrays before comparison. Useful when array order doesn't matter.
-
-**Default:** `false`
-
-**Example:**
-```bash
-MROKI_APP_DIFF_SORT_ARRAYS=true
-```
-
 #### `MROKI_APP_DIFF_FLOAT_TOLERANCE`
 
 Tolerance for floating point comparisons. Allows small differences that might occur due to rounding.
@@ -254,7 +243,6 @@ MROKI_APP_API_KEY=dev-test-key-min-16-chars
 
 # Optional: Diff configuration
 MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at,metadata.request_id
-MROKI_APP_DIFF_SORT_ARRAYS=true
 EOF
 
 # 3. Run
@@ -266,7 +254,7 @@ go run .
 INFO Agent ID loaded agent_id=MacBook-Pro-a1b2c3d4
 INFO Starting in API mode api_url=http://localhost:8081 gate_id=550e8400-...
 INFO Gate configuration loaded gate_id=550e8400-... live_url=https://httpbin.org/... shadow_url=https://httpbin.org/...
-DEBUG Diff options configured ignored_fields=[timestamp created_at metadata.request_id] sort_arrays=true
+DEBUG Diff options configured ignored_fields=[timestamp created_at metadata.request_id]
 INFO Started server address=:8080
 ```
 
@@ -283,7 +271,6 @@ MROKI_APP_PORT=8080
 
 # Optional: Diff configuration
 MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,id
-MROKI_APP_DIFF_SORT_ARRAYS=true
 EOF
 
 # Run
@@ -294,7 +281,7 @@ go run .
 ```
 INFO Agent ID loaded agent_id=MacBook-Pro-a1b2c3d4
 INFO Starting in standalone mode live_url=https://httpbin.org/... shadow_url=https://httpbin.org/...
-DEBUG Diff options configured ignored_fields=[timestamp id] sort_arrays=true
+DEBUG Diff options configured ignored_fields=[timestamp id]
 INFO Started server address=:8080
 ```
 
@@ -415,7 +402,6 @@ MROKI_APP_PORT=8080
 
 # Ignore timestamp fields
 MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at,updated_at
-MROKI_APP_DIFF_SORT_ARRAYS=true
 ```
 
 ### Standalone Mode with Field Filtering
@@ -444,7 +430,6 @@ MROKI_APP_SHADOW_TIMEOUT=15s
 
 # Diff configuration for production API
 MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,request_id,users.#.last_seen
-MROKI_APP_DIFF_SORT_ARRAYS=true
 MROKI_APP_DIFF_FLOAT_TOLERANCE=0.0001
 ```
 
@@ -485,7 +470,6 @@ docker run -p 8080:8080 \
   -e MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000 \
   -e MROKI_APP_API_KEY=dev-test-key-min-16-chars \
   -e MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at \
-  -e MROKI_APP_DIFF_SORT_ARRAYS=true \
   mroki-agent
 ```
 
@@ -526,8 +510,6 @@ spec:
               key: api-key
         - name: MROKI_APP_DIFF_IGNORED_FIELDS
           value: "timestamp,created_at,metadata.request_id"
-        - name: MROKI_APP_DIFF_SORT_ARRAYS
-          value: "true"
 ---
 apiVersion: v1
 kind: Service
@@ -575,8 +557,6 @@ spec:
               key: api-key
         - name: MROKI_APP_DIFF_IGNORED_FIELDS
           value: "timestamp,created_at"
-        - name: MROKI_APP_DIFF_SORT_ARRAYS
-          value: "true"
 ---
 apiVersion: v1
 kind: Service

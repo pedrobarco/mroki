@@ -81,17 +81,6 @@ MROKI_APP_DIFF_INCLUDED_FIELDS="user,order"
 MROKI_APP_DIFF_IGNORED_FIELDS="user.created_at,order.created_at"
 ```
 
-#### `MROKI_APP_DIFF_SORT_ARRAYS`
-
-Boolean flag to sort arrays before comparison. Useful when array order doesn't matter.
-
-**Default:** `false`
-
-**Example:**
-```bash
-MROKI_APP_DIFF_SORT_ARRAYS=true
-```
-
 #### `MROKI_APP_DIFF_FLOAT_TOLERANCE`
 
 Tolerance for floating point comparisons. Allows small differences that might occur due to rounding.
@@ -116,9 +105,6 @@ MROKI_APP_API_KEY="my-secret-key"
 
 # Ignore all timestamp fields
 MROKI_APP_DIFF_IGNORED_FIELDS="timestamp,created_at,updated_at,metadata.timestamp"
-
-# Sort arrays (order doesn't matter)
-MROKI_APP_DIFF_SORT_ARRAYS=true
 ```
 
 ### Example 2: Standalone Mode with Whitelist
@@ -148,9 +134,6 @@ MROKI_APP_DIFF_IGNORED_FIELDS="order_id,created_at,orders.#.id,orders.#.items.#.
 
 # Allow small price differences (0.01%)
 MROKI_APP_DIFF_FLOAT_TOLERANCE=0.0001
-
-# Sort arrays
-MROKI_APP_DIFF_SORT_ARRAYS=true
 ```
 
 ### Example 4: Testing with Specific Fields Only
@@ -315,7 +298,6 @@ MROKI_APP_MAX_BODY_SIZE=10485760
 
 # ===== Diff Configuration =====
 MROKI_APP_DIFF_IGNORED_FIELDS="timestamp,created_at,updated_at,metadata.request_id,users.#.last_seen"
-MROKI_APP_DIFF_SORT_ARRAYS=true
 MROKI_APP_DIFF_FLOAT_TOLERANCE=0.001
 
 # ===== API Integration =====

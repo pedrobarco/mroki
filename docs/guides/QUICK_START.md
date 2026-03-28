@@ -262,7 +262,6 @@ cd cmd/mroki-agent && go run .
 # Add diff options to cmd/mroki-agent/.env
 cat >> cmd/mroki-agent/.env << 'EOF'
 MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at,url
-MROKI_APP_DIFF_SORT_ARRAYS=true
 EOF
 
 # Restart agent

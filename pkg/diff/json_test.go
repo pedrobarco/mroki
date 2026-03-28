@@ -144,19 +144,76 @@ func TestJSON_NoFiltering(t *testing.T) {
 	assert.Equal(t, "/key", ops[0].Path)
 }
 
-func TestJSON_WithSortArrays(t *testing.T) {
+func TestJSON_SortArrays_Numbers(t *testing.T) {
 	a := `{"items": [1, 2, 3]}`
 	b := `{"items": [3, 1, 2]}`
 
-	// Without sorting - should detect difference
 	ops, err := diff.JSON(a, b)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, ops, "should detect difference without sorting")
+	assert.Empty(t, ops, "number arrays with same elements in different order should be equal")
+}
 
-	// With sorting - should be identical
-	ops, err = diff.JSON(a, b, diff.WithSortArrays())
+func TestJSON_SortArrays_Strings(t *testing.T) {
+	a := `{"tags": ["alpha", "beta", "gamma"]}`
+	b := `{"tags": ["gamma", "alpha", "beta"]}`
+
+	ops, err := diff.JSON(a, b)
 	assert.NoError(t, err)
-	assert.Empty(t, ops, "should be identical with sorting")
+	assert.Empty(t, ops, "string arrays with same elements in different order should be equal")
+}
+
+func TestJSON_SortArrays_Objects(t *testing.T) {
+	a := `{"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]}`
+	b := `{"users": [{"name": "Bob", "age": 25}, {"name": "Alice", "age": 30}]}`
+
+	ops, err := diff.JSON(a, b)
+	assert.NoError(t, err)
+	assert.Empty(t, ops, "arrays of objects with same elements in different order should be equal")
+}
+
+func TestJSON_SortArrays_ObjectsDifferentKeyOrder(t *testing.T) {
+	a := `{"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]}`
+	b := `{"users": [{"age": 25, "name": "Bob"}, {"age": 30, "name": "Alice"}]}`
+
+	ops, err := diff.JSON(a, b)
+	assert.NoError(t, err)
+	assert.Empty(t, ops, "arrays of objects with different key order and array order should be equal")
+}
+
+func TestJSON_SortArrays_NestedArrays(t *testing.T) {
+	a := `{"matrix": [[1, 2], [3, 4]]}`
+	b := `{"matrix": [[3, 4], [1, 2]]}`
+
+	ops, err := diff.JSON(a, b)
+	assert.NoError(t, err)
+	assert.Empty(t, ops, "nested arrays with same elements in different order should be equal")
+}
+
+func TestJSON_SortArrays_ActualDifference(t *testing.T) {
+	a := `{"items": [1, 2, 3]}`
+	b := `{"items": [1, 2, 4]}`
+
+	ops, err := diff.JSON(a, b)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, ops, "arrays with genuinely different elements should produce a diff")
+}
+
+func TestJSON_ObjectKeyOrder_NoDiff(t *testing.T) {
+	a := `{"a": 1, "b": 2, "c": 3}`
+	b := `{"c": 3, "a": 1, "b": 2}`
+
+	ops, err := diff.JSON(a, b)
+	assert.NoError(t, err)
+	assert.Empty(t, ops, "objects with same keys in different order should produce no diff")
+}
+
+func TestJSON_ObjectKeyOrder_Nested(t *testing.T) {
+	a := `{"user": {"name": "Alice", "email": "alice@example.com"}, "meta": {"version": 1}}`
+	b := `{"meta": {"version": 1}, "user": {"email": "alice@example.com", "name": "Alice"}}`
+
+	ops, err := diff.JSON(a, b)
+	assert.NoError(t, err)
+	assert.Empty(t, ops, "nested objects with different key order should produce no diff")
 }
 
 func TestJSON_WithFloatTolerance(t *testing.T) {

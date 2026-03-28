@@ -35,7 +35,6 @@ import (
 //	ops, err := diff.JSON(a, b,
 //	    diff.WithIncludedFields("user", "metadata"),
 //	    diff.WithIgnoredFields("user.ssn", "metadata.internal_id"),
-//	    diff.WithSortArrays(),
 //	)
 func JSON(a, b string, opts ...Option) ([]PatchOp, error) {
 	// Build options from functional options

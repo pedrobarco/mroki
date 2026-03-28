@@ -111,10 +111,6 @@ func main() {
 		diffOpts = append(diffOpts, diff.WithIncludedFields(cfg.App.DiffIncludedFields...))
 	}
 
-	if cfg.App.DiffSortArrays {
-		diffOpts = append(diffOpts, diff.WithSortArrays())
-	}
-
 	if cfg.App.DiffFloatTolerance > 0 {
 		diffOpts = append(diffOpts, diff.WithFloatTolerance(cfg.App.DiffFloatTolerance))
 	}
@@ -122,7 +118,6 @@ func main() {
 	log.Debug("Diff options configured",
 		"ignored_fields", cfg.App.DiffIgnoredFields,
 		"included_fields", cfg.App.DiffIncludedFields,
-		"sort_arrays", cfg.App.DiffSortArrays,
 		"float_tolerance", cfg.App.DiffFloatTolerance,
 	)
 

@@ -1,6 +1,9 @@
 package diff
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -10,7 +13,6 @@ import (
 type options struct {
 	includedFields []string
 	ignoredFields  []string
-	sortArrays     bool
 	floatTolerance float64
 }
 
@@ -43,18 +45,6 @@ func WithIgnoredFields(fields ...string) Option {
 	}
 }
 
-// WithSortArrays enables sorting of array elements before comparison.
-// Useful when array order is not semantically significant.
-//
-// Example:
-//
-//	diff.JSON(a, b, diff.WithSortArrays())
-func WithSortArrays() Option {
-	return func(o *options) {
-		o.sortArrays = true
-	}
-}
-
 // WithFloatTolerance sets the acceptable difference for floating-point comparisons.
 // Values closer than this tolerance are considered equal.
 //
@@ -84,13 +74,10 @@ func WithFloatTolerance(tolerance float64) Option {
 func (o *options) toCmpOptions() []cmp.Option {
 	var opts []cmp.Option
 
-	// Sort slices if requested
-	if o.sortArrays {
-		opts = append(opts, cmpopts.SortSlices(func(a, b any) bool {
-			// Simple lexicographic comparison for mixed types
-			return toString(a) < toString(b)
-		}))
-	}
+	// Always sort slices to avoid false positives from array ordering
+	opts = append(opts, cmpopts.SortSlices(func(a, b any) bool {
+		return toSortKey(a) < toSortKey(b)
+	}))
 
 	// Apply float tolerance if specified
 	if o.floatTolerance > 0 {
@@ -100,21 +87,26 @@ func (o *options) toCmpOptions() []cmp.Option {
 	return opts
 }
 
-// toString converts various types to strings for comparison.
-func toString(v any) string {
+// toSortKey converts a value to a deterministic string for sorting.
+// Handles all JSON-decoded types: string, float64, bool, nil,
+// map[string]interface{}, and []interface{}.
+func toSortKey(v any) string {
 	switch val := v.(type) {
 	case string:
-		return val
+		return "s:" + val
 	case float64:
-		return string(rune(int(val)))
-	case int:
-		return string(rune(val))
+		return fmt.Sprintf("n:%g", val)
 	case bool:
-		if val {
-			return "true"
-		}
-		return "false"
+		return fmt.Sprintf("b:%t", val)
+	case nil:
+		return "z:null"
 	default:
-		return ""
+		// For complex types (maps, slices), produce a canonical JSON string.
+		// json.Marshal sorts map keys, giving deterministic output.
+		b, err := json.Marshal(val)
+		if err != nil {
+			return fmt.Sprintf("x:%v", val)
+		}
+		return "j:" + string(b)
 	}
 }

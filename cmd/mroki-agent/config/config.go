@@ -30,7 +30,6 @@ type Config config.Config[struct {
 	// Diff options (optional, works in both API and standalone modes)
 	DiffIgnoredFields  []string `env:"DIFF_IGNORED_FIELDS"`  // Comma-separated
 	DiffIncludedFields []string `env:"DIFF_INCLUDED_FIELDS"` // Comma-separated
-	DiffSortArrays     bool     `env:"DIFF_SORT_ARRAYS, default=false"`
 	DiffFloatTolerance float64  `env:"DIFF_FLOAT_TOLERANCE, default=0"`
 }]
 
