@@ -1,8 +1,9 @@
 <p align="center">
-  <img src="docs/assets/brand/mroki-logo.png" alt="mroki" width="320" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/mroki-logo-banner-dark.png" />
+    <img src="docs/assets/brand/mroki-logo-banner-light.png" alt="mroki" width="600" />
+  </picture>
 </p>
-
-<h1 align="center">mroki</h1>
 
 <p align="center">Safe shadow traffic testing for production systems.</p>
 
@@ -57,12 +58,12 @@ graph TD
 
 ## Components
 
-| Component | Description | Docs |
-|---|---|---|
-| [mroki-agent](docs/components/MROKI_AGENT.md) | HTTP proxy — forwards traffic to live and shadow, sends responses to API | [docs](docs/components/MROKI_AGENT.md) |
-| [mroki-api](docs/components/MROKI_API.md) | REST API — gate management, request/diff storage, server-side diff computation | [docs](docs/components/MROKI_API.md) |
-| [mroki-hub](docs/components/MROKI_HUB.md) | Web UI — gate dashboard, request browser, diff viewer | [docs](docs/components/MROKI_HUB.md) |
-| [caddy-mroki](docs/components/CADDY_MROKI.md) | Caddy module — standalone shadow diffing embedded in Caddy server | [docs](docs/components/CADDY_MROKI.md) |
+| Component                                     | Description                                                                    | Docs                                   |
+| --------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------- |
+| [mroki-agent](docs/components/MROKI_AGENT.md) | HTTP proxy — forwards traffic to live and shadow, sends responses to API       | [docs](docs/components/MROKI_AGENT.md) |
+| [mroki-api](docs/components/MROKI_API.md)     | REST API — gate management, request/diff storage, server-side diff computation | [docs](docs/components/MROKI_API.md)   |
+| [mroki-hub](docs/components/MROKI_HUB.md)     | Web UI — gate dashboard, request browser, diff viewer                          | [docs](docs/components/MROKI_HUB.md)   |
+| [caddy-mroki](docs/components/CADDY_MROKI.md) | Caddy module — standalone shadow diffing embedded in Caddy server              | [docs](docs/components/CADDY_MROKI.md) |
 
 ## Use Cases
 

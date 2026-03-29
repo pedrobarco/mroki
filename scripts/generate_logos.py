@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Generate logo variants from the mroki source logo.
 
+The source logo must be a transparent PNG (RGBA). All variants are
+derived from it — no background removal needed.
+
 Outputs (all written to docs/assets/brand/):
-  - mroki-logo.png              Full logo (original, copied as-is)
+  - mroki-logo-banner-light.png  Banner tight-cropped, for light backgrounds
+  - mroki-logo-banner-dark.png   Banner tight-cropped, inverted for dark backgrounds
   - mroki-logo-icon-light.png    Icon only (no text), cropped as a square
   - mroki-logo-icon-dark.png     Icon only, inverted colors for dark mode
   - favicon-light.ico            Multi-size ICO (16, 32, 48) from icon
@@ -13,36 +17,35 @@ Outputs (all written to docs/assets/brand/):
   - favicon-dark-32x32.png       32x32 favicon PNG, inverted for dark mode
 
 Usage:
-  python3 scripts/generate_logos.py [--source ~/Downloads/mroki-logo.png]
+  python3 scripts/generate_logos.py [--source docs/assets/brand/mroki-logo.png]
 """
 
 import argparse
-import os
-import shutil
 from pathlib import Path
 
 from PIL import Image, ImageChops
 
 
-def find_content_bounds(img, threshold=50):
-    """Find the bounding box of non-background content."""
+def is_opaque(pixel, alpha_threshold=10):
+    """Check if a pixel is non-transparent."""
+    if isinstance(pixel, tuple) and len(pixel) == 4:
+        return pixel[3] > alpha_threshold
+    return True
+
+
+def find_content_bounds(img):
+    """Find per-column and per-row content activity using alpha channel."""
     pixels = img.load()
     w, h = img.size
-    bg = pixels[0, 0]
-
-    def is_content(p):
-        if isinstance(p, tuple):
-            return sum(abs(a - b) for a, b in zip(p[:3], bg[:3])) > threshold
-        return abs(p - bg) > threshold
 
     col_activity = []
     for x in range(w):
-        count = sum(1 for y in range(h) if is_content(pixels[x, y]))
+        count = sum(1 for y in range(h) if is_opaque(pixels[x, y]))
         col_activity.append(count)
 
     row_activity = []
     for y in range(h):
-        count = sum(1 for x in range(w) if is_content(pixels[x, y]))
+        count = sum(1 for x in range(w) if is_opaque(pixels[x, y]))
         row_activity.append(count)
 
     return col_activity, row_activity
@@ -71,16 +74,8 @@ def crop_icon(img):
     col_activity, _ = find_content_bounds(img)
     icon_end_col = find_icon_region(col_activity)
 
-    # Find actual content bounds within the icon region only
     pixels = img.load()
     w, h = img.size
-    bg = pixels[0, 0]
-    threshold = 50
-
-    def is_content(p):
-        if isinstance(p, tuple):
-            return sum(abs(a - b) for a, b in zip(p[:3], bg[:3])) > threshold
-        return abs(p - bg) > threshold
 
     content_cols = [x for x in range(icon_end_col) if col_activity[x] > 0]
 
@@ -88,7 +83,7 @@ def crop_icon(img):
     content_rows = []
     for y in range(h):
         for x in range(icon_end_col):
-            if is_content(pixels[x, y]):
+            if is_opaque(pixels[x, y]):
                 content_rows.append(y)
                 break
 
@@ -128,22 +123,39 @@ def crop_icon(img):
     return cropped
 
 
-def remove_background(img, threshold=50):
-    """Replace background-colored pixels with transparency."""
-    img = img.convert("RGBA")
+def crop_banner(img, padding_pct=0.10):
+    """Crop the full logo tight to its content bounds (wide rectangle)."""
+    col_activity, _ = find_content_bounds(img)
     pixels = img.load()
     w, h = img.size
-    # Sample background color from corners
-    bg = pixels[0, 0][:3]
 
+    content_cols = [x for x, a in enumerate(col_activity) if a > 0]
+    content_rows = []
     for y in range(h):
         for x in range(w):
-            r, g, b, a = pixels[x, y]
-            diff = abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2])
-            if diff < threshold:
-                pixels[x, y] = (r, g, b, 0)
+            if is_opaque(pixels[x, y]):
+                content_rows.append(y)
+                break
 
-    return img
+    if not content_cols or not content_rows:
+        raise ValueError("Could not detect content for banner crop")
+
+    left = content_cols[0]
+    right = content_cols[-1] + 1
+    top = content_rows[0]
+    bottom = content_rows[-1] + 1
+
+    content_w = right - left
+    content_h = bottom - top
+    pad_x = int(content_w * padding_pct)
+    pad_y = int(content_h * padding_pct)
+
+    crop_left = max(0, left - pad_x)
+    crop_top = max(0, top - pad_y)
+    crop_right = min(w, right + pad_x)
+    crop_bottom = min(h, bottom + pad_y)
+
+    return img.crop((crop_left, crop_top, crop_right, crop_bottom))
 
 
 def invert_image(img):
@@ -180,8 +192,8 @@ def main():
     parser = argparse.ArgumentParser(description="Generate mroki logo variants")
     parser.add_argument(
         "--source",
-        default=os.path.expanduser("~/Downloads/mroki-logo.png"),
-        help="Path to source logo",
+        default="docs/assets/brand/mroki-logo.png",
+        help="Path to source logo (transparent PNG)",
     )
     parser.add_argument(
         "--out",
@@ -196,14 +208,19 @@ def main():
     print(f"Source: {args.source}")
     print(f"Output: {out_dir}\n")
 
-    img = Image.open(args.source)
+    img = Image.open(args.source).convert("RGBA")
 
-    # 1. Copy full logo as-is (with original background)
-    shutil.copy2(args.source, out_dir / "mroki-logo.png")
-    print("  ✓ mroki-logo.png (full logo, original)")
+    # 1. Banners — tight crop, light and dark variants
+    banner_light = crop_banner(img)
+    banner_light.save(out_dir / "mroki-logo-banner-light.png")
+    print(f"  ✓ mroki-logo-banner-light.png ({banner_light.size[0]}x{banner_light.size[1]})")
 
-    # 2. Crop icon (light) with background removed
-    icon = remove_background(crop_icon(img))
+    banner_dark = invert_image(banner_light)
+    banner_dark.save(out_dir / "mroki-logo-banner-dark.png")
+    print(f"  ✓ mroki-logo-banner-dark.png ({banner_dark.size[0]}x{banner_dark.size[1]})")
+
+    # 2. Crop icon (light)
+    icon = crop_icon(img)
     icon.save(out_dir / "mroki-logo-icon-light.png")
     print(f"  ✓ mroki-logo-icon-light.png ({icon.size[0]}x{icon.size[1]})")
 
