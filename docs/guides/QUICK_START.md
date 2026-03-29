@@ -56,6 +56,7 @@ curl -X POST http://localhost:8081/gates \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer dev-test-key-min-16-chars" \
   -d '{
+    "name": "httpbin-test",
     "live_url": "https://httpbin.org/anything?service=live",
     "shadow_url": "https://httpbin.org/anything?service=shadow"
   }'
@@ -66,8 +67,10 @@ curl -X POST http://localhost:8081/gates \
 {
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "httpbin-test",
     "live_url": "https://httpbin.org/anything?service=live",
-    "shadow_url": "https://httpbin.org/anything?service=shadow"
+    "shadow_url": "https://httpbin.org/anything?service=shadow",
+    "created_at": "2026-03-29T09:00:00Z"
   }
 }
 ```
@@ -189,6 +192,7 @@ curl -X POST http://localhost:8081/gates \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer dev-test-key-min-16-chars" \
   -d '{
+    "name": "my-service",
     "live_url": "http://localhost:3000",
     "shadow_url": "http://localhost:3001"
   }'

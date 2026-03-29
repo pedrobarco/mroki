@@ -27,6 +27,9 @@ export async function getGates(params?: ListGatesParams): Promise<PaginatedRespo
   if (params?.offset !== undefined) {
     searchParams.set('offset', params.offset.toString())
   }
+  if (params?.name) {
+    searchParams.set('name', params.name)
+  }
   if (params?.live_url) {
     searchParams.set('live_url', params.live_url)
   }
@@ -63,11 +66,12 @@ export async function getGate(id: string): Promise<ApiResponse<Gate>> {
 /**
  * Create a new gate
  *
- * @param payload - Gate creation payload (live_url, shadow_url)
+ * @param payload - Gate creation payload (name, live_url, shadow_url)
  * @returns Created gate
  *
  * @example
  * const response = await createGate({
+ *   name: 'checkout-api',
  *   live_url: 'https://api.production.example.com',
  *   shadow_url: 'https://api.shadow.example.com'
  * })

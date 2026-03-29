@@ -75,7 +75,7 @@ const diffOps = [
 
 /** Seed the showcase gate with a handful of varied requests. */
 async function seedShowcaseGate(api: import('./fixtures').ApiHelper) {
-  const gate = await api.createGate(LIVE_URL, SHADOW_URL)
+  const gate = await api.createGate('showcase-gate', LIVE_URL, SHADOW_URL)
 
   const reqs = [
     { method: 'POST', path: '/anything/v1/orders', live: liveBody, shadow: shadowBody, ops: diffOps },
@@ -108,12 +108,14 @@ test.describe('@screenshots', () => {
   test.use({ viewport: VIEWPORT })
 
   test('hub-gates', async ({ page, api }) => {
-    await api.createGate(LIVE_URL, SHADOW_URL)
+    await api.createGate('main-gate', LIVE_URL, SHADOW_URL)
     await api.createGate(
+      'users-gate',
       'https://api.acme.io/v1/users',
       'https://api-canary.acme.io/v1/users'
     )
     await api.createGate(
+      'payments-gate',
       'https://payments.stripe.dev/v2/charges',
       'https://payments-next.stripe.dev/v2/charges'
     )

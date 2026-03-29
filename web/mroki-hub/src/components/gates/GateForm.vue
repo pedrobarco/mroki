@@ -10,6 +10,7 @@ const emit = defineEmits<{
   success: []
 }>()
 
+const name = ref('')
 const liveUrl = ref('')
 const shadowUrl = ref('')
 const submitting = ref(false)
@@ -27,6 +28,7 @@ function isValidUrl(url: string): boolean {
 
 const canSubmit = computed(() => {
   return (
+    name.value.trim() &&
     liveUrl.value &&
     shadowUrl.value &&
     isValidUrl(liveUrl.value) &&
@@ -43,11 +45,13 @@ async function handleSubmit() {
 
   try {
     await createGate({
+      name: name.value.trim(),
       live_url: liveUrl.value,
       shadow_url: shadowUrl.value,
     })
 
     // Reset form
+    name.value = ''
     liveUrl.value = ''
     shadowUrl.value = ''
 
@@ -73,6 +77,19 @@ async function handleSubmit() {
         {{ error }}
       </AlertDescription>
     </Alert>
+
+    <!-- Name Field -->
+    <div class="space-y-2">
+      <Label for="gate-name">Name</Label>
+      <Input
+        id="gate-name"
+        v-model="name"
+        type="text"
+        placeholder="checkout-api"
+        required
+        :disabled="submitting"
+      />
+    </div>
 
     <!-- Live URL Field -->
     <div class="space-y-2">

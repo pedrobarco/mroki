@@ -3,6 +3,7 @@ import { test, expect } from './fixtures'
 test.describe('Gate Detail Page', () => {
   test('displays gate info', async ({ page, api }) => {
     const gate = await api.createGate(
+      'detail-gate',
       'https://detail-live.example.com',
       'https://detail-shadow.example.com'
     )
@@ -15,6 +16,7 @@ test.describe('Gate Detail Page', () => {
 
   test('shows empty state when no requests', async ({ page, api }) => {
     const gate = await api.createGate(
+      'empty-gate',
       'https://empty-live.example.com',
       'https://empty-shadow.example.com'
     )
@@ -27,6 +29,7 @@ test.describe('Gate Detail Page', () => {
 
   test('displays seeded requests in table', async ({ page, api }) => {
     const gate = await api.createGate(
+      'reqs-gate',
       'https://reqs-live.example.com',
       'https://reqs-shadow.example.com'
     )
@@ -40,6 +43,7 @@ test.describe('Gate Detail Page', () => {
 
   test('filter by HTTP method', async ({ page, api }) => {
     const gate = await api.createGate(
+      'filter-gate',
       'https://filter-live.example.com',
       'https://filter-shadow.example.com'
     )
@@ -62,6 +66,7 @@ test.describe('Gate Detail Page', () => {
 
   test('filter by path', async ({ page, api }) => {
     const gate = await api.createGate(
+      'pathf-gate',
       'https://pathf-live.example.com',
       'https://pathf-shadow.example.com'
     )
@@ -82,6 +87,7 @@ test.describe('Gate Detail Page', () => {
 
   test('pagination works with many requests', async ({ page, api }) => {
     const gate = await api.createGate(
+      'page-gate',
       'https://page-live.example.com',
       'https://page-shadow.example.com'
     )
@@ -112,6 +118,7 @@ test.describe('Gate Detail Page', () => {
 
   test('click request navigates to detail', async ({ page, api }) => {
     const gate = await api.createGate(
+      'nav-gate',
       'https://nav-live.example.com',
       'https://nav-shadow.example.com'
     )
@@ -124,8 +131,9 @@ test.describe('Gate Detail Page', () => {
 
   test('back button navigates to gates list', async ({ page, api }) => {
     const gate = await api.createGate(
-      'https://back-live.example.com',
-      'https://back-shadow.example.com'
+      'back-gate-detail',
+      'https://backdet-live.example.com',
+      'https://backdet-shadow.example.com'
     )
 
     await page.goto(`/gates/${gate.id}`)

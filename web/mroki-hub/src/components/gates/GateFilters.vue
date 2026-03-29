@@ -40,26 +40,8 @@ watch(searchInput, (val) => {
 
 function onSortChange(val: AcceptableValue) {
   const strVal = String(val)
-  switch (strVal) {
-    case 'id-desc':
-      emitUpdate({ sort: 'id', order: 'desc' })
-      break
-    case 'id-asc':
-      emitUpdate({ sort: 'id', order: 'asc' })
-      break
-    case 'live_url-asc':
-      emitUpdate({ sort: 'live_url', order: 'asc' })
-      break
-    case 'live_url-desc':
-      emitUpdate({ sort: 'live_url', order: 'desc' })
-      break
-    case 'shadow_url-asc':
-      emitUpdate({ sort: 'shadow_url', order: 'asc' })
-      break
-    case 'shadow_url-desc':
-      emitUpdate({ sort: 'shadow_url', order: 'desc' })
-      break
-  }
+  const [sort, order] = strVal.split('-') as [GateSortField, SortOrder]
+  emitUpdate({ sort, order })
 }
 
 function currentSortValue(): string {
@@ -93,8 +75,10 @@ function emitUpdate(partial: Partial<GateFilterState>) {
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="id-desc">Newest first</SelectItem>
-        <SelectItem value="id-asc">Oldest first</SelectItem>
+        <SelectItem value="created_at-desc">Newest first</SelectItem>
+        <SelectItem value="created_at-asc">Oldest first</SelectItem>
+        <SelectItem value="name-asc">Name (A→Z)</SelectItem>
+        <SelectItem value="name-desc">Name (Z→A)</SelectItem>
         <SelectItem value="live_url-asc">Live URL (A→Z)</SelectItem>
         <SelectItem value="live_url-desc">Live URL (Z→A)</SelectItem>
         <SelectItem value="shadow_url-asc">Shadow URL (A→Z)</SelectItem>

@@ -751,8 +751,10 @@ type GateMutation struct {
 	op              Op
 	typ             string
 	id              *uuid.UUID
+	name            *string
 	live_url        *string
 	shadow_url      *string
+	created_at      *time.Time
 	clearedFields   map[string]struct{}
 	requests        map[uuid.UUID]struct{}
 	removedrequests map[uuid.UUID]struct{}
@@ -866,6 +868,42 @@ func (m *GateMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 	}
 }
 
+// SetName sets the "name" field.
+func (m *GateMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *GateMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Gate entity.
+// If the Gate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GateMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *GateMutation) ResetName() {
+	m.name = nil
+}
+
 // SetLiveURL sets the "live_url" field.
 func (m *GateMutation) SetLiveURL(s string) {
 	m.live_url = &s
@@ -936,6 +974,42 @@ func (m *GateMutation) OldShadowURL(ctx context.Context) (v string, err error) {
 // ResetShadowURL resets all changes to the "shadow_url" field.
 func (m *GateMutation) ResetShadowURL() {
 	m.shadow_url = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *GateMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *GateMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Gate entity.
+// If the Gate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GateMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *GateMutation) ResetCreatedAt() {
+	m.created_at = nil
 }
 
 // AddRequestIDs adds the "requests" edge to the Request entity by ids.
@@ -1026,12 +1100,18 @@ func (m *GateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GateMutation) Fields() []string {
-	fields := make([]string, 0, 2)
+	fields := make([]string, 0, 4)
+	if m.name != nil {
+		fields = append(fields, gate.FieldName)
+	}
 	if m.live_url != nil {
 		fields = append(fields, gate.FieldLiveURL)
 	}
 	if m.shadow_url != nil {
 		fields = append(fields, gate.FieldShadowURL)
+	}
+	if m.created_at != nil {
+		fields = append(fields, gate.FieldCreatedAt)
 	}
 	return fields
 }
@@ -1041,10 +1121,14 @@ func (m *GateMutation) Fields() []string {
 // schema.
 func (m *GateMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case gate.FieldName:
+		return m.Name()
 	case gate.FieldLiveURL:
 		return m.LiveURL()
 	case gate.FieldShadowURL:
 		return m.ShadowURL()
+	case gate.FieldCreatedAt:
+		return m.CreatedAt()
 	}
 	return nil, false
 }
@@ -1054,10 +1138,14 @@ func (m *GateMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *GateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case gate.FieldName:
+		return m.OldName(ctx)
 	case gate.FieldLiveURL:
 		return m.OldLiveURL(ctx)
 	case gate.FieldShadowURL:
 		return m.OldShadowURL(ctx)
+	case gate.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown Gate field %s", name)
 }
@@ -1067,6 +1155,13 @@ func (m *GateMutation) OldField(ctx context.Context, name string) (ent.Value, er
 // type.
 func (m *GateMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case gate.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
 	case gate.FieldLiveURL:
 		v, ok := value.(string)
 		if !ok {
@@ -1080,6 +1175,13 @@ func (m *GateMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetShadowURL(v)
+		return nil
+	case gate.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Gate field %s", name)
@@ -1130,11 +1232,17 @@ func (m *GateMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *GateMutation) ResetField(name string) error {
 	switch name {
+	case gate.FieldName:
+		m.ResetName()
+		return nil
 	case gate.FieldLiveURL:
 		m.ResetLiveURL()
 		return nil
 	case gate.FieldShadowURL:
 		m.ResetShadowURL()
+		return nil
+	case gate.FieldCreatedAt:
+		m.ResetCreatedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Gate field %s", name)

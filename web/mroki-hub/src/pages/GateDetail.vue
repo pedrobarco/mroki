@@ -11,9 +11,7 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft, Settings, Pause } from 'lucide-vue-next'
 
 // Dummy metadata (not available in API yet)
-const dummyGateName = 'checkout-api'
 const dummyAgent = 'agent-us-east-1'
-const dummyCreated = 'Mar 12, 2026'
 const dummyRequests24h = '5,241'
 const dummyDiffRate = '3.1%'
 
@@ -97,7 +95,7 @@ onMounted(() => {
         <div class="flex items-start justify-between mb-5">
           <div>
             <div class="flex items-center gap-2.5 mb-1.5">
-              <h1 class="text-xl font-semibold tracking-tight">{{ dummyGateName }}</h1>
+              <h1 class="text-xl font-semibold tracking-tight">{{ gate.name }}</h1>
               <span
                 class="inline-flex items-center gap-1.5 text-xs text-success bg-success-dim/30 px-2 py-0.5 rounded-full"
               >
@@ -153,7 +151,13 @@ onMounted(() => {
           </div>
           <div>
             <span class="text-dim">Created</span>
-            <span class="text-muted-foreground ml-1">{{ dummyCreated }}</span>
+            <span class="text-muted-foreground ml-1">{{
+              new Date(gate.created_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            }}</span>
           </div>
           <div>
             <span class="text-dim">Requests 24h</span>

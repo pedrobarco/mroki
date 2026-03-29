@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -21,6 +22,12 @@ type GateCreate struct {
 	hooks    []Hook
 }
 
+// SetName sets the "name" field.
+func (_c *GateCreate) SetName(v string) *GateCreate {
+	_c.mutation.SetName(v)
+	return _c
+}
+
 // SetLiveURL sets the "live_url" field.
 func (_c *GateCreate) SetLiveURL(v string) *GateCreate {
 	_c.mutation.SetLiveURL(v)
@@ -30,6 +37,20 @@ func (_c *GateCreate) SetLiveURL(v string) *GateCreate {
 // SetShadowURL sets the "shadow_url" field.
 func (_c *GateCreate) SetShadowURL(v string) *GateCreate {
 	_c.mutation.SetShadowURL(v)
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *GateCreate) SetCreatedAt(v time.Time) *GateCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *GateCreate) SetNillableCreatedAt(v *time.Time) *GateCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
 	return _c
 }
 
@@ -97,6 +118,10 @@ func (_c *GateCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *GateCreate) defaults() {
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := gate.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := gate.DefaultID()
 		_c.mutation.SetID(v)
@@ -105,6 +130,14 @@ func (_c *GateCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *GateCreate) check() error {
+	if _, ok := _c.mutation.Name(); !ok {
+		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Gate.name"`)}
+	}
+	if v, ok := _c.mutation.Name(); ok {
+		if err := gate.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Gate.name": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.LiveURL(); !ok {
 		return &ValidationError{Name: "live_url", err: errors.New(`ent: missing required field "Gate.live_url"`)}
 	}
@@ -120,6 +153,9 @@ func (_c *GateCreate) check() error {
 		if err := gate.ShadowURLValidator(v); err != nil {
 			return &ValidationError{Name: "shadow_url", err: fmt.Errorf(`ent: validator failed for field "Gate.shadow_url": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Gate.created_at"`)}
 	}
 	return nil
 }
@@ -156,6 +192,10 @@ func (_c *GateCreate) createSpec() (*Gate, *sqlgraph.CreateSpec) {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
+	if value, ok := _c.mutation.Name(); ok {
+		_spec.SetField(gate.FieldName, field.TypeString, value)
+		_node.Name = value
+	}
 	if value, ok := _c.mutation.LiveURL(); ok {
 		_spec.SetField(gate.FieldLiveURL, field.TypeString, value)
 		_node.LiveURL = value
@@ -163,6 +203,10 @@ func (_c *GateCreate) createSpec() (*Gate, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ShadowURL(); ok {
 		_spec.SetField(gate.FieldShadowURL, field.TypeString, value)
 		_node.ShadowURL = value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(gate.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
 	}
 	if nodes := _c.mutation.RequestsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

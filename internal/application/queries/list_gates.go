@@ -15,11 +15,12 @@ type ListGatesQuery struct {
 	Offset int
 
 	// Filters (all optional, empty means no filter)
+	Name      string // Substring match on name
 	LiveURL   string // Substring match on live URL
 	ShadowURL string // Substring match on shadow URL
 
 	// Sorting (optional, defaults applied if empty)
-	SortField string // Field to sort by: "id", "live_url", "shadow_url"
+	SortField string // Field to sort by: "id", "name", "live_url", "shadow_url", "created_at"
 	SortOrder string // Sort direction: "asc", "desc"
 }
 
@@ -42,7 +43,7 @@ func (h *ListGatesHandler) Handle(ctx context.Context, q ListGatesQuery) (*pagin
 	}
 
 	// Create filter value objects
-	filters := traffictesting.NewGateFilters(q.LiveURL, q.ShadowURL)
+	filters := traffictesting.NewGateFilters(q.Name, q.LiveURL, q.ShadowURL)
 
 	// Create sort value objects
 	sort, err := h.buildSort(q)

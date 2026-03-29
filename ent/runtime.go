@@ -29,14 +29,22 @@ func init() {
 	entdiff.DefaultID = entdiffDescID.Default.(func() uuid.UUID)
 	gateFields := schema.Gate{}.Fields()
 	_ = gateFields
+	// gateDescName is the schema descriptor for name field.
+	gateDescName := gateFields[1].Descriptor()
+	// gate.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	gate.NameValidator = gateDescName.Validators[0].(func(string) error)
 	// gateDescLiveURL is the schema descriptor for live_url field.
-	gateDescLiveURL := gateFields[1].Descriptor()
+	gateDescLiveURL := gateFields[2].Descriptor()
 	// gate.LiveURLValidator is a validator for the "live_url" field. It is called by the builders before save.
 	gate.LiveURLValidator = gateDescLiveURL.Validators[0].(func(string) error)
 	// gateDescShadowURL is the schema descriptor for shadow_url field.
-	gateDescShadowURL := gateFields[2].Descriptor()
+	gateDescShadowURL := gateFields[3].Descriptor()
 	// gate.ShadowURLValidator is a validator for the "shadow_url" field. It is called by the builders before save.
 	gate.ShadowURLValidator = gateDescShadowURL.Validators[0].(func(string) error)
+	// gateDescCreatedAt is the schema descriptor for created_at field.
+	gateDescCreatedAt := gateFields[4].Descriptor()
+	// gate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	gate.DefaultCreatedAt = gateDescCreatedAt.Default.(func() time.Time)
 	// gateDescID is the schema descriptor for id field.
 	gateDescID := gateFields[0].Descriptor()
 	// gate.DefaultID holds the default value on creation for the id field.

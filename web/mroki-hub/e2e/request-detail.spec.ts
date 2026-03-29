@@ -3,6 +3,7 @@ import { test, expect } from './fixtures'
 test.describe('Request Detail Page', () => {
   test('displays request info and diff viewer', async ({ page, api }) => {
     const gate = await api.createGate(
+      'reqdetail-gate',
       'https://reqdetail-live.example.com',
       'https://reqdetail-shadow.example.com'
     )
@@ -31,6 +32,7 @@ test.describe('Request Detail Page', () => {
 
   test('shows live and shadow status codes', async ({ page, api }) => {
     const gate = await api.createGate(
+      'status-gate',
       'https://status-live.example.com',
       'https://status-shadow.example.com'
     )
@@ -52,6 +54,7 @@ test.describe('Request Detail Page', () => {
 
   test('back button navigates to gate detail', async ({ page, api }) => {
     const gate = await api.createGate(
+      'back-gate',
       'https://back-live.example.com',
       'https://back-shadow.example.com'
     )

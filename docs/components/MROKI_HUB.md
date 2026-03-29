@@ -23,6 +23,7 @@ These features require backend endpoints that don't exist yet:
 - Agent monitoring (no backend endpoint)
 - Dashboard statistics (no backend endpoint)
 - Gate edit/delete (no backend endpoints)
+- Gate name rename (backend supports it, no UI yet)
 
 ## Technology Stack
 
@@ -147,6 +148,7 @@ const response = await fetch(`${API_BASE}/gates`, {
     "Authorization": `Bearer ${apiKey}`,
   },
   body: JSON.stringify({
+    name: "checkout-api",
     live_url: "https://api.production.example.com",
     shadow_url: "https://api.shadow.example.com",
   }),

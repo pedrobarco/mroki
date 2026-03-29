@@ -47,6 +47,7 @@ const (
 
 	// Resource errors
 	ErrorTypeNotFound = "/errors/not-found" // Resource doesn't exist
+	ErrorTypeConflict = "/errors/conflict"  // Resource already exists
 
 	// Server errors
 	ErrorTypeInternalError = "/errors/internal-error" // Server error
@@ -214,6 +215,54 @@ func InvalidGateURL(err error) *APIError {
 	)
 }
 
+// InvalidGateName returns an RFC 7807 error for invalid gate name.
+// Used when the name field is empty or exceeds the maximum length.
+func InvalidGateName(err error) *APIError {
+	detail := "name must be a non-empty string of at most 255 characters"
+	if err != nil {
+		detail = fmt.Sprintf("%s: %v", detail, err)
+	}
+	return NewError(
+		http.StatusBadRequest,
+		ErrorTypeInvalidRequestBody,
+		"Invalid Gate Name",
+		detail,
+		err,
+	)
+}
+
+// DuplicateGateName returns an RFC 7807 error for duplicate gate names.
+// Used when a gate with the same name already exists.
+func DuplicateGateName(err error) *APIError {
+	detail := "a gate with this name already exists"
+	if err != nil {
+		detail = fmt.Sprintf("%s: %v", detail, err)
+	}
+	return NewError(
+		http.StatusConflict,
+		ErrorTypeConflict,
+		"Duplicate Gate Name",
+		detail,
+		err,
+	)
+}
+
+// DuplicateGateURLs returns an RFC 7807 error for duplicate gate URL pairs.
+// Used when a gate with the same live_url + shadow_url combination already exists.
+func DuplicateGateURLs(err error) *APIError {
+	detail := "a gate with this live_url and shadow_url pair already exists"
+	if err != nil {
+		detail = fmt.Sprintf("%s: %v", detail, err)
+	}
+	return NewError(
+		http.StatusConflict,
+		ErrorTypeConflict,
+		"Duplicate Gate URLs",
+		detail,
+		err,
+	)
+}
+
 // InvalidGatePagination returns an RFC 7807 error for invalid pagination parameters.
 // Used when limit or offset query parameters are invalid (e.g., negative values).
 func InvalidGatePagination(err error) *APIError {
@@ -233,7 +282,7 @@ func InvalidGatePagination(err error) *APIError {
 // InvalidGateSort returns an RFC 7807 error for invalid gate sort parameters.
 // Used when sort or order query parameters are invalid for gate listing.
 func InvalidGateSort(err error) *APIError {
-	detail := "sort must be 'id', 'live_url', or 'shadow_url'; order must be 'asc' or 'desc'"
+	detail := "sort must be 'id', 'name', 'live_url', 'shadow_url', or 'created_at'; order must be 'asc' or 'desc'"
 	if err != nil {
 		detail = fmt.Sprintf("%s: %v", detail, err)
 	}

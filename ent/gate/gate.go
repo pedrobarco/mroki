@@ -3,6 +3,8 @@
 package gate
 
 import (
+	"time"
+
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
@@ -13,10 +15,14 @@ const (
 	Label = "gate"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldName holds the string denoting the name field in the database.
+	FieldName = "name"
 	// FieldLiveURL holds the string denoting the live_url field in the database.
 	FieldLiveURL = "live_url"
 	// FieldShadowURL holds the string denoting the shadow_url field in the database.
 	FieldShadowURL = "shadow_url"
+	// FieldCreatedAt holds the string denoting the created_at field in the database.
+	FieldCreatedAt = "created_at"
 	// EdgeRequests holds the string denoting the requests edge name in mutations.
 	EdgeRequests = "requests"
 	// Table holds the table name of the gate in the database.
@@ -33,8 +39,10 @@ const (
 // Columns holds all SQL columns for gate fields.
 var Columns = []string{
 	FieldID,
+	FieldName,
 	FieldLiveURL,
 	FieldShadowURL,
+	FieldCreatedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -48,10 +56,14 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// NameValidator is a validator for the "name" field. It is called by the builders before save.
+	NameValidator func(string) error
 	// LiveURLValidator is a validator for the "live_url" field. It is called by the builders before save.
 	LiveURLValidator func(string) error
 	// ShadowURLValidator is a validator for the "shadow_url" field. It is called by the builders before save.
 	ShadowURLValidator func(string) error
+	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
+	DefaultCreatedAt func() time.Time
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -64,6 +76,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
 }
 
+// ByName orders the results by the name field.
+func ByName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
 // ByLiveURL orders the results by the live_url field.
 func ByLiveURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLiveURL, opts...).ToFunc()
@@ -72,6 +89,11 @@ func ByLiveURL(opts ...sql.OrderTermOption) OrderOption {
 // ByShadowURL orders the results by the shadow_url field.
 func ByShadowURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldShadowURL, opts...).ToFunc()
+}
+
+// ByCreatedAt orders the results by the created_at field.
+func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
 }
 
 // ByRequestsCount orders the results by requests count.

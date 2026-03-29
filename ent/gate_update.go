@@ -29,30 +29,16 @@ func (_u *GateUpdate) Where(ps ...predicate.Gate) *GateUpdate {
 	return _u
 }
 
-// SetLiveURL sets the "live_url" field.
-func (_u *GateUpdate) SetLiveURL(v string) *GateUpdate {
-	_u.mutation.SetLiveURL(v)
+// SetName sets the "name" field.
+func (_u *GateUpdate) SetName(v string) *GateUpdate {
+	_u.mutation.SetName(v)
 	return _u
 }
 
-// SetNillableLiveURL sets the "live_url" field if the given value is not nil.
-func (_u *GateUpdate) SetNillableLiveURL(v *string) *GateUpdate {
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_u *GateUpdate) SetNillableName(v *string) *GateUpdate {
 	if v != nil {
-		_u.SetLiveURL(*v)
-	}
-	return _u
-}
-
-// SetShadowURL sets the "shadow_url" field.
-func (_u *GateUpdate) SetShadowURL(v string) *GateUpdate {
-	_u.mutation.SetShadowURL(v)
-	return _u
-}
-
-// SetNillableShadowURL sets the "shadow_url" field if the given value is not nil.
-func (_u *GateUpdate) SetNillableShadowURL(v *string) *GateUpdate {
-	if v != nil {
-		_u.SetShadowURL(*v)
+		_u.SetName(*v)
 	}
 	return _u
 }
@@ -127,14 +113,9 @@ func (_u *GateUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *GateUpdate) check() error {
-	if v, ok := _u.mutation.LiveURL(); ok {
-		if err := gate.LiveURLValidator(v); err != nil {
-			return &ValidationError{Name: "live_url", err: fmt.Errorf(`ent: validator failed for field "Gate.live_url": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.ShadowURL(); ok {
-		if err := gate.ShadowURLValidator(v); err != nil {
-			return &ValidationError{Name: "shadow_url", err: fmt.Errorf(`ent: validator failed for field "Gate.shadow_url": %w`, err)}
+	if v, ok := _u.mutation.Name(); ok {
+		if err := gate.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Gate.name": %w`, err)}
 		}
 	}
 	return nil
@@ -152,11 +133,8 @@ func (_u *GateUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.LiveURL(); ok {
-		_spec.SetField(gate.FieldLiveURL, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.ShadowURL(); ok {
-		_spec.SetField(gate.FieldShadowURL, field.TypeString, value)
+	if value, ok := _u.mutation.Name(); ok {
+		_spec.SetField(gate.FieldName, field.TypeString, value)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -223,30 +201,16 @@ type GateUpdateOne struct {
 	mutation *GateMutation
 }
 
-// SetLiveURL sets the "live_url" field.
-func (_u *GateUpdateOne) SetLiveURL(v string) *GateUpdateOne {
-	_u.mutation.SetLiveURL(v)
+// SetName sets the "name" field.
+func (_u *GateUpdateOne) SetName(v string) *GateUpdateOne {
+	_u.mutation.SetName(v)
 	return _u
 }
 
-// SetNillableLiveURL sets the "live_url" field if the given value is not nil.
-func (_u *GateUpdateOne) SetNillableLiveURL(v *string) *GateUpdateOne {
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_u *GateUpdateOne) SetNillableName(v *string) *GateUpdateOne {
 	if v != nil {
-		_u.SetLiveURL(*v)
-	}
-	return _u
-}
-
-// SetShadowURL sets the "shadow_url" field.
-func (_u *GateUpdateOne) SetShadowURL(v string) *GateUpdateOne {
-	_u.mutation.SetShadowURL(v)
-	return _u
-}
-
-// SetNillableShadowURL sets the "shadow_url" field if the given value is not nil.
-func (_u *GateUpdateOne) SetNillableShadowURL(v *string) *GateUpdateOne {
-	if v != nil {
-		_u.SetShadowURL(*v)
+		_u.SetName(*v)
 	}
 	return _u
 }
@@ -334,14 +298,9 @@ func (_u *GateUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *GateUpdateOne) check() error {
-	if v, ok := _u.mutation.LiveURL(); ok {
-		if err := gate.LiveURLValidator(v); err != nil {
-			return &ValidationError{Name: "live_url", err: fmt.Errorf(`ent: validator failed for field "Gate.live_url": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.ShadowURL(); ok {
-		if err := gate.ShadowURLValidator(v); err != nil {
-			return &ValidationError{Name: "shadow_url", err: fmt.Errorf(`ent: validator failed for field "Gate.shadow_url": %w`, err)}
+	if v, ok := _u.mutation.Name(); ok {
+		if err := gate.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Gate.name": %w`, err)}
 		}
 	}
 	return nil
@@ -376,11 +335,8 @@ func (_u *GateUpdateOne) sqlSave(ctx context.Context) (_node *Gate, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.LiveURL(); ok {
-		_spec.SetField(gate.FieldLiveURL, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.ShadowURL(); ok {
-		_spec.SetField(gate.FieldShadowURL, field.TypeString, value)
+	if value, ok := _u.mutation.Name(); ok {
+		_spec.SetField(gate.FieldName, field.TypeString, value)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{

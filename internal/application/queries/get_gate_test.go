@@ -32,9 +32,10 @@ func (m *mockGateRepositoryForGetGate) GetAll(ctx context.Context, filters traff
 
 func TestGetGateHandler_Handle_success(t *testing.T) {
 	// Arrange
+	name, _ := traffictesting.ParseGateName("test-gate")
 	liveURL, _ := traffictesting.ParseGateURL("https://api.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("https://api-staging.example.com")
-	expectedGate, _ := traffictesting.NewGate(liveURL, shadowURL)
+	expectedGate, _ := traffictesting.NewGate(name, liveURL, shadowURL)
 
 	repo := &mockGateRepositoryForGetGate{
 		getByIDFn: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {

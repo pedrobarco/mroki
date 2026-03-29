@@ -203,7 +203,7 @@ psql -U postgres -d postgres
 \dt
 
 # Query gates
-SELECT id, live_url, shadow_url FROM gates;
+SELECT id, name, live_url, shadow_url, created_at FROM gates;
 
 # Query requests
 SELECT id, method, path, created_at FROM requests;
@@ -398,6 +398,7 @@ curl -X POST http://localhost:8090/gates \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-api-key" \
   -d '{
+    "name": "checkout-api",
     "live_url": "https://api.production.example.com",
     "shadow_url": "https://api.shadow.example.com"
   }'
@@ -406,8 +407,10 @@ curl -X POST http://localhost:8090/gates \
 # {
 #   "data": {
 #     "id": "550e8400-e29b-41d4-a716-446655440000",
+#     "name": "checkout-api",
 #     "live_url": "https://api.production.example.com",
-#     "shadow_url": "https://api.shadow.example.com"
+#     "shadow_url": "https://api.shadow.example.com",
+#     "created_at": "2026-03-29T09:00:00Z"
 #   }
 # }
 ```
@@ -415,29 +418,35 @@ curl -X POST http://localhost:8090/gates \
 ### List All Gates
 
 ```bash
-# List all gates (default sorting and pagination)
+# List all gates (default: sorted by created_at desc)
 curl -H "Authorization: Bearer your-api-key" \
   http://localhost:8090/gates | jq .
+
+# Filter by name containing "checkout"
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates?name=checkout" | jq .
 
 # Filter by live URL containing "production"
 curl -H "Authorization: Bearer your-api-key" \
   "http://localhost:8090/gates?live_url=production" | jq .
 
-# Sort by shadow_url ascending
+# Sort by name ascending
 curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates?sort=shadow_url&order=asc" | jq .
+  "http://localhost:8090/gates?sort=name&order=asc" | jq .
 
 # Combine filtering, sorting, and pagination
 curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates?live_url=api&sort=live_url&order=asc&limit=10&offset=0" | jq .
+  "http://localhost:8090/gates?name=api&sort=created_at&order=desc&limit=10&offset=0" | jq .
 
 # Response:
 # {
 #   "data": [
 #     {
 #       "id": "550e8400-e29b-41d4-a716-446655440000",
+#       "name": "checkout-api",
 #       "live_url": "https://api.production.example.com",
-#       "shadow_url": "https://api.shadow.example.com"
+#       "shadow_url": "https://api.shadow.example.com",
+#       "created_at": "2026-03-29T09:00:00Z"
 #     }
 #   ],
 #   "pagination": {

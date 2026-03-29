@@ -18,15 +18,14 @@ function handleClick() {
 }
 
 // Dummy metadata derived from gate properties (not available in API yet)
-const dummyNames = ['checkout-api', 'user-profile-svc', 'search-ranking', 'notifications-api']
 const dummyAgents = ['agent-us-east-1', 'agent-eu-west-1', 'agent-us-east-1', '—']
 const dummyRequests = ['5,241', '4,832', '2,774', '0']
 const dummyDiffs = ['162', '328', '39', '0']
 const dummyRates = ['3.1%', '6.8%', '1.4%', '0%']
 const dummyLastActive = ['2 min ago', '5 min ago', '12 min ago', 'Paused']
 
-const idx = computed(() => props.index % dummyNames.length)
-const gateName = computed(() => dummyNames[idx.value])
+const idx = computed(() => props.index % dummyAgents.length)
+const gateName = computed(() => props.gate.name)
 const agent = computed(() => dummyAgents[idx.value])
 const requests24h = computed(() => dummyRequests[idx.value])
 const diffs = computed(() => dummyDiffs[idx.value])

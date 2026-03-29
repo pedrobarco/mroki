@@ -16,12 +16,17 @@ import (
 func CreateGate(handler *commands.CreateGateHandler) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
+			Name      string `json:"name"`
 			LiveURL   string `json:"live_url"`
 			ShadowURL string `json:"shadow_url"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return dto.InvalidRequestBody(err)
+		}
+
+		if req.Name == "" {
+			return dto.MissingBodyProperty("name")
 		}
 
 		if req.LiveURL == "" {
@@ -33,6 +38,7 @@ func CreateGate(handler *commands.CreateGateHandler) AppHandler {
 		}
 
 		cmd := commands.CreateGateCommand{
+			Name:      req.Name,
 			LiveURL:   req.LiveURL,
 			ShadowURL: req.ShadowURL,
 		}
@@ -40,8 +46,14 @@ func CreateGate(handler *commands.CreateGateHandler) AppHandler {
 		gate, err := handler.Handle(r.Context(), cmd)
 		if err != nil {
 			switch {
+			case errors.Is(err, traffictesting.ErrInvalidGateName):
+				return dto.InvalidGateName(err)
 			case errors.Is(err, traffictesting.ErrInvalidGateURL):
 				return dto.InvalidGateURL(err)
+			case errors.Is(err, traffictesting.ErrDuplicateGateName):
+				return dto.DuplicateGateName(err)
+			case errors.Is(err, traffictesting.ErrDuplicateGateURLs):
+				return dto.DuplicateGateURLs(err)
 			default:
 				return dto.NewError(
 					http.StatusInternalServerError,
@@ -54,11 +66,7 @@ func CreateGate(handler *commands.CreateGateHandler) AppHandler {
 		}
 
 		response := dto.Response[dto.Gate]{
-			Data: dto.Gate{
-				ID:        gate.ID.String(),
-				LiveURL:   gate.LiveURL.String(),
-				ShadowURL: gate.ShadowURL.String(),
-			},
+			Data: mapGateToDTO(gate),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -100,11 +108,7 @@ func GetGateByID(handler *queries.GetGateHandler) AppHandler {
 		}
 
 		response := dto.Response[dto.Gate]{
-			Data: dto.Gate{
-				ID:        gate.ID.String(),
-				LiveURL:   gate.LiveURL.String(),
-				ShadowURL: gate.ShadowURL.String(),
-			},
+			Data: mapGateToDTO(gate),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -125,11 +129,12 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 		}
 
 		// Parse filtering and sorting query parameters
-		liveURL, shadowURL, sortField, sortOrder := parseGateQueryParams(r.URL.Query())
+		name, liveURL, shadowURL, sortField, sortOrder := parseGateQueryParams(r.URL.Query())
 
 		query := queries.ListGatesQuery{
 			Limit:     limit,
 			Offset:    offset,
+			Name:      name,
 			LiveURL:   liveURL,
 			ShadowURL: shadowURL,
 			SortField: sortField,
@@ -157,11 +162,7 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 		// Map domain entities to DTOs (empty slice for empty results)
 		data := make([]dto.Gate, 0, len(result.Items))
 		for _, gate := range result.Items {
-			data = append(data, dto.Gate{
-				ID:        gate.ID.String(),
-				LiveURL:   gate.LiveURL.String(),
-				ShadowURL: gate.ShadowURL.String(),
-			})
+			data = append(data, mapGateToDTO(gate))
 		}
 
 		// Map PagedResult to response DTO
@@ -181,5 +182,16 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 			return dto.InvalidResponseBody(err)
 		}
 		return nil
+	}
+}
+
+
+func mapGateToDTO(gate *traffictesting.Gate) dto.Gate {
+	return dto.Gate{
+		ID:        gate.ID.String(),
+		Name:      gate.Name.String(),
+		LiveURL:   gate.LiveURL.String(),
+		ShadowURL: gate.ShadowURL.String(),
+		CreatedAt: gate.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

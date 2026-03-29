@@ -136,26 +136,32 @@ curl http://localhost:8090/health/ready
 **Request Body:**
 ```json
 {
+  "name": "checkout-api",
   "live_url": "https://api.production.example.com",
   "shadow_url": "https://api.shadow.example.com"
 }
 ```
 
 **Validation:**
-- `live_url` is required, must be valid HTTP/HTTPS URL
-- `shadow_url` is required, must be valid HTTP/HTTPS URL
+- `name` is required, non-empty, max 255 characters, must be unique across all gates
+- `live_url` is required, must be valid HTTP/HTTPS URL, immutable after creation
+- `shadow_url` is required, must be valid HTTP/HTTPS URL, immutable after creation
+- The `(live_url, shadow_url)` pair must be unique across all gates
 
 **Response:**
 - `201 Created` on success
 - `400 Bad Request` if validation fails
+- `409 Conflict` if name or URL pair already exists
 
 **Success Response Body:**
 ```json
 {
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "checkout-api",
     "live_url": "https://api.production.example.com",
-    "shadow_url": "https://api.shadow.example.com"
+    "shadow_url": "https://api.shadow.example.com",
+    "created_at": "2026-03-29T09:00:00Z"
   }
 }
 ```
@@ -171,12 +177,33 @@ curl http://localhost:8090/health/ready
 }
 ```
 
+```json
+{
+  "type": "/errors/conflict",
+  "title": "Duplicate Gate Name",
+  "status": 409,
+  "detail": "a gate with this name already exists",
+  "instance": "/gates"
+}
+```
+
+```json
+{
+  "type": "/errors/conflict",
+  "title": "Duplicate Gate URLs",
+  "status": 409,
+  "detail": "a gate with this live_url and shadow_url pair already exists",
+  "instance": "/gates"
+}
+```
+
 **Example:**
 ```bash
 curl -X POST http://localhost:8090/gates \
   -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
+    "name": "httpbin-test",
     "live_url": "https://httpbin.org/anything?service=live",
     "shadow_url": "https://httpbin.org/anything?service=shadow"
   }'
@@ -201,8 +228,10 @@ curl -X POST http://localhost:8090/gates \
 {
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "checkout-api",
     "live_url": "https://api.production.example.com",
-    "shadow_url": "https://api.shadow.example.com"
+    "shadow_url": "https://api.shadow.example.com",
+    "created_at": "2026-03-29T09:00:00Z"
   }
 }
 ```
@@ -225,9 +254,10 @@ curl -H "Authorization: Bearer your-api-key" \
 |-----------|------|---------|-------------|
 | `limit` | integer | 50 | Results per page (max: 100) |
 | `offset` | integer | 0 | Number of results to skip |
+| `name` | string | — | Filter by name substring (case-insensitive) |
 | `live_url` | string | — | Filter by live URL substring (case-insensitive) |
 | `shadow_url` | string | — | Filter by shadow URL substring (case-insensitive) |
-| `sort` | string | `id` | Sort field: `id`, `live_url`, or `shadow_url` |
+| `sort` | string | `created_at` | Sort field: `id`, `name`, `live_url`, `shadow_url`, or `created_at` |
 | `order` | string | `desc` | Sort direction: `asc` or `desc` |
 
 **Response:**
@@ -241,13 +271,17 @@ curl -H "Authorization: Bearer your-api-key" \
   "data": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "checkout-api",
       "live_url": "https://api.production.example.com",
-      "shadow_url": "https://api.shadow.example.com"
+      "shadow_url": "https://api.shadow.example.com",
+      "created_at": "2026-03-29T09:00:00Z"
     },
     {
       "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+      "name": "user-service",
       "live_url": "https://api2.production.example.com",
-      "shadow_url": "https://api2.shadow.example.com"
+      "shadow_url": "https://api2.shadow.example.com",
+      "created_at": "2026-03-28T14:30:00Z"
     }
   ],
   "pagination": {
@@ -261,21 +295,25 @@ curl -H "Authorization: Bearer your-api-key" \
 
 **Examples:**
 ```bash
-# List all gates (default: 50 per page, sorted by id desc)
+# List all gates (default: 50 per page, sorted by created_at desc)
 curl -H "Authorization: Bearer your-api-key" \
   http://localhost:8090/gates
+
+# Filter by name containing "checkout"
+curl -H "Authorization: Bearer your-api-key" \
+  "http://localhost:8090/gates?name=checkout"
 
 # Filter by live URL containing "production"
 curl -H "Authorization: Bearer your-api-key" \
   "http://localhost:8090/gates?live_url=production"
 
-# Filter by shadow URL and sort by live_url ascending
+# Sort by name ascending
 curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates?shadow_url=staging&sort=live_url&order=asc"
+  "http://localhost:8090/gates?sort=name&order=asc"
 
 # Paginate with limit and offset
 curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates?limit=10&offset=20&sort=shadow_url&order=desc"
+  "http://localhost:8090/gates?limit=10&offset=20&sort=created_at&order=desc"
 ```
 
 ---
@@ -557,6 +595,7 @@ The API uses the following generic error types:
 | `/errors/missing-header` | Missing Required Header | 400 | Required header is missing |
 | `/errors/unauthorized` | Unauthorized | 401 | Missing or invalid API key |
 | `/errors/not-found` | Resource Not Found | 404 | Gate or Request doesn't exist |
+| `/errors/conflict` | Conflict | 409 | Duplicate gate name or URL pair |
 | `/errors/rate-limit-exceeded` | Rate Limit Exceeded | 429 | Too many requests from this IP |
 | `/errors/internal-error` | Internal Server Error | 500 | Unexpected server errors |
 
@@ -567,6 +606,7 @@ The API uses the following generic error types:
 - `400 Bad Request` - Invalid request data (validation failed)
 - `401 Unauthorized` - Missing or invalid API key
 - `404 Not Found` - Resource not found
+- `409 Conflict` - Duplicate gate name or URL pair
 - `429 Too Many Requests` - Rate limit exceeded
 - `500 Internal Server Error` - Server error
 - `503 Service Unavailable` - Service not ready (health check failed)
@@ -808,6 +848,7 @@ GATE_RESPONSE=$(curl -s -X POST http://localhost:8090/gates \
   -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
+    "name": "httpbin-test",
     "live_url": "https://httpbin.org/anything?service=live",
     "shadow_url": "https://httpbin.org/anything?service=shadow"
   }')

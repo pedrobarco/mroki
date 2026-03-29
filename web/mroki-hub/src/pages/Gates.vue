@@ -20,7 +20,7 @@ const dialogOpen = ref(false)
 const filters = reactive<GateFilterState>({
   liveUrl: '',
   shadowUrl: '',
-  sort: 'id',
+  sort: 'created_at',
   order: 'desc',
 })
 

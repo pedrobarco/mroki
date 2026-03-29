@@ -5,9 +5,12 @@ import (
 )
 
 func TestNewGateFilters(t *testing.T) {
-	t.Run("create with both filters", func(t *testing.T) {
-		filters := NewGateFilters("live.example.com", "shadow.example.com")
+	t.Run("create with all filters", func(t *testing.T) {
+		filters := NewGateFilters("my-gate", "live.example.com", "shadow.example.com")
 
+		if filters.Name() != "my-gate" {
+			t.Errorf("Name() = %v, want 'my-gate'", filters.Name())
+		}
 		if filters.LiveURL() != "live.example.com" {
 			t.Errorf("LiveURL() = %v, want 'live.example.com'", filters.LiveURL())
 		}
@@ -17,8 +20,11 @@ func TestNewGateFilters(t *testing.T) {
 	})
 
 	t.Run("values are trimmed", func(t *testing.T) {
-		filters := NewGateFilters("  live.example.com  ", "  shadow.example.com  ")
+		filters := NewGateFilters("  my-gate  ", "  live.example.com  ", "  shadow.example.com  ")
 
+		if filters.Name() != "my-gate" {
+			t.Errorf("Name() = %v, want 'my-gate'", filters.Name())
+		}
 		if filters.LiveURL() != "live.example.com" {
 			t.Errorf("LiveURL() = %v, want 'live.example.com'", filters.LiveURL())
 		}
@@ -28,7 +34,7 @@ func TestNewGateFilters(t *testing.T) {
 	})
 
 	t.Run("empty strings produce empty filters", func(t *testing.T) {
-		filters := NewGateFilters("", "")
+		filters := NewGateFilters("", "", "")
 
 		if !filters.IsEmpty() {
 			t.Error("Filters with empty strings should be empty")
@@ -36,7 +42,7 @@ func TestNewGateFilters(t *testing.T) {
 	})
 
 	t.Run("whitespace-only strings produce empty filters", func(t *testing.T) {
-		filters := NewGateFilters("   ", "   ")
+		filters := NewGateFilters("   ", "   ", "   ")
 
 		if !filters.IsEmpty() {
 			t.Error("Filters with whitespace-only strings should be empty")
@@ -72,18 +78,23 @@ func TestGateFiltersIsEmpty(t *testing.T) {
 			want:    true,
 		},
 		{
+			name:    "with name only",
+			filters: NewGateFilters("my-gate", "", ""),
+			want:    false,
+		},
+		{
 			name:    "with live_url only",
-			filters: NewGateFilters("live.example.com", ""),
+			filters: NewGateFilters("", "live.example.com", ""),
 			want:    false,
 		},
 		{
 			name:    "with shadow_url only",
-			filters: NewGateFilters("", "shadow.example.com"),
+			filters: NewGateFilters("", "", "shadow.example.com"),
 			want:    false,
 		},
 		{
-			name:    "with both filters",
-			filters: NewGateFilters("live.example.com", "shadow.example.com"),
+			name:    "with all filters",
+			filters: NewGateFilters("my-gate", "live.example.com", "shadow.example.com"),
 			want:    false,
 		},
 	}
@@ -104,7 +115,7 @@ func TestGateFiltersHasMethods(t *testing.T) {
 			t.Error("Empty filters should not have live URL filter")
 		}
 
-		withLiveURL := NewGateFilters("live.example.com", "")
+		withLiveURL := NewGateFilters("", "live.example.com", "")
 		if !withLiveURL.HasLiveURLFilter() {
 			t.Error("Filters with live URL should have live URL filter")
 		}
@@ -116,7 +127,7 @@ func TestGateFiltersHasMethods(t *testing.T) {
 			t.Error("Empty filters should not have shadow URL filter")
 		}
 
-		withShadowURL := NewGateFilters("", "shadow.example.com")
+		withShadowURL := NewGateFilters("", "", "shadow.example.com")
 		if !withShadowURL.HasShadowURLFilter() {
 			t.Error("Filters with shadow URL should have shadow URL filter")
 		}
@@ -136,18 +147,18 @@ func TestGateFiltersString(t *testing.T) {
 		},
 		{
 			name:    "with live_url",
-			filters: NewGateFilters("live.example.com", ""),
+			filters: NewGateFilters("", "live.example.com", ""),
 			want:    "live_url='live.example.com'",
 		},
 		{
 			name:    "with shadow_url",
-			filters: NewGateFilters("", "shadow.example.com"),
+			filters: NewGateFilters("", "", "shadow.example.com"),
 			want:    "shadow_url='shadow.example.com'",
 		},
 		{
-			name:    "with both",
-			filters: NewGateFilters("live.example.com", "shadow.example.com"),
-			want:    "live_url='live.example.com', shadow_url='shadow.example.com'",
+			name:    "with all",
+			filters: NewGateFilters("my-gate", "live.example.com", "shadow.example.com"),
+			want:    "name='my-gate', live_url='live.example.com', shadow_url='shadow.example.com'",
 		},
 	}
 

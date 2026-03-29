@@ -300,12 +300,12 @@ func (_q *GateQuery) WithRequests(opts ...func(*RequestQuery)) *GateQuery {
 // Example:
 //
 //	var v []struct {
-//		LiveURL string `json:"live_url,omitempty"`
+//		Name string `json:"name,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.Gate.Query().
-//		GroupBy(gate.FieldLiveURL).
+//		GroupBy(gate.FieldName).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *GateQuery) GroupBy(field string, fields ...string) *GateGroupBy {
@@ -323,11 +323,11 @@ func (_q *GateQuery) GroupBy(field string, fields ...string) *GateGroupBy {
 // Example:
 //
 //	var v []struct {
-//		LiveURL string `json:"live_url,omitempty"`
+//		Name string `json:"name,omitempty"`
 //	}
 //
 //	client.Gate.Query().
-//		Select(gate.FieldLiveURL).
+//		Select(gate.FieldName).
 //		Scan(ctx, &v)
 func (_q *GateQuery) Select(fields ...string) *GateSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)

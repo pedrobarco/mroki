@@ -32,13 +32,15 @@ func (m *mockGateRepositoryForListGates) GetAll(ctx context.Context, filters tra
 
 func TestListGatesHandler_Handle_success(t *testing.T) {
 	// Arrange
+	name1, _ := traffictesting.ParseGateName("gate-1")
 	liveURL1, _ := traffictesting.ParseGateURL("https://api1.example.com")
 	shadowURL1, _ := traffictesting.ParseGateURL("https://api1-staging.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+	gate1, _ := traffictesting.NewGate(name1, liveURL1, shadowURL1)
 
+	name2, _ := traffictesting.ParseGateName("gate-2")
 	liveURL2, _ := traffictesting.ParseGateURL("https://api2.example.com")
 	shadowURL2, _ := traffictesting.ParseGateURL("https://api2-staging.example.com")
-	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+	gate2, _ := traffictesting.NewGate(name2, liveURL2, shadowURL2)
 
 	repo := &mockGateRepositoryForListGates{
 		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
@@ -138,9 +140,10 @@ func TestListGatesHandler_Handle_repository_error(t *testing.T) {
 
 func TestListGatesHandler_Handle_with_filters(t *testing.T) {
 	// Arrange
+	name, _ := traffictesting.ParseGateName("filter-gate")
 	liveURL, _ := traffictesting.ParseGateURL("https://api.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("https://api-staging.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate1, _ := traffictesting.NewGate(name, liveURL, shadowURL)
 
 	repo := &mockGateRepositoryForListGates{
 		getAllFn: func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {

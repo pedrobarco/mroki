@@ -12,14 +12,18 @@ type GateSortField struct {
 
 const (
 	gateSortFieldID        = "id"
+	gateSortFieldName      = "name"
 	gateSortFieldLiveURL   = "live_url"
 	gateSortFieldShadowURL = "shadow_url"
+	gateSortFieldCreatedAt = "created_at"
 )
 
 var validGateSortFields = map[string]bool{
 	gateSortFieldID:        true,
+	gateSortFieldName:      true,
 	gateSortFieldLiveURL:   true,
 	gateSortFieldShadowURL: true,
+	gateSortFieldCreatedAt: true,
 }
 
 // NewGateSortField creates a validated GateSortField value object
@@ -35,7 +39,7 @@ func NewGateSortField(field string) (GateSortField, error) {
 	// Validate against whitelist
 	if !validGateSortFields[normalized] {
 		return GateSortField{}, fmt.Errorf(
-			"invalid sort field: must be one of [id, live_url, shadow_url], got '%s'",
+			"invalid sort field: must be one of [id, name, live_url, shadow_url, created_at], got '%s'",
 			field,
 		)
 	}
@@ -48,6 +52,11 @@ func SortByGateID() GateSortField {
 	return GateSortField{value: gateSortFieldID}
 }
 
+// SortByGateName returns the name sort field
+func SortByGateName() GateSortField {
+	return GateSortField{value: gateSortFieldName}
+}
+
 // SortByLiveURL returns the live_url sort field
 func SortByLiveURL() GateSortField {
 	return GateSortField{value: gateSortFieldLiveURL}
@@ -58,9 +67,19 @@ func SortByShadowURL() GateSortField {
 	return GateSortField{value: gateSortFieldShadowURL}
 }
 
+// SortByGateCreatedAt returns the created_at sort field
+func SortByGateCreatedAt() GateSortField {
+	return GateSortField{value: gateSortFieldCreatedAt}
+}
+
 // IsID returns true if sorting by ID
 func (f GateSortField) IsID() bool {
 	return f.value == gateSortFieldID
+}
+
+// IsName returns true if sorting by name
+func (f GateSortField) IsName() bool {
+	return f.value == gateSortFieldName
 }
 
 // IsLiveURL returns true if sorting by live URL
@@ -71,6 +90,11 @@ func (f GateSortField) IsLiveURL() bool {
 // IsShadowURL returns true if sorting by shadow URL
 func (f GateSortField) IsShadowURL() bool {
 	return f.value == gateSortFieldShadowURL
+}
+
+// IsCreatedAt returns true if sorting by created_at
+func (f GateSortField) IsCreatedAt() bool {
+	return f.value == gateSortFieldCreatedAt
 }
 
 // String returns the field value

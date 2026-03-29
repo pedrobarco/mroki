@@ -5,8 +5,10 @@
  */
 export interface Gate {
   id: string
+  name: string
   live_url: string
   shadow_url: string
+  created_at: string
 }
 
 /**
@@ -123,6 +125,7 @@ export class ApiErrorException extends Error {
  * Payload for creating a new gate
  */
 export interface CreateGatePayload {
+  name: string
   live_url: string
   shadow_url: string
 }
@@ -130,7 +133,7 @@ export interface CreateGatePayload {
 /**
  * Valid sort fields for gate listing
  */
-export type GateSortField = 'id' | 'live_url' | 'shadow_url'
+export type GateSortField = 'id' | 'name' | 'live_url' | 'shadow_url' | 'created_at'
 
 /**
  * Query parameters for listing gates
@@ -138,6 +141,7 @@ export type GateSortField = 'id' | 'live_url' | 'shadow_url'
 export interface ListGatesParams {
   limit?: number
   offset?: number
+  name?: string
   live_url?: string
   shadow_url?: string
   sort?: GateSortField

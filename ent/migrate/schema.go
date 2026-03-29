@@ -46,14 +46,23 @@ var (
 	// GatesColumns holds the columns for the "gates" table.
 	GatesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Unique: true},
 		{Name: "live_url", Type: field.TypeString},
 		{Name: "shadow_url", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime},
 	}
 	// GatesTable holds the schema information for the "gates" table.
 	GatesTable = &schema.Table{
 		Name:       "gates",
 		Columns:    GatesColumns,
 		PrimaryKey: []*schema.Column{GatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "gate_live_url_shadow_url",
+				Unique:  true,
+				Columns: []*schema.Column{GatesColumns[2], GatesColumns[3]},
+			},
+		},
 	}
 	// RequestsColumns holds the columns for the "requests" table.
 	RequestsColumns = []*schema.Column{

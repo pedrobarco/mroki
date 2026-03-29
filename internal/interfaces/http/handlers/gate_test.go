@@ -52,7 +52,7 @@ func TestCreateGate_Success(t *testing.T) {
 	}
 	handler := commands.NewCreateGateHandler(repo)
 
-	body := `{"live_url":"http://live.example.com","shadow_url":"http://shadow.example.com"}`
+	body := `{"name":"test-gate","live_url":"http://live.example.com","shadow_url":"http://shadow.example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/gates", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -107,7 +107,7 @@ func TestCreateGate_MissingLiveURL(t *testing.T) {
 	repo := &mockGateRepository{}
 	handler := commands.NewCreateGateHandler(repo)
 
-	body := `{"shadow_url":"http://shadow.example.com"}`
+	body := `{"name":"test-gate","shadow_url":"http://shadow.example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/gates", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
 
@@ -123,7 +123,7 @@ func TestCreateGate_MissingLiveURL(t *testing.T) {
 		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 
-	if apiErr.Detail != "live_url is required" {
+	if apiErr.Detail != "live_url is required" { //nolint:goconst
 		t.Errorf("unexpected error detail: %s", apiErr.Detail)
 	}
 }
@@ -132,7 +132,7 @@ func TestCreateGate_MissingShadowURL(t *testing.T) {
 	repo := &mockGateRepository{}
 	handler := commands.NewCreateGateHandler(repo)
 
-	body := `{"live_url":"http://live.example.com"}`
+	body := `{"name":"test-gate","live_url":"http://live.example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/gates", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
 
@@ -157,7 +157,7 @@ func TestCreateGate_InvalidURL(t *testing.T) {
 	repo := &mockGateRepository{}
 	handler := commands.NewCreateGateHandler(repo)
 
-	body := `{"live_url":"not-a-url","shadow_url":"http://shadow.example.com"}`
+	body := `{"name":"test-gate","live_url":"not-a-url","shadow_url":"http://shadow.example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/gates", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
 
@@ -182,7 +182,7 @@ func TestCreateGate_RepositoryError(t *testing.T) {
 	}
 	handler := commands.NewCreateGateHandler(repo)
 
-	body := `{"live_url":"http://live.example.com","shadow_url":"http://shadow.example.com"}`
+	body := `{"name":"test-gate","live_url":"http://live.example.com","shadow_url":"http://shadow.example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/gates", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
 
@@ -201,9 +201,10 @@ func TestCreateGate_RepositoryError(t *testing.T) {
 
 func TestGetGateByID_Success(t *testing.T) {
 	gateID := traffictesting.NewGateID()
+	name, _ := traffictesting.ParseGateName("get-gate")
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	expectedGate, _ := traffictesting.NewGate(liveURL, shadowURL, traffictesting.WithGateID(gateID))
+	expectedGate, _ := traffictesting.NewGate(name, liveURL, shadowURL, traffictesting.WithGateID(gateID))
 
 	repo := &mockGateRepository{
 		getByIDFunc: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
@@ -312,10 +313,12 @@ func TestGetGateByID_NotFound(t *testing.T) {
 }
 
 func TestGetAllGates_Success(t *testing.T) {
+	name1, _ := traffictesting.ParseGateName("gate-1")
+	name2, _ := traffictesting.ParseGateName("gate-2")
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
-	gate2, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate1, _ := traffictesting.NewGate(name1, liveURL, shadowURL)
+	gate2, _ := traffictesting.NewGate(name2, liveURL, shadowURL)
 	gates := []*traffictesting.Gate{gate1, gate2}
 
 	params, _ := pagination.NewParams(10, 0)
@@ -437,9 +440,10 @@ func TestGetAllGates_PaginationValidationError(t *testing.T) {
 
 
 func TestGetAllGates_WithSortParams(t *testing.T) {
+	name, _ := traffictesting.ParseGateName("sort-gate")
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate1, _ := traffictesting.NewGate(name, liveURL, shadowURL)
 	gates := []*traffictesting.Gate{gate1}
 
 	params, _ := pagination.NewParams(50, 0)
@@ -477,9 +481,10 @@ func TestGetAllGates_WithSortParams(t *testing.T) {
 }
 
 func TestGetAllGates_WithFilterParams(t *testing.T) {
+	name, _ := traffictesting.ParseGateName("filter-gate")
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate1, _ := traffictesting.NewGate(name, liveURL, shadowURL)
 	gates := []*traffictesting.Gate{gate1}
 
 	params, _ := pagination.NewParams(50, 0)
@@ -548,9 +553,10 @@ func TestGetAllGates_InvalidSortOrder(t *testing.T) {
 }
 
 func TestGetAllGates_AllParamsCombined(t *testing.T) {
+	name, _ := traffictesting.ParseGateName("combined-gate")
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate1, _ := traffictesting.NewGate(name, liveURL, shadowURL)
 
 	params, _ := pagination.NewParams(10, 0)
 	result := pagination.NewPagedResult([]*traffictesting.Gate{gate1}, 1, params)

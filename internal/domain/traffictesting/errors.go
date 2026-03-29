@@ -5,9 +5,12 @@ import "errors"
 // Domain errors for traffictesting
 var (
 	// Gate errors
-	ErrGateNotFound   = errors.New("gate not found")
-	ErrInvalidGateID  = errors.New("invalid gate ID")
-	ErrInvalidGateURL = errors.New("invalid gate URL")
+	ErrGateNotFound    = errors.New("gate not found")
+	ErrInvalidGateID   = errors.New("invalid gate ID")
+	ErrInvalidGateName = errors.New("invalid gate name")
+	ErrDuplicateGateName = errors.New("gate name already exists")
+	ErrDuplicateGateURLs = errors.New("gate URL pair already exists")
+	ErrInvalidGateURL  = errors.New("invalid gate URL")
 
 	// Request errors
 	ErrRequestNotFound  = errors.New("request not found")

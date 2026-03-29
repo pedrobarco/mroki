@@ -64,7 +64,7 @@ func setupGate(t *testing.T, repo traffictesting.GateRepository) traffictesting.
 	t.Helper()
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate, _ := traffictesting.NewGate(nextGateName(), liveURL, shadowURL)
 	require.NoError(t, repo.Save(context.Background(), gate))
 	return gate.ID
 }

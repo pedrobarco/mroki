@@ -15,6 +15,11 @@ func mapGateToDomain(raw *ent.Gate) (*traffictesting.Gate, error) {
 		return nil, fmt.Errorf("invalid gate ID in database: %w", err)
 	}
 
+	name, err := traffictesting.ParseGateName(raw.Name)
+	if err != nil {
+		return nil, fmt.Errorf("invalid gate name in database: %w", err)
+	}
+
 	live, err := traffictesting.ParseGateURL(raw.LiveURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid live URL in database: %w", err)
@@ -25,7 +30,10 @@ func mapGateToDomain(raw *ent.Gate) (*traffictesting.Gate, error) {
 		return nil, fmt.Errorf("invalid shadow URL in database: %w", err)
 	}
 
-	return traffictesting.NewGate(live, shadow, traffictesting.WithGateID(id))
+	return traffictesting.NewGate(name, live, shadow,
+		traffictesting.WithGateID(id),
+		traffictesting.WithGateCreatedAt(raw.CreatedAt),
+	)
 }
 
 func mapRequestToDomain(raw *ent.Request) (*traffictesting.Request, error) {

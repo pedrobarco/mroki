@@ -1,9 +1,13 @@
 package traffictesting
 
+import "time"
+
 type Gate struct {
 	ID        GateID
+	Name      GateName
 	LiveURL   GateURL
 	ShadowURL GateURL
+	CreatedAt time.Time
 
 	Requests []Request
 }
@@ -16,8 +20,15 @@ func WithGateID(id GateID) gateOption {
 	}
 }
 
-func NewGate(live, shadow GateURL, opts ...gateOption) (*Gate, error) {
+func WithGateCreatedAt(t time.Time) gateOption {
+	return func(g *Gate) {
+		g.CreatedAt = t
+	}
+}
+
+func NewGate(name GateName, live, shadow GateURL, opts ...gateOption) (*Gate, error) {
 	gate := &Gate{
+		Name:      name,
 		LiveURL:   live,
 		ShadowURL: shadow,
 	}
@@ -28,6 +39,10 @@ func NewGate(live, shadow GateURL, opts ...gateOption) (*Gate, error) {
 
 	if gate.ID.IsZero() {
 		gate.ID = NewGateID()
+	}
+
+	if gate.CreatedAt.IsZero() {
+		gate.CreatedAt = time.Now()
 	}
 
 	return gate, nil

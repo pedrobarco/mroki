@@ -9,6 +9,7 @@ test.describe('Gates Page', () => {
 
   test('shows seeded gate in the list', async ({ page, api }) => {
     const gate = await api.createGate(
+      'list-gate',
       'https://list-live.example.com/api',
       'https://list-shadow.example.com/api'
     )
@@ -28,6 +29,7 @@ test.describe('Gates Page', () => {
     await expect(page.getByRole('heading', { name: 'Create New Gate' })).toBeVisible()
 
     // Fill form
+    await page.getByLabel('Name').fill('new-test-gate')
     await page.getByLabel('Live URL').fill('https://new-live.example.com')
     await page.getByLabel('Shadow URL').fill('https://new-shadow.example.com')
 
@@ -54,7 +56,8 @@ test.describe('Gates Page', () => {
     // Empty form — submit disabled
     await expect(submitButton).toBeDisabled()
 
-    // Invalid live URL
+    // Invalid live URL (with name filled)
+    await page.getByLabel('Name').fill('test-gate')
     await page.getByLabel('Live URL').fill('not-a-url')
     await page.getByLabel('Shadow URL').fill('https://shadow.example.com')
     await expect(submitButton).toBeDisabled()
@@ -76,10 +79,12 @@ test.describe('Gates Page', () => {
 
   test('filter gates by URL search', async ({ page, api }) => {
     await api.createGate(
+      'xflt-alpha-gate',
       'https://xflt-alpha-live.example.com',
       'https://xflt-alpha-shadow.example.com'
     )
     await api.createGate(
+      'xflt-beta-gate',
       'https://xflt-beta-live.example.com',
       'https://xflt-beta-shadow.example.com'
     )
@@ -109,10 +114,12 @@ test.describe('Gates Page', () => {
 
   test('sort gates by live URL ascending', async ({ page, api }) => {
     await api.createGate(
+      'xsrt-zebra-gate',
       'https://xsrt-zebra.example.com',
       'https://xsrt-shadow-z.example.com'
     )
     await api.createGate(
+      'xsrt-apple-gate',
       'https://xsrt-apple.example.com',
       'https://xsrt-shadow-a.example.com'
     )
@@ -142,6 +149,7 @@ test.describe('Gates Page', () => {
     // Create 8 gates with unique prefix (page size is 5, so we get 2 pages)
     const promises = Array.from({ length: 8 }, (_, i) =>
       api.createGate(
+        `xpag-gate-${String(i).padStart(3, '0')}`,
         `https://xpag-live-${String(i).padStart(3, '0')}.example.com`,
         `https://xpag-shadow-${String(i).padStart(3, '0')}.example.com`
       )
@@ -170,6 +178,7 @@ test.describe('Gates Page', () => {
     // Create 8 gates so pagination appears
     const promises = Array.from({ length: 8 }, (_, i) =>
       api.createGate(
+        `xrst-gate-${String(i).padStart(3, '0')}`,
         `https://xrst-live-${String(i).padStart(3, '0')}.example.com`,
         `https://xrst-shadow-${String(i).padStart(3, '0')}.example.com`
       )

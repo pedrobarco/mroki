@@ -43,6 +43,7 @@ func TestCreateGateHandler_Handle_success(t *testing.T) {
 	handler := NewCreateGateHandler(repo)
 
 	cmd := CreateGateCommand{
+		Name:      "test-gate",
 		LiveURL:   "https://api.example.com",
 		ShadowURL: "https://api-staging.example.com",
 	}
@@ -54,8 +55,10 @@ func TestCreateGateHandler_Handle_success(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, gate)
 	assert.False(t, gate.ID.IsZero())
+	assert.Equal(t, "test-gate", gate.Name.String())
 	assert.Equal(t, "https://api.example.com", gate.LiveURL.String())
 	assert.Equal(t, "https://api-staging.example.com", gate.ShadowURL.String())
+	assert.False(t, gate.CreatedAt.IsZero())
 }
 
 func TestCreateGateHandler_Handle_invalid_live_url(t *testing.T) {
@@ -64,6 +67,7 @@ func TestCreateGateHandler_Handle_invalid_live_url(t *testing.T) {
 	handler := NewCreateGateHandler(repo)
 
 	cmd := CreateGateCommand{
+		Name:      "invalid-live-gate",
 		LiveURL:   "ftp://invalid-scheme.com", // Invalid scheme
 		ShadowURL: "https://api-staging.example.com",
 	}
@@ -83,6 +87,7 @@ func TestCreateGateHandler_Handle_invalid_shadow_url(t *testing.T) {
 	handler := NewCreateGateHandler(repo)
 
 	cmd := CreateGateCommand{
+		Name:      "invalid-shadow-gate",
 		LiveURL:   "https://api.example.com",
 		ShadowURL: "not-a-valid-url", // Invalid URL
 	}
@@ -107,6 +112,7 @@ func TestCreateGateHandler_Handle_repository_error(t *testing.T) {
 	handler := NewCreateGateHandler(repo)
 
 	cmd := CreateGateCommand{
+		Name:      "repo-error-gate",
 		LiveURL:   "https://api.example.com",
 		ShadowURL: "https://api-staging.example.com",
 	}
@@ -131,6 +137,7 @@ func TestCreateGateHandler_Handle_http_urls(t *testing.T) {
 	handler := NewCreateGateHandler(repo)
 
 	cmd := CreateGateCommand{
+		Name:      "http-gate",
 		LiveURL:   "http://api.example.com", // HTTP should be valid
 		ShadowURL: "http://api-staging.example.com",
 	}

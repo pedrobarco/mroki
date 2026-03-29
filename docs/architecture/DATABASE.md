@@ -36,19 +36,30 @@ Stores live/shadow service pairs.
 
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
-| `id` | UUID | NOT NULL | Primary key, generated UUID v4 |
-| `live_url` | TEXT | YES | URL of production service |
-| `shadow_url` | TEXT | YES | URL of shadow/experimental service |
+| `id` | UUID | NOT NULL | Primary key, generated UUID v4, immutable |
+| `name` | TEXT | NOT NULL | Human-readable gate name, unique, mutable |
+| `live_url` | TEXT | NOT NULL | URL of production service, immutable |
+| `shadow_url` | TEXT | NOT NULL | URL of shadow/experimental service, immutable |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Creation timestamp, immutable, default `NOW()` |
 
 **Indexes:**
 - PRIMARY KEY on `id`
+- UNIQUE on `name`
+- UNIQUE on `(live_url, shadow_url)` (composite — the pair must be unique, individual values may repeat)
+
+**Constraints:**
+- `name` is unique and mutable (can be renamed)
+- `live_url` and `shadow_url` are immutable after creation
+- `created_at` is immutable, set at insert time
 
 **Example:**
 ```sql
-INSERT INTO gates (id, live_url, shadow_url) VALUES (
+INSERT INTO gates (id, name, live_url, shadow_url, created_at) VALUES (
     '550e8400-e29b-41d4-a716-446655440000',
+    'checkout-api',
     'https://api.production.example.com',
-    'https://api.shadow.example.com'
+    'https://api.shadow.example.com',
+    NOW()
 );
 ```
 
@@ -272,6 +283,10 @@ DELETE FROM gates WHERE id = '550e8400-e29b-41d4-a716-446655440000';
 ### Performance Indexes
 
 ```sql
+-- Gate unique constraints
+CREATE UNIQUE INDEX gate_name ON gates(name);
+CREATE UNIQUE INDEX gate_live_url_shadow_url ON gates(live_url, shadow_url);
+
 -- Find all requests for a gate (frequent query)
 CREATE INDEX idx_requests_gate_id ON requests(gate_id);
 
@@ -314,24 +329,17 @@ ORDER BY created_at DESC;
 
 ## Schema Migrations
 
-### Current State (v1)
+### Current State
 
-Schema is applied automatically on startup by mroki-api via ent's auto-migration.
+Schema is managed by ent with versioned migrations via Atlas.
 
 **Schema Directory:** `ent/schema/`
 **Generated Code:** `ent/` (via `go generate ./ent/...`)
+**Migrations Directory:** `ent/migrate/migrations/`
 
-### Future (v2+)
-
-Will use **golang-migrate** for version-controlled migrations.
-
-**Planned structure:**
-```
-migrations/
-├── 000001_initial_schema.up.sql
-├── 000001_initial_schema.down.sql
-├── 000002_add_sampling_rate.up.sql
-└── 000002_add_sampling_rate.down.sql
+To generate a new migration after schema changes:
+```bash
+make api-migrate name=<migration_name>
 ```
 
 ---
@@ -341,9 +349,9 @@ migrations/
 ### Get all gates
 
 ```sql
-SELECT id, live_url, shadow_url 
+SELECT id, name, live_url, shadow_url, created_at
 FROM gates
-ORDER BY id;
+ORDER BY created_at DESC;
 ```
 
 ### Get requests with diff summary
@@ -387,8 +395,9 @@ GROUP BY r.id, d.content;
 ### Count requests per gate
 
 ```sql
-SELECT 
+SELECT
     g.id,
+    g.name,
     g.live_url,
     COUNT(r.id) as request_count
 FROM gates g

@@ -65,9 +65,10 @@ func TestNewGateSortField(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "invalid field created_at",
-			input:   "created_at",
-			wantErr: true,
+			name:      "valid field created_at",
+			input:     "created_at",
+			wantValue: "created_at",
+			wantErr:   false,
 		},
 	}
 

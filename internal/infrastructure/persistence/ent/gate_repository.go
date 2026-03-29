@@ -3,6 +3,7 @@ package ent
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/pedrobarco/mroki/ent"
@@ -25,9 +26,14 @@ func NewGateRepository(client *ent.Client) *gateRepository {
 func (r *gateRepository) Save(ctx context.Context, g *traffictesting.Gate) error {
 	if _, err := r.client.Gate.Create().
 		SetID(g.ID.UUID()).
+		SetName(g.Name.String()).
 		SetLiveURL(g.LiveURL.String()).
 		SetShadowURL(g.ShadowURL.String()).
+		SetCreatedAt(g.CreatedAt).
 		Save(ctx); err != nil {
+		if isUniqueConstraintError(err) {
+			return classifyGateUniqueViolation(err, g)
+		}
 		return fmt.Errorf("failed to save gate: %w", err)
 	}
 	return nil
@@ -89,6 +95,10 @@ func (r *gateRepository) GetAll(ctx context.Context, filters traffictesting.Gate
 func (r *gateRepository) buildPredicates(filters traffictesting.GateFilters) []predicate.Gate {
 	var preds []predicate.Gate
 
+	if filters.HasNameFilter() {
+		preds = append(preds, gate.NameContainsFold(filters.Name()))
+	}
+
 	if filters.HasLiveURLFilter() {
 		preds = append(preds, gate.LiveURLContainsFold(filters.LiveURL()))
 	}
@@ -111,11 +121,37 @@ func (r *gateRepository) buildOrderBy(sort traffictesting.GateSort) gate.OrderOp
 
 	field := sort.Field()
 	switch {
+	case field.IsName():
+		return gate.ByName(opts...)
 	case field.IsLiveURL():
 		return gate.ByLiveURL(opts...)
 	case field.IsShadowURL():
 		return gate.ByShadowURL(opts...)
+	case field.IsCreatedAt():
+		return gate.ByCreatedAt(opts...)
 	default:
 		return gate.ByID(opts...)
 	}
+}
+
+// isUniqueConstraintError checks if an error is a unique constraint violation.
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return ent.IsConstraintError(err)
+}
+
+// classifyGateUniqueViolation maps a unique constraint error to the appropriate domain error
+// by inspecting the error message for constraint/column names.
+func classifyGateUniqueViolation(err error, g *traffictesting.Gate) error {
+	msg := err.Error()
+	if strings.Contains(msg, "name") {
+		return fmt.Errorf("%w: %s", traffictesting.ErrDuplicateGateName, g.Name)
+	}
+	if strings.Contains(msg, "live_url") || strings.Contains(msg, "shadow_url") {
+		return fmt.Errorf("%w: %s -> %s", traffictesting.ErrDuplicateGateURLs, g.LiveURL, g.ShadowURL)
+	}
+	// Fallback to name error for unrecognized constraint
+	return fmt.Errorf("%w: %s", traffictesting.ErrDuplicateGateName, g.Name)
 }

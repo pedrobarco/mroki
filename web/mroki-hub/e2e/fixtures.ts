@@ -5,8 +5,10 @@ const API_KEY = 'mroki-dev-api-key-16'
 
 interface Gate {
   id: string
+  name: string
   live_url: string
   shadow_url: string
+  created_at: string
 }
 
 interface RequestSummary {
@@ -34,7 +36,7 @@ interface CreateRequestPayload {
 }
 
 export interface ApiHelper {
-  createGate(liveUrl: string, shadowUrl: string): Promise<Gate>
+  createGate(name: string, liveUrl: string, shadowUrl: string): Promise<Gate>
   createRequest(gateId: string, data: CreateRequestPayload): Promise<RequestSummary>
   seedRequest(
     gateId: string,
@@ -71,10 +73,10 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 export const test = base.extend<{ api: ApiHelper }>({
   api: async ({}, use) => {
     const helper: ApiHelper = {
-      async createGate(liveUrl, shadowUrl) {
+      async createGate(name, liveUrl, shadowUrl) {
         return apiRequest<Gate>('/gates', {
           method: 'POST',
-          body: JSON.stringify({ live_url: liveUrl, shadow_url: shadowUrl }),
+          body: JSON.stringify({ name, live_url: liveUrl, shadow_url: shadowUrl }),
         })
       },
 

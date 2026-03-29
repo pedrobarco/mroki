@@ -3,6 +3,8 @@
 package gate
 
 import (
+	"time"
+
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
@@ -54,6 +56,11 @@ func IDLTE(id uuid.UUID) predicate.Gate {
 	return predicate.Gate(sql.FieldLTE(FieldID, id))
 }
 
+// Name applies equality check predicate on the "name" field. It's identical to NameEQ.
+func Name(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldName, v))
+}
+
 // LiveURL applies equality check predicate on the "live_url" field. It's identical to LiveURLEQ.
 func LiveURL(v string) predicate.Gate {
 	return predicate.Gate(sql.FieldEQ(FieldLiveURL, v))
@@ -62,6 +69,76 @@ func LiveURL(v string) predicate.Gate {
 // ShadowURL applies equality check predicate on the "shadow_url" field. It's identical to ShadowURLEQ.
 func ShadowURL(v string) predicate.Gate {
 	return predicate.Gate(sql.FieldEQ(FieldShadowURL, v))
+}
+
+// CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
+func CreatedAt(v time.Time) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// NameEQ applies the EQ predicate on the "name" field.
+func NameEQ(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldName, v))
+}
+
+// NameNEQ applies the NEQ predicate on the "name" field.
+func NameNEQ(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldNEQ(FieldName, v))
+}
+
+// NameIn applies the In predicate on the "name" field.
+func NameIn(vs ...string) predicate.Gate {
+	return predicate.Gate(sql.FieldIn(FieldName, vs...))
+}
+
+// NameNotIn applies the NotIn predicate on the "name" field.
+func NameNotIn(vs ...string) predicate.Gate {
+	return predicate.Gate(sql.FieldNotIn(FieldName, vs...))
+}
+
+// NameGT applies the GT predicate on the "name" field.
+func NameGT(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldGT(FieldName, v))
+}
+
+// NameGTE applies the GTE predicate on the "name" field.
+func NameGTE(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldGTE(FieldName, v))
+}
+
+// NameLT applies the LT predicate on the "name" field.
+func NameLT(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldLT(FieldName, v))
+}
+
+// NameLTE applies the LTE predicate on the "name" field.
+func NameLTE(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldLTE(FieldName, v))
+}
+
+// NameContains applies the Contains predicate on the "name" field.
+func NameContains(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldContains(FieldName, v))
+}
+
+// NameHasPrefix applies the HasPrefix predicate on the "name" field.
+func NameHasPrefix(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldHasPrefix(FieldName, v))
+}
+
+// NameHasSuffix applies the HasSuffix predicate on the "name" field.
+func NameHasSuffix(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldHasSuffix(FieldName, v))
+}
+
+// NameEqualFold applies the EqualFold predicate on the "name" field.
+func NameEqualFold(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldEqualFold(FieldName, v))
+}
+
+// NameContainsFold applies the ContainsFold predicate on the "name" field.
+func NameContainsFold(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldContainsFold(FieldName, v))
 }
 
 // LiveURLEQ applies the EQ predicate on the "live_url" field.
@@ -192,6 +269,46 @@ func ShadowURLEqualFold(v string) predicate.Gate {
 // ShadowURLContainsFold applies the ContainsFold predicate on the "shadow_url" field.
 func ShadowURLContainsFold(v string) predicate.Gate {
 	return predicate.Gate(sql.FieldContainsFold(FieldShadowURL, v))
+}
+
+// CreatedAtEQ applies the EQ predicate on the "created_at" field.
+func CreatedAtEQ(v time.Time) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// CreatedAtNEQ applies the NEQ predicate on the "created_at" field.
+func CreatedAtNEQ(v time.Time) predicate.Gate {
+	return predicate.Gate(sql.FieldNEQ(FieldCreatedAt, v))
+}
+
+// CreatedAtIn applies the In predicate on the "created_at" field.
+func CreatedAtIn(vs ...time.Time) predicate.Gate {
+	return predicate.Gate(sql.FieldIn(FieldCreatedAt, vs...))
+}
+
+// CreatedAtNotIn applies the NotIn predicate on the "created_at" field.
+func CreatedAtNotIn(vs ...time.Time) predicate.Gate {
+	return predicate.Gate(sql.FieldNotIn(FieldCreatedAt, vs...))
+}
+
+// CreatedAtGT applies the GT predicate on the "created_at" field.
+func CreatedAtGT(v time.Time) predicate.Gate {
+	return predicate.Gate(sql.FieldGT(FieldCreatedAt, v))
+}
+
+// CreatedAtGTE applies the GTE predicate on the "created_at" field.
+func CreatedAtGTE(v time.Time) predicate.Gate {
+	return predicate.Gate(sql.FieldGTE(FieldCreatedAt, v))
+}
+
+// CreatedAtLT applies the LT predicate on the "created_at" field.
+func CreatedAtLT(v time.Time) predicate.Gate {
+	return predicate.Gate(sql.FieldLT(FieldCreatedAt, v))
+}
+
+// CreatedAtLTE applies the LTE predicate on the "created_at" field.
+func CreatedAtLTE(v time.Time) predicate.Gate {
+	return predicate.Gate(sql.FieldLTE(FieldCreatedAt, v))
 }
 
 // HasRequests applies the HasEdge predicate on the "requests" edge.

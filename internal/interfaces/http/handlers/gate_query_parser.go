@@ -8,11 +8,15 @@ import (
 // Returns primitive values for service layer to create domain value objects
 // All filters are optional - returns empty when not provided
 func parseGateQueryParams(query url.Values) (
+	name string,
 	liveURL string,
 	shadowURL string,
 	sortField string,
 	sortOrder string,
 ) {
+	// Parse name filter (substring match)
+	name = query.Get("name")
+
 	// Parse URL filters (substring match)
 	liveURL = query.Get("live_url")
 	shadowURL = query.Get("shadow_url")
@@ -23,5 +27,5 @@ func parseGateQueryParams(query url.Values) (
 	// Parse sort order
 	sortOrder = query.Get("order")
 
-	return liveURL, shadowURL, sortField, sortOrder
+	return name, liveURL, shadowURL, sortField, sortOrder
 }

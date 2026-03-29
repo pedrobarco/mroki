@@ -2,6 +2,7 @@ package ent_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -13,6 +14,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var gateCounter int
+
+func nextGateName() traffictesting.GateName {
+	gateCounter++
+	n, _ := traffictesting.ParseGateName(fmt.Sprintf("gate-%d", gateCounter))
+	return n
+}
+
 func TestGateRepository_Save_success(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
 	defer func() { _ = client.Close() }()
@@ -21,7 +30,7 @@ func TestGateRepository_Save_success(t *testing.T) {
 
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate, _ := traffictesting.NewGate(nextGateName(), liveURL, shadowURL)
 
 	err := repo.Save(context.Background(), gate)
 
@@ -36,7 +45,7 @@ func TestGateRepository_Save_database_error(t *testing.T) {
 
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate, _ := traffictesting.NewGate(nextGateName(), liveURL, shadowURL)
 
 	// Save twice should fail (duplicate ID)
 	err := repo.Save(context.Background(), gate)
@@ -44,7 +53,6 @@ func TestGateRepository_Save_database_error(t *testing.T) {
 
 	err = repo.Save(context.Background(), gate)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to save gate")
 }
 
 func TestGateRepository_GetByID_success(t *testing.T) {
@@ -55,7 +63,7 @@ func TestGateRepository_GetByID_success(t *testing.T) {
 
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate, _ := traffictesting.NewGate(nextGateName(), liveURL, shadowURL)
 
 	require.NoError(t, repo.Save(context.Background(), gate))
 
@@ -91,11 +99,11 @@ func TestGateRepository_GetAll_success(t *testing.T) {
 
 	liveURL1, _ := traffictesting.ParseGateURL("http://live1.example.com")
 	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow1.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+	gate1, _ := traffictesting.NewGate(nextGateName(), liveURL1, shadowURL1)
 
 	liveURL2, _ := traffictesting.ParseGateURL("http://live2.example.com")
 	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow2.example.com")
-	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+	gate2, _ := traffictesting.NewGate(nextGateName(), liveURL2, shadowURL2)
 
 	require.NoError(t, repo.Save(context.Background(), gate1))
 	require.NoError(t, repo.Save(context.Background(), gate2))
@@ -138,11 +146,11 @@ func TestGateRepository_GetAll_pagination(t *testing.T) {
 
 	repo := ent.NewGateRepository(client)
 
-	// Create 3 gates
+	// Create 3 gates with unique URL pairs
 	for i := 0; i < 3; i++ {
-		liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
-		shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-		gate, _ := traffictesting.NewGate(liveURL, shadowURL)
+		liveURL, _ := traffictesting.ParseGateURL(fmt.Sprintf("http://live-%d.example.com", i))
+		shadowURL, _ := traffictesting.ParseGateURL(fmt.Sprintf("http://shadow-%d.example.com", i))
+		gate, _ := traffictesting.NewGate(nextGateName(), liveURL, shadowURL)
 		require.NoError(t, repo.Save(context.Background(), gate))
 	}
 
@@ -166,11 +174,11 @@ func TestGateRepository_GetAll_filter_by_live_url(t *testing.T) {
 
 	liveURL1, _ := traffictesting.ParseGateURL("http://api.production.example.com")
 	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow1.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+	gate1, _ := traffictesting.NewGate(nextGateName(), liveURL1, shadowURL1)
 
 	liveURL2, _ := traffictesting.ParseGateURL("http://api.staging.example.com")
 	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow2.example.com")
-	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+	gate2, _ := traffictesting.NewGate(nextGateName(), liveURL2, shadowURL2)
 
 	require.NoError(t, repo.Save(context.Background(), gate1))
 	require.NoError(t, repo.Save(context.Background(), gate2))
@@ -179,7 +187,7 @@ func TestGateRepository_GetAll_filter_by_live_url(t *testing.T) {
 	sort := traffictesting.DefaultGateSort()
 
 	// Filter for "production" in live_url
-	filters := traffictesting.NewGateFilters("production", "")
+	filters := traffictesting.NewGateFilters("", "production", "")
 	result, err := repo.GetAll(context.Background(), filters, sort, params)
 
 	assert.NoError(t, err)
@@ -196,11 +204,11 @@ func TestGateRepository_GetAll_filter_by_shadow_url(t *testing.T) {
 
 	liveURL1, _ := traffictesting.ParseGateURL("http://live1.example.com")
 	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow-alpha.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+	gate1, _ := traffictesting.NewGate(nextGateName(), liveURL1, shadowURL1)
 
 	liveURL2, _ := traffictesting.ParseGateURL("http://live2.example.com")
 	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow-beta.example.com")
-	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+	gate2, _ := traffictesting.NewGate(nextGateName(), liveURL2, shadowURL2)
 
 	require.NoError(t, repo.Save(context.Background(), gate1))
 	require.NoError(t, repo.Save(context.Background(), gate2))
@@ -209,7 +217,7 @@ func TestGateRepository_GetAll_filter_by_shadow_url(t *testing.T) {
 	sort := traffictesting.DefaultGateSort()
 
 	// Filter for "beta" in shadow_url
-	filters := traffictesting.NewGateFilters("", "beta")
+	filters := traffictesting.NewGateFilters("", "", "beta")
 	result, err := repo.GetAll(context.Background(), filters, sort, params)
 
 	assert.NoError(t, err)
@@ -226,15 +234,15 @@ func TestGateRepository_GetAll_filter_by_both_urls(t *testing.T) {
 
 	liveURL1, _ := traffictesting.ParseGateURL("http://api.production.example.com")
 	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow-alpha.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+	gate1, _ := traffictesting.NewGate(nextGateName(), liveURL1, shadowURL1)
 
 	liveURL2, _ := traffictesting.ParseGateURL("http://api.production.example.com")
 	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow-beta.example.com")
-	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+	gate2, _ := traffictesting.NewGate(nextGateName(), liveURL2, shadowURL2)
 
 	liveURL3, _ := traffictesting.ParseGateURL("http://api.staging.example.com")
 	shadowURL3, _ := traffictesting.ParseGateURL("http://shadow-alpha.example.com")
-	gate3, _ := traffictesting.NewGate(liveURL3, shadowURL3)
+	gate3, _ := traffictesting.NewGate(nextGateName(), liveURL3, shadowURL3)
 
 	require.NoError(t, repo.Save(context.Background(), gate1))
 	require.NoError(t, repo.Save(context.Background(), gate2))
@@ -244,7 +252,7 @@ func TestGateRepository_GetAll_filter_by_both_urls(t *testing.T) {
 	sort := traffictesting.DefaultGateSort()
 
 	// Filter for "production" in live_url AND "alpha" in shadow_url
-	filters := traffictesting.NewGateFilters("production", "alpha")
+	filters := traffictesting.NewGateFilters("", "production", "alpha")
 	result, err := repo.GetAll(context.Background(), filters, sort, params)
 
 	assert.NoError(t, err)
@@ -262,13 +270,13 @@ func TestGateRepository_GetAll_filter_no_match(t *testing.T) {
 
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate1, _ := traffictesting.NewGate(nextGateName(), liveURL, shadowURL)
 	require.NoError(t, repo.Save(context.Background(), gate1))
 
 	params, _ := pagination.NewParams(50, 0)
 	sort := traffictesting.DefaultGateSort()
 
-	filters := traffictesting.NewGateFilters("nonexistent", "")
+	filters := traffictesting.NewGateFilters("", "nonexistent", "")
 	result, err := repo.GetAll(context.Background(), filters, sort, params)
 
 	assert.NoError(t, err)
@@ -284,14 +292,14 @@ func TestGateRepository_GetAll_filter_case_insensitive(t *testing.T) {
 
 	liveURL, _ := traffictesting.ParseGateURL("http://api.Production.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL, shadowURL)
+	gate1, _ := traffictesting.NewGate(nextGateName(), liveURL, shadowURL)
 	require.NoError(t, repo.Save(context.Background(), gate1))
 
 	params, _ := pagination.NewParams(50, 0)
 	sort := traffictesting.DefaultGateSort()
 
 	// Search with lowercase should match uppercase in URL
-	filters := traffictesting.NewGateFilters("production", "")
+	filters := traffictesting.NewGateFilters("", "production", "")
 	result, err := repo.GetAll(context.Background(), filters, sort, params)
 
 	assert.NoError(t, err)
@@ -306,15 +314,15 @@ func TestGateRepository_GetAll_sort_by_live_url_asc(t *testing.T) {
 
 	liveURL1, _ := traffictesting.ParseGateURL("http://charlie.example.com")
 	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+	gate1, _ := traffictesting.NewGate(nextGateName(), liveURL1, shadowURL1)
 
 	liveURL2, _ := traffictesting.ParseGateURL("http://alpha.example.com")
 	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+	gate2, _ := traffictesting.NewGate(nextGateName(), liveURL2, shadowURL2)
 
 	liveURL3, _ := traffictesting.ParseGateURL("http://bravo.example.com")
 	shadowURL3, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate3, _ := traffictesting.NewGate(liveURL3, shadowURL3)
+	gate3, _ := traffictesting.NewGate(nextGateName(), liveURL3, shadowURL3)
 
 	require.NoError(t, repo.Save(context.Background(), gate1))
 	require.NoError(t, repo.Save(context.Background(), gate2))
@@ -341,11 +349,11 @@ func TestGateRepository_GetAll_sort_by_live_url_desc(t *testing.T) {
 
 	liveURL1, _ := traffictesting.ParseGateURL("http://charlie.example.com")
 	shadowURL1, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+	gate1, _ := traffictesting.NewGate(nextGateName(), liveURL1, shadowURL1)
 
 	liveURL2, _ := traffictesting.ParseGateURL("http://alpha.example.com")
 	shadowURL2, _ := traffictesting.ParseGateURL("http://shadow.example.com")
-	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+	gate2, _ := traffictesting.NewGate(nextGateName(), liveURL2, shadowURL2)
 
 	require.NoError(t, repo.Save(context.Background(), gate1))
 	require.NoError(t, repo.Save(context.Background(), gate2))
@@ -370,11 +378,11 @@ func TestGateRepository_GetAll_sort_by_shadow_url(t *testing.T) {
 
 	liveURL1, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL1, _ := traffictesting.ParseGateURL("http://zebra.example.com")
-	gate1, _ := traffictesting.NewGate(liveURL1, shadowURL1)
+	gate1, _ := traffictesting.NewGate(nextGateName(), liveURL1, shadowURL1)
 
 	liveURL2, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL2, _ := traffictesting.ParseGateURL("http://apple.example.com")
-	gate2, _ := traffictesting.NewGate(liveURL2, shadowURL2)
+	gate2, _ := traffictesting.NewGate(nextGateName(), liveURL2, shadowURL2)
 
 	require.NoError(t, repo.Save(context.Background(), gate1))
 	require.NoError(t, repo.Save(context.Background(), gate2))

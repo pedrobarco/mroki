@@ -7,14 +7,16 @@ import (
 
 // GateFilters represents filtering criteria for gates (composite value object)
 type GateFilters struct {
+	name      string
 	liveURL   string
 	shadowURL string
 }
 
 // NewGateFilters creates GateFilters from provided filter values
-// Both filters are plain strings (substring match); empty means no filter
-func NewGateFilters(liveURL, shadowURL string) GateFilters {
+// All filters are plain strings (substring match); empty means no filter
+func NewGateFilters(name, liveURL, shadowURL string) GateFilters {
 	return GateFilters{
+		name:      strings.TrimSpace(name),
 		liveURL:   strings.TrimSpace(liveURL),
 		shadowURL: strings.TrimSpace(shadowURL),
 	}
@@ -23,12 +25,17 @@ func NewGateFilters(liveURL, shadowURL string) GateFilters {
 // EmptyGateFilters returns filters with no criteria
 func EmptyGateFilters() GateFilters {
 	return GateFilters{
+		name:      "",
 		liveURL:   "",
 		shadowURL: "",
 	}
 }
 
 // Getters (immutable)
+
+func (f GateFilters) Name() string {
+	return f.name
+}
 
 func (f GateFilters) LiveURL() string {
 	return f.liveURL
@@ -41,7 +48,11 @@ func (f GateFilters) ShadowURL() string {
 // Business query methods
 
 func (f GateFilters) IsEmpty() bool {
-	return f.liveURL == "" && f.shadowURL == ""
+	return f.name == "" && f.liveURL == "" && f.shadowURL == ""
+}
+
+func (f GateFilters) HasNameFilter() bool {
+	return f.name != ""
 }
 
 func (f GateFilters) HasLiveURLFilter() bool {
@@ -59,6 +70,10 @@ func (f GateFilters) String() string {
 	}
 
 	parts := []string{}
+
+	if f.HasNameFilter() {
+		parts = append(parts, fmt.Sprintf("name='%s'", f.name))
+	}
 
 	if f.HasLiveURLFilter() {
 		parts = append(parts, fmt.Sprintf("live_url='%s'", f.liveURL))

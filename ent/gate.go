@@ -5,6 +5,7 @@ package ent
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
@@ -17,10 +18,14 @@ type Gate struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID uuid.UUID `json:"id,omitempty"`
+	// Name holds the value of the "name" field.
+	Name string `json:"name,omitempty"`
 	// LiveURL holds the value of the "live_url" field.
 	LiveURL string `json:"live_url,omitempty"`
 	// ShadowURL holds the value of the "shadow_url" field.
 	ShadowURL string `json:"shadow_url,omitempty"`
+	// CreatedAt holds the value of the "created_at" field.
+	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GateQuery when eager-loading is set.
 	Edges        GateEdges `json:"edges"`
@@ -50,8 +55,10 @@ func (*Gate) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case gate.FieldLiveURL, gate.FieldShadowURL:
+		case gate.FieldName, gate.FieldLiveURL, gate.FieldShadowURL:
 			values[i] = new(sql.NullString)
+		case gate.FieldCreatedAt:
+			values[i] = new(sql.NullTime)
 		case gate.FieldID:
 			values[i] = new(uuid.UUID)
 		default:
@@ -75,6 +82,12 @@ func (_m *Gate) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.ID = *value
 			}
+		case gate.FieldName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field name", values[i])
+			} else if value.Valid {
+				_m.Name = value.String
+			}
 		case gate.FieldLiveURL:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field live_url", values[i])
@@ -86,6 +99,12 @@ func (_m *Gate) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field shadow_url", values[i])
 			} else if value.Valid {
 				_m.ShadowURL = value.String
+			}
+		case gate.FieldCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field created_at", values[i])
+			} else if value.Valid {
+				_m.CreatedAt = value.Time
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -128,11 +147,17 @@ func (_m *Gate) String() string {
 	var builder strings.Builder
 	builder.WriteString("Gate(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	builder.WriteString("name=")
+	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
 	builder.WriteString("live_url=")
 	builder.WriteString(_m.LiveURL)
 	builder.WriteString(", ")
 	builder.WriteString("shadow_url=")
 	builder.WriteString(_m.ShadowURL)
+	builder.WriteString(", ")
+	builder.WriteString("created_at=")
+	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

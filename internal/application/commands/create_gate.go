@@ -9,6 +9,7 @@ import (
 
 // CreateGateCommand represents the intent to create a new gate
 type CreateGateCommand struct {
+	Name      string
 	LiveURL   string
 	ShadowURL string
 }
@@ -25,6 +26,12 @@ func NewCreateGateHandler(repo traffictesting.GateRepository) *CreateGateHandler
 
 // Handle executes the CreateGate command
 func (h *CreateGateHandler) Handle(ctx context.Context, cmd CreateGateCommand) (*traffictesting.Gate, error) {
+	// Parse and validate name (domain validation)
+	name, err := traffictesting.ParseGateName(cmd.Name)
+	if err != nil {
+		return nil, fmt.Errorf("invalid name: %w", err)
+	}
+
 	// Parse and validate URLs (domain validation)
 	liveURL, err := traffictesting.ParseGateURL(cmd.LiveURL)
 	if err != nil {
@@ -37,7 +44,7 @@ func (h *CreateGateHandler) Handle(ctx context.Context, cmd CreateGateCommand) (
 	}
 
 	// Create domain aggregate
-	gate, err := traffictesting.NewGate(liveURL, shadowURL)
+	gate, err := traffictesting.NewGate(name, liveURL, shadowURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gate: %w", err)
 	}

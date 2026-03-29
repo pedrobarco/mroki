@@ -1,6 +1,6 @@
 # mroki Roadmap
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-03-29
 
 All completed, pending, and planned work for mroki. Items use a consistent format:
 - `[x]` Complete · `[ ]` Not started
@@ -24,8 +24,9 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 
 ### Gate Model
 
-- [ ] **P1** Add `name` field — UI shows hardcoded names like "checkout-api" (`GateCard.vue`, `GateDetail.vue`). Add to schema, domain model, create/update API, DTO.
-- [ ] **P1** Add `created_at` field — UI shows hardcoded "Mar 12, 2026" (`GateDetail.vue`). Add immutable default timestamp to schema.
+- [x] **P1** Add `name` field — Unique, mutable name. Added to schema, domain model, create API, DTO, and wired in `GateCard.vue`, `GateDetail.vue`, `GateForm.vue`.
+- [x] **P1** Add `created_at` field — Immutable default timestamp. Wired in `GateDetail.vue`. Added `created_at` sort field.
+- [x] **P1** Unique + immutable URL pair — `(live_url, shadow_url)` composite unique index. Both fields immutable after creation. 409 Conflict on duplicates.
 - [ ] **P2** Add `status` field — "Pause" button exists with no handler (`GateDetail.vue`). Add active/paused status + `PATCH /gates/{id}/status`.
 
 ### Gate Statistics
@@ -97,7 +98,7 @@ Larger capabilities not yet started, organized by priority.
 ### Core CRUD Completeness
 
 - [ ] **P1** Delete gate — `DELETE /gates/{id}` with cascade delete.
-- [ ] **P1** Update gate — `PUT /gates/{id}` to modify name, live_url, shadow_url.
+- [ ] **P1** Update gate — `PUT /gates/{id}` to modify name (live_url and shadow_url are immutable).
 - [ ] **P2** Delete request — `DELETE /gates/{id}/requests/{request_id}`.
 - [ ] **P3** Bulk delete requests — `DELETE /gates/{id}/requests?older_than=30d`.
 
