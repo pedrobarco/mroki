@@ -39,6 +39,9 @@ test.describe('Gate Detail Page', () => {
     await page.goto(`/gates/${gate.id}`)
     await expect(page.getByText('/api/users')).toBeVisible()
     await expect(page.getByText('/api/orders')).toBeVisible()
+
+    // Request total
+    await expect(page.getByText('2 requests')).toBeVisible()
   })
 
   test('filter by HTTP method', async ({ page, api }) => {
@@ -104,7 +107,8 @@ test.describe('Gate Detail Page', () => {
 
     await page.goto(`/gates/${gate.id}`)
 
-    // Should show pagination info
+    // Should show request total and pagination info
+    await expect(page.getByText('25 requests')).toBeVisible()
     await expect(page.getByText('Page 1 of 2')).toBeVisible()
 
     // Next page

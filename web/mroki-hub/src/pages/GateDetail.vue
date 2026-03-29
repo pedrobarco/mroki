@@ -23,6 +23,7 @@ const { setGate: cacheGate } = useGateCache()
 const gate = ref<Gate | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const requestTotal = ref<number | null>(null)
 
 const gateId = computed(() => route.params.id as string)
 
@@ -127,7 +128,7 @@ onMounted(() => {
               class="text-xs uppercase tracking-widest text-dim mb-1.5 flex items-center gap-1.5"
             >
               <span class="w-1.5 h-1.5 rounded-full bg-success" />
-              Live Service
+              Live
             </div>
             <code class="text-xs font-mono text-muted-foreground">
               {{ gate.live_url }}
@@ -138,7 +139,7 @@ onMounted(() => {
               class="text-xs uppercase tracking-widest text-dim mb-1.5 flex items-center gap-1.5"
             >
               <span class="w-1.5 h-1.5 rounded-full bg-info" />
-              Shadow Service
+              Shadow
             </div>
             <code class="text-xs font-mono text-muted-foreground">
               {{ gate.shadow_url }}
@@ -176,7 +177,9 @@ onMounted(() => {
       <!-- Captured Requests Section -->
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-semibold tracking-tight">Captured Requests</h2>
-        <span class="text-xs text-dim">Showing 6 of {{ dummyRequests24h }} requests</span>
+        <span v-if="requestTotal !== null" class="text-xs text-dim"
+          >{{ requestTotal }} request{{ requestTotal !== 1 ? 's' : '' }}</span
+        >
       </div>
 
       <!-- Filters -->
@@ -184,7 +187,7 @@ onMounted(() => {
         <RequestFilters :model-value="filters" @update:model-value="onFiltersUpdate" />
       </div>
 
-      <RequestList :gate-id="gateId" :filters="filters" />
+      <RequestList :gate-id="gateId" :filters="filters" @update:total="requestTotal = $event" />
     </div>
   </div>
 </template>
