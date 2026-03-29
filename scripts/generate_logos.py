@@ -198,10 +198,9 @@ def main():
 
     img = Image.open(args.source)
 
-    # 1. Full logo with background removed
-    logo = remove_background(img)
-    logo.save(out_dir / "mroki-logo.png")
-    print(f"  ✓ mroki-logo.png (full logo, transparent bg)")
+    # 1. Copy full logo as-is (with original background)
+    shutil.copy2(args.source, out_dir / "mroki-logo.png")
+    print("  ✓ mroki-logo.png (full logo, original)")
 
     # 2. Crop icon (light) with background removed
     icon = remove_background(crop_icon(img))

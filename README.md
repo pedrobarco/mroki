@@ -8,7 +8,7 @@
 
 mroki mirrors live HTTP traffic to a shadow service, diffs the JSON responses, and surfaces the differences — so you can validate changes against real production behavior before rolling out.
 
-![mroki-hub request detail](docs/assets/hub-request-detail-unified.png)
+![mroki-hub request detail](docs/assets/screenshots/hub-request-detail-split.png)
 
 > See the full [screenshot gallery](docs/SCREENSHOTS.md) for more views.
 
