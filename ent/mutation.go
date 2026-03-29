@@ -1338,7 +1338,6 @@ type RequestMutation struct {
 	op               Op
 	typ              string
 	id               *uuid.UUID
-	agent_id         *string
 	method           *string
 	_path            *string
 	headers          *map[string][]string
@@ -1495,55 +1494,6 @@ func (m *RequestMutation) OldGateID(ctx context.Context) (v uuid.UUID, err error
 // ResetGateID resets all changes to the "gate_id" field.
 func (m *RequestMutation) ResetGateID() {
 	m.gate = nil
-}
-
-// SetAgentID sets the "agent_id" field.
-func (m *RequestMutation) SetAgentID(s string) {
-	m.agent_id = &s
-}
-
-// AgentID returns the value of the "agent_id" field in the mutation.
-func (m *RequestMutation) AgentID() (r string, exists bool) {
-	v := m.agent_id
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldAgentID returns the old "agent_id" field's value of the Request entity.
-// If the Request object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *RequestMutation) OldAgentID(ctx context.Context) (v *string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldAgentID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldAgentID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldAgentID: %w", err)
-	}
-	return oldValue.AgentID, nil
-}
-
-// ClearAgentID clears the value of the "agent_id" field.
-func (m *RequestMutation) ClearAgentID() {
-	m.agent_id = nil
-	m.clearedFields[request.FieldAgentID] = struct{}{}
-}
-
-// AgentIDCleared returns if the "agent_id" field was cleared in this mutation.
-func (m *RequestMutation) AgentIDCleared() bool {
-	_, ok := m.clearedFields[request.FieldAgentID]
-	return ok
-}
-
-// ResetAgentID resets all changes to the "agent_id" field.
-func (m *RequestMutation) ResetAgentID() {
-	m.agent_id = nil
-	delete(m.clearedFields, request.FieldAgentID)
 }
 
 // SetMethod sets the "method" field.
@@ -1906,12 +1856,9 @@ func (m *RequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 6)
 	if m.gate != nil {
 		fields = append(fields, request.FieldGateID)
-	}
-	if m.agent_id != nil {
-		fields = append(fields, request.FieldAgentID)
 	}
 	if m.method != nil {
 		fields = append(fields, request.FieldMethod)
@@ -1938,8 +1885,6 @@ func (m *RequestMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case request.FieldGateID:
 		return m.GateID()
-	case request.FieldAgentID:
-		return m.AgentID()
 	case request.FieldMethod:
 		return m.Method()
 	case request.FieldPath:
@@ -1961,8 +1906,6 @@ func (m *RequestMutation) OldField(ctx context.Context, name string) (ent.Value,
 	switch name {
 	case request.FieldGateID:
 		return m.OldGateID(ctx)
-	case request.FieldAgentID:
-		return m.OldAgentID(ctx)
 	case request.FieldMethod:
 		return m.OldMethod(ctx)
 	case request.FieldPath:
@@ -1988,13 +1931,6 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGateID(v)
-		return nil
-	case request.FieldAgentID:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetAgentID(v)
 		return nil
 	case request.FieldMethod:
 		v, ok := value.(string)
@@ -2061,9 +1997,6 @@ func (m *RequestMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *RequestMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(request.FieldAgentID) {
-		fields = append(fields, request.FieldAgentID)
-	}
 	if m.FieldCleared(request.FieldHeaders) {
 		fields = append(fields, request.FieldHeaders)
 	}
@@ -2084,9 +2017,6 @@ func (m *RequestMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *RequestMutation) ClearField(name string) error {
 	switch name {
-	case request.FieldAgentID:
-		m.ClearAgentID()
-		return nil
 	case request.FieldHeaders:
 		m.ClearHeaders()
 		return nil
@@ -2103,9 +2033,6 @@ func (m *RequestMutation) ResetField(name string) error {
 	switch name {
 	case request.FieldGateID:
 		m.ResetGateID()
-		return nil
-	case request.FieldAgentID:
-		m.ResetAgentID()
 		return nil
 	case request.FieldMethod:
 		m.ResetMethod()

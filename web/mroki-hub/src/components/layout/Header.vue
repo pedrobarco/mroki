@@ -5,7 +5,6 @@ const route = useRoute()
 
 const navItems = [
   { label: 'Gates', to: '/gates', matchPrefix: '/gates' },
-  { label: 'Agents', to: '#', matchPrefix: '/agents' },
   { label: 'Requests', to: '#', matchPrefix: '/requests' },
   { label: 'Settings', to: '#', matchPrefix: '/settings' },
 ]

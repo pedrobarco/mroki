@@ -59,9 +59,7 @@ func TestCreateRequest_Success(t *testing.T) {
 	handler := commands.NewCreateRequestHandler(repo)
 
 	now := time.Now()
-	agentID := "test-host-12345678" // Valid format: hostname-8hexchars
 	body := map[string]interface{}{
-		"agent_id":   agentID,
 		"method":     "GET",
 		"path":       "/api/test",
 		"headers":    map[string][]string{"Content-Type": {"application/json"}},
@@ -140,7 +138,6 @@ func TestCreateRequest_Success_WithoutDiff(t *testing.T) {
 	shadowBody := base64.StdEncoding.EncodeToString([]byte(`{"user":"bob"}`))
 
 	body := map[string]interface{}{
-		"agent_id":   "test-host-12345678",
 		"method":     "GET",
 		"path":       "/api/users",
 		"headers":    map[string][]string{"Content-Type": {"application/json"}},
@@ -217,7 +214,7 @@ func TestCreateRequest_MissingGateID(t *testing.T) {
 	repo := &mockRequestRepository{}
 	handler := commands.NewCreateRequestHandler(repo)
 
-	body := `{"agent_id":"test","method":"GET","path":"/test","headers":{},"body":"","responses":[],"diff":{"content":[]}}`
+	body := `{"method":"GET","path":"/test","headers":{},"body":"","responses":[],"diff":{"content":[]}}`
 	req := httptest.NewRequest(http.MethodPost, "/gates//requests", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
 
@@ -244,7 +241,6 @@ func TestCreateRequest_InvalidGateID(t *testing.T) {
 
 	now := time.Now()
 	body := map[string]interface{}{
-		"agent_id":   "test-agent",
 		"method":     "GET",
 		"path":       "/test",
 		"headers":    map[string][]string{},
@@ -300,7 +296,6 @@ func TestCreateRequest_RepositoryError(t *testing.T) {
 
 	now := time.Now()
 	body := map[string]interface{}{
-		"agent_id":   "test-agent",
 		"method":     "GET",
 		"path":       "/test",
 		"headers":    map[string][]string{},

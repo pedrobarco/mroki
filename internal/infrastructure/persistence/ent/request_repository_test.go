@@ -195,7 +195,6 @@ func TestRequestRepository_GetAllByGateID_with_method_filter(t *testing.T) {
 		[]traffictesting.HTTPMethod{filterMethod},
 		traffictesting.EmptyPathPattern(),
 		traffictesting.EmptyDateRange(),
-		"",
 		nil,
 	)
 

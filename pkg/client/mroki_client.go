@@ -17,7 +17,6 @@ import (
 type MrokiClient struct {
 	baseURL      *url.URL
 	gateID       string
-	agentID      string
 	apiKey       string
 	httpClient   *http.Client
 	maxRetries   int
@@ -26,11 +25,10 @@ type MrokiClient struct {
 }
 
 // NewMrokiClient creates a new API client
-func NewMrokiClient(apiURL *url.URL, gateID, agentID, apiKey string, opts ...ClientOption) *MrokiClient {
+func NewMrokiClient(apiURL *url.URL, gateID, apiKey string, opts ...ClientOption) *MrokiClient {
 	client := &MrokiClient{
 		baseURL:      apiURL,
 		gateID:       gateID,
-		agentID:      agentID,
 		apiKey:       apiKey,
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
 		maxRetries:   3,
@@ -66,9 +64,6 @@ func WithLogger(l *slog.Logger) ClientOption {
 
 // SendRequest sends a captured request to the API with retry logic
 func (c *MrokiClient) SendRequest(ctx context.Context, req *CapturedRequest) error {
-	// Ensure agent_id is set
-	req.AgentID = c.agentID
-
 	var lastErr error
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
 		if attempt > 0 {

@@ -21,9 +21,6 @@ func (Request) Fields() []ent.Field {
 			Default(uuid.New).
 			Immutable(),
 		field.UUID("gate_id", uuid.UUID{}),
-		field.String("agent_id").
-			Optional().
-			Nillable(),
 		field.String("method").
 			NotEmpty(),
 		field.String("path").
@@ -59,6 +56,5 @@ func (Request) Indexes() []ent.Index {
 		index.Fields("gate_id", "created_at"),
 		index.Fields("gate_id", "method"),
 		index.Fields("gate_id", "path"),
-		index.Fields("agent_id"),
 	}
 }

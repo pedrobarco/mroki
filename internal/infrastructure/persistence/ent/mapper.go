@@ -47,14 +47,6 @@ func mapRequestToDomain(raw *ent.Request) (*traffictesting.Request, error) {
 		return nil, fmt.Errorf("invalid gate ID in database: %w", err)
 	}
 
-	var agentID traffictesting.AgentID
-	if raw.AgentID != nil && *raw.AgentID != "" {
-		agentID, err = traffictesting.ParseAgentID(*raw.AgentID)
-		if err != nil {
-			return nil, fmt.Errorf("invalid agent ID in database: %w", err)
-		}
-	}
-
 	method, err := traffictesting.NewHTTPMethod(raw.Method)
 	if err != nil {
 		return nil, fmt.Errorf("invalid HTTP method in database: %w", err)
@@ -70,7 +62,6 @@ func mapRequestToDomain(raw *ent.Request) (*traffictesting.Request, error) {
 	return &traffictesting.Request{
 		ID:        id,
 		GateID:    gateID,
-		AgentID:   agentID,
 		Method:    method,
 		Path:      path,
 		Headers:   headers,

@@ -23,7 +23,6 @@ type ListRequestsQuery struct {
 	PathPattern string     // Path pattern with wildcards (e.g., "/api/users/*")
 	FromDate    *time.Time // Filter requests created after this date
 	ToDate      *time.Time // Filter requests created before this date
-	AgentID     string     // Filter by agent ID
 	HasDiff     *bool      // Filter by diff existence (true = has diff, false = no diff, nil = no filter)
 
 	// Sorting (optional, defaults applied if empty)
@@ -95,8 +94,8 @@ func (h *ListRequestsHandler) buildFilters(q ListRequestsQuery) (traffictesting.
 		return traffictesting.RequestFilters{}, fmt.Errorf("invalid date range: %w", err)
 	}
 
-	// Compose RequestFilters (agentID and hasDiff are plain types)
-	return traffictesting.NewRequestFilters(methods, pathPattern, dateRange, q.AgentID, q.HasDiff), nil
+	// Compose RequestFilters (hasDiff is a plain type)
+	return traffictesting.NewRequestFilters(methods, pathPattern, dateRange, q.HasDiff), nil
 }
 
 // buildSort creates RequestSort value object from query primitives

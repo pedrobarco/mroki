@@ -10,18 +10,15 @@ type RequestFilters struct {
 	methods     []HTTPMethod
 	pathPattern PathPattern
 	dateRange   DateRange
-	agentID     string // Plain string for flexible filtering
 	hasDiff     *bool
 }
 
 // NewRequestFilters creates RequestFilters from validated value objects
 // All value objects must be pre-validated by caller (service layer)
-// agentID is a plain string (any value valid, empty means no filter)
 func NewRequestFilters(
 	methods []HTTPMethod,
 	pathPattern PathPattern,
 	dateRange DateRange,
-	agentID string,
 	hasDiff *bool,
 ) RequestFilters {
 	// Normalize nil to empty slice
@@ -33,7 +30,6 @@ func NewRequestFilters(
 		methods:     methods,
 		pathPattern: pathPattern,
 		dateRange:   dateRange,
-		agentID:     strings.TrimSpace(agentID),
 		hasDiff:     hasDiff,
 	}
 }
@@ -44,7 +40,6 @@ func EmptyRequestFilters() RequestFilters {
 		methods:     []HTTPMethod{},
 		pathPattern: EmptyPathPattern(),
 		dateRange:   EmptyDateRange(),
-		agentID:     "",
 		hasDiff:     nil,
 	}
 }
@@ -69,10 +64,6 @@ func (f RequestFilters) DateRange() DateRange {
 	return f.dateRange
 }
 
-func (f RequestFilters) AgentID() string {
-	return f.agentID
-}
-
 func (f RequestFilters) HasDiff() *bool {
 	return f.hasDiff
 }
@@ -83,7 +74,6 @@ func (f RequestFilters) IsEmpty() bool {
 	return len(f.methods) == 0 &&
 		f.pathPattern.IsEmpty() &&
 		f.dateRange.IsEmpty() &&
-		f.agentID == "" &&
 		f.hasDiff == nil
 }
 
@@ -97,10 +87,6 @@ func (f RequestFilters) HasPathFilter() bool {
 
 func (f RequestFilters) HasDateRangeFilter() bool {
 	return !f.dateRange.IsEmpty()
-}
-
-func (f RequestFilters) HasAgentFilter() bool {
-	return f.agentID != ""
 }
 
 func (f RequestFilters) HasDiffFilter() bool {
@@ -129,10 +115,6 @@ func (f RequestFilters) String() string {
 
 	if f.HasDateRangeFilter() {
 		parts = append(parts, f.dateRange.String())
-	}
-
-	if f.HasAgentFilter() {
-		parts = append(parts, fmt.Sprintf("agent='%s'", f.agentID))
 	}
 
 	if f.HasDiffFilter() {

@@ -27,14 +27,6 @@ func main() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	log := logger.New()
 
-	// Load or generate agent ID
-	agentID, err := loadOrGenerateAgentID()
-	if err != nil {
-		log.Error("Failed to load/generate agent ID", "error", err)
-		return
-	}
-	log.Info("Agent ID loaded", "agent_id", agentID)
-
 	// Determine mode and configure URLs
 	var liveURL, shadowURL *url.URL
 	var apiClient *client.MrokiClient
@@ -54,7 +46,6 @@ func main() {
 		apiClient = client.NewMrokiClient(
 			cfg.App.APIURL,
 			cfg.App.GateID,
-			agentID,
 			cfg.App.APIKey,
 			client.WithHTTPClient(httpClient),
 			client.WithMaxRetries(cfg.App.MaxRetries),
@@ -137,7 +128,6 @@ func main() {
 		ShadowTimeout: cfg.App.ShadowTimeout,
 		MaxBodySize:   cfg.App.MaxBodySize,
 		SamplingRate:  samplingRate,
-		AgentID:       agentID,
 		Logger:        log,
 		APIClient:     apiClient, // nil if standalone mode
 		DiffOptions:   diffOpts,  // Only used in standalone mode

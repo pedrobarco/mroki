@@ -19,14 +19,12 @@ import (
 func TestNewMrokiClient(t *testing.T) {
 	apiURL, _ := url.Parse("http://localhost:8080")
 	gateID := "gate-123"
-	agentID := "agent-456"
 	apiKey := "test-api-key-1234567890"
 
-	client := NewMrokiClient(apiURL, gateID, agentID, apiKey)
+	client := NewMrokiClient(apiURL, gateID, apiKey)
 
 	assert.Equal(t, apiURL, client.baseURL)
 	assert.Equal(t, gateID, client.gateID)
-	assert.Equal(t, agentID, client.agentID)
 	assert.Equal(t, apiKey, client.apiKey)
 	assert.Equal(t, 3, client.maxRetries)
 	assert.Equal(t, 1*time.Second, client.initialDelay)
@@ -37,14 +35,12 @@ func TestNewMrokiClient(t *testing.T) {
 func TestNewMrokiClient_WithOptions(t *testing.T) {
 	apiURL, _ := url.Parse("http://localhost:8080")
 	gateID := "gate-123"
-	agentID := "agent-456"
 	apiKey := "test-api-key-1234567890"
 	customHTTPClient := &http.Client{Timeout: 5 * time.Second}
 
 	client := NewMrokiClient(
 		apiURL,
 		gateID,
-		agentID,
 		apiKey,
 		WithHTTPClient(customHTTPClient),
 		WithMaxRetries(5),
@@ -76,7 +72,6 @@ func TestSendRequest_SuccessOnFirstTry(t *testing.T) {
 		err = json.Unmarshal(body, &captured)
 		require.NoError(t, err)
 
-		assert.Equal(t, "agent-456", captured.AgentID)
 		assert.Equal(t, "GET", captured.Method)
 		assert.Equal(t, "/test", captured.Path)
 
@@ -86,7 +81,7 @@ func TestSendRequest_SuccessOnFirstTry(t *testing.T) {
 
 	// Create client
 	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(apiURL, "gate-123", "agent-456", "test-api-key")
+	client := NewMrokiClient(apiURL, "gate-123", "test-api-key")
 
 	// Send request
 	req := &CapturedRequest{
@@ -122,7 +117,6 @@ func TestSendRequest_RetryThenSucceed(t *testing.T) {
 	client := NewMrokiClient(
 		apiURL,
 		"gate-123",
-		"agent-456",
 		"test-api-key",
 		WithInitialDelay(10*time.Millisecond), // Fast for testing
 	)
@@ -159,7 +153,6 @@ func TestSendRequest_ExhaustAllRetries(t *testing.T) {
 	client := NewMrokiClient(
 		apiURL,
 		"gate-123",
-		"agent-456",
 		"test-api-key",
 		WithMaxRetries(3),
 		WithInitialDelay(10*time.Millisecond),
@@ -190,7 +183,6 @@ func TestSendRequest_ContextCancellation(t *testing.T) {
 	client := NewMrokiClient(
 		apiURL,
 		"gate-123",
-		"agent-456",
 		"test-api-key",
 		WithInitialDelay(1*time.Second), // Long delay
 	)
@@ -220,7 +212,6 @@ func TestSendRequest_NetworkError(t *testing.T) {
 	client := NewMrokiClient(
 		apiURL,
 		"gate-123",
-		"agent-456",
 		"test-api-key",
 		WithMaxRetries(1),
 		WithInitialDelay(10*time.Millisecond),
@@ -271,7 +262,6 @@ func TestSendRequest_Non2xxStatusCode(t *testing.T) {
 			client := NewMrokiClient(
 				apiURL,
 				"gate-123",
-				"agent-456",
 				"test-api-key",
 				WithMaxRetries(0), // No retries
 			)
@@ -288,35 +278,6 @@ func TestSendRequest_Non2xxStatusCode(t *testing.T) {
 			assert.Contains(t, err.Error(), fmt.Sprintf("API returned status %d", tc.statusCode))
 		})
 	}
-}
-
-func TestSendRequest_SetsAgentID(t *testing.T) {
-	// Create test server
-	var receivedAgentID string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		var captured CapturedRequest
-		_ = json.Unmarshal(body, &captured)
-		receivedAgentID = captured.AgentID
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	// Create client
-	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(apiURL, "gate-123", "agent-456", "test-api-key")
-
-	// Send request without agent_id
-	req := &CapturedRequest{
-		Method: "GET",
-		Path:   "/test",
-		// AgentID deliberately empty
-	}
-
-	err := client.SendRequest(context.Background(), req)
-
-	assert.NoError(t, err)
-	assert.Equal(t, "agent-456", receivedAgentID, "client should set agent_id")
 }
 
 func TestSendRequest_ExponentialBackoffTiming(t *testing.T) {
@@ -342,7 +303,6 @@ func TestSendRequest_ExponentialBackoffTiming(t *testing.T) {
 	client := NewMrokiClient(
 		apiURL,
 		"gate-123",
-		"agent-456",
 		"test-api-key",
 		WithInitialDelay(initialDelay),
 	)
@@ -407,7 +367,6 @@ func TestGetGate_Success(t *testing.T) {
 	client := NewMrokiClient(
 		apiURL,
 		"550e8400-e29b-41d4-a716-446655440000",
-		"agent-1",
 		"test-api-key",
 	)
 
@@ -441,7 +400,6 @@ func TestGetGate_NotFound(t *testing.T) {
 	client := NewMrokiClient(
 		apiURL,
 		"non-existent-gate",
-		"agent-1",
 		"test-api-key",
 	)
 
@@ -482,7 +440,7 @@ func TestGetGate_APIError(t *testing.T) {
 
 			// Create client
 			apiURL, _ := url.Parse(server.URL)
-			client := NewMrokiClient(apiURL, "gate-123", "agent-1", "test-api-key")
+			client := NewMrokiClient(apiURL, "gate-123", "test-api-key")
 
 			// Call GetGate
 			gate, err := client.GetGate(context.Background())
@@ -509,7 +467,6 @@ func TestGetGate_Timeout(t *testing.T) {
 	client := NewMrokiClient(
 		apiURL,
 		"gate-123",
-		"agent-1",
 		"test-api-key",
 		WithHTTPClient(&http.Client{Timeout: 50 * time.Millisecond}),
 	)
@@ -535,7 +492,7 @@ func TestGetGate_MalformedJSON(t *testing.T) {
 
 	// Create client
 	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(apiURL, "gate-123", "agent-1", "test-api-key")
+	client := NewMrokiClient(apiURL, "gate-123", "test-api-key")
 
 	// Call GetGate
 	gate, err := client.GetGate(context.Background())
@@ -549,7 +506,7 @@ func TestGetGate_MalformedJSON(t *testing.T) {
 func TestGetGate_NetworkError(t *testing.T) {
 	// Create client pointing to non-existent server
 	apiURL, _ := url.Parse("http://localhost:1")
-	client := NewMrokiClient(apiURL, "gate-123", "agent-1", "test-api-key")
+	client := NewMrokiClient(apiURL, "gate-123", "test-api-key")
 
 	// Call GetGate
 	gate, err := client.GetGate(context.Background())

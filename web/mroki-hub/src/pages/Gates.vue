@@ -26,7 +26,6 @@ const filters = reactive<GateFilterState>({
 
 const stats = [
   { label: 'TOTAL GATES', value: '4' },
-  { label: 'ACTIVE AGENTS', value: '3' },
   { label: 'REQUESTS (24H)', value: '12,847' },
   { label: 'DIFF RATE', value: '4.2%', highlight: true },
 ]
@@ -74,7 +73,7 @@ function onFiltersUpdate(newFilters: GateFilterState) {
     </div>
 
     <!-- Stats Bar -->
-    <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-3 gap-4 mb-6">
       <div
         v-for="stat in stats"
         :key="stat.label"

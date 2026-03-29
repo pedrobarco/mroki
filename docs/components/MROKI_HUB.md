@@ -13,7 +13,6 @@ mroki-hub is a Vue 3 single-page application that provides a user-friendly inter
 
 ### Not Yet Implemented
 
-- Agent monitoring (no backend endpoint)
 - Dashboard statistics (no backend endpoint)
 - Gate edit/delete (no backend endpoints)
 

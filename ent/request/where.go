@@ -61,11 +61,6 @@ func GateID(v uuid.UUID) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldGateID, v))
 }
 
-// AgentID applies equality check predicate on the "agent_id" field. It's identical to AgentIDEQ.
-func AgentID(v string) predicate.Request {
-	return predicate.Request(sql.FieldEQ(FieldAgentID, v))
-}
-
 // Method applies equality check predicate on the "method" field. It's identical to MethodEQ.
 func Method(v string) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldMethod, v))
@@ -104,81 +99,6 @@ func GateIDIn(vs ...uuid.UUID) predicate.Request {
 // GateIDNotIn applies the NotIn predicate on the "gate_id" field.
 func GateIDNotIn(vs ...uuid.UUID) predicate.Request {
 	return predicate.Request(sql.FieldNotIn(FieldGateID, vs...))
-}
-
-// AgentIDEQ applies the EQ predicate on the "agent_id" field.
-func AgentIDEQ(v string) predicate.Request {
-	return predicate.Request(sql.FieldEQ(FieldAgentID, v))
-}
-
-// AgentIDNEQ applies the NEQ predicate on the "agent_id" field.
-func AgentIDNEQ(v string) predicate.Request {
-	return predicate.Request(sql.FieldNEQ(FieldAgentID, v))
-}
-
-// AgentIDIn applies the In predicate on the "agent_id" field.
-func AgentIDIn(vs ...string) predicate.Request {
-	return predicate.Request(sql.FieldIn(FieldAgentID, vs...))
-}
-
-// AgentIDNotIn applies the NotIn predicate on the "agent_id" field.
-func AgentIDNotIn(vs ...string) predicate.Request {
-	return predicate.Request(sql.FieldNotIn(FieldAgentID, vs...))
-}
-
-// AgentIDGT applies the GT predicate on the "agent_id" field.
-func AgentIDGT(v string) predicate.Request {
-	return predicate.Request(sql.FieldGT(FieldAgentID, v))
-}
-
-// AgentIDGTE applies the GTE predicate on the "agent_id" field.
-func AgentIDGTE(v string) predicate.Request {
-	return predicate.Request(sql.FieldGTE(FieldAgentID, v))
-}
-
-// AgentIDLT applies the LT predicate on the "agent_id" field.
-func AgentIDLT(v string) predicate.Request {
-	return predicate.Request(sql.FieldLT(FieldAgentID, v))
-}
-
-// AgentIDLTE applies the LTE predicate on the "agent_id" field.
-func AgentIDLTE(v string) predicate.Request {
-	return predicate.Request(sql.FieldLTE(FieldAgentID, v))
-}
-
-// AgentIDContains applies the Contains predicate on the "agent_id" field.
-func AgentIDContains(v string) predicate.Request {
-	return predicate.Request(sql.FieldContains(FieldAgentID, v))
-}
-
-// AgentIDHasPrefix applies the HasPrefix predicate on the "agent_id" field.
-func AgentIDHasPrefix(v string) predicate.Request {
-	return predicate.Request(sql.FieldHasPrefix(FieldAgentID, v))
-}
-
-// AgentIDHasSuffix applies the HasSuffix predicate on the "agent_id" field.
-func AgentIDHasSuffix(v string) predicate.Request {
-	return predicate.Request(sql.FieldHasSuffix(FieldAgentID, v))
-}
-
-// AgentIDIsNil applies the IsNil predicate on the "agent_id" field.
-func AgentIDIsNil() predicate.Request {
-	return predicate.Request(sql.FieldIsNull(FieldAgentID))
-}
-
-// AgentIDNotNil applies the NotNil predicate on the "agent_id" field.
-func AgentIDNotNil() predicate.Request {
-	return predicate.Request(sql.FieldNotNull(FieldAgentID))
-}
-
-// AgentIDEqualFold applies the EqualFold predicate on the "agent_id" field.
-func AgentIDEqualFold(v string) predicate.Request {
-	return predicate.Request(sql.FieldEqualFold(FieldAgentID, v))
-}
-
-// AgentIDContainsFold applies the ContainsFold predicate on the "agent_id" field.
-func AgentIDContainsFold(v string) predicate.Request {
-	return predicate.Request(sql.FieldContainsFold(FieldAgentID, v))
 }
 
 // MethodEQ applies the EQ predicate on the "method" field.

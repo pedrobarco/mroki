@@ -45,13 +45,10 @@ func TestConvertProxyToCapture(t *testing.T) {
 		Body: []byte(`{"id":2,"name":"John"}`),
 	}
 
-	agentID := "agent-test-123"
-
 	// Convert
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, agentID)
+	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
 
 	// Verify request fields
-	assert.Equal(t, agentID, captured.AgentID)
 	assert.Equal(t, "POST", captured.Method)
 	assert.Equal(t, "/api/users", captured.Path)
 	assert.Equal(t, map[string][]string(proxyReq.Headers), captured.Headers)
@@ -110,7 +107,7 @@ func TestConvertProxyToCapture_EmptyBody(t *testing.T) {
 		Body: []byte{},
 	}
 
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, "agent-123")
+	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
 
 	// Base64 encoding of empty byte array is empty string
 	assert.Equal(t, "", captured.Body)
@@ -152,7 +149,7 @@ func TestConvertProxyToCapture_MultipleHeaders(t *testing.T) {
 		Body: []byte(`{}`),
 	}
 
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, "agent-123")
+	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
 
 	// Verify request headers preserved
 	assert.Equal(t, []string{"application/json", "text/plain"}, captured.Headers["Accept"])
@@ -184,7 +181,7 @@ func TestConvertProxyToCapture_TimestampConsistency(t *testing.T) {
 	}
 
 	before := time.Now()
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp, "agent-123")
+	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
 	after := time.Now()
 
 	// Verify timestamp is within reasonable range

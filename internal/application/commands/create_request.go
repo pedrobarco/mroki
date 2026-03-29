@@ -16,7 +16,6 @@ import (
 type CreateRequestCommand struct {
 	ID        string
 	GateID    string
-	AgentID   string
 	Method    string
 	Path      string
 	Headers   map[string][]string
@@ -78,15 +77,6 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	path, err := traffictesting.ParsePath(cmd.Path)
 	if err != nil {
 		return nil, err
-	}
-
-	// Parse agent ID (optional)
-	var agentID traffictesting.AgentID
-	if cmd.AgentID != "" {
-		agentID, err = traffictesting.ParseAgentID(cmd.AgentID)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// Parse and create responses
@@ -177,9 +167,6 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	// Apply optional fields if provided
 	if !requestID.IsZero() {
 		request.ID = requestID
-	}
-	if !agentID.IsZero() {
-		request.AgentID = agentID
 	}
 
 	// Persist (transaction boundary)

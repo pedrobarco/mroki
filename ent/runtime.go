@@ -52,11 +52,11 @@ func init() {
 	requestFields := schema.Request{}.Fields()
 	_ = requestFields
 	// requestDescMethod is the schema descriptor for method field.
-	requestDescMethod := requestFields[3].Descriptor()
+	requestDescMethod := requestFields[2].Descriptor()
 	// request.MethodValidator is a validator for the "method" field. It is called by the builders before save.
 	request.MethodValidator = requestDescMethod.Validators[0].(func(string) error)
 	// requestDescPath is the schema descriptor for path field.
-	requestDescPath := requestFields[4].Descriptor()
+	requestDescPath := requestFields[3].Descriptor()
 	// request.PathValidator is a validator for the "path" field. It is called by the builders before save.
 	request.PathValidator = requestDescPath.Validators[0].(func(string) error)
 	// requestDescID is the schema descriptor for id field.

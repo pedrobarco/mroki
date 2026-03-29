@@ -39,6 +39,8 @@ func main() {
 		schema.WithMigrationMode(schema.ModeReplay),
 		schema.WithDialect(dialect.Postgres),
 		schema.WithFormatter(atlas.DefaultFormatter),
+		schema.WithDropColumn(true),
+		schema.WithDropIndex(true),
 	}
 
 	if len(os.Args) != 2 {

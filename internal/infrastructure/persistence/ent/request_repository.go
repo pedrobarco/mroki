@@ -68,10 +68,6 @@ func (r *requestRepository) saveRequest(ctx context.Context, tx *ent.Tx, req *tr
 		SetBody(req.Body).
 		SetCreatedAt(req.CreatedAt)
 
-	if !req.AgentID.IsZero() {
-		builder.SetAgentID(req.AgentID.String())
-	}
-
 	if _, err := builder.Save(ctx); err != nil {
 		return fmt.Errorf("failed to save request: %w", err)
 	}
@@ -228,10 +224,6 @@ func (r *requestRepository) buildPredicates(gateID traffictesting.GateID, filter
 	}
 	if dateRange.HasTo() {
 		preds = append(preds, request.CreatedAtLTE(*dateRange.To()))
-	}
-
-	if filters.HasAgentFilter() {
-		preds = append(preds, request.AgentIDEQ(filters.AgentID()))
 	}
 
 	if filters.HasDiffFilter() {

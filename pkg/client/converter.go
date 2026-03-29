@@ -12,12 +12,10 @@ import (
 func ConvertProxyToCapture(
 	req proxy.ProxyRequest,
 	live, shadow proxy.ProxyResponse,
-	agentID string,
 ) *CapturedRequest {
 	now := time.Now()
 
 	return &CapturedRequest{
-		AgentID:   agentID,
 		Method:    req.Method,
 		Path:      req.Path,
 		Headers:   req.Headers,

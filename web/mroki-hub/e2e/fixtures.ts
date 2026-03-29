@@ -19,7 +19,6 @@ interface RequestSummary {
 }
 
 interface CreateRequestPayload {
-  agent_id: string
   method: string
   path: string
   headers: Record<string, string[]>
@@ -100,7 +99,6 @@ export const test = base.extend<{ api: ApiHelper }>({
         } = options
 
         return this.createRequest(gateId, {
-          agent_id: 'e2e-agent-a1b2c3d4',
           method,
           path,
           headers: { 'Content-Type': ['application/json'] },

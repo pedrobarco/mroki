@@ -23,7 +23,6 @@ type ProxyConfig struct {
 
 	// API integration (optional)
 	APIClient *client.MrokiClient
-	AgentID   string
 	Logger    *slog.Logger
 
 	// Diff options for standalone mode
@@ -73,7 +72,7 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 	}
 
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
-		captured := client.ConvertProxyToCapture(req, live, shadow, cfg.AgentID)
+		captured := client.ConvertProxyToCapture(req, live, shadow)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

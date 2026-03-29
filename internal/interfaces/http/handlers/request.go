@@ -30,7 +30,6 @@ func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 		cmd := commands.CreateRequestCommand{
 			ID:        req.ID,
 			GateID:    gateIDStr,
-			AgentID:   req.AgentID,
 			Method:    req.Method,
 			Path:      req.Path,
 			Headers:   req.Headers,
@@ -159,7 +158,7 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 		}
 
 		// Parse filtering and sorting query parameters
-		methods, pathPattern, fromDate, toDate, agentID, hasDiff, sortField, sortOrder, err := parseRequestQueryParams(r.URL.Query())
+		methods, pathPattern, fromDate, toDate, hasDiff, sortField, sortOrder, err := parseRequestQueryParams(r.URL.Query())
 		if err != nil {
 			return dto.InvalidRequestFilters(err)
 		}
@@ -172,7 +171,6 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 			PathPattern: pathPattern,
 			FromDate:    fromDate,
 			ToDate:      toDate,
-			AgentID:     agentID,
 			HasDiff:     hasDiff,
 			SortField:   sortField,
 			SortOrder:   sortOrder,

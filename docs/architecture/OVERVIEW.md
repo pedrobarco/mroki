@@ -36,7 +36,6 @@ graph TD
 - Return live service response to client immediately
 - Send raw captured responses to mroki-api with retry logic (API mode)
 - Compute and print JSON diffs locally (standalone mode only)
-- Persist agent identity across restarts
 
 **Technology:**
 - Language: Go 1.24+
@@ -78,7 +77,6 @@ graph TD
 - Display gate dashboard
 - Browse captured requests
 - Visualize response diffs with syntax highlighting
-- Monitor agent health and status
 - Manage gate configuration
 
 **Technology:**
@@ -164,7 +162,6 @@ type Gate struct {
 type Request struct {
     ID         RequestID  // UUID
     GateID     GateID     // Parent gate
-    AgentID    AgentID    // Capturing agent
     Method     string     // HTTP method (GET, POST, etc.)
     Path       string     // Request path
     Headers    Headers    // HTTP headers
@@ -231,17 +228,7 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 - Reduces storage and processing costs
 - Future: Can add support for other types
 
-### 4. Agent ID Persistence
-
-**Decision:** Persist agent ID to disk, not ephemeral
-
-**Rationale:**
-- Track which agent captured traffic across restarts
-- Debugging and troubleshooting
-- Agent health monitoring
-- Format: `{hostname}-{uuid}` for human readability
-
-### 5. Exponential Backoff Retry
+### 4. Exponential Backoff Retry
 
 **Decision:** Retry API requests with exponential backoff (1s, 2s, 4s)
 
@@ -251,7 +238,7 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 - Balance delivery reliability with resource usage
 - 3 retries = ~8s total before giving up
 
-### 6. Stateless API
+### 5. Stateless API
 
 **Decision:** API is fully stateless, all state in PostgreSQL
 
@@ -261,7 +248,7 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 - No session management needed
 - Easy to load balance
 
-### 7. Dual Operating Modes
+### 6. Dual Operating Modes
 
 **Decision:** Agent works in API mode (fetches config) or standalone mode (hardcoded URLs)
 
@@ -336,7 +323,6 @@ log.Info("request captured",
     "method", "POST",
     "path", "/api/users",
     "has_diff", true,
-    "agent_id", "host-abc123",
 )
 ```
 

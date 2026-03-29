@@ -35,7 +35,6 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 - [ ] **P1** Requests in last 24h — Shows hardcoded `"5,241"` (`GateCard.vue`, `GateDetail.vue`). Add aggregate query.
 - [ ] **P1** Diff count per gate — Shows hardcoded `"162"` (`GateCard.vue`). Add aggregate query.
 - [ ] **P1** Diff rate — Shows hardcoded `"3.1%"` / `"4.2%"` (`GateCard.vue`, `Gates.vue`). Compute `diffs / requests`.
-- [ ] **P2** Active agents count — Shows hardcoded `"3"` with dummy names (`Gates.vue`, `GateCard.vue`). Count distinct agents.
 - [ ] **P2** Last active timestamp — Shows hardcoded `"2 min ago"` (`GateCard.vue`). Derive from latest request.
 
 ### Request List Metadata
@@ -53,7 +52,6 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 
 ### Dead Navigation Links
 
-- [ ] **P2** "Agents" nav link — Points to `#` (`Header.vue`). No route or page.
 - [ ] **P2** "Requests" nav link — Points to `#` (`Header.vue`). No route or page.
 - [ ] **P2** "Settings" nav link — Points to `#` (`Header.vue`). No route or page.
 
@@ -104,15 +102,8 @@ Larger capabilities not yet started, organized by priority.
 
 ### Gate Summary Endpoint
 
-- [ ] **P1** `GET /gates/{id}/summary` — Request count (24h), diff count, diff rate, active agents, last active. Unblocks most gate statistic wiring gaps above.
-- [ ] **P2** `GET /stats` — Global dashboard: total gates, total agents, requests (24h), diff rate.
-
-### Agents
-
-- [ ] **P2** List agents endpoint — `GET /agents` with distinct agents, last seen, gate associations.
-- [ ] **P2** Agent detail endpoint — `GET /agents/{id}` with activity history.
-- [ ] **P2** Agents page — Vue page at `/agents` with list and status.
-- [ ] **P3** Agent health monitoring — Heartbeats, stale/disconnected detection.
+- [ ] **P1** `GET /gates/{id}/summary` — Request count (24h), diff count, diff rate, last active. Unblocks most gate statistic wiring gaps above.
+- [ ] **P2** `GET /stats` — Global dashboard: total gates, requests (24h), diff rate.
 
 ### Cross-Gate Request Explorer
 

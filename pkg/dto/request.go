@@ -12,7 +12,6 @@ import (
 type CreateRequestPayload struct {
 	// Request metadata
 	ID        string              `json:"id,omitempty"` // Optional: API will generate if empty
-	AgentID   string              `json:"agent_id"`     // Required: identifies which agent
 	Method    string              `json:"method"`       // e.g., "GET", "POST"
 	Path      string              `json:"path"`         // e.g., "/api/users/123"
 	Headers   map[string][]string `json:"headers"`      // HTTP headers

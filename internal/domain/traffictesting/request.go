@@ -13,7 +13,6 @@ type Request struct {
 	Path      Path
 	Headers   Headers
 	Body      []byte
-	AgentID   AgentID
 	CreatedAt time.Time
 
 	Responses []Response
@@ -25,12 +24,6 @@ type requestOption func(*Request)
 func WithRequestID(id RequestID) requestOption {
 	return func(r *Request) {
 		r.ID = id
-	}
-}
-
-func WithAgentID(id AgentID) requestOption {
-	return func(r *Request) {
-		r.AgentID = id
 	}
 }
 

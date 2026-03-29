@@ -176,7 +176,6 @@ graph TD
 | Deployment | Standalone binary | Compiled into Caddy |
 | Configuration | Environment variables | Caddyfile |
 | API Mode | ✅ Sends raw responses to mroki-api | ❌ Standalone only |
-| Agent ID | Persisted to disk | N/A |
 | Retry Logic | ✅ Exponential backoff | N/A |
 
 caddy-mroki operates in standalone mode only — it computes and prints diffs locally. For API integration (server-side diffing, storage, hub), use mroki-agent.
@@ -360,7 +359,7 @@ mroki_gate {
 
 - Need API integration (server-side diffing, storage, hub visualization)
 - Not using Caddy
-- Need persistent agent identity and retry logic
+- Need retry logic for API delivery
 
 ## Related Documentation
 

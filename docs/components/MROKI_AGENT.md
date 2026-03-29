@@ -16,7 +16,6 @@ mroki-agent is a lightweight proxy that intercepts HTTP traffic, forwards it to 
 - **Local Diffing** (standalone mode): Computes JSON diffs and prints them to stdout
 - **Retry Logic**: Exponential backoff for API failures (1s, 2s, 4s)
 - **Best-Effort Delivery**: API failures never affect live traffic
-- **Agent ID Persistence**: Identity survives restarts
 - **Structured Logging**: All events logged with context
 
 ## Architecture
@@ -245,7 +244,6 @@ go run .
 
 **Output:**
 ```
-INFO Agent ID loaded agent_id=MacBook-Pro-a1b2c3d4
 INFO Starting in API mode api_url=http://localhost:8081 gate_id=550e8400-...
 INFO Gate configuration loaded gate_id=550e8400-... live_url=https://httpbin.org/... shadow_url=https://httpbin.org/...
 DEBUG Diff options configured ignored_fields=[timestamp created_at metadata.request_id]
@@ -273,7 +271,6 @@ go run .
 
 **Output:**
 ```
-INFO Agent ID loaded agent_id=MacBook-Pro-a1b2c3d4
 INFO Starting in standalone mode live_url=https://httpbin.org/... shadow_url=https://httpbin.org/...
 DEBUG Diff options configured ignored_fields=[timestamp id]
 INFO Started server address=:8080
@@ -295,30 +292,6 @@ curl -X POST http://localhost:8080/test \
 # Diff:
 #  ~ /body/user: "alice" → "bob"
 ```
-
-## Agent ID
-
-The agent automatically generates a unique ID on first run and persists it to `.agent_id` in the working directory.
-
-**Format:** `{hostname}-{uuid}`
-
-**Examples:**
-- `MacBook-Pro-a1b2c3d4-5678-90ab-cdef-1234567890ab`
-- `web-server-01-550e8400-e29b-41d4-a716-446655440000`
-- `api-prod-f47ac10b-58cc-4372-a567-0e02b2c3d479`
-
-**Manual Override:**
-
-Create a `.agent_id` file with your desired ID:
-
-```bash
-echo "my-custom-agent-id-550e8400-e29b-41d4-a716-446655440000" > .agent_id
-```
-
-**Purpose:**
-- Track which agent captured traffic (debugging)
-- Monitor agent health across restarts
-- Identify traffic source in multi-agent deployments
 
 ## Behavior
 
@@ -575,7 +548,6 @@ All logs use structured logging (slog) with JSON output.
 
 **Example Log Output:**
 ```json
-{"time":"2026-01-31T20:00:00Z","level":"INFO","msg":"Agent ID loaded","agent_id":"MacBook-Pro-a1b2c3d4"}
 {"time":"2026-01-31T20:00:00Z","level":"INFO","msg":"API integration enabled","api_url":"http://localhost:8081","gate_id":"550e8400"}
 {"time":"2026-01-31T20:00:00Z","level":"INFO","msg":"Started server","address":":8080","live":"https://api.example.com"}
 {"time":"2026-01-31T20:00:15Z","level":"INFO","msg":"response diff detected","method":"POST","path":"/api/users","live_status":200,"shadow_status":200}

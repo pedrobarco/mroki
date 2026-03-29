@@ -16,7 +16,6 @@ func parseRequestQueryParams(query url.Values) (
 	pathPattern string,
 	fromDate *time.Time,
 	toDate *time.Time,
-	agentID string,
 	hasDiff *bool,
 	sortField string,
 	sortOrder string,
@@ -55,9 +54,6 @@ func parseRequestQueryParams(query url.Values) (
 		toDate = &parsed
 	}
 
-	// Parse agent ID
-	agentID = query.Get("agent_id")
-
 	// Parse has_diff boolean
 	if hasDiffStr := query.Get("has_diff"); hasDiffStr != "" {
 		parsed, parseErr := strconv.ParseBool(hasDiffStr)
@@ -74,5 +70,5 @@ func parseRequestQueryParams(query url.Values) (
 	// Parse sort order
 	sortOrder = query.Get("order")
 
-	return methods, pathPattern, fromDate, toDate, agentID, hasDiff, sortField, sortOrder, nil
+	return methods, pathPattern, fromDate, toDate, hasDiff, sortField, sortOrder, nil
 }

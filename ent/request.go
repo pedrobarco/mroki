@@ -23,8 +23,6 @@ type Request struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// GateID holds the value of the "gate_id" field.
 	GateID uuid.UUID `json:"gate_id,omitempty"`
-	// AgentID holds the value of the "agent_id" field.
-	AgentID *string `json:"agent_id,omitempty"`
 	// Method holds the value of the "method" field.
 	Method string `json:"method,omitempty"`
 	// Path holds the value of the "path" field.
@@ -92,7 +90,7 @@ func (*Request) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case request.FieldHeaders, request.FieldBody:
 			values[i] = new([]byte)
-		case request.FieldAgentID, request.FieldMethod, request.FieldPath:
+		case request.FieldMethod, request.FieldPath:
 			values[i] = new(sql.NullString)
 		case request.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -124,13 +122,6 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field gate_id", values[i])
 			} else if value != nil {
 				_m.GateID = *value
-			}
-		case request.FieldAgentID:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field agent_id", values[i])
-			} else if value.Valid {
-				_m.AgentID = new(string)
-				*_m.AgentID = value.String
 			}
 		case request.FieldMethod:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -217,11 +208,6 @@ func (_m *Request) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("gate_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GateID))
-	builder.WriteString(", ")
-	if v := _m.AgentID; v != nil {
-		builder.WriteString("agent_id=")
-		builder.WriteString(*v)
-	}
 	builder.WriteString(", ")
 	builder.WriteString("method=")
 	builder.WriteString(_m.Method)

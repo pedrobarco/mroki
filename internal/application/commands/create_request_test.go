@@ -206,12 +206,10 @@ func TestCreateRequestHandler_Handle_with_custom_ids(t *testing.T) {
 
 	gateID := traffictesting.NewGateID()
 	requestID := traffictesting.NewRequestID()
-	agentID := traffictesting.NewAgentIDWithHostname("test-agent")
 
 	cmd := CreateRequestCommand{
 		ID:        requestID.String(),
 		GateID:    gateID.String(),
-		AgentID:   agentID.String(),
 		Method:    "POST",
 		Path:      "/api/create",
 		Headers:   map[string][]string{},
@@ -246,7 +244,6 @@ func TestCreateRequestHandler_Handle_with_custom_ids(t *testing.T) {
 	require.NotNil(t, req)
 	assert.Equal(t, requestID, req.ID)
 	assert.Equal(t, gateID, req.GateID)
-	assert.Equal(t, agentID, req.AgentID)
 }
 
 func TestCreateRequestHandler_Handle_invalid_gate_id(t *testing.T) {
@@ -283,31 +280,6 @@ func TestCreateRequestHandler_Handle_invalid_request_id(t *testing.T) {
 		GateID: gateID.String(),
 		Method: "GET",
 		Path:   "/test",
-		Responses: []CreateRequestResponseProps{
-			{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
-			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
-		},
-	}
-
-	// Act
-	req, err := handler.Handle(context.Background(), cmd)
-
-	// Assert
-	require.Error(t, err)
-	assert.Nil(t, req)
-}
-
-func TestCreateRequestHandler_Handle_invalid_agent_id(t *testing.T) {
-	// Arrange
-	repo := &mockRequestRepository{}
-	handler := NewCreateRequestHandler(repo)
-
-	gateID := traffictesting.NewGateID()
-	cmd := CreateRequestCommand{
-		GateID:  gateID.String(),
-		AgentID: "invalid-format",
-		Method:  "GET",
-		Path:    "/test",
 		Responses: []CreateRequestResponseProps{
 			{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
 			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},

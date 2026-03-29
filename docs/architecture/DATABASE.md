@@ -73,7 +73,6 @@ Stores captured HTTP requests.
 |--------|------|----------|-------------|
 | `id` | UUID | NOT NULL | Primary key, generated UUID v4 |
 | `gate_id` | UUID | NOT NULL | Foreign key to gates.id |
-| `agent_id` | TEXT | YES | Agent identifier (e.g., "host-abc123") |
 | `method` | TEXT | YES | HTTP method (GET, POST, PUT, etc.) |
 | `path` | TEXT | YES | Request path (e.g., "/api/users") |
 | `headers` | JSONB | YES | HTTP headers as JSON object |
@@ -83,7 +82,6 @@ Stores captured HTTP requests.
 **Indexes:**
 - PRIMARY KEY on `id`
 - INDEX on `gate_id` (for fast gate-based queries)
-- INDEX on `agent_id` (for agent-based filtering)
 
 **Foreign Keys:**
 - `gate_id` REFERENCES `gates(id)` ON DELETE CASCADE
@@ -91,7 +89,7 @@ Stores captured HTTP requests.
 **Example:**
 ```sql
 INSERT INTO requests (
-    id, gate_id, agent_id, method, path, 
+    id, gate_id, method, path,
     headers, body, created_at
 ) VALUES (
     '7c9e6679-7425-40de-944b-e07fc1f90ae7',
@@ -293,8 +291,6 @@ CREATE INDEX idx_requests_gate_id ON requests(gate_id);
 -- Find all responses for a request (frequent query)
 CREATE INDEX idx_responses_request_id ON responses(request_id);
 
--- Filter requests by agent (admin query)
-CREATE INDEX idx_requests_agent_id ON requests(agent_id);
 ```
 
 ### Index Usage
@@ -315,14 +311,6 @@ FROM requests r
 JOIN responses resp ON resp.request_id = r.id
 WHERE r.id = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 -- Uses: idx_responses_request_id
-```
-
-**Query 3: Filter by agent**
-```sql
-SELECT * FROM requests
-WHERE agent_id = 'MacBook-Pro-a1b2c3d4'
-ORDER BY created_at DESC;
--- Uses: idx_requests_agent_id
 ```
 
 ---
@@ -362,7 +350,6 @@ SELECT
     r.method,
     r.path,
     r.created_at,
-    r.agent_id,
     d.content IS NOT NULL as has_diff
 FROM requests r
 LEFT JOIN diffs d ON d.request_id = r.id

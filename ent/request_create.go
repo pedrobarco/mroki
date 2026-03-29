@@ -30,20 +30,6 @@ func (_c *RequestCreate) SetGateID(v uuid.UUID) *RequestCreate {
 	return _c
 }
 
-// SetAgentID sets the "agent_id" field.
-func (_c *RequestCreate) SetAgentID(v string) *RequestCreate {
-	_c.mutation.SetAgentID(v)
-	return _c
-}
-
-// SetNillableAgentID sets the "agent_id" field if the given value is not nil.
-func (_c *RequestCreate) SetNillableAgentID(v *string) *RequestCreate {
-	if v != nil {
-		_c.SetAgentID(*v)
-	}
-	return _c
-}
-
 // SetMethod sets the "method" field.
 func (_c *RequestCreate) SetMethod(v string) *RequestCreate {
 	_c.mutation.SetMethod(v)
@@ -229,10 +215,6 @@ func (_c *RequestCreate) createSpec() (*Request, *sqlgraph.CreateSpec) {
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
-	}
-	if value, ok := _c.mutation.AgentID(); ok {
-		_spec.SetField(request.FieldAgentID, field.TypeString, value)
-		_node.AgentID = &value
 	}
 	if value, ok := _c.mutation.Method(); ok {
 		_spec.SetField(request.FieldMethod, field.TypeString, value)

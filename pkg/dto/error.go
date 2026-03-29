@@ -338,9 +338,9 @@ func InvalidRequestPagination(err error) *APIError {
 }
 
 // InvalidRequestFilters returns an RFC 7807 error for invalid filter parameters.
-// Used when request filter query parameters (methods, path_pattern, from_date, to_date, agent_id, or has_diff) are invalid.
+// Used when request filter query parameters (methods, path_pattern, from_date, to_date, or has_diff) are invalid.
 func InvalidRequestFilters(err error) *APIError {
-	detail := "invalid filter parameters: methods, path_pattern, from_date, to_date, agent_id, or has_diff"
+	detail := "invalid filter parameters: methods, path_pattern, from_date, to_date, or has_diff"
 	if err != nil {
 		detail = fmt.Sprintf("%s: %v", detail, err)
 	}

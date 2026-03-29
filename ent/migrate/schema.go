@@ -67,7 +67,6 @@ var (
 	// RequestsColumns holds the columns for the "requests" table.
 	RequestsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "agent_id", Type: field.TypeString, Nullable: true},
 		{Name: "method", Type: field.TypeString},
 		{Name: "path", Type: field.TypeString},
 		{Name: "headers", Type: field.TypeJSON, Nullable: true},
@@ -83,7 +82,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "requests_gates_requests",
-				Columns:    []*schema.Column{RequestsColumns[7]},
+				Columns:    []*schema.Column{RequestsColumns[6]},
 				RefColumns: []*schema.Column{GatesColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -92,27 +91,22 @@ var (
 			{
 				Name:    "request_gate_id",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[7]},
+				Columns: []*schema.Column{RequestsColumns[6]},
 			},
 			{
 				Name:    "request_gate_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[7], RequestsColumns[6]},
+				Columns: []*schema.Column{RequestsColumns[6], RequestsColumns[5]},
 			},
 			{
 				Name:    "request_gate_id_method",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[7], RequestsColumns[2]},
+				Columns: []*schema.Column{RequestsColumns[6], RequestsColumns[1]},
 			},
 			{
 				Name:    "request_gate_id_path",
 				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[7], RequestsColumns[3]},
-			},
-			{
-				Name:    "request_agent_id",
-				Unique:  false,
-				Columns: []*schema.Column{RequestsColumns[1]},
+				Columns: []*schema.Column{RequestsColumns[6], RequestsColumns[2]},
 			},
 		},
 	}

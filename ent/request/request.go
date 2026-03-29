@@ -15,8 +15,6 @@ const (
 	FieldID = "id"
 	// FieldGateID holds the string denoting the gate_id field in the database.
 	FieldGateID = "gate_id"
-	// FieldAgentID holds the string denoting the agent_id field in the database.
-	FieldAgentID = "agent_id"
 	// FieldMethod holds the string denoting the method field in the database.
 	FieldMethod = "method"
 	// FieldPath holds the string denoting the path field in the database.
@@ -62,7 +60,6 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldGateID,
-	FieldAgentID,
 	FieldMethod,
 	FieldPath,
 	FieldHeaders,
@@ -100,11 +97,6 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByGateID orders the results by the gate_id field.
 func ByGateID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGateID, opts...).ToFunc()
-}
-
-// ByAgentID orders the results by the agent_id field.
-func ByAgentID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAgentID, opts...).ToFunc()
 }
 
 // ByMethod orders the results by the method field.

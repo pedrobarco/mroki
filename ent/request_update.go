@@ -46,26 +46,6 @@ func (_u *RequestUpdate) SetNillableGateID(v *uuid.UUID) *RequestUpdate {
 	return _u
 }
 
-// SetAgentID sets the "agent_id" field.
-func (_u *RequestUpdate) SetAgentID(v string) *RequestUpdate {
-	_u.mutation.SetAgentID(v)
-	return _u
-}
-
-// SetNillableAgentID sets the "agent_id" field if the given value is not nil.
-func (_u *RequestUpdate) SetNillableAgentID(v *string) *RequestUpdate {
-	if v != nil {
-		_u.SetAgentID(*v)
-	}
-	return _u
-}
-
-// ClearAgentID clears the value of the "agent_id" field.
-func (_u *RequestUpdate) ClearAgentID() *RequestUpdate {
-	_u.mutation.ClearAgentID()
-	return _u
-}
-
 // SetMethod sets the "method" field.
 func (_u *RequestUpdate) SetMethod(v string) *RequestUpdate {
 	_u.mutation.SetMethod(v)
@@ -266,12 +246,6 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
-	if value, ok := _u.mutation.AgentID(); ok {
-		_spec.SetField(request.FieldAgentID, field.TypeString, value)
-	}
-	if _u.mutation.AgentIDCleared() {
-		_spec.ClearField(request.FieldAgentID, field.TypeString)
-	}
 	if value, ok := _u.mutation.Method(); ok {
 		_spec.SetField(request.FieldMethod, field.TypeString, value)
 	}
@@ -427,26 +401,6 @@ func (_u *RequestUpdateOne) SetNillableGateID(v *uuid.UUID) *RequestUpdateOne {
 	if v != nil {
 		_u.SetGateID(*v)
 	}
-	return _u
-}
-
-// SetAgentID sets the "agent_id" field.
-func (_u *RequestUpdateOne) SetAgentID(v string) *RequestUpdateOne {
-	_u.mutation.SetAgentID(v)
-	return _u
-}
-
-// SetNillableAgentID sets the "agent_id" field if the given value is not nil.
-func (_u *RequestUpdateOne) SetNillableAgentID(v *string) *RequestUpdateOne {
-	if v != nil {
-		_u.SetAgentID(*v)
-	}
-	return _u
-}
-
-// ClearAgentID clears the value of the "agent_id" field.
-func (_u *RequestUpdateOne) ClearAgentID() *RequestUpdateOne {
-	_u.mutation.ClearAgentID()
 	return _u
 }
 
@@ -679,12 +633,6 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 				ps[i](selector)
 			}
 		}
-	}
-	if value, ok := _u.mutation.AgentID(); ok {
-		_spec.SetField(request.FieldAgentID, field.TypeString, value)
-	}
-	if _u.mutation.AgentIDCleared() {
-		_spec.ClearField(request.FieldAgentID, field.TypeString)
 	}
 	if value, ok := _u.mutation.Method(); ok {
 		_spec.SetField(request.FieldMethod, field.TypeString, value)

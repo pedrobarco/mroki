@@ -4,7 +4,7 @@ This document describes the design for adding statistics to gate responses, cove
 
 ## Problem
 
-The UI displays hardcoded dummy data for gate metrics (request counts, diff rates, active agents, etc.). The API currently returns no statistics — the frontend would need to call multiple endpoints per page and compute aggregates client-side.
+The UI displays hardcoded dummy data for gate metrics (request counts, diff rates, etc.). The API currently returns no statistics — the frontend would need to call multiple endpoints per page and compute aggregates client-side.
 
 ## Goals
 
@@ -16,7 +16,7 @@ The UI displays hardcoded dummy data for gate metrics (request counts, diff rate
 
 - Real-time / WebSocket stats
 - Historical time-series data
-- Per-agent stats (separate feature)
+
 
 ---
 
@@ -41,7 +41,6 @@ Stats are included as a nested `stats` object on every gate response. No new end
       "recent_requests": 347,
       "diff_count": 87,
       "diff_rate": 6.96,
-      "active_agents": 3,
       "last_active": "2026-03-29T14:32:05Z"
     }
   }
@@ -58,7 +57,6 @@ Stats are included as a nested `stats` object on every gate response. No new end
 | `recent_requests` | `int64` | Request count in the last 24 hours |
 | `diff_count` | `int64` | Number of requests that produced a diff |
 | `diff_rate` | `float64` | `diff_count / total_requests * 100`, `0.0` when no requests |
-| `active_agents` | `int64` | Count of distinct agent IDs that have reported to this gate |
 | `last_active` | `string?` | ISO 8601 timestamp of the most recent request, `null` if no requests |
 
 ### Global Stats — New Endpoint
@@ -75,7 +73,6 @@ Returns cross-gate aggregate statistics for the dashboard stats bar.
     "recent_requests": 5241,
     "total_diffs": 576,
     "diff_rate": 4.48,
-    "active_agents": 3
   }
 }
 ```
@@ -87,7 +84,6 @@ Returns cross-gate aggregate statistics for the dashboard stats bar.
 | `recent_requests` | `int64` | Request count in the last 24 hours across all gates |
 | `total_diffs` | `int64` | Total diffs across all gates |
 | `diff_rate` | `float64` | `total_diffs / total_requests * 100` |
-| `active_agents` | `int64` | Count of distinct agent IDs across all gates |
 
 **Errors:** Only `500 Internal Server Error` (no user input to validate).
 
@@ -103,14 +99,12 @@ All stats are derived from existing tables. No new schema required.
 | `recent_requests` | `COUNT(*) FROM requests WHERE gate_id = ? AND created_at >= now() - 24h` |
 | `diff_count` | `COUNT(*) FROM diffs d JOIN requests r ON d.request_id = r.id WHERE r.gate_id = ?` |
 | `diff_rate` | Computed in Go: `diff_count / total_requests * 100` |
-| `active_agents` | `COUNT(DISTINCT agent_id) FROM requests WHERE gate_id = ?` |
 | `last_active` | `MAX(created_at) FROM requests WHERE gate_id = ?` |
 
 **Existing indexes that support these queries:**
 
 - `requests(gate_id)` — filters by gate
 - `requests(gate_id, created_at)` — time-windowed counts
-- `requests(agent_id)` — agent lookups
 
 Global stats use the same queries without the `WHERE gate_id = ?` filter.
 
@@ -129,7 +123,6 @@ type GateStats struct {
     RecentRequests int64
     DiffCount      int64
     DiffRate       float64
-    ActiveAgents   int64
     LastActive     *time.Time
 }
 ```
@@ -160,7 +153,6 @@ type GlobalStats struct {
     RecentRequests int64
     TotalDiffs     int64
     DiffRate       float64
-    ActiveAgents   int64
 }
 ```
 
@@ -181,7 +173,7 @@ Private helper on the repository:
 func (r *gateRepository) queryStats(ctx context.Context, gateIDs []uuid.UUID) (map[uuid.UUID]*traffictesting.GateStats, error) {
     // Single SQL query:
     // SELECT r.gate_id, COUNT(*), COUNT(created_at >= ...), COUNT(d.id),
-    //        COUNT(DISTINCT r.agent_id), MAX(r.created_at)
+    //        MAX(r.created_at)
     // FROM requests r LEFT JOIN diffs d ON d.request_id = r.id
     // WHERE r.gate_id IN (...)
     // GROUP BY r.gate_id
@@ -227,7 +219,6 @@ type GateStats struct {
     RecentRequests int64   `json:"recent_requests"`
     DiffCount      int64   `json:"diff_count"`
     DiffRate       float64 `json:"diff_rate"`
-    ActiveAgents   int64   `json:"active_agents"`
     LastActive     *string `json:"last_active"`
 }
 
@@ -247,7 +238,6 @@ type GlobalStats struct {
     RecentRequests int64   `json:"recent_requests"`
     TotalDiffs     int64   `json:"total_diffs"`
     DiffRate       float64 `json:"diff_rate"`
-    ActiveAgents   int64   `json:"active_agents"`
 }
 ```
 
@@ -269,7 +259,6 @@ func mapGateToDTO(gate *traffictesting.Gate) dto.Gate {
             RecentRequests: gate.Stats.RecentRequests,
             DiffCount:      gate.Stats.DiffCount,
             DiffRate:       gate.Stats.DiffRate,
-            ActiveAgents:   gate.Stats.ActiveAgents,
             LastActive:     lastActive,
         },
     }
@@ -305,11 +294,9 @@ Once the API returns stats, the frontend changes are:
 | `GateCard.vue` — diff count | Hardcoded `"162"` | `gate.stats.diff_count` |
 | `GateCard.vue` — diff rate | Hardcoded `"3.1%"` | `gate.stats.diff_rate` |
 | `GateCard.vue` — last active | Hardcoded `"2 min ago"` | `gate.stats.last_active` |
-| `GateCard.vue` — active agents | Hardcoded agent name | `gate.stats.active_agents` |
 | `GateDetail.vue` — requests 24h | Hardcoded `"5,241"` | `gate.stats.recent_requests` |
 | `GateDetail.vue` — diff rate | Hardcoded `"3.1%"` | `gate.stats.diff_rate` |
 | `Gates.vue` — total gates | Hardcoded `"4"` | `globalStats.total_gates` |
-| `Gates.vue` — active agents | Hardcoded `"3"` | `globalStats.active_agents` |
 | `Gates.vue` — requests 24h | Hardcoded `"12,847"` | `globalStats.recent_requests` |
 | `Gates.vue` — diff rate | Hardcoded `"4.2%"` | `globalStats.diff_rate` |
 
@@ -325,7 +312,7 @@ Stats are computed on-the-fly from `requests` + `diffs` tables using aggregate q
 - `GetAll`: 1 gate list query + 1 batched stats query (all gate IDs on page)
 - Global stats: 1 aggregate query across all requests
 
-**Indexes already in place:** `requests(gate_id)`, `requests(gate_id, created_at)`, `requests(agent_id)`.
+**Indexes already in place:** `requests(gate_id)`, `requests(gate_id, created_at)`.
 
 ### Future Optimization (if needed)
 

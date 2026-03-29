@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft, Settings, Pause } from 'lucide-vue-next'
 
 // Dummy metadata (not available in API yet)
-const dummyAgent = 'agent-us-east-1'
 const dummyRequests24h = '5,241'
 const dummyDiffRate = '3.1%'
 
@@ -149,10 +148,6 @@ onMounted(() => {
 
         <!-- Stats footer -->
         <div class="flex items-center gap-6 text-xs pt-3 border-t border-border/50">
-          <div>
-            <span class="text-dim">Agent</span>
-            <span class="font-mono text-muted-foreground ml-1">{{ dummyAgent }}</span>
-          </div>
           <div>
             <span class="text-dim">Created</span>
             <span class="text-muted-foreground ml-1">{{

@@ -15,7 +15,6 @@ var (
 	// Request errors
 	ErrRequestNotFound  = errors.New("request not found")
 	ErrInvalidRequestID = errors.New("invalid request ID")
-	ErrInvalidAgentID   = errors.New("invalid agent ID")
 
 	// Validation errors
 	ErrInvalidStatusCode = errors.New("invalid HTTP status code")

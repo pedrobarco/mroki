@@ -100,7 +100,6 @@ go run .
 
 **Expected output:**
 ```
-INFO Agent ID loaded agent_id=MacBook-Pro-a1b2c3d4-...
 INFO Starting in API mode api_url=http://localhost:8081 gate_id=550e8400-...
 INFO Gate configuration loaded gate_id=550e8400-... live_url=https://httpbin.org/... shadow_url=https://httpbin.org/...
 INFO Started server address=:8080
@@ -232,17 +231,6 @@ curl http://localhost:8081/health/ready
 ```
 
 ### Test Agent Features
-
-**Agent ID Persistence:**
-```bash
-# Check the agent ID file
-cat cmd/mroki-agent/.agent_id
-
-# Stop agent (Ctrl+C), then restart
-cd cmd/mroki-agent && go run .
-
-# Notice the SAME agent_id in logs - it persisted!
-```
 
 **Standalone Mode (No API):**
 ```bash

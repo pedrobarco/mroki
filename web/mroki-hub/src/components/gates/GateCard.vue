@@ -18,15 +18,13 @@ function handleClick() {
 }
 
 // Dummy metadata derived from gate properties (not available in API yet)
-const dummyAgents = ['agent-us-east-1', 'agent-eu-west-1', 'agent-us-east-1', '—']
 const dummyRequests = ['5,241', '4,832', '2,774', '0']
 const dummyDiffs = ['162', '328', '39', '0']
 const dummyRates = ['3.1%', '6.8%', '1.4%', '0%']
 const dummyLastActive = ['2 min ago', '5 min ago', '12 min ago', 'Paused']
 
-const idx = computed(() => props.index % dummyAgents.length)
+const idx = computed(() => props.index % dummyRequests.length)
 const gateName = computed(() => props.gate.name)
-const agent = computed(() => dummyAgents[idx.value])
 const requests24h = computed(() => dummyRequests[idx.value])
 const diffs = computed(() => dummyDiffs[idx.value])
 const diffRate = computed(() => dummyRates[idx.value])
@@ -102,10 +100,6 @@ const isActive = computed(() => lastActive.value !== 'Paused')
     <!-- Footer stats -->
     <div class="flex items-center justify-between pt-3 border-t border-border/60">
       <div class="flex items-center gap-5 text-xs">
-        <div>
-          <span class="text-dim">Agent</span>
-          <span class="text-muted-foreground font-mono ml-1">{{ agent }}</span>
-        </div>
         <div>
           <span class="text-dim">Requests 24h</span>
           <span class="text-muted-foreground ml-1">{{ requests24h }}</span>

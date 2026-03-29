@@ -17,7 +17,6 @@ export interface Gate {
 export interface Request {
   id: string
   gate_id: string
-  agent_id: string
   method: string
   path: string
   headers: Record<string, string[]>

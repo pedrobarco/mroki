@@ -13,10 +13,9 @@ func TestNewRequestFilters(t *testing.T) {
 		methods := []HTTPMethod{GET(), POST()}
 		pathPattern, _ := NewPathPattern("/api/users")
 		dateRange, _ := NewDateRange(&past, &now)
-		agentID := "agent-123"
 		hasDiff := true
 
-		filters := NewRequestFilters(methods, pathPattern, dateRange, agentID, &hasDiff)
+		filters := NewRequestFilters(methods, pathPattern, dateRange, &hasDiff)
 
 		if len(filters.Methods()) != 2 {
 			t.Errorf("Methods() length = %v, want 2", len(filters.Methods()))
@@ -27,16 +26,13 @@ func TestNewRequestFilters(t *testing.T) {
 		if !filters.DateRange().Equals(dateRange) {
 			t.Error("DateRange() should return the provided range")
 		}
-		if filters.AgentID() != agentID {
-			t.Errorf("AgentID() = %v, want %v", filters.AgentID(), agentID)
-		}
 		if filters.HasDiff() == nil || *filters.HasDiff() != hasDiff {
 			t.Errorf("HasDiff() = %v, want %v", filters.HasDiff(), &hasDiff)
 		}
 	})
 
 	t.Run("nil methods becomes empty slice", func(t *testing.T) {
-		filters := NewRequestFilters(nil, EmptyPathPattern(), EmptyDateRange(), "", nil)
+		filters := NewRequestFilters(nil, EmptyPathPattern(), EmptyDateRange(), nil)
 
 		methods := filters.Methods()
 		if methods == nil {
@@ -47,13 +43,6 @@ func TestNewRequestFilters(t *testing.T) {
 		}
 	})
 
-	t.Run("agent ID is trimmed", func(t *testing.T) {
-		filters := NewRequestFilters([]HTTPMethod{}, EmptyPathPattern(), EmptyDateRange(), "  agent-123  ", nil)
-
-		if filters.AgentID() != "agent-123" {
-			t.Errorf("AgentID() = %v, want 'agent-123'", filters.AgentID())
-		}
-	})
 }
 
 func TestEmptyRequestFilters(t *testing.T) {
@@ -71,9 +60,6 @@ func TestEmptyRequestFilters(t *testing.T) {
 		}
 		if !filters.DateRange().IsEmpty() {
 			t.Error("DateRange() should be empty")
-		}
-		if filters.AgentID() != "" {
-			t.Error("AgentID() should be empty")
 		}
 		if filters.HasDiff() != nil {
 			t.Error("HasDiff() should be nil")
@@ -98,7 +84,6 @@ func TestRequestFiltersIsEmpty(t *testing.T) {
 				[]HTTPMethod{GET()},
 				EmptyPathPattern(),
 				EmptyDateRange(),
-				"",
 				nil,
 			),
 			want: false,
@@ -109,18 +94,6 @@ func TestRequestFiltersIsEmpty(t *testing.T) {
 				[]HTTPMethod{},
 				PathPattern{value: "/api/users"},
 				EmptyDateRange(),
-				"",
-				nil,
-			),
-			want: false,
-		},
-		{
-			name: "with agent ID",
-			filters: NewRequestFilters(
-				[]HTTPMethod{},
-				EmptyPathPattern(),
-				EmptyDateRange(),
-				"agent-123",
 				nil,
 			),
 			want: false,
@@ -133,7 +106,6 @@ func TestRequestFiltersIsEmpty(t *testing.T) {
 					[]HTTPMethod{},
 					EmptyPathPattern(),
 					EmptyDateRange(),
-					"",
 					&hasDiff,
 				)
 			}(),
@@ -161,7 +133,6 @@ func TestRequestFiltersHasMethods(t *testing.T) {
 			[]HTTPMethod{GET()},
 			EmptyPathPattern(),
 			EmptyDateRange(),
-			"",
 			nil,
 		)
 		if !withMethods.HasMethodFilter() {
@@ -179,7 +150,6 @@ func TestRequestFiltersHasMethods(t *testing.T) {
 			[]HTTPMethod{},
 			PathPattern{value: "/api/users"},
 			EmptyDateRange(),
-			"",
 			nil,
 		)
 		if !withPath.HasPathFilter() {
@@ -198,29 +168,10 @@ func TestRequestFiltersHasMethods(t *testing.T) {
 			[]HTTPMethod{},
 			EmptyPathPattern(),
 			DateRange{from: &now},
-			"",
 			nil,
 		)
 		if !withDateRange.HasDateRangeFilter() {
 			t.Error("Filters with date range should have date range filter")
-		}
-	})
-
-	t.Run("HasAgentFilter", func(t *testing.T) {
-		empty := EmptyRequestFilters()
-		if empty.HasAgentFilter() {
-			t.Error("Empty filters should not have agent filter")
-		}
-
-		withAgent := NewRequestFilters(
-			[]HTTPMethod{},
-			EmptyPathPattern(),
-			EmptyDateRange(),
-			"agent-123",
-			nil,
-		)
-		if !withAgent.HasAgentFilter() {
-			t.Error("Filters with agent ID should have agent filter")
 		}
 	})
 
@@ -235,7 +186,6 @@ func TestRequestFiltersHasMethods(t *testing.T) {
 			[]HTTPMethod{},
 			EmptyPathPattern(),
 			EmptyDateRange(),
-			"",
 			&hasDiff,
 		)
 		if !withDiff.HasDiffFilter() {
@@ -264,7 +214,6 @@ func TestRequestFiltersString(t *testing.T) {
 				[]HTTPMethod{GET(), POST()},
 				EmptyPathPattern(),
 				EmptyDateRange(),
-				"",
 				nil,
 			),
 			want: "methods=[GET,POST]",
@@ -275,7 +224,6 @@ func TestRequestFiltersString(t *testing.T) {
 				[]HTTPMethod{},
 				PathPattern{value: "/api/users"},
 				EmptyDateRange(),
-				"",
 				nil,
 			),
 			want: "path='/api/users'",
@@ -286,21 +234,9 @@ func TestRequestFiltersString(t *testing.T) {
 				[]HTTPMethod{},
 				EmptyPathPattern(),
 				DateRange{from: &past, to: &now},
-				"",
 				nil,
 			),
 			want: "2026-01-01T12:00:00Z to 2026-01-15T12:00:00Z",
-		},
-		{
-			name: "with agent ID",
-			filters: NewRequestFilters(
-				[]HTTPMethod{},
-				EmptyPathPattern(),
-				EmptyDateRange(),
-				"agent-123",
-				nil,
-			),
-			want: "agent='agent-123'",
 		},
 		{
 			name: "with has diff",
@@ -310,7 +246,6 @@ func TestRequestFiltersString(t *testing.T) {
 					[]HTTPMethod{},
 					EmptyPathPattern(),
 					EmptyDateRange(),
-					"",
 					&hasDiff,
 				)
 			}(),
@@ -324,11 +259,10 @@ func TestRequestFiltersString(t *testing.T) {
 					[]HTTPMethod{GET(), POST()},
 					PathPattern{value: "/api/*"},
 					DateRange{from: &past, to: &now},
-					"agent-123",
 					&hasDiff,
 				)
 			}(),
-			want: "methods=[GET,POST], path='/api/*', 2026-01-01T12:00:00Z to 2026-01-15T12:00:00Z, agent='agent-123', hasDiff=false",
+			want: "methods=[GET,POST], path='/api/*', 2026-01-01T12:00:00Z to 2026-01-15T12:00:00Z, hasDiff=false",
 		},
 	}
 
@@ -344,7 +278,7 @@ func TestRequestFiltersString(t *testing.T) {
 func TestRequestFiltersImmutability(t *testing.T) {
 	t.Run("Methods returns copy", func(t *testing.T) {
 		original := []HTTPMethod{GET(), POST()}
-		filters := NewRequestFilters(original, EmptyPathPattern(), EmptyDateRange(), "", nil)
+		filters := NewRequestFilters(original, EmptyPathPattern(), EmptyDateRange(), nil)
 
 		// Get methods and modify
 		methods := filters.Methods()

@@ -493,7 +493,7 @@ All logs use structured logging (slog) with JSON output.
 ```json
 {"time":"2026-01-31T20:00:00Z","level":"INFO","msg":"Started server","address":":8090"}
 {"time":"2026-01-31T20:00:15Z","level":"INFO","msg":"gate created","gate_id":"550e8400-e29b-41d4-a716-446655440000"}
-{"time":"2026-01-31T20:00:30Z","level":"INFO","msg":"request created","gate_id":"550e8400","request_id":"7c9e6679","agent_id":"MacBook-Pro-a1b2c3d4"}
+{"time":"2026-01-31T20:00:30Z","level":"INFO","msg":"request created","gate_id":"550e8400","request_id":"7c9e6679"}
 ```
 
 ## Performance

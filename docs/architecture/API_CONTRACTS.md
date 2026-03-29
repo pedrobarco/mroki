@@ -331,7 +331,6 @@ curl -H "Authorization: Bearer your-api-key" \
 ```json
 {
   "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "agent_id": "MacBook-Pro-a1b2c3d4-5678-90ab-cdef-1234567890ab",
   "method": "POST",
   "path": "/api/users",
   "headers": {
@@ -378,7 +377,6 @@ curl -H "Authorization: Bearer your-api-key" \
 
 **Field Descriptions:**
 - `id` (optional) - Request UUID, generated if omitted
-- `agent_id` (required) - Capturing agent identifier
 - `method` (required) - HTTP method (GET, POST, etc.)
 - `path` (required) - Request path
 - `headers` (required) - Request headers
@@ -501,7 +499,6 @@ curl -H "Authorization: Bearer your-api-key" \
 | `path` | string | — | Filter by path pattern, supports wildcards (e.g., `/api/users/*`) |
 | `from` | RFC3339 | — | Filter requests created on or after this timestamp |
 | `to` | RFC3339 | — | Filter requests created on or before this timestamp |
-| `agent_id` | string | — | Filter by agent ID (exact match) |
 | `has_diff` | boolean | — | Filter by diff existence (`true` = only with diffs, `false` = only without) |
 | `sort` | string | `created_at` | Sort field: `created_at`, `method`, or `path` |
 | `order` | string | `desc` | Sort direction: `asc` or `desc` |
