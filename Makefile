@@ -4,7 +4,7 @@ DEV_COMPOSE := build/dev/compose.yaml
 .PHONY: help build test lint clean \
 	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-migrate api-clean \
 	agent-build agent-test agent-clean \
-	hub-build hub-test hub-test-ui hub-test-setup hub-screenshots hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
+	hub-build hub-test hub-test-unit hub-test-ui hub-test-setup hub-screenshots hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
 	dev-up dev-down dev-reset
 
 # ─── Global ──────────────────────────────────────────────────────────
@@ -41,6 +41,7 @@ help:
 	@echo "  ────────────────────────────────────────"
 	@echo "  hub-build          Build hub for production"
 	@echo "  hub-test           Run Playwright e2e tests"
+	@echo "  hub-test-unit      Run hub unit tests"
 	@echo "  hub-test-ui        Run e2e tests in UI mode"
 	@echo "  hub-test-setup     Start backend for e2e tests"
 	@echo "  hub-screenshots    Capture hub screenshots for docs"
@@ -59,7 +60,7 @@ help:
 
 build: api-build agent-build hub-build
 
-test: api-test agent-test hub-test
+test: api-test agent-test hub-test-unit hub-test
 
 lint: api-lint hub-lint
 
@@ -143,6 +144,10 @@ hub-build:
 hub-test:
 	@echo "Running hub e2e tests..."
 	cd $(HUB_DIR) && pnpm test:e2e
+
+hub-test-unit:
+	@echo "Running hub unit tests..."
+	cd $(HUB_DIR) && pnpm test:unit
 
 hub-test-ui:
 	@echo "Running hub e2e tests (UI mode)..."

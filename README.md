@@ -1,6 +1,10 @@
-# mroki
+<p align="center">
+  <img src="docs/assets/brand/mroki-logo.png" alt="mroki" width="320" />
+</p>
 
-Safe shadow traffic testing for production systems.
+<h1 align="center">mroki</h1>
+
+<p align="center">Safe shadow traffic testing for production systems.</p>
 
 mroki mirrors live HTTP traffic to a shadow service, diffs the JSON responses, and surfaces the differences — so you can validate changes against real production behavior before rolling out.
 

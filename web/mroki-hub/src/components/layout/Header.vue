@@ -20,15 +20,7 @@ function isActive(matchPrefix: string): boolean {
     <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
       <div class="flex items-center gap-6">
         <router-link to="/" class="flex items-center gap-2">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-foreground">
-            <path
-              d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+          <img src="/mroki-logo-icon-dark.png" alt="mroki" width="22" height="22" />
           <span class="font-semibold text-sm tracking-tight text-foreground">mroki hub</span>
         </router-link>
 
