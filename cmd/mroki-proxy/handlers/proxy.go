@@ -98,7 +98,7 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 }
 
 // createStandaloneCallback creates a callback that computes and prints diffs locally.
-// Used when no API is configured (standalone agent mode).
+// Used when no API is configured (standalone proxy mode).
 func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 	logger := cfg.Logger
 	if logger == nil {

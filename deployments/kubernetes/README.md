@@ -10,7 +10,7 @@ Production-grade Kubernetes deployment for mroki.
 - `secrets.yaml` - Secrets and ConfigMaps
 - `postgres.yaml` - PostgreSQL StatefulSet with persistent storage
 - `api.yaml` - mroki-api Deployment and Service
-- `agent.yaml` - mroki-agent Deployment and Service
+- `proxy.yaml` - mroki-proxy Deployment and Service
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ Production-grade Kubernetes deployment for mroki.
    kubectl apply -f secrets.yaml
    kubectl apply -f postgres.yaml
    kubectl apply -f api.yaml
-   kubectl apply -f agent.yaml
+   kubectl apply -f proxy.yaml
    ```
 
 4. **Verify deployment:**
@@ -57,9 +57,9 @@ Scale API replicas:
 kubectl scale deployment mroki-api --replicas=5 -n mroki
 ```
 
-Scale agent replicas:
+Scale proxy replicas:
 ```bash
-kubectl scale deployment mroki-agent --replicas=10 -n mroki
+kubectl scale deployment mroki-proxy --replicas=10 -n mroki
 ```
 
 ## Monitoring
@@ -67,7 +67,7 @@ kubectl scale deployment mroki-agent --replicas=10 -n mroki
 View logs:
 ```bash
 kubectl logs -n mroki -l app=mroki-api -f
-kubectl logs -n mroki -l app=mroki-agent -f
+kubectl logs -n mroki -l app=mroki-proxy -f
 ```
 
 Check pod status:
@@ -89,7 +89,7 @@ Kubernetes automatically restarts unhealthy pods.
 - Request: 128Mi memory, 100m CPU
 - Limit: 512Mi memory, 500m CPU
 
-**mroki-agent:**
+**mroki-proxy:**
 - Request: 64Mi memory, 50m CPU
 - Limit: 256Mi memory, 200m CPU
 
@@ -102,7 +102,7 @@ PostgreSQL uses a StatefulSet with 20Gi persistent volume. Data persists across 
 ## Uninstall
 
 ```bash
-kubectl delete -f agent.yaml
+kubectl delete -f proxy.yaml
 kubectl delete -f api.yaml
 kubectl delete -f postgres.yaml
 kubectl delete -f secrets.yaml

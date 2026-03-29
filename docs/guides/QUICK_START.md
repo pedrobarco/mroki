@@ -77,12 +77,12 @@ curl -X POST http://localhost:8081/gates \
 
 **Copy the `id` value** - you'll need it in the next step.
 
-## Step 4: Start mroki-agent
+## Step 4: Start mroki-proxy
 
 Open a new terminal:
 
 ```bash
-cd cmd/mroki-agent
+cd cmd/mroki-proxy
 
 # Create configuration file (replace GATE_ID with your actual gate ID)
 cat > .env << 'EOF'
@@ -94,7 +94,7 @@ EOF
 
 # IMPORTANT: Replace the GATE_ID in .env with your actual gate ID from step 3
 
-# Start the agent
+# Start the proxy
 go run .
 ```
 
@@ -112,7 +112,7 @@ Keep this terminal open.
 Open a new terminal:
 
 ```bash
-# Send a test request through the agent
+# Send a test request through the proxy
 curl -X POST http://localhost:8080/test \
   -H "Content-Type: application/json" \
   -d '{"name": "Alice", "age": 30}'
@@ -121,10 +121,10 @@ curl -X POST http://localhost:8080/test \
 **What happens:**
 1. Agent forwards request to **both** live and shadow services
 2. Live response returned to you immediately
-3. Agent sends raw responses to mroki-api in background
+3. Proxy sends raw responses to mroki-api in background
 4. mroki-api computes diff server-side and stores everything in PostgreSQL
 
-**Check agent logs:** You should see:
+**Check proxy logs:** You should see:
 ```
 DEBUG successfully sent request to API method=POST path=/test live_status=200 shadow_status=200
 ```
@@ -175,8 +175,8 @@ You've successfully:
 - ✅ Started PostgreSQL
 - ✅ Started mroki-api
 - ✅ Created a gate
-- ✅ Started mroki-agent
-- ✅ Sent traffic through the agent
+- ✅ Started mroki-proxy
+- ✅ Sent traffic through the proxy
 - ✅ Viewed captured requests and server-computed diffs via API
 
 ## What's Next?
@@ -196,8 +196,8 @@ curl -X POST http://localhost:8081/gates \
     "shadow_url": "http://localhost:3001"
   }'
 
-# Get the gate ID from response, then update agent config
-# Edit cmd/mroki-agent/.env and update MROKI_APP_GATE_ID
+# Get the gate ID from response, then update proxy config
+# Edit cmd/mroki-proxy/.env and update MROKI_APP_GATE_ID
 ```
 
 ### Explore Advanced Features
@@ -234,15 +234,15 @@ curl http://localhost:8081/health/ready
 
 **Standalone Mode (No API):**
 ```bash
-# Edit cmd/mroki-agent/.env - remove API config, add URLs
-cat > cmd/mroki-agent/.env << 'EOF'
+# Edit cmd/mroki-proxy/.env - remove API config, add URLs
+cat > cmd/mroki-proxy/.env << 'EOF'
 MROKI_APP_LIVE_URL=https://httpbin.org/anything?service=live
 MROKI_APP_SHADOW_URL=https://httpbin.org/anything?service=shadow
 MROKI_APP_PORT=8080
 EOF
 
-# Restart agent
-cd cmd/mroki-agent && go run .
+# Restart proxy
+cd cmd/mroki-proxy && go run .
 
 # Should see: "Starting in standalone mode"
 # Requests still work — diffs are computed and printed locally (not stored)
@@ -250,13 +250,13 @@ cd cmd/mroki-agent && go run .
 
 **Test Diff Configuration (standalone mode only):**
 ```bash
-# Add diff options to cmd/mroki-agent/.env (only applies in standalone mode)
-cat >> cmd/mroki-agent/.env << 'EOF'
+# Add diff options to cmd/mroki-proxy/.env (only applies in standalone mode)
+cat >> cmd/mroki-proxy/.env << 'EOF'
 MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at,url
 EOF
 
-# Restart agent
-cd cmd/mroki-agent && go run .
+# Restart proxy
+cd cmd/mroki-proxy && go run .
 
 # Should see: "Diff options configured" in logs
 ```
@@ -265,10 +265,10 @@ cd cmd/mroki-agent && go run .
 ```bash
 # Stop mroki-api (Ctrl+C in API terminal)
 
-# Send request through agent
+# Send request through proxy
 curl http://localhost:8080/test -H "Content-Type: application/json" -d '{}'
 
-# Check agent logs - should show retry attempts:
+# Check proxy logs - should show retry attempts:
 # WARN API request failed attempt=1 error="connection refused"
 # INFO retrying API request attempt=1 delay=1s
 # ...
@@ -287,7 +287,7 @@ curl http://localhost:8080/test -H "Content-Type: application/json" -d '{}'
 ```bash
 # Check API key in .env files match
 grep API_KEY cmd/mroki-api/.env
-grep API_KEY cmd/mroki-agent/.env
+grep API_KEY cmd/mroki-proxy/.env
 
 # Test with explicit Bearer token
 curl -H "Authorization: Bearer dev-test-key-min-16-chars" \
@@ -298,12 +298,12 @@ curl -H "Authorization: Bearer dev-test-key-min-16-chars" \
 
 **Problem:** `{"type":"about:blank","title":"Invalid API Key","status":401,...}`
 
-**Solution:** API key is too short or doesn't match. API keys must be at least 16 characters and match between API and agent:
+**Solution:** API key is too short or doesn't match. API keys must be at least 16 characters and match between API and proxy:
 
 ```bash
 # Update both .env files with same key
 echo 'MROKI_APP_API_KEY=your-new-key-min-16-chars' >> cmd/mroki-api/.env
-echo 'MROKI_APP_API_KEY=your-new-key-min-16-chars' >> cmd/mroki-agent/.env
+echo 'MROKI_APP_API_KEY=your-new-key-min-16-chars' >> cmd/mroki-proxy/.env
 
 # Restart both services
 ```
@@ -386,12 +386,12 @@ docker compose -f build/dev/compose.yaml up -d
 cd cmd/mroki-api && go run .
 
 # Terminal 3: Agent
-cd cmd/mroki-agent && go run .
+cd cmd/mroki-proxy && go run .
 ```
 
 **Stop Stack:**
 ```bash
-# Stop agent: Ctrl+C in terminal 3
+# Stop proxy: Ctrl+C in terminal 3
 # Stop API: Ctrl+C in terminal 2
 # Stop PostgreSQL:
 docker compose -f build/dev/compose.yaml down
@@ -415,6 +415,6 @@ docker compose -f build/dev/compose.yaml down
 
 - Read [Architecture Overview](../architecture/OVERVIEW.md)
 - Explore [API Contracts](../architecture/API_CONTRACTS.md)
-- Learn about [mroki-agent](../components/MROKI_AGENT.md)
+- Learn about [mroki-proxy](../components/MROKI_PROXY.md)
 - Learn about [mroki-api](../components/MROKI_API.md)
 - Check [Development Guide](DEVELOPMENT.md) for contributing

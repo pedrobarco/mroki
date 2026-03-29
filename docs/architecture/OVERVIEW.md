@@ -9,13 +9,13 @@ mroki consists of four main components:
 ```mermaid
 graph TD
     subgraph Production Environment
-        Client([Client]) -->|HTTP Request| Agent[mroki-agent]
-        Agent --> Live[Live Service<br><i>Production</i>]
-        Agent --> Shadow[Shadow Service<br><i>Candidate</i>]
-        Live & Shadow --> Agent
+        Client([Client]) -->|HTTP Request| Proxy[mroki-proxy]
+        Proxy --> Live[Live Service<br><i>Production</i>]
+        Proxy --> Shadow[Shadow Service<br><i>Candidate</i>]
+        Live & Shadow --> Proxy
     end
 
-    Agent -.->|Raw responses<br>HTTP/JSON| API
+    Proxy -.->|Raw responses<br>HTTP/JSON| API
 
     subgraph mroki Platform
         API[mroki-api<br><i>REST API + Diff</i>] -->|Read/Write| DB[(PostgreSQL)]
@@ -25,7 +25,7 @@ graph TD
 
 ## Components
 
-### 1. mroki-agent (Go)
+### 1. mroki-proxy (Go)
 
 **Purpose:** Transparent HTTP proxy that mirrors traffic to shadow services
 
@@ -53,8 +53,8 @@ graph TD
 
 **Responsibilities:**
 - Gate CRUD operations (create, read, list)
-- Receive raw captured requests and responses from agents
-- Compute JSON diffs server-side (when not provided by agent)
+- Receive raw captured requests and responses from proxies
+- Compute JSON diffs server-side (when not provided by proxy)
 - Persist requests, responses, and computed diffs
 - Serve request/response data to hub
 - Health check endpoints for Kubernetes
@@ -98,7 +98,7 @@ graph TD
 - Integrate mroki proxy into Caddy HTTP server
 - Provide Caddyfile configuration syntax for proxy, sampling, body size, and diff options
 - Compute JSON diffs locally and print results (standalone mode only — no API integration)
-- Enable mroki without a separate agent binary
+- Enable mroki without a separate proxy binary
 
 **Technology:**
 - Language: Go 1.24+
@@ -115,22 +115,22 @@ graph TD
 ```mermaid
 sequenceDiagram
     participant C as Client
-    participant A as mroki-agent
+    participant P as mroki-proxy
     participant L as Live Service
     participant S as Shadow Service
     participant API as mroki-api
     participant DB as PostgreSQL
 
-    C->>A: HTTP Request
+    C->>P: HTTP Request
     par Forward in parallel
-        A->>L: Forward request
-        A->>S: Forward request
+        P->>L: Forward request
+        P->>S: Forward request
     end
-    L-->>A: Live Response
-    A-->>C: Return Live Response
-    S-->>A: Shadow Response
-    Note over A: Background (non-blocking)
-    A->>API: Send raw responses (with retry)
+    L-->>P: Live Response
+    P-->>C: Return Live Response
+    S-->>P: Shadow Response
+    Note over P: Background (non-blocking)
+    P->>API: Send raw responses (with retry)
     API->>API: Compute Diff server-side
     API->>DB: Store request + responses + diff
 ```
@@ -140,7 +140,7 @@ sequenceDiagram
 - **Non-blocking:** Live response returns immediately, shadow processing happens in background
 - **Best-effort:** API failures are logged but don't affect live traffic
 - **Idempotent:** Retries are safe (requests have unique IDs)
-- **Server-side diffing:** Diff computation happens in mroki-api, keeping the agent lightweight
+- **Server-side diffing:** Diff computation happens in mroki-api, keeping the proxy lightweight
 - **JSON-only:** Only JSON responses are diffed
 
 ---
@@ -199,18 +199,18 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 ### 1. Server-Side Diffing
 
-**Decision:** Compute diffs in mroki-api, not the agent
+**Decision:** Compute diffs in mroki-api, not the proxy
 
 **Rationale:**
-- Agent stays lightweight — a thin HTTP forwarder with minimal CPU usage
+- Proxy stays lightweight — a thin HTTP forwarder with minimal CPU usage
 - Centralized diff logic — one place to change algorithms, options, or filters
 - Enables re-diffing with different config without replaying traffic
 - Scales independently from traffic proxying
-- In standalone mode (no API), the agent still computes diffs locally as a fallback
+- In standalone mode (no API), the proxy still computes diffs locally as a fallback
 
 ### 2. Best-Effort Delivery
 
-**Decision:** Agent never fails live traffic due to API issues
+**Decision:** Proxy never fails live traffic due to API issues
 
 **Rationale:**
 - Shadow testing should never impact production
@@ -250,14 +250,14 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 ### 6. Dual Operating Modes
 
-**Decision:** Agent works in API mode (fetches config) or standalone mode (hardcoded URLs)
+**Decision:** Proxy works in API mode (fetches config) or standalone mode (hardcoded URLs)
 
 **Rationale:**
 - API mode: Centralized configuration management
 - Standalone mode: Useful for local testing and validation
 - Graceful degradation when API unavailable
 - Reduces operational dependencies for simple setups
-- Agent can operate without API connection
+- Proxy can operate without API connection
 
 ---
 
@@ -284,7 +284,7 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 - [ ] RBAC for multi-tenant usage
 - [ ] PII redaction in captured requests
-- [ ] Agent-to-API mutual TLS
+- [ ] Proxy-to-API mutual TLS
 
 ---
 
@@ -298,7 +298,7 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 ### Mitigation Strategies
 
-1. **Batching:** Agents can batch multiple requests per API call (future)
+1. **Batching:** Proxies can batch multiple requests per API call (future)
 2. **Sampling:** Capture only N% of traffic (configurable per gate)
 3. **Async processing:** Queue diffs for background processing
 4. **Sharding:** Partition gates across multiple databases
@@ -306,7 +306,7 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 ### Current Limits (estimated)
 
-- **Agent throughput:** ~1000 req/s per agent instance
+- **Proxy throughput:** ~1000 req/s per proxy instance
 - **API throughput:** ~500 req/s per API instance (DB-bound)
 - **Storage:** ~1KB per request avg → 1M requests = ~1GB
 
@@ -328,9 +328,9 @@ log.Info("request captured",
 
 ### Metrics (Planned)
 
-- `mroki_agent_requests_total` - Total requests proxied
-- `mroki_agent_shadow_skipped` - Shadow requests skipped (sampling / body size)
-- `mroki_agent_api_failures` - API send failures
+- `mroki_proxy_requests_total` - Total requests proxied
+- `mroki_proxy_shadow_skipped` - Shadow requests skipped (sampling / body size)
+- `mroki_proxy_api_failures` - API send failures
 - `mroki_api_requests_total` - API request count
 - `mroki_api_request_duration` - API latency
 - `mroki_api_diffs_computed` - Diffs computed server-side
@@ -339,7 +339,7 @@ log.Info("request captured",
 
 - **API:** `GET /health/ready` - DB connectivity
 - **API:** `GET /health/live` - Service up
-- **Agent:** HTTP server accepting connections
+- **Proxy:** HTTP server accepting connections
 
 ---
 
@@ -349,15 +349,15 @@ log.Info("request captured",
 
 ```mermaid
 graph TD
-    Client([Client]) --> Agent
+    Client([Client]) --> Proxy[mroki-proxy]
 
     subgraph Pod/Container
-        App[App Service] --> Agent[mroki-agent]
+        App[App Service] --> Proxy
     end
 
-    Agent --> Live[Live Service]
-    Agent --> Shadow[Shadow Service]
-    Agent -.-> API[mroki-api]
+    Proxy --> Live[Live Service]
+    Proxy --> Shadow[Shadow Service]
+    Proxy -.-> API[mroki-api]
 ```
 
 **Pros:** No app changes, transparent
@@ -367,10 +367,10 @@ graph TD
 
 ```mermaid
 graph TD
-    Client([Client]) --> Agent[mroki-agent]
-    Agent --> Live[Live Service]
-    Agent --> Shadow[Shadow Service]
-    Agent -.-> API[mroki-api]
+    Client([Client]) --> Proxy[mroki-proxy]
+    Proxy --> Live[Live Service]
+    Proxy --> Shadow[Shadow Service]
+    Proxy -.-> API[mroki-api]
 ```
 
 **Pros:** Centralized, lower resource usage
@@ -430,7 +430,7 @@ graph TD
 ## Future Enhancements
 
 ### Phase 2 (Completed)
-- [x] Agent fetches gate configuration from API
+- [x] Proxy fetches gate configuration from API
 - [x] Dual operating modes (API vs standalone)
 - [x] Configurable diff options (field filtering via normalizer, go-cmp based diffing)
 - [x] API key authentication
@@ -456,6 +456,6 @@ graph TD
 ## Related Documentation
 
 - [API Contracts](API_CONTRACTS.md) - Detailed API specifications
-- [mroki-agent Component](../components/MROKI_AGENT.md)
+- [mroki-proxy Component](../components/MROKI_PROXY.md)
 - [mroki-api Component](../components/MROKI_API.md)
 - [mroki-hub Component](../components/MROKI_HUB.md)

@@ -62,5 +62,5 @@ go.work.sum
 # Build artifacts
 bin/
 /mroki-api
-/mroki-agent
+/mroki-proxy
 /caddy-mroki

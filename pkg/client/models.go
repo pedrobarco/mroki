@@ -9,7 +9,7 @@ import (
 // while internally using the centralized DTOs
 
 // CapturedRequest represents a complete request/response pair with diff.
-// This is what gets sent from agent to API.
+// This is what gets sent from proxy to API.
 type CapturedRequest = dto.CreateRequestPayload
 
 // CapturedResponse represents a single HTTP response (live or shadow).

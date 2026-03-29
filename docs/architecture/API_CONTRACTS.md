@@ -322,7 +322,7 @@ curl -H "Authorization: Bearer your-api-key" \
 
 #### POST /gates/:gate_id/requests
 
-**Purpose:** Create a captured request (called by mroki-agent)
+**Purpose:** Create a captured request (called by mroki-proxy)
 
 **Path Parameters:**
 - `gate_id` (UUID) - Parent gate identifier
@@ -373,7 +373,7 @@ curl -H "Authorization: Bearer your-api-key" \
 }
 ```
 
-> **Note:** The `diff` field is optional. When omitted, mroki-api computes the diff server-side by comparing the live and shadow response bodies. This is the default behavior for agents running in API mode. Pre-computed diffs are accepted for backward compatibility.
+> **Note:** The `diff` field is optional. When omitted, mroki-api computes the diff server-side by comparing the live and shadow response bodies. This is the default behavior for proxies running in API mode. Pre-computed diffs are accepted for backward compatibility.
 
 **Field Descriptions:**
 - `id` (optional) - Request UUID, generated if omitted
@@ -853,9 +853,9 @@ GATE_RESPONSE=$(curl -s -X POST http://localhost:8090/gates \
 GATE_ID=$(echo $GATE_RESPONSE | jq -r '.data.id')
 echo "Gate ID: $GATE_ID"
 
-# 2. Configure agent with gate ID (see mroki-agent docs)
+# 2. Configure proxy with gate ID (see mroki-proxy docs)
 
-# 3. Send traffic through agent (agent will POST to API)
+# 3. Send traffic through proxy (proxy will POST to API)
 
 # 4. List captured requests
 curl -H "Authorization: Bearer your-api-key" \
@@ -873,4 +873,4 @@ curl -H "Authorization: Bearer your-api-key" \
 
 - [Architecture Overview](OVERVIEW.md)
 - [mroki-api Component](../components/MROKI_API.md)
-- [mroki-agent Component](../components/MROKI_AGENT.md)
+- [mroki-proxy Component](../components/MROKI_PROXY.md)

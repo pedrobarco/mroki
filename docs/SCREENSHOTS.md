@@ -4,7 +4,7 @@ A visual tour of the mroki Hub interface.
 
 ## Gates
 
-Manage your live/shadow service pairs. Each gate card shows the live and shadow URLs, request volume, diff rate, and agent status.
+Manage your live/shadow service pairs. Each gate card shows the live and shadow URLs, request volume, diff rate, and proxy status.
 
 ![Gates](assets/screenshots/hub-gates.png)
 

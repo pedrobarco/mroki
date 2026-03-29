@@ -13,8 +13,8 @@ All completed, pending, and planned work for mroki. Items use a consistent forma
 - [x] **Security & Stability** — RFC 7807 errors, HTTP timeouts, body size limits, graceful shutdown, API key auth, rate limiting (1000 req/min), input validation via value objects
 - [x] **Developer Experience** — Diff engine rewrite (gjson/sjson + go-cmp, 30%+ faster), field filtering (whitelist/blacklist + wildcards), TTL cleanup job, CORS support
 - [x] **mroki-hub v1** — Vue 3 + TypeScript SPA with gates (list, create, detail), request browser (filtering, sorting, pagination), diff viewer (side-by-side + unified), gate filtering/sorting/pagination, e2e test suite
-- [x] **Server-Side Diff Computation** — Moved diff computation from agent to mroki-api. Agent sends raw responses; API computes diffs on ingest. Standalone agent mode retains local diff computation. Backward compatible (API accepts pre-computed diffs).
-- [x] **Agent/Caddy Feature Parity** — Brought caddy-mroki to feature parity with standalone agent: sampling rate, max body size check, diff options (ignored/included fields, float tolerance). Added sampling rate support to agent. Caddy operates in standalone mode only (local diff + print).
+- [x] **Server-Side Diff Computation** — Moved diff computation from proxy to mroki-api. Proxy sends raw responses; API computes diffs on ingest. Standalone proxy mode retains local diff computation. Backward compatible (API accepts pre-computed diffs).
+- [x] **Proxy/Caddy Feature Parity** — Brought caddy-mroki to feature parity with standalone proxy: sampling rate, max body size check, diff options (ignored/included fields, float tolerance). Added sampling rate support to proxy. Caddy operates in standalone mode only (local diff + print).
 
 ---
 
@@ -41,7 +41,7 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 
 - [ ] **P1** Status codes in list view — Hardcoded per row (`RequestList.vue`). Add `live_status_code` / `shadow_status_code` to summary DTO.
 - [ ] **P1** Diff count per request — Hardcoded per row (`RequestList.vue`). Add `diff_count` to summary DTO.
-- [ ] **P2** Latency per request — Hardcoded `"142ms"` (`RequestList.vue`, `RequestDetail.vue`). Requires agent capture + schema field.
+- [ ] **P2** Latency per request — Hardcoded `"142ms"` (`RequestList.vue`, `RequestDetail.vue`). Requires proxy capture + schema field.
 
 ### Dead UI Elements
 
@@ -68,9 +68,9 @@ Pending infrastructure tasks for production readiness.
 
 ### Observability & Resilience
 
-- [ ] **P1** Request ID middleware — `X-Request-ID` header generation + propagation through logs and agent.
-- [ ] **P1** Circuit breaker in agent — Stop retrying when API is down. Use `gobreaker` with 5-failure threshold.
-- [ ] **P1** HTTP connection pooling — Configure `MaxIdleConns`, `IdleConnTimeout` in agent client.
+- [ ] **P1** Request ID middleware — `X-Request-ID` header generation + propagation through logs and proxy.
+- [ ] **P1** Circuit breaker in proxy — Stop retrying when API is down. Use `gobreaker` with 5-failure threshold.
+- [ ] **P1** HTTP connection pooling — Configure `MaxIdleConns`, `IdleConnTimeout` in proxy client.
 - [ ] **P2** Structured error logging — Add request context (method, path, request ID) to all error logs.
 - [ ] **P2** Update API_CONTRACTS.md — Document auth, rate limiting, pagination (currently marked "Planned v2").
 
@@ -85,7 +85,7 @@ Pending infrastructure tasks for production readiness.
 
 - [ ] **P2** Create PRODUCTION_READINESS.md — Pre-deployment checklist, monitoring requirements, runbook.
 - [ ] **P2** Update MROKI_API.md — Production deployment, security config, performance tuning.
-- [ ] **P2** Update MROKI_AGENT.md — Circuit breaker behavior, connection pooling, auth setup.
+- [ ] **P2** Update MROKI_PROXY.md — Circuit breaker behavior, connection pooling, auth setup.
 
 ---
 

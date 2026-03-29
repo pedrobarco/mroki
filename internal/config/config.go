@@ -25,7 +25,7 @@ type Config[T any] struct {
 // .env file. If APP_ENV is not set, it defaults to "development".
 // The cmd parameter is used to determine the directory where the .env file
 // should be loaded from. It is expected to be the path to the command that is
-// being executed (e.g., "cmd/mroki-agent" or "cmd/caddy-mroki").
+// being executed (e.g., "cmd/mroki-proxy" or "cmd/caddy-mroki").
 // The cfg parameter is a pointer to a struct that will be populated with the
 // configuration values. The struct should have fields tagged with `env` to
 // specify the environment variable names.

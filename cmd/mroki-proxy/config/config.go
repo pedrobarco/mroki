@@ -10,7 +10,7 @@ import (
 )
 
 type Config config.Config[struct {
-	// URLs - optional if API mode configured (agent fetches from API)
+	// URLs - optional if API mode configured (proxy fetches from API)
 	LiveURL   *url.URL `env:"LIVE_URL"`
 	ShadowURL *url.URL `env:"SHADOW_URL"`
 
@@ -20,7 +20,7 @@ type Config config.Config[struct {
 	LiveTimeout   time.Duration `env:"LIVE_TIMEOUT, default=5s"`
 	ShadowTimeout time.Duration `env:"SHADOW_TIMEOUT, default=10s"`
 
-	// API integration (optional - if not set, agent runs in standalone mode)
+	// API integration (optional - if not set, proxy runs in standalone mode)
 	APIURL     *url.URL      `env:"API_URL"`
 	APIKey     string        `env:"API_KEY"`
 	GateID     string        `env:"GATE_ID"`
@@ -126,7 +126,7 @@ func (c Config) Validate() error {
 
 func Load() Config {
 	var cfg Config
-	config.Load("cmd/mroki-agent", &cfg)
+	config.Load("cmd/mroki-proxy", &cfg)
 
 	// Validate configuration before returning
 	if err := cfg.Validate(); err != nil {

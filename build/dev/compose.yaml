@@ -23,10 +23,10 @@ services:
       mroki-db:
         condition: service_healthy
 
-  mroki-agent:
+  mroki-proxy:
     extends:
-      file: ../package/mroki-agent/compose.yaml
-      service: mroki-agent
+      file: ../package/mroki-proxy/compose.yaml
+      service: mroki-proxy
     environment:
       MROKI_APP_API_URL: http://mroki-api:8090
       MROKI_APP_API_KEY: mroki-dev-api-key-16

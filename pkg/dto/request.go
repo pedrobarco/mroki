@@ -8,7 +8,7 @@ import (
 )
 
 // CreateRequestPayload represents the payload for creating a request with responses and diff.
-// This is sent from agents to the API.
+// This is sent from proxies to the API.
 type CreateRequestPayload struct {
 	// Request metadata
 	ID        string              `json:"id,omitempty"` // Optional: API will generate if empty

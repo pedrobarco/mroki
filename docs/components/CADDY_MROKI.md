@@ -2,15 +2,15 @@
 
 **Caddy server module for embedded mroki proxy functionality**
 
-caddy-mroki is a Caddy v2 module that integrates mroki's shadow traffic testing capabilities directly into the Caddy web server. This allows you to use mroki without deploying a standalone agent.
+caddy-mroki is a Caddy v2 module that integrates mroki's shadow traffic testing capabilities directly into the Caddy web server. This allows you to use mroki without deploying a standalone proxy.
 
 ## Features
 
 - **Native Caddy Integration**: Use mroki via Caddyfile directive
-- **Zero External Dependencies**: No separate agent process needed
+- **Zero External Dependencies**: No separate proxy process needed
 - **Caddy Module System**: Leverages Caddy's plugin architecture
 - **Simple Configuration**: Clean Caddyfile syntax
-- **Same Proxy Logic**: Uses the same battle-tested `pkg/proxy` package as mroki-agent
+- **Same Proxy Logic**: Uses the same battle-tested `pkg/proxy` package as mroki-proxy
 
 ## Installation
 
@@ -159,7 +159,7 @@ graph TD
 3. Live response returned to client immediately
 4. Diff computed and printed locally in background
 
-## Differences from mroki-agent
+## Differences from mroki-proxy
 
 ### Similarities
 - Same proxy logic (`pkg/proxy`)
@@ -171,14 +171,14 @@ graph TD
 
 ### Differences
 
-| Feature | mroki-agent | caddy-mroki |
+| Feature | mroki-proxy | caddy-mroki |
 |---------|-------------|-------------|
 | Deployment | Standalone binary | Compiled into Caddy |
 | Configuration | Environment variables | Caddyfile |
 | API Mode | ✅ Sends raw responses to mroki-api | ❌ Standalone only |
 | Retry Logic | ✅ Exponential backoff | N/A |
 
-caddy-mroki operates in standalone mode only — it computes and prints diffs locally. For API integration (server-side diffing, storage, hub), use mroki-agent.
+caddy-mroki operates in standalone mode only — it computes and prints diffs locally. For API integration (server-side diffing, storage, hub), use mroki-proxy.
 
 ## Example Deployment
 
@@ -355,7 +355,7 @@ mroki_gate {
 - Want quick local diff output without a separate binary
 - Don't need API storage or hub visualization
 
-### When to Use mroki-agent Instead
+### When to Use mroki-proxy Instead
 
 - Need API integration (server-side diffing, storage, hub visualization)
 - Not using Caddy
@@ -364,5 +364,5 @@ mroki_gate {
 ## Related Documentation
 
 - [Architecture Overview](../architecture/OVERVIEW.md)
-- [mroki-agent Component](MROKI_AGENT.md) - Standalone agent alternative
+- [mroki-proxy Component](MROKI_PROXY.md) - Standalone agent alternative
 - [Quick Start Guide](../guides/QUICK_START.md)

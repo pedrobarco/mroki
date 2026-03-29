@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pedrobarco/mroki/cmd/mroki-agent/config"
-	"github.com/pedrobarco/mroki/cmd/mroki-agent/handlers"
+	"github.com/pedrobarco/mroki/cmd/mroki-proxy/config"
+	"github.com/pedrobarco/mroki/cmd/mroki-proxy/handlers"
 	"github.com/pedrobarco/mroki/pkg/client"
 	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/dto"

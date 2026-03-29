@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mroki-agent
+  name: mroki-proxy
   namespace: mroki
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: mroki-agent
+      app: mroki-proxy
   template:
     metadata:
       labels:
-        app: mroki-agent
+        app: mroki-proxy
     spec:
       containers:
-      - name: mroki-agent
-        image: mroki-agent:v1.0.0
+      - name: mroki-proxy
+        image: mroki-proxy:v1.0.0
         ports:
         - containerPort: 8080
         env:
@@ -49,11 +49,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mroki-agent
+  name: mroki-proxy
   namespace: mroki
 spec:
   selector:
-    app: mroki-agent
+    app: mroki-proxy
   ports:
   - port: 80
     targetPort: 8080

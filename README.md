@@ -16,7 +16,7 @@ mroki mirrors live HTTP traffic to a shadow service, diffs the JSON responses, a
 ## Quick Start
 
 ```bash
-# Start the dev stack (PostgreSQL + API + Agent)
+# Start the dev stack (PostgreSQL + API + Proxy)
 docker compose -f build/dev/compose.yaml up -d
 
 # Create a gate (live/shadow service pair)
@@ -25,7 +25,7 @@ curl -s -X POST http://localhost:8090/gates \
   -H "Authorization: Bearer mroki-dev-api-key-16" \
   -d '{"live_url": "https://httpbin.org/anything?env=live", "shadow_url": "https://httpbin.org/anything?env=shadow"}'
 
-# Send traffic through the agent proxy
+# Send traffic through the proxy
 curl http://localhost:8080/get
 ```
 
@@ -37,7 +37,7 @@ See the [Quick Start Guide](docs/guides/QUICK_START.md) for the full walkthrough
 
 A **gate** is a pair of services: a live (production) URL and a shadow (experimental) URL.
 
-An **agent** is an HTTP proxy that forwards each request to both services and sends the raw responses to the API — without affecting the live response. The API computes the JSON diff server-side.
+A **proxy** forwards each request to both services and sends the raw responses to the API — without affecting the live response. The API computes the JSON diff server-side.
 
 The **hub** is a web UI for managing gates, browsing captured requests, and visualizing response diffs side-by-side.
 
@@ -45,13 +45,13 @@ The **hub** is a web UI for managing gates, browsing captured requests, and visu
 
 ```mermaid
 graph TD
-    Client([Client]) -->|HTTP Request| Agent[mroki-agent<br><i>Proxy</i>]
-    Agent -->|Forward| Live[Live Service]
-    Agent -->|Forward| Shadow[Shadow Service]
-    Live -->|Live Response| Agent
-    Shadow -->|Shadow Response| Agent
-    Agent -->|Return live response| Client
-    Agent -.->|Send raw responses| API[mroki-api<br><i>REST API + Diff</i>]
+    Client([Client]) -->|HTTP Request| Proxy[mroki-proxy]
+    Proxy -->|Forward| Live[Live Service]
+    Proxy -->|Forward| Shadow[Shadow Service]
+    Live -->|Live Response| Proxy
+    Shadow -->|Shadow Response| Proxy
+    Proxy -->|Return live response| Client
+    Proxy -.->|Send raw responses| API[mroki-api<br><i>REST API + Diff</i>]
     API -->|Store| DB[(PostgreSQL)]
     Hub[mroki-hub<br><i>Web UI</i>] -->|Query| API
 ```
@@ -60,7 +60,7 @@ graph TD
 
 | Component                                     | Description                                                                    | Docs                                   |
 | --------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------- |
-| [mroki-agent](docs/components/MROKI_AGENT.md) | HTTP proxy — forwards traffic to live and shadow, sends responses to API       | [docs](docs/components/MROKI_AGENT.md) |
+| [mroki-proxy](docs/components/MROKI_PROXY.md) | HTTP proxy — forwards traffic to live and shadow, sends responses to API       | [docs](docs/components/MROKI_PROXY.md) |
 | [mroki-api](docs/components/MROKI_API.md)     | REST API — gate management, request/diff storage, server-side diff computation | [docs](docs/components/MROKI_API.md)   |
 | [mroki-hub](docs/components/MROKI_HUB.md)     | Web UI — gate dashboard, request browser, diff viewer                          | [docs](docs/components/MROKI_HUB.md)   |
 | [caddy-mroki](docs/components/CADDY_MROKI.md) | Caddy module — standalone shadow diffing embedded in Caddy server              | [docs](docs/components/CADDY_MROKI.md) |

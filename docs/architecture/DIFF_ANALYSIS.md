@@ -6,7 +6,7 @@ Analysis of the domain and persistence layers for the "diff" entity in mroki-hub
 
 A **diff** in mroki-hub is a **delta-based comparison record** used for **shadow traffic testing**. It captures the computed difference between two HTTP responses: one from the **live** production service and one from the **shadow** (canary/candidate) service.
 
-The system operates as a traffic mirroring platform: `mroki-agent` proxies incoming requests to both live and shadow backends and sends the raw responses to `mroki-api`. The API computes a JSON diff of the two responses server-side and persists the entire capture (request + both responses + diff) for retrospective analysis in the `mroki-hub` dashboard. In standalone mode (no API), the agent computes and prints diffs locally.
+The system operates as a traffic mirroring platform: `mroki-proxy` proxies incoming requests to both live and shadow backends and sends the raw responses to `mroki-api`. The API computes a JSON diff of the two responses server-side and persists the entire capture (request + both responses + diff) for retrospective analysis in the `mroki-hub` dashboard. In standalone mode (no API), the proxy computes and prints diffs locally.
 
 The diff is **not** used for state versioning or audit logging. It serves a purely **observational/analytical** function — answering the question: *"For this request, how did the shadow's response differ from the live's response?"*
 
@@ -48,24 +48,24 @@ The domain model lives at `internal/domain/traffictesting/diff.go`.
 
 ```mermaid
 graph LR
-    Agent["mroki-agent<br><i>(proxy)</i>"] -->|"Base64-encoded<br>responses (HTTP POST)"| API["mroki-api<br><i>Receive</i>"]
+    Proxy["mroki-proxy<br><i>(proxy)</i>"] -->|"Base64-encoded<br>responses (HTTP POST)"| API["mroki-api<br><i>Receive</i>"]
     API -->|"Decode base64 bodies<br>Build synthetic JSON envelope<br>(statusCode + headers + body)"| Diff["pkg/diff<br><i>JSON()</i>"]
     Diff -->|"RFC 6902<br>PatchOp[]"| DB[("PostgreSQL<br><i>Save()</i>")]
 ```
 
-**Standalone mode** (no API): the agent computes diffs locally using the same `pkg/diff` engine and prints to stdout.
+**Standalone mode** (no API): the proxy computes diffs locally using the same `pkg/diff` engine and prints to stdout.
 
 ```mermaid
 graph LR
-    Agent["mroki-agent<br><i>(standalone)</i>"] -->|"Live + Shadow<br>responses"| Diff["pkg/diff<br><i>JSON()</i>"]
+    Proxy["mroki-proxy<br><i>(standalone)</i>"] -->|"Live + Shadow<br>responses"| Diff["pkg/diff<br><i>JSON()</i>"]
     Diff -->|"RFC 6902<br>PatchOp[]"| Stdout([stdout])
 ```
 
 **Step-by-step:**
 
-1. **Capture** (agent-side, `pkg/proxy/proxy.go`): After both live and shadow responses return, the proxy invokes the callback with the raw `ProxyRequest`, live `ProxyResponse`, and shadow `ProxyResponse`. No diff computation occurs in the proxy.
-2. **Transmission** (agent → API, `pkg/client/converter.go`): The raw responses (base64-encoded bodies) are sent as part of `CreateRequestPayload` via HTTP POST. The `diff` field is omitted from the payload.
-3. **Diff computation** (API-side, `internal/application/commands/create_request.go`): When the `diff` field is absent, `computeDiff()` decodes the base64 response bodies, constructs synthetic JSON documents (statusCode + headers + body), and calls `diff.JSON()` to produce RFC 6902 patch operations. If the agent provides a pre-computed diff (backward compatibility), it is used as-is.
+1. **Capture** (proxy-side, `pkg/proxy/proxy.go`): After both live and shadow responses return, the proxy invokes the callback with the raw `ProxyRequest`, live `ProxyResponse`, and shadow `ProxyResponse`. No diff computation occurs in the proxy.
+2. **Transmission** (proxy → API, `pkg/client/converter.go`): The raw responses (base64-encoded bodies) are sent as part of `CreateRequestPayload` via HTTP POST. The `diff` field is omitted from the payload.
+3. **Diff computation** (API-side, `internal/application/commands/create_request.go`): When the `diff` field is absent, `computeDiff()` decodes the base64 response bodies, constructs synthetic JSON documents (statusCode + headers + body), and calls `diff.JSON()` to produce RFC 6902 patch operations. If the proxy provides a pre-computed diff (backward compatibility), it is used as-is.
 4. **Persistence** (API-side, `internal/infrastructure/persistence/ent/request_repository.go`): The entire request+responses+diff is saved in a single database transaction. `saveDiff()` checks `IsZero()` and skips if no diff exists.
 5. **Retrieval** (API-side): Diffs are always eager-loaded with their parent request via `WithDiff()`. A `has_diff` filter exists in `RequestFilters`.
 
@@ -117,7 +117,7 @@ The `Diff` domain model now includes a `CreatedAt` field, set automatically duri
 
 ### 5.6 Consider Async Diff Computation (Low Priority)
 
-Diff computation now happens server-side in mroki-api during request ingest (synchronous). The agent sends raw captures without a diff, and the API computes the diff before persisting. For even higher throughput, a future enhancement could move diff computation to an async worker pool: the API would store raw responses immediately and enqueue diff jobs for background processing. This would decouple ingest latency from diff complexity.
+Diff computation now happens server-side in mroki-api during request ingest (synchronous). The proxy sends raw captures without a diff, and the API computes the diff before persisting. For even higher throughput, a future enhancement could move diff computation to an async worker pool: the API would store raw responses immediately and enqueue diff jobs for background processing. This would decouple ingest latency from diff complexity.
 
 ## Summary
 

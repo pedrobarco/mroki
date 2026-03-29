@@ -1,13 +1,13 @@
 services:
-  mroki-agent:
+  mroki-proxy:
     build:
       context: ../../..
-      dockerfile: build/package/mroki-agent/Dockerfile
+      dockerfile: build/package/mroki-proxy/Dockerfile
     environment:
-      MROKI_APP_PORT: ${MROKI_AGENT_PORT:-8080}
+      MROKI_APP_PORT: ${MROKI_PROXY_PORT:-8080}
       MROKI_APP_API_URL: ${MROKI_APP_API_URL:-}
       MROKI_APP_API_KEY: ${MROKI_APP_API_KEY:-}
       MROKI_APP_GATE_ID: ${MROKI_APP_GATE_ID:-}
     ports:
-      - "${MROKI_AGENT_PORT:-8080}:${MROKI_AGENT_PORT:-8080}"
+      - "${MROKI_PROXY_PORT:-8080}:${MROKI_PROXY_PORT:-8080}"
     restart: unless-stopped

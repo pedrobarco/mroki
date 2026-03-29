@@ -49,7 +49,7 @@ func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 			})
 		}
 
-		// Diff is optional — if provided by the agent, pass it through;
+		// Diff is optional — if provided by the proxy, pass it through;
 		// otherwise the command handler computes it server-side
 		if req.Diff != nil {
 			cmd.Diff = &commands.CreateRequestDiffProps{

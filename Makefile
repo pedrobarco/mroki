@@ -31,11 +31,11 @@ help:
 	@echo "  api-migrate        Generate new migration file (usage: make api-migrate name=<name>)"
 	@echo "  api-clean          Remove API build artifacts"
 	@echo ""
-	@echo "  Agent"
+	@echo "  Proxy"
 	@echo "  ────────────────────────────────────────"
-	@echo "  agent-build        Build mroki-agent binary"
-	@echo "  agent-test         Run Agent tests"
-	@echo "  agent-clean        Remove Agent build artifacts"
+	@echo "  proxy-build        Build mroki-proxy binary"
+	@echo "  proxy-test         Run Proxy tests"
+	@echo "  proxy-clean        Remove Proxy build artifacts"
 	@echo ""
 	@echo "  Hub"
 	@echo "  ────────────────────────────────────────"
@@ -120,20 +120,20 @@ api-clean:
 	rm -rf bin/mroki-api
 	rm -f coverage.out
 
-# ─── Agent ───────────────────────────────────────────────────────────
+# ─── Proxy ───────────────────────────────────────────────────────────
 
-agent-build:
-	@echo "Building mroki-agent..."
+proxy-build:
+	@echo "Building mroki-proxy..."
 	@mkdir -p bin
-	go build -o bin/mroki-agent ./cmd/mroki-agent
+	go build -o bin/mroki-proxy ./cmd/mroki-proxy
 
-agent-test:
-	@echo "Running Agent tests..."
-	go test ./cmd/mroki-agent/...
+proxy-test:
+	@echo "Running Proxy tests..."
+	go test ./cmd/mroki-proxy/...
 
-agent-clean:
-	@echo "Cleaning Agent build artifacts..."
-	rm -rf bin/mroki-agent
+proxy-clean:
+	@echo "Cleaning Proxy build artifacts..."
+	rm -rf bin/mroki-proxy
 
 # ─── Hub ─────────────────────────────────────────────────────────────
 

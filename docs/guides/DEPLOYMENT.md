@@ -43,7 +43,7 @@ kubectl apply -f deployments/kubernetes/namespace.yaml
 kubectl apply -f deployments/kubernetes/secrets.yaml
 kubectl apply -f deployments/kubernetes/postgres.yaml
 kubectl apply -f deployments/kubernetes/api.yaml
-kubectl apply -f deployments/kubernetes/agent.yaml
+kubectl apply -f deployments/kubernetes/proxy.yaml
 
 # Check status
 kubectl get pods -n mroki
@@ -55,7 +55,7 @@ kubectl get services -n mroki
 - `secrets.yaml` - Secrets and ConfigMaps for credentials
 - `postgres.yaml` - PostgreSQL StatefulSet with persistent storage
 - `api.yaml` - mroki-api Deployment (3 replicas) and Service
-- `agent.yaml` - mroki-agent Deployment (2 replicas) and Service
+- `agent.yaml` - mroki-proxy Deployment (2 replicas) and Service
 
 **Health checks:**
 - API includes liveness probe on `/health/live`
@@ -90,7 +90,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-**`/etc/systemd/system/mroki-agent.service`:**
+**`/etc/systemd/system/mroki-proxy.service`:**
 ```ini
 [Unit]
 Description=mroki Agent
@@ -109,7 +109,7 @@ Environment="MROKI_APP_API_KEY=your-secret-key-min-16-chars"
 # Note: DIFF_* options are only used in standalone mode (no API).
 # In API mode, diff computation is handled server-side by mroki-api.
 # Environment="MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at"
-ExecStart=/opt/mroki/mroki-agent
+ExecStart=/opt/mroki/mroki-proxy
 Restart=always
 RestartSec=5
 
@@ -124,17 +124,17 @@ sudo useradd -r -s /bin/false mroki
 
 # Copy binaries
 sudo mkdir -p /opt/mroki
-sudo cp mroki-api mroki-agent /opt/mroki/
+sudo cp mroki-api mroki-proxy /opt/mroki/
 sudo chown -R mroki:mroki /opt/mroki
 
 # Enable and start services
 sudo systemctl daemon-reload
-sudo systemctl enable mroki-api mroki-agent
-sudo systemctl start mroki-api mroki-agent
+sudo systemctl enable mroki-api mroki-proxy
+sudo systemctl start mroki-api mroki-proxy
 
 # Check status
 sudo systemctl status mroki-api
-sudo systemctl status mroki-agent
+sudo systemctl status mroki-proxy
 ```
 
 ---
@@ -166,7 +166,7 @@ host    mroki    mroki    10.0.0.0/8    scram-sha-256
 ```bash
 # Restrict network access (firewall)
 # Only allow traffic from trusted sources
-# Future: mTLS for agent-to-API communication
+# Future: mTLS for proxy-to-API communication
 ```
 
 ---
@@ -180,14 +180,14 @@ host    mroki    mroki    10.0.0.0/8    scram-sha-256
 # View API logs
 journalctl -u mroki-api -f
 
-# View agent logs
-journalctl -u mroki-agent -f
+# View proxy logs
+journalctl -u mroki-proxy -f
 ```
 
 **Kubernetes logs:**
 ```bash
 kubectl logs -n mroki -l app=mroki-api -f
-kubectl logs -n mroki -l app=mroki-agent -f
+kubectl logs -n mroki -l app=mroki-proxy -f
 ```
 
 ### Health Checks
@@ -239,7 +239,7 @@ kubectl scale deployment mroki-api --replicas=5 -n mroki
 **Agent:** Stateless - scale freely
 ```bash
 # Kubernetes
-kubectl scale deployment mroki-agent --replicas=10 -n mroki
+kubectl scale deployment mroki-proxy --replicas=10 -n mroki
 ```
 
 **Database:** Use read replicas for queries
@@ -258,7 +258,7 @@ MROKI_APP_DATABASE_READ_URL=postgres://replica:5432/mroki
 # Docker Compose
 docker compose ps
 docker compose logs mroki-api
-docker compose logs mroki-agent
+docker compose logs mroki-proxy
 
 # Kubernetes
 kubectl get pods -n mroki
@@ -267,7 +267,7 @@ kubectl logs mroki-api-xxx -n mroki
 
 # Systemd
 systemctl status mroki-api
-systemctl status mroki-agent
+systemctl status mroki-proxy
 ```
 
 ### Common Issues

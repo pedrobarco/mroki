@@ -21,11 +21,11 @@ services:
       mroki-db:
         condition: service_healthy
 
-  mroki-agent:
+  mroki-proxy:
     extends:
-      file: ../../build/package/mroki-agent/compose.yaml
-      service: mroki-agent
-    image: mroki-agent:latest
+      file: ../../build/package/mroki-proxy/compose.yaml
+      service: mroki-proxy
+    image: mroki-proxy:latest
     environment:
       MROKI_APP_LIVE_URL: ${LIVE_URL}
       MROKI_APP_SHADOW_URL: ${SHADOW_URL}

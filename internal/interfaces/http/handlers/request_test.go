@@ -119,7 +119,7 @@ func TestCreateRequest_Success(t *testing.T) {
 }
 
 func TestCreateRequest_Success_WithoutDiff(t *testing.T) {
-	// API-mode flow: agent sends request without diff field.
+	// API-mode flow: proxy sends request without diff field.
 	// The API should compute the diff server-side.
 	gateID := traffictesting.NewGateID()
 	var savedReq *traffictesting.Request
@@ -133,7 +133,7 @@ func TestCreateRequest_Success_WithoutDiff(t *testing.T) {
 
 	now := time.Now()
 
-	// Base64 encode JSON response bodies (matching what the agent sends)
+	// Base64 encode JSON response bodies (matching what the proxy sends)
 	liveBody := base64.StdEncoding.EncodeToString([]byte(`{"user":"alice"}`))
 	shadowBody := base64.StdEncoding.EncodeToString([]byte(`{"user":"bob"}`))
 

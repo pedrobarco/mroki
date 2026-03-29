@@ -54,11 +54,11 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 | `refactor` | Code change that neither fixes a bug nor adds a feature |
 | `chore` | Maintenance (deps, CI, build) |
 
-**Scopes:** `agent`, `api`, `hub`, `caddy`, `diff`, `proxy`, `docs`
+**Scopes:** `proxy`, `api`, `hub`, `caddy`, `diff`, `docs`
 
 **Examples:**
 ```
-feat(agent): add retry logic with exponential backoff
+feat(proxy): add retry logic with exponential backoff
 fix(api): handle nil pointer in gate creation
 docs: update API contracts documentation
 test(proxy): add test for timeout handling
@@ -77,7 +77,7 @@ refactor(hub): restrict diff split view to md+ screens
 
 ### Go
 - Follow standard `gofmt` formatting
-- Use `golangci-lint` for linting: `make lint-api` / `make lint-agent`
+- Use `golangci-lint` for linting: `make lint-api` / `make lint-proxy`
 - Write table-driven tests where appropriate
 - Keep functions short and focused
 

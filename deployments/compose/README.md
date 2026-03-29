@@ -6,7 +6,7 @@ Full-stack deployment of mroki using Docker Compose.
 
 ## Files
 
-- `full-stack.yaml` - Complete deployment with PostgreSQL, API, and Agent
+- `full-stack.yaml` - Complete deployment with PostgreSQL, API, and Proxy
 
 ## Usage
 
@@ -42,7 +42,7 @@ Full-stack deployment of mroki using Docker Compose.
 
 - **mroki-db**: PostgreSQL 15 database on port 5432
 - **mroki-api**: API server on port 8081
-- **mroki-agent**: Proxy agent on port 8080
+- **mroki-proxy**: Proxy on port 8080
 
 ## Requirements
 

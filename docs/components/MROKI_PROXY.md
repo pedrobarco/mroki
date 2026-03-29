@@ -1,8 +1,8 @@
-# mroki-agent
+# mroki-proxy
 
 **Transparent HTTP proxy for shadow traffic testing**
 
-mroki-agent is a lightweight proxy that intercepts HTTP traffic, forwards it to both live (production) and shadow (experimental) services, and sends the raw responses to mroki-api for server-side diff computation and storage. In standalone mode (no API), the agent computes and prints diffs locally.
+mroki-proxy is a lightweight proxy that intercepts HTTP traffic, forwards it to both live (production) and shadow (experimental) services, and sends the raw responses to mroki-api for server-side diff computation and storage. In standalone mode (no API), the proxy computes and prints diffs locally.
 
 ## Features
 
@@ -24,7 +24,7 @@ mroki-agent is a lightweight proxy that intercepts HTTP traffic, forwards it to 
 graph TD
     Client([Client Request]) --> Handler
 
-    subgraph mroki-agent
+    subgraph mroki-proxy
         Handler[HTTP Proxy Handler] --> LiveFwd[Live Fwd]
         Handler --> ShadowFwd[Shadow Fwd]
         LiveFwd & ShadowFwd --> Callback{Callback}
@@ -46,16 +46,16 @@ git clone https://github.com/pedrobarco/mroki.git
 cd mroki
 
 # Build
-go build -o mroki-agent ./cmd/mroki-agent
+go build -o mroki-proxy ./cmd/mroki-proxy
 
 # Run
-./mroki-agent
+./mroki-proxy
 ```
 
 ### Using Go Install
 
 ```bash
-go install github.com/pedrobarco/mroki/cmd/mroki-agent@latest
+go install github.com/pedrobarco/mroki/cmd/mroki-proxy@latest
 ```
 
 ## Configuration
@@ -64,11 +64,11 @@ Configuration is via environment variables with the `MROKI_APP_` prefix.
 
 ### Operating Modes
 
-The agent supports two operating modes. You must configure ONE mode:
+The proxy supports two operating modes. You must configure ONE mode:
 
 #### API Mode (Recommended)
 
-In API mode, the agent fetches gate configuration (live/shadow URLs) from mroki-api on startup.
+In API mode, the proxy fetches gate configuration (live/shadow URLs) from mroki-api on startup.
 
 **Required:**
 ```bash
@@ -96,7 +96,7 @@ MROKI_APP_API_TIMEOUT=30s
 
 #### Standalone Mode
 
-In standalone mode, the agent uses hardcoded URLs from environment variables. No API communication.
+In standalone mode, the proxy uses hardcoded URLs from environment variables. No API communication.
 
 **Required:**
 ```bash
@@ -207,14 +207,14 @@ MROKI_APP_DIFF_IGNORED_FIELDS="metadata"
 MROKI_APP_DIFF_IGNORED_FIELDS="response.data.internal.debug_info"
 ```
 
-## Running the Agent
+## Running the Proxy
 
-## Running the Agent
+## Running the Proxy
 
 ### API Mode
 
 ```bash
-cd cmd/mroki-agent
+cd cmd/mroki-proxy
 
 # 1. Create gate in mroki-api first
 GATE_RESPONSE=$(curl -s -X POST http://localhost:8081/gates \
@@ -227,7 +227,7 @@ GATE_RESPONSE=$(curl -s -X POST http://localhost:8081/gates \
 
 GATE_ID=$(echo $GATE_RESPONSE | jq -r '.data.id')
 
-# 2. Configure agent
+# 2. Configure proxy
 cat > .env << EOF
 MROKI_APP_PORT=8080
 MROKI_APP_API_URL=http://localhost:8081
@@ -253,7 +253,7 @@ INFO Started server address=:8080
 ### Standalone Mode (No API)
 
 ```bash
-cd cmd/mroki-agent
+cd cmd/mroki-proxy
 
 # Create .env file
 cat > .env << 'EOF'
@@ -284,10 +284,10 @@ curl -X POST http://localhost:8080/test \
   -H "Content-Type: application/json" \
   -d '{"name": "Alice", "age": 30}'
 
-# Agent logs (API mode):
+# Proxy logs (API mode):
 # DEBUG successfully sent request to API method=POST path=/test live_status=200 shadow_status=200
 
-# Agent logs (standalone mode):
+# Proxy logs (standalone mode):
 # INFO response diff detected method=POST path=/test live_status=200 shadow_status=200 changes=2
 # Diff:
 #  ~ /body/user: "alice" → "bob"
@@ -297,7 +297,7 @@ curl -X POST http://localhost:8080/test \
 
 ### Request Flow
 
-1. **Client sends request** to agent (e.g., `POST http://localhost:8080/api/users`)
+1. **Client sends request** to proxy (e.g., `POST http://localhost:8080/api/users`)
 2. **Agent forwards** to both live and shadow services in parallel
 3. **Live response returned** to client immediately (shadow still processing)
 4. **Background processing:**
@@ -339,7 +339,7 @@ curl -X POST http://localhost:8080/test \
 
 ### Retry Logic
 
-If API requests fail, agent retries with exponential backoff:
+If API requests fail, proxy retries with exponential backoff:
 
 - **Attempt 1:** Immediate
 - **Attempt 2:** Wait 1s
@@ -365,7 +365,7 @@ ERROR all retries exhausted attempts=4
 ### API Mode (Recommended)
 
 ```bash
-# Agent fetches gate URLs from API, sends raw responses (diff computed server-side)
+# Proxy fetches gate URLs from API, sends raw responses (diff computed server-side)
 MROKI_APP_API_URL=http://localhost:8081
 MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
 MROKI_APP_API_KEY=dev-test-key-min-16-chars
@@ -390,7 +390,7 @@ MROKI_APP_DIFF_IGNORED_FIELDS=user.last_login
 ### Production with External Services
 
 ```bash
-# API Mode — agent is a thin forwarder, diff computed server-side
+# API Mode — proxy is a thin forwarder, diff computed server-side
 MROKI_APP_API_URL=https://mroki-api.internal.example.com
 MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000
 MROKI_APP_API_KEY=production-key-min-16-chars
@@ -419,24 +419,24 @@ MROKI_APP_DIFF_IGNORED_FIELDS=origin,url,headers.Host
 FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY . .
-RUN go build -o mroki-agent ./cmd/mroki-agent
+RUN go build -o mroki-proxy ./cmd/mroki-proxy
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
-COPY --from=builder /app/mroki-agent .
-CMD ["./mroki-agent"]
+COPY --from=builder /app/mroki-proxy .
+CMD ["./mroki-proxy"]
 ```
 
 **Run:**
 ```bash
-docker build -t mroki-agent .
+docker build -t mroki-proxy .
 docker run -p 8080:8080 \
   -e MROKI_APP_API_URL=http://mroki-api:8081 \
   -e MROKI_APP_GATE_ID=550e8400-e29b-41d4-a716-446655440000 \
   -e MROKI_APP_API_KEY=dev-test-key-min-16-chars \
   -e MROKI_APP_DIFF_IGNORED_FIELDS=timestamp,created_at \
-  mroki-agent
+  mroki-proxy
 ```
 
 ### Kubernetes Sidecar
@@ -456,9 +456,9 @@ spec:
         ports:
         - containerPort: 3000
       
-      # mroki-agent sidecar
-      - name: mroki-agent
-        image: mroki-agent:latest
+      # mroki-proxy sidecar
+      - name: mroki-proxy
+        image: mroki-proxy:latest
         ports:
         - containerPort: 8080
         env:
@@ -486,7 +486,7 @@ spec:
     app: my-app
   ports:
   - port: 80
-    targetPort: 8080  # Route to agent, not app
+    targetPort: 8080  # Route to proxy, not app
 ```
 
 ### Standalone Service
@@ -495,20 +495,20 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mroki-agent
+  name: mroki-proxy
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: mroki-agent
+      app: mroki-proxy
   template:
     metadata:
       labels:
-        app: mroki-agent
+        app: mroki-proxy
     spec:
       containers:
-      - name: mroki-agent
-        image: mroki-agent:latest
+      - name: mroki-proxy
+        image: mroki-proxy:latest
         ports:
         - containerPort: 8080
         env:
@@ -527,10 +527,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mroki-agent
+  name: mroki-proxy
 spec:
   selector:
-    app: mroki-agent
+    app: mroki-proxy
   ports:
   - port: 80
     targetPort: 8080
@@ -542,7 +542,7 @@ All logs use structured logging (slog) with JSON output.
 
 **Log Levels:**
 - `DEBUG` - Detailed operation info (API sends, diff details)
-- `INFO` - Normal operation (requests processed, agent started)
+- `INFO` - Normal operation (requests processed, proxy started)
 - `WARN` - Recoverable errors (API failures, retry attempts)
 - `ERROR` - Unrecoverable errors (exhausted retries)
 
@@ -556,7 +556,7 @@ All logs use structured logging (slog) with JSON output.
 
 ## Troubleshooting
 
-### Agent won't start
+### Proxy won't start
 
 **Problem:** `panic: configuration validation failed: must configure either API mode or standalone mode`
 
@@ -592,8 +592,8 @@ All logs use structured logging (slog) with JSON output.
 
 **Debug:**
 ```bash
-# Check agent logs for API errors
-grep ERROR agent.log
+# Check proxy logs for API errors
+grep ERRORproxy.log
 
 # Verify API is reachable
 curl http://localhost:8081/health/live
@@ -605,7 +605,7 @@ MROKI_APP_SHADOW_URL=https://httpbin.org/anything?service=shadow
 
 ### High latency
 
-**Problem:** Requests through agent are slow
+**Problem:** Requests through proxy are slow
 
 **Possible causes:**
 1. `LIVE_TIMEOUT` is too high (blocks client response)
@@ -623,7 +623,7 @@ MROKI_APP_SHADOW_TIMEOUT=30s
 
 ## Performance
 
-**Throughput:** ~1000 req/s per agent instance (depends on service latency)
+**Throughput:** ~1000 req/s per proxy instance (depends on service latency)
 
 **Memory:** ~50MB baseline + ~1KB per in-flight request
 
@@ -639,7 +639,7 @@ MROKI_APP_SHADOW_TIMEOUT=30s
 - **No TLS termination:** Use reverse proxy (nginx, Caddy) for HTTPS
 - **No authentication:** Anyone can send traffic through proxy
 - **Request logging:** All traffic captured (may contain PII/secrets)
-- **Network access:** Agent needs access to both live and shadow services
+- **Network access:** Proxy needs access to both live and shadow services
 
 **What's secure:**
 - ✅ Best-effort delivery: API failures never affect live traffic
@@ -648,7 +648,7 @@ MROKI_APP_SHADOW_TIMEOUT=30s
 - ✅ No secrets in logs
 
 **Production recommendations:**
-- Use TLS for agent→API communication
+- Use TLS for proxy→API communication
 - Deploy in isolated network (Kubernetes sidecar pattern)
 - Review data retention and PII policies
 - Consider sensitive header redaction

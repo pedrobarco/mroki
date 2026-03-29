@@ -2,14 +2,14 @@
 
 **REST API for managing gates, computing diffs, and storing traffic data**
 
-mroki-api is a stateless REST API that manages gates (live/shadow service pairs), receives raw captured traffic from mroki-agent, computes JSON diffs server-side, and stores results in PostgreSQL for later analysis.
+mroki-api is a stateless REST API that manages gates (live/shadow service pairs), receives raw captured traffic from mroki-proxy, computes JSON diffs server-side, and stores results in PostgreSQL for later analysis.
 
 ## Features
 
 - **Gate Management**: Create and manage live/shadow service pairs with filtering and sorting
 - **Server-Side Diff Computation**: Computes JSON diffs from raw live/shadow responses on ingest
 - **Traffic Storage**: Persist captured requests, responses, and computed diffs
-- **Backward Compatibility**: Accepts pre-computed diffs from agents (if provided)
+- **Backward Compatibility**: Accepts pre-computed diffs from proxies (if provided)
 - **Query API**: Retrieve captured traffic for analysis with filtering and sorting
 - **Health Checks**: Kubernetes-ready liveness/readiness probes
 - **Connection Pooling**: Efficient PostgreSQL connection management
@@ -159,7 +159,7 @@ See [API Contracts](../architecture/API_CONTRACTS.md) for full endpoint document
 - `GET /gates` - List all gates (with filtering and sorting)
 
 **Requests:**
-- `POST /gates/:gate_id/requests` - Create captured request (agent-to-API)
+- `POST /gates/:gate_id/requests` - Create captured request (proxy-to-API)
 - `GET /gates/:gate_id/requests/:request_id` - Get request with full details
 - `GET /gates/:gate_id/requests` - List requests for gate
 
@@ -576,8 +576,8 @@ echo $MROKI_APP_DATABASE_URL
 
 **Possible causes:**
 1. No traffic has been captured yet
-2. Agent not configured correctly
-3. Agent API failures (check agent logs)
+2. Proxy not configured correctly
+3. Proxy API failures (check proxy logs)
 
 **Debug:**
 ```bash
@@ -602,7 +602,7 @@ SELECT COUNT(*) FROM requests WHERE gate_id = '550e8400-e29b-41d4-a716-446655440
 - TLS/HTTPS — use a reverse proxy (nginx, Caddy, cloud LB) to terminate TLS
 - RBAC / multi-tenant authorization
 - PII redaction in captured requests
-- Agent-to-API mutual TLS
+- Proxy-to-API mutual TLS
 
 **Production recommendations:**
 - Use a strong, randomly generated API key
@@ -644,5 +644,5 @@ go tool cover -html=coverage.out
 - [API Contracts](../architecture/API_CONTRACTS.md)
 - [Quick Start Guide](../guides/QUICK_START.md)
 - [Development Guide](../guides/DEVELOPMENT.md)
-- [mroki-agent Component](MROKI_AGENT.md)
+- [mroki-proxy Component](MROKI_PROXY.md)
 - [mroki-hub Component](MROKI_HUB.md)

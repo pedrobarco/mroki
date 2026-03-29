@@ -35,7 +35,7 @@ npm install
 ```
 mroki/
 ├── cmd/                    # Executables
-│   ├── mroki-agent/       # Agent binary
+│   ├── mroki-proxy/       # Agent binary
 │   ├── mroki-api/         # API binary
 │   ├── mroki-hub/         # Web UI (Vue.js)
 │   └── caddy-mroki/       # Caddy module main
@@ -92,7 +92,7 @@ go run .
 
 **Terminal 3: Agent**
 ```bash
-cd cmd/mroki-agent
+cd cmd/mroki-proxy
 go run .
 ```
 
@@ -105,8 +105,8 @@ npm run dev
 ### Building Binaries
 
 ```bash
-# Build agent
-go build -o mroki-agent ./cmd/mroki-agent
+# Build proxy
+go build -o mroki-proxy ./cmd/mroki-proxy
 
 # Build API
 go build -o mroki-api ./cmd/mroki-api
@@ -296,7 +296,7 @@ Currently applied automatically on startup. Future versions will use migration t
 
 ```bash
 # Agent
-MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-agent
+MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-proxy
 
 # API
 MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-api
@@ -308,8 +308,8 @@ MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-api
 # Install delve
 go install github.com/go-delve/delve/cmd/dlv@latest
 
-# Debug agent
-cd cmd/mroki-agent
+# Debug proxy
+cd cmd/mroki-proxy
 dlv debug
 
 # Set breakpoints
@@ -329,7 +329,7 @@ dlv debug
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/mroki-agent"
+      "program": "${workspaceFolder}/cmd/mroki-proxy"
     },
     {
       "name": "Debug API",
@@ -373,7 +373,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 **Examples:**
 ```
-feat(agent): add retry logic with exponential backoff
+feat(proxy): add retry logic with exponential backoff
 fix(api): handle nil pointer in gate creation
 docs: update API contracts documentation
 test(proxy): add test for timeout handling

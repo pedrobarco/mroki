@@ -218,7 +218,7 @@ Headers are stored as JSONB for efficient querying.
 ```json
 {
   "Content-Type": ["application/json"],
-  "User-Agent": ["mroki-agent/1.0"]
+  "User-Agent": ["mroki-proxy/1.0"]
 }
 ```
 
