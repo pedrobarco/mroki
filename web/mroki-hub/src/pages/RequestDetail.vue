@@ -8,15 +8,17 @@ import { Button } from '@/components/ui/button'
 import DiffViewer from '@/components/diff/DiffViewer.vue'
 import { ChevronLeft, Copy, Download } from 'lucide-vue-next'
 import { truncateId } from '@/lib/utils'
+import { useGateCache } from '@/composables/use-gate-cache'
 
 // Dummy metadata (not available in API yet)
-const dummyGateName = 'checkout-api'
 const dummyLiveLatency = '142ms'
 const dummyShadowLatency = '187ms'
 
 const route = useRoute()
 const router = useRouter()
+const { getGateById } = useGateCache()
 
+const gateName = ref<string | null>(null)
 const request = ref<RequestDetail | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -50,8 +52,12 @@ async function loadRequest() {
   error.value = null
 
   try {
-    const response = await getRequest(gateId.value, requestId.value)
-    request.value = response.data
+    const [gate, requestResponse] = await Promise.all([
+      getGateById(gateId.value),
+      getRequest(gateId.value, requestId.value),
+    ])
+    gateName.value = gate.name
+    request.value = requestResponse.data
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load request'
   } finally {
@@ -84,7 +90,7 @@ onMounted(() => {
         Back to Gate
       </a>
       <span class="text-dim text-xs">·</span>
-      <span class="text-xs font-mono text-dim">{{ dummyGateName }}</span>
+      <span class="text-xs font-mono text-dim">{{ gateName ?? '...' }}</span>
       <span class="text-dim text-xs">·</span>
       <code class="text-xs font-mono text-dim bg-accent px-1.5 py-0.5 rounded">
         {{ truncateId(gateId) }}

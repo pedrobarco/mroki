@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from '../index'
-import type { DiffLine } from '../types'
+import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from './index'
+import type { DiffLine } from './types'
 import type { PatchOp } from '@/api'
 
 // Helper to extract text from tokens on a line

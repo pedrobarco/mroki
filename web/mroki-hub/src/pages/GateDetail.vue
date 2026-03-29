@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getGate } from '@/api'
 import type { Gate } from '@/api'
+import { useGateCache } from '@/composables/use-gate-cache'
 import RequestList from '@/components/requests/RequestList.vue'
 import RequestFilters from '@/components/requests/RequestFilters.vue'
 import type { FilterState } from '@/components/requests/RequestFilters.vue'
@@ -17,6 +18,7 @@ const dummyDiffRate = '3.1%'
 
 const route = useRoute()
 const router = useRouter()
+const { setGate: cacheGate } = useGateCache()
 
 const gate = ref<Gate | null>(null)
 const loading = ref(true)
@@ -43,6 +45,7 @@ async function loadGate() {
   try {
     const response = await getGate(gateId.value)
     gate.value = response.data
+    cacheGate(response.data)
   } catch (err) {
     if (err instanceof Error) {
       error.value = err.message
