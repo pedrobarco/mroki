@@ -199,7 +199,7 @@ onMounted(() => {
               No diff
             </span>
             <!-- Status codes -->
-            <span class="text-xs font-mono text-dim w-16 text-right">
+            <span class="text-xs font-mono text-dim w-24 text-right whitespace-nowrap">
               <span
                 :class="getRowMeta(idx).liveStatus < 400 ? 'text-muted-foreground' : 'text-danger'"
                 >{{ getRowMeta(idx).liveStatus }}</span
