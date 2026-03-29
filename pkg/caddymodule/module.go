@@ -92,19 +92,21 @@ func (m *MrokiGate) Validate() error {
 	// Shadow proxy checks
 	var checks []proxy.CheckFunc
 
+	// Default sampling rate to 1.0 (100%) when not specified
+	samplingRateValue := 1.0
 	if m.SamplingRate != nil {
 		rate, err := strconv.ParseFloat(*m.SamplingRate, 64)
 		if err != nil {
 			return fmt.Errorf("invalid sampling rate: %w", err)
 		}
-
-		sr, err := proxy.NewSamplingRate(rate)
-		if err != nil {
-			return fmt.Errorf("failed to create sampling rate: %w", err)
-		}
-
-		checks = append(checks, proxy.SamplingRateCheck(sr))
+		samplingRateValue = rate
 	}
+
+	sr, err := proxy.NewSamplingRate(samplingRateValue)
+	if err != nil {
+		return fmt.Errorf("failed to create sampling rate: %w", err)
+	}
+	checks = append(checks, proxy.SamplingRateCheck(sr))
 
 	if m.RawMaxBodySize != nil {
 		maxBytes, err := strconv.ParseInt(*m.RawMaxBodySize, 10, 64)

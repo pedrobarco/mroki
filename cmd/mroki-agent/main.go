@@ -124,15 +124,11 @@ func main() {
 
 	// Configure proxy handler
 	// Configure sampling rate
-	var samplingRate *proxy.SamplingRate
-	if cfg.App.SamplingRate != nil {
-		sr, err := proxy.NewSamplingRate(*cfg.App.SamplingRate)
-		if err != nil {
-			panic(fmt.Errorf("invalid sampling rate: %w", err))
-		}
-		samplingRate = sr
-		log.Info("Sampling rate configured", slog.Float64("rate", *cfg.App.SamplingRate))
+	samplingRate, err := proxy.NewSamplingRate(cfg.App.SamplingRate)
+	if err != nil {
+		panic(fmt.Errorf("invalid sampling rate: %w", err))
 	}
+	log.Info("Sampling rate configured", slog.Float64("rate", cfg.App.SamplingRate))
 
 	proxyConfig := handlers.ProxyConfig{
 		Live:          liveURL,

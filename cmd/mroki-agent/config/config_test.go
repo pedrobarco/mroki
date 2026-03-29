@@ -17,15 +17,12 @@ func mustURL(raw string) *url.URL {
 	return u
 }
 
-func float64Ptr(f float64) *float64 {
-	return &f
-}
-
 func validStandaloneConfig() Config {
 	var cfg Config
 	cfg.App.LiveURL = mustURL("http://live:8080")
 	cfg.App.ShadowURL = mustURL("http://shadow:8080")
 	cfg.App.Port = 8080
+	cfg.App.SamplingRate = 1.0
 	cfg.App.LiveTimeout = 5 * time.Second
 	cfg.App.ShadowTimeout = 10 * time.Second
 	cfg.App.MaxBodySize = 10485760
@@ -38,6 +35,7 @@ func validAPIConfig() Config {
 	cfg.App.GateID = "550e8400-e29b-41d4-a716-446655440000"
 	cfg.App.APIKey = "test-api-key-min-16-chars"
 	cfg.App.Port = 8080
+	cfg.App.SamplingRate = 1.0
 	cfg.App.LiveTimeout = 5 * time.Second
 	cfg.App.ShadowTimeout = 10 * time.Second
 	cfg.App.MaxRetries = 3
@@ -113,20 +111,20 @@ func TestValidate_sampling_rate(t *testing.T) {
 	t.Run("valid rates", func(t *testing.T) {
 		for _, rate := range []float64{0.0, 0.5, 1.0} {
 			cfg := validStandaloneConfig()
-			cfg.App.SamplingRate = float64Ptr(rate)
+			cfg.App.SamplingRate = rate
 			require.NoError(t, cfg.Validate(), "rate %f should be valid", rate)
 		}
 	})
 
-	t.Run("nil is valid (defaults to 100%)", func(t *testing.T) {
+	t.Run("default is 1.0 (100%)", func(t *testing.T) {
 		cfg := validStandaloneConfig()
-		cfg.App.SamplingRate = nil
+		// SamplingRate defaults to 1.0 via env tag
 		require.NoError(t, cfg.Validate())
 	})
 
 	t.Run("negative rate", func(t *testing.T) {
 		cfg := validStandaloneConfig()
-		cfg.App.SamplingRate = float64Ptr(-0.1)
+		cfg.App.SamplingRate = -0.1
 		err := cfg.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "sampling_rate must be between 0.0 and 1.0")
@@ -134,7 +132,7 @@ func TestValidate_sampling_rate(t *testing.T) {
 
 	t.Run("rate above 1.0", func(t *testing.T) {
 		cfg := validStandaloneConfig()
-		cfg.App.SamplingRate = float64Ptr(1.5)
+		cfg.App.SamplingRate = 1.5
 		err := cfg.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "sampling_rate must be between 0.0 and 1.0")

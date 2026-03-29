@@ -22,8 +22,9 @@ func MaxBodySizeCheck(maxBytes int64) CheckFunc {
 	}
 }
 
-// SamplingRateCheck skips shadow based on sampling probability
-// rate == nil means always sample (always returns true)
+// SamplingRateCheck skips shadow based on sampling probability.
+// rate == nil means always sample (always returns true).
+// rate=1.0 and rate=0.0 use fast paths without RNG computation.
 func SamplingRateCheck(rate *SamplingRate) CheckFunc {
 	return func(r *http.Request) bool {
 		if rate == nil {

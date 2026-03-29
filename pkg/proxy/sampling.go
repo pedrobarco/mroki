@@ -17,7 +17,14 @@ func NewSamplingRate(rate float64) (*SamplingRate, error) {
 
 // Sample decides whether to sample based on the sampling rate.
 // It returns true if the request should be sampled, false otherwise.
+// Fast paths: rate=1.0 always returns true, rate=0.0 always returns false (no RNG).
 func (s SamplingRate) Sample() bool {
+	if s >= 1.0 {
+		return true
+	}
+	if s <= 0.0 {
+		return false
+	}
 	return rand.Float64() < float64(s)
 }
 
