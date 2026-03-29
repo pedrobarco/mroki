@@ -21,37 +21,20 @@ mroki-agent is a lightweight proxy that intercepts HTTP traffic, forwards it to 
 
 ## Architecture
 
-```
-Client Request
-     │
-     ↓
-┌────────────────────────────────────┐
-│         mroki-agent                │
-│  ┌──────────────────────────────┐  │
-│  │  HTTP Proxy Handler          │  │
-│  └────────┬──────────┬──────────┘  │
-│           │          │              │
-│    ┌──────▼──┐  ┌───▼──────┐       │
-│    │  Live   │  │  Shadow  │       │
-│    │ Fwd     │  │  Fwd     │       │
-│    └──────┬──┘  └───┬──────┘       │
-│           │          │              │
-│  ┌────────▼──────────▼──────────┐  │
-│  │   Callback (Background)     │  │
-│  │  ┌─────────────────────┐    │  │
-│  │  │ API mode: send raw  │    │  │
-│  │  │ Standalone: diff +  │    │  │
-│  │  │   print locally     │    │  │
-│  │  └─────────────────────┘    │  │
-│  └──────────────┬───────────────┘  │
-│                 │                   │
-│  ┌──────────────▼───────────────┐  │
-│  │  API Client (Retry Logic)    │  │
-│  └──────────────────────────────┘  │
-└─────────────────┬──────────────────┘
-                  │ HTTP
-                  ↓
-      mroki-api (computes diff)
+```mermaid
+graph TD
+    Client([Client Request]) --> Handler
+
+    subgraph mroki-agent
+        Handler[HTTP Proxy Handler] --> LiveFwd[Live Fwd]
+        Handler --> ShadowFwd[Shadow Fwd]
+        LiveFwd & ShadowFwd --> Callback{Callback}
+        Callback -->|API mode| APIClient[API Client<br><i>Retry Logic</i>]
+        Callback -->|Standalone mode| Differ[pkg/diff<br><i>Compute diff locally</i>]
+    end
+
+    APIClient -->|Send raw responses| API["mroki-api<br><i>(computes diff server-side)</i>"]
+    Differ --> Stdout([stdout])
 ```
 
 ## Installation
@@ -346,8 +329,8 @@ echo "my-custom-agent-id-550e8400-e29b-41d4-a716-446655440000" > .agent_id
 3. **Live response returned** to client immediately (shadow still processing)
 4. **Background processing:**
    - Wait for shadow response
-   - Compute JSON diff
-   - Send to mroki-api (if configured)
+   - **API mode:** Send raw responses to mroki-api (diff computed server-side)
+   - **Standalone mode:** Compute JSON diff locally and print to stdout
 5. **Failures logged** but never propagate to client
 
 ### Response Selection
@@ -460,7 +443,7 @@ MROKI_APP_DIFF_IGNORED_FIELDS=origin,url,headers.Host
 ### Docker
 
 ```dockerfile
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o mroki-agent ./cmd/mroki-agent

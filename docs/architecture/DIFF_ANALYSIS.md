@@ -22,13 +22,14 @@ The schema is defined via the **ent** ORM framework in `ent/schema/diff.go`.
 | `request_id` | UUID | Unique, FK → `requests.id` |
 | `from_response_id` | UUID | Not null (no FK constraint) |
 | `to_response_id` | UUID | Not null (no FK constraint) |
-| `content` | TEXT (string) | Not null |
+| `content` | JSON ([]diff.PatchOp) | Not null |
+| `created_at` | TIMESTAMP | Not null, auto-generated |
 
 **Key observations:**
 
 - **1:1 relationship with Request**: Enforced by the `Unique()` constraint on `request_id` and the ent edge definition. Each request has at most one diff.
 - **No formal FK on response IDs**: `from_response_id` and `to_response_id` reference the `responses` table by UUID, but are **not** declared as ent edges — they are plain UUID fields. No referential integrity enforcement or cascade behavior at the database level.
-- **Content is an opaque `TEXT` blob**: The diff content is stored as a plain Go string — the output of `go-cmp`'s custom `cleanReporter`, producing a proprietary human-readable format. This is neither a standard patch format (RFC 6902 JSON Patch, RFC 7396 JSON Merge Patch, unified diff) nor structured/queryable data.
+- **Content is structured RFC 6902 JSON Patch**: The diff content is stored as a JSON array of `diff.PatchOp` objects, each containing `op`, `path`, and `value` fields following the RFC 6902 JSON Patch standard. This format is machine-parseable, queryable, and interoperable.
 
 ## 3. Domain Model Representation
 
@@ -36,7 +37,7 @@ The domain model lives at `internal/domain/traffictesting/diff.go`.
 
 **Mapping analysis** (via `mapDiffToDomain` in `internal/infrastructure/persistence/ent/mapper.go`):
 
-- **The domain model is a simple Value Object** — it has no identity (`ID` is not carried into the domain), no behavior beyond `IsZero()`, and no validation logic. The `NewDiff()` constructor accepts any content string without validation, always returning `nil` error.
+- **The domain model is a Value Object** — it has no identity (`ID` is not carried into the domain) and carries `FromResponseID`, `ToResponseID`, `Content` (as `[]diff.PatchOp`), and `CreatedAt`. It provides `IsZero()` and `Equals()` methods. The `NewDiff()` constructor accepts typed `[]diff.PatchOp` content.
 - **The mapping is trivially thin** — a near 1:1 projection with no transformation, which is efficient but reveals the domain model adds very little encapsulation over the persistence model.
 - **Diff is embedded in Request as a field, not a separate aggregate** — this correctly models the lifecycle dependency (a diff cannot exist without a request).
 - **The `ID` field is dropped during domain mapping** — the persistence entity has an `id` column, but the domain `Diff` struct has no `ID` field. The diff is always accessed through its parent request.
@@ -45,11 +46,19 @@ The domain model lives at `internal/domain/traffictesting/diff.go`.
 
 ### Full lifecycle
 
+```mermaid
+graph LR
+    Agent["mroki-agent<br><i>(proxy)</i>"] -->|"Base64-encoded<br>responses (HTTP POST)"| API["mroki-api<br><i>Receive</i>"]
+    API -->|"Decode base64 bodies<br>Build synthetic JSON envelope<br>(statusCode + headers + body)"| Diff["pkg/diff<br><i>JSON()</i>"]
+    Diff -->|"RFC 6902<br>PatchOp[]"| DB[("PostgreSQL<br><i>Save()</i>")]
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  mroki-agent │     │  mroki-api   │     │  pkg/diff    │     │  PostgreSQL  │
-│  (proxy)     │────▶│  Receive     │────▶│  JSON()      │────▶│  Save()      │
-└─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+
+**Standalone mode** (no API): the agent computes diffs locally using the same `pkg/diff` engine and prints to stdout.
+
+```mermaid
+graph LR
+    Agent["mroki-agent<br><i>(standalone)</i>"] -->|"Live + Shadow<br>responses"| Diff["pkg/diff<br><i>JSON()</i>"]
+    Diff -->|"RFC 6902<br>PatchOp[]"| Stdout([stdout])
 ```
 
 **Step-by-step:**
@@ -59,10 +68,6 @@ The domain model lives at `internal/domain/traffictesting/diff.go`.
 3. **Diff computation** (API-side, `internal/application/commands/create_request.go`): When the `diff` field is absent, `computeDiff()` decodes the base64 response bodies, constructs synthetic JSON documents (statusCode + headers + body), and calls `diff.JSON()` to produce RFC 6902 patch operations. If the agent provides a pre-computed diff (backward compatibility), it is used as-is.
 4. **Persistence** (API-side, `internal/infrastructure/persistence/ent/request_repository.go`): The entire request+responses+diff is saved in a single database transaction. `saveDiff()` checks `IsZero()` and skips if no diff exists.
 5. **Retrieval** (API-side): Diffs are always eager-loaded with their parent request via `WithDiff()`. A `has_diff` filter exists in `RequestFilters`.
-
-**Standalone mode (no API):**
-
-In standalone mode, the agent creates its own `proxyResponseDiffer` in the callback, computes the diff locally using the same `pkg/diff` engine, and prints the result to stdout.
 
 ### Potential bottlenecks
 
@@ -81,9 +86,9 @@ In standalone mode, the agent creates its own `proxyResponseDiffer` in the callb
 
 `from_response_id` and `to_response_id` are plain UUID fields with no ent edges — no FK constraints, no cascade deletes, and no eager-loading. Define proper ent edges from `Diff` to `Response` to add FK constraints, enable eager-loading, and ensure cascade behavior.
 
-### 5.2 Adopt a Structured, Standard Diff Format (High Priority)
+### ~~5.2 Adopt a Structured, Standard Diff Format~~ ✅ Completed
 
-The `cleanReporter` output is a proprietary human-readable format that is not machine-parseable, not queryable, and not interoperable. Store diffs in **RFC 6902 JSON Patch** format instead:
+Diffs are now stored in **RFC 6902 JSON Patch** format as `[]diff.PatchOp`:
 
 ```json
 [
@@ -92,7 +97,7 @@ The `cleanReporter` output is a proprietary human-readable format that is not ma
 ]
 ```
 
-**Benefits:** Queryable with PostgreSQL JSONB (e.g., `WHERE content @> '[{"path": "/statusCode"}]'`), applicable (patches can reconstruct responses), and interoperable (RFC 6902 is widely supported). Change `content` from `field.String` to `field.JSON` (JSONB in PostgreSQL).
+This format is queryable with PostgreSQL JSONB, machine-parseable, and interoperable.
 
 ### 5.3 Enrich the Domain Model (Medium Priority)
 
@@ -106,9 +111,9 @@ No size limit on diff content; large response bodies produce large diff strings 
 - Add a `change_count` integer column for lightweight filtering/aggregation without parsing the content blob.
 - Consider compression (zstd/gzip) for large diffs before storage.
 
-### 5.5 Add `created_at` Timestamp to Diff (Low Priority)
+### ~~5.5 Add `created_at` Timestamp to Diff~~ ✅ Completed
 
-The diff entity has no timestamp. Add a `created_at` field for operational debugging, stale-diff detection, and independent lifecycle tracking.
+The `Diff` domain model now includes a `CreatedAt` field, set automatically during construction via `NewDiff()`.
 
 ### 5.6 Consider Async Diff Computation (Low Priority)
 
@@ -119,8 +124,8 @@ Diff computation now happens server-side in mroki-api during request ingest (syn
 | Area | Current State | Recommendation | Priority |
 |---|---|---|---|
 | Referential integrity | `from/to_response_id` are plain UUIDs | Add ent edges with FK constraints | High |
-| Content format | Proprietary text via `cleanReporter` | RFC 6902 JSON Patch in JSONB column | High |
+| Content format | ~~Proprietary text via `cleanReporter`~~ RFC 6902 JSON Patch (`[]diff.PatchOp`) | ✅ Completed | — |
 | Domain model | Anemic value object, no validation | Structured `DiffOp` list, domain behavior | Medium |
 | Storage bounds | Unbounded TEXT, no size limit | Cap content size, add `change_count` column | Medium |
-| Temporal metadata | No timestamp on diff | Add `created_at` field | Low |
-| Computation architecture | Synchronous on agent | Consider async worker pipeline at scale | Low |
+| Temporal metadata | ~~No timestamp on diff~~ `CreatedAt` field present | ✅ Completed | — |
+| Computation architecture | Synchronous server-side (API) | Consider async worker pipeline at scale | Low |

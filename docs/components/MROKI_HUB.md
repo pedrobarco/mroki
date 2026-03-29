@@ -4,26 +4,18 @@
 
 mroki-hub is a Vue 3 single-page application that provides a user-friendly interface for managing gates, browsing captured traffic, and visualizing response diffs.
 
-## Status
+## Features
 
-**In Development** — Basic structure and theming implemented. Features being built incrementally.
+- **Gate Management:** Create new gates (live/shadow service pairs), list and filter all gates
+- **Request Browser:** List captured requests for a gate with filters (method, path, has_diff), sorting, and pagination
+- **Diff Visualization:** View response diffs with side-by-side and unified views
+- **JSON Diff Engine:** Custom client-side diff renderer from RFC 6902 patch operations
 
-## v1 Scope
-
-### In Scope
-
-- **Gate Management:** Create new gates (live/shadow service pairs), list all gates
-- **Request Browser:** List captured requests for a gate with filters (method, path, timestamp), sorting, and pagination
-- **Diff Visualization:** View response diffs using `vue-diff` library
-
-### Out of Scope (v1)
-
-These features require backend endpoints that don't exist yet:
+### Not Yet Implemented
 
 - Agent monitoring (no backend endpoint)
 - Dashboard statistics (no backend endpoint)
 - Gate edit/delete (no backend endpoints)
-- Gate name rename (backend supports it, no UI yet)
 
 ## Technology Stack
 
@@ -40,78 +32,44 @@ These features require backend endpoints that don't exist yet:
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────┐
-│             mroki-hub (SPA)             │
-│                                         │
-│  ┌───────────────────────────────────┐  │
-│  │  Vue 3 Application                │  │
-│  │                                   │  │
-│  │  ┌─────────────┐  ┌────────────┐ │  │
-│  │  │   Pages     │  │  Components│ │  │
-│  │  │             │  │            │ │  │
-│  │  │ - Gates     │  │ - GateCard │ │  │
-│  │  │ - GateDetail│  │ - DiffView │ │  │
-│  │  │ - ReqDetail │  │ - ReqList  │ │  │
-│  │  └─────────────┘  └────────────┘ │  │
-│  │                                   │  │
-│  │  ┌─────────────────────────────┐ │  │
-│  │  │  API Client (native fetch)  │ │  │
-│  │  └──────────────┬──────────────┘ │  │
-│  └─────────────────┼─────────────────┘  │
-└────────────────────┼────────────────────┘
-                     │ HTTP/JSON
-                     ↓
-              ┌──────────────┐
-              │  mroki-api   │
-              └──────────────┘
+```mermaid
+graph TD
+    subgraph "mroki-hub (SPA)"
+        Pages["Pages<br><i>Gates · GateDetail · RequestDetail</i>"] --> Components["Components<br><i>GateCard · DiffViewer · RequestList</i>"]
+        Pages --> Composables["Composables<br><i>Caching · Shared state</i>"]
+        Pages & Components --> APIClient["API Client<br><i>(native fetch)</i>"]
+    end
+
+    APIClient -->|HTTP/JSON| API[mroki-api]
 ```
 
-## Planned Project Structure
+## Project Structure
 
 ```
-web/
-├── public/
-│   └── favicon.ico
+web/mroki-hub/
+├── public/                        # Static assets
+├── e2e/                           # Playwright E2E tests
 ├── src/
-│   ├── api/
-│   │   ├── client.ts          # fetch wrapper with auth
-│   │   ├── gates.ts           # Gate endpoints
-│   │   ├── requests.ts        # Request endpoints
-│   │   └── types.ts           # API response types
+│   ├── api/                       # API client (native fetch)
 │   ├── components/
-│   │   ├── common/
-│   │   │   ├── Button.vue
-│   │   │   ├── Card.vue
-│   │   │   └── Modal.vue
-│   │   ├── gates/
-│   │   │   ├── GateCard.vue
-│   │   │   ├── GateForm.vue
-│   │   │   └── GateList.vue
-│   │   ├── requests/
-│   │   │   ├── RequestList.vue
-│   │   │   ├── RequestCard.vue
-│   │   │   └── RequestFilters.vue
-│   │   ├── diff/
-│   │   │   └── DiffViewer.vue
-│   │   └── layout/
-│   │       ├── Header.vue
-│   │       └── Footer.vue
-│   ├── pages/
-│   │   ├── Gates.vue
-│   │   ├── GateDetail.vue
-│   │   ├── RequestDetail.vue
-│   │   └── NotFound.vue
-│   ├── router/
-│   │   └── index.ts
+│   │   ├── diff/                  # JSON diff visualization
+│   │   ├── gates/                 # Gate management components
+│   │   ├── layout/                # App shell (Header)
+│   │   ├── requests/              # Request browser components
+│   │   └── ui/                    # shadcn-vue primitives
+│   ├── composables/               # Vue composables (caching)
+│   ├── lib/                       # Utilities and JSON diff engine
+│   ├── pages/                     # Route-level views
+│   ├── router/                    # Vue Router config
 │   ├── App.vue
 │   ├── main.ts
-│   └── env.d.ts
+│   └── style.css                  # TailwindCSS v4 + theme variables
 ├── index.html
 ├── package.json
-├── tsconfig.json
-├── tailwind.config.ts
-└── vite.config.ts
+├── vite.config.ts
+├── vitest.config.ts
+├── playwright.config.ts
+└── eslint.config.js
 ```
 
 ## Routes
@@ -312,10 +270,11 @@ CMD ["nginx", "-g", "daemon off;"]
 1. ✅ **Scaffold** — Vite + Vue 3 + TypeScript + Tailwind CSS v4 + Vue Router
 2. ✅ **Theming** — CSS variables with shadcn-vue conventions, dark mode support
 3. ✅ **Code Quality** — ESLint + Prettier + pre-commit hooks
-4. 🚧 **API client + types** — Native fetch wrapper, TypeScript types matching API contracts
-5. 🚧 **Gate page** — List gates, create gate form
-6. 🚧 **Request browser** — List requests with filters, sorting, pagination
-7. 🚧 **Diff viewer** — Request detail page with `vue-diff` visualization
+4. ✅ **API client + types** — Native fetch wrapper, TypeScript types matching API contracts
+5. ✅ **Gate page** — List gates, create gate form, filtering
+6. ✅ **Request browser** — List requests with filters, sorting, pagination
+7. ✅ **Diff viewer** — Request detail page with custom JSON diff visualization
+8. ✅ **E2E tests** — Playwright tests for gates, requests, navigation
 
 ## Related Documentation
 

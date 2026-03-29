@@ -38,38 +38,17 @@ The **hub** is a web UI for managing gates, browsing captured requests, and visu
 
 ## Architecture
 
-```
-┌─────────────┐
-│   Client    │
-└──────┬──────┘
-       │ HTTP Request
-       ↓
-┌─────────────────┐
-│  mroki-agent    │  (Proxy)
-└────┬──────┬─────┘
-     │      │
-     │      └──────────┐
-     ↓                 ↓
-┌──────────┐    ┌─────────────┐
-│   Live   │    │   Shadow    │
-│ Service  │    │   Service   │
-└──────────┘    └─────────────┘
-     │                 │
-     └────────┬────────┘
-              ↓
-       Send Responses
-              ↓
-    ┌─────────────────┐
-    │   mroki-api     │  (REST API + Diff)
-    └────────┬────────┘
-             ↓
-    ┌─────────────────┐
-    │   PostgreSQL    │
-    └─────────────────┘
-             ↑
-    ┌─────────────────┐
-    │   mroki-hub     │  (Web UI)
-    └─────────────────┘
+```mermaid
+graph TD
+    Client([Client]) -->|HTTP Request| Agent[mroki-agent<br><i>Proxy</i>]
+    Agent -->|Forward| Live[Live Service]
+    Agent -->|Forward| Shadow[Shadow Service]
+    Live -->|Live Response| Agent
+    Shadow -->|Shadow Response| Agent
+    Agent -->|Return live response| Client
+    Agent -.->|Send raw responses| API[mroki-api<br><i>REST API + Diff</i>]
+    API -->|Store| DB[(PostgreSQL)]
+    Hub[mroki-hub<br><i>Web UI</i>] -->|Query| API
 ```
 
 ## Components

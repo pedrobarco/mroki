@@ -140,22 +140,17 @@ go run . run --config Caddyfile
 
 The module integrates into Caddy's HTTP handler chain:
 
-```
-Client Request
-     │
-     ↓
-Caddy HTTP Server
-     │
-     ↓
-mroki_gate Handler
-     │
-     ├─────────────────┐
-     ↓                 ↓
-  Live URL         Shadow URL
-     │                 │
-     ↓                 ↓
-  Return Live      Shadow Response
-  Response         Captured
+```mermaid
+graph TD
+    Client([Client Request]) --> Caddy[Caddy HTTP Server]
+    Caddy --> Handler[mroki_gate Handler]
+    Handler --> Live[Live URL]
+    Handler --> Shadow[Shadow URL]
+    Live -->|Live Response| Handler
+    Shadow -->|Shadow Response| Handler
+    Handler -->|Return live response| Client
+    Handler -.->|Background| Diff[Compute Diff Locally]
+    Diff --> Stdout([Print to stdout])
 ```
 
 **Key Behavior:**

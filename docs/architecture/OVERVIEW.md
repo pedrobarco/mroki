@@ -6,41 +6,21 @@ This document provides a high-level overview of mroki's architecture, component 
 
 mroki consists of four main components:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      Production Environment                   │
-│                                                               │
-│  ┌─────────┐         ┌─────────────┐                        │
-│  │ Client  │────────▶│ mroki-agent │                        │
-│  └─────────┘         └──────┬──────┘                        │
-│                             │                                │
-│                    ┌────────┴────────┐                       │
-│                    ↓                 ↓                       │
-│            ┌──────────────┐   ┌─────────────┐               │
-│            │     Live     │   │   Shadow    │               │
-│            │   Service    │   │   Service   │               │
-│            │ (Production) │   │ (Candidate) │               │
-│            └──────────────┘   └─────────────┘               │
-│                                                               │
-└───────────────────────────────┬───────────────────────────────┘
-                                │ HTTP/JSON
-                                ↓
-┌──────────────────────────────────────────────────────────────┐
-│                      mroki Platform                          │
-│                                                               │
-│  ┌──────────────┐        ┌──────────────┐                   │
-│  │  mroki-api   │◀───────│ PostgreSQL   │                   │
-│  │  (REST API)  │        │  (Storage)   │                   │
-│  └──────┬───────┘        └──────────────┘                   │
-│         │                                                     │
-│         │ REST/JSON                                          │
-│         ↓                                                     │
-│  ┌──────────────┐                                            │
-│  │  mroki-hub   │                                            │
-│  │  (Web UI)    │                                            │
-│  └──────────────┘                                            │
-│                                                               │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Production Environment
+        Client([Client]) -->|HTTP Request| Agent[mroki-agent]
+        Agent --> Live[Live Service<br><i>Production</i>]
+        Agent --> Shadow[Shadow Service<br><i>Candidate</i>]
+        Live & Shadow --> Agent
+    end
+
+    Agent -.->|Raw responses<br>HTTP/JSON| API
+
+    subgraph mroki Platform
+        API[mroki-api<br><i>REST API + Diff</i>] -->|Read/Write| DB[(PostgreSQL)]
+        Hub[mroki-hub<br><i>Web UI</i>] -->|REST/JSON| API
+    end
 ```
 
 ## Components
@@ -134,34 +114,27 @@ mroki consists of four main components:
 
 ### Request Capture Flow
 
-```
-1. Client Request
-   │
-   ↓
-2. mroki-agent receives request
-   │
-   ├─────────────────┬─────────────────┐
-   ↓                 ↓                 ↓
-3. Forward to     Forward to      Start timer
-   Live Service   Shadow Service
-   │                 │
-   ↓                 ↓
-4. Receive         Receive
-   Live Response   Shadow Response
-   │                 │
-   ↓                 │
-5. Return Live ──────┘
-   Response to
-   Client
-   │
-   ↓
-6. Background: Send raw responses to mroki-api (with retry)
-   │
-   ↓
-7. mroki-api: Compute Diff server-side
-   │
-   ↓
-8. Store in PostgreSQL (request + responses + diff)
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as mroki-agent
+    participant L as Live Service
+    participant S as Shadow Service
+    participant API as mroki-api
+    participant DB as PostgreSQL
+
+    C->>A: HTTP Request
+    par Forward in parallel
+        A->>L: Forward request
+        A->>S: Forward request
+    end
+    L-->>A: Live Response
+    A-->>C: Return Live Response
+    S-->>A: Shadow Response
+    Note over A: Background (non-blocking)
+    A->>API: Send raw responses (with retry)
+    API->>API: Compute Diff server-side
+    API->>DB: Store request + responses + diff
 ```
 
 ### Key Properties
@@ -210,11 +183,12 @@ type Response struct {
     IsLive      bool        // true=live, false=shadow
 }
 
-// Diff represents computed difference
+// Diff represents computed difference between live and shadow responses
 type Diff struct {
-    RequestID   RequestID
-    DiffJSON    []byte     // JSON diff format
-    HasDiff     bool       // Quick check flag
+    FromResponseID uuid.UUID      // Live response ID
+    ToResponseID   uuid.UUID      // Shadow response ID
+    Content        []diff.PatchOp // RFC 6902 JSON Patch operations
+    CreatedAt      time.Time
 }
 ```
 
@@ -387,18 +361,17 @@ log.Info("request captured",
 
 ### Option 1: Sidecar Proxy
 
-```
-┌────────────────────────────┐
-│         Pod/Container      │
-│  ┌──────────┐              │
-│  │  App     │              │
-│  │ Service  │              │
-│  └────┬─────┘              │
-│       │                    │
-│  ┌────▼─────────┐          │
-│  │ mroki-agent  │          │
-│  └──────────────┘          │
-└────────────────────────────┘
+```mermaid
+graph TD
+    Client([Client]) --> Agent
+
+    subgraph Pod/Container
+        App[App Service] --> Agent[mroki-agent]
+    end
+
+    Agent --> Live[Live Service]
+    Agent --> Shadow[Shadow Service]
+    Agent -.-> API[mroki-api]
 ```
 
 **Pros:** No app changes, transparent
@@ -406,16 +379,12 @@ log.Info("request captured",
 
 ### Option 2: Standalone Proxy
 
-```
-┌──────────┐     ┌──────────────┐
-│  Client  │────▶│ mroki-agent  │
-└──────────┘     └──────┬───────┘
-                        │
-                 ┌──────┴───────┐
-                 ↓              ↓
-            ┌────────┐    ┌──────────┐
-            │  Live  │    │  Shadow  │
-            └────────┘    └──────────┘
+```mermaid
+graph TD
+    Client([Client]) --> Agent[mroki-agent]
+    Agent --> Live[Live Service]
+    Agent --> Shadow[Shadow Service]
+    Agent -.-> API[mroki-api]
 ```
 
 **Pros:** Centralized, lower resource usage
@@ -423,16 +392,12 @@ log.Info("request captured",
 
 ### Option 3: Caddy Module
 
-```
-┌──────────┐     ┌────────────────────┐
-│  Client  │────▶│  Caddy (w/mroki)   │
-└──────────┘     └──────┬─────────────┘
-                        │
-                 ┌──────┴───────┐
-                 ↓              ↓
-            ┌────────┐    ┌──────────┐
-            │  Live  │    │  Shadow  │
-            └────────┘    └──────────┘
+```mermaid
+graph TD
+    Client([Client]) --> Caddy["Caddy (w/mroki)"]
+    Caddy --> Live[Live Service]
+    Caddy --> Shadow[Shadow Service]
+    Caddy -.->|Local diff| Stdout([stdout])
 ```
 
 **Pros:** Integrated with existing Caddy setup, no extra binary
