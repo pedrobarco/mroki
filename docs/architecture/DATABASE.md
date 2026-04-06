@@ -117,6 +117,7 @@ Stores HTTP responses from live and shadow services.
 | `status_code` | INTEGER | YES | HTTP status code (200, 404, etc.) |
 | `headers` | JSONB | YES | HTTP headers as JSON object |
 | `body` | BYTEA | YES | Response body (binary) |
+| `latency_ms` | BIGINT | NOT NULL | Round-trip latency in milliseconds (captured by proxy) |
 | `created_at` | TIMESTAMPTZ | YES | Timestamp when response was received |
 
 **Indexes:**
@@ -131,7 +132,7 @@ Stores HTTP responses from live and shadow services.
 -- Live response
 INSERT INTO responses (
     id, request_id, type, status_code,
-    headers, body, created_at
+    headers, body, latency_ms, created_at
 ) VALUES (
     '8d0e7780-8536-51ef-a55c-f18fd2f91bf8',
     '7c9e6679-7425-40de-944b-e07fc1f90ae7',
@@ -139,13 +140,14 @@ INSERT INTO responses (
     200,
     '{"Content-Type": ["application/json"]}'::jsonb,
     '{"id":123,"name":"Alice","age":30}',
+    142,
     NOW()
 );
 
 -- Shadow response
 INSERT INTO responses (
     id, request_id, type, status_code,
-    headers, body, created_at
+    headers, body, latency_ms, created_at
 ) VALUES (
     '9e1f8891-9647-62f0-b66d-027fe3f02cf9',
     '7c9e6679-7425-40de-944b-e07fc1f90ae7',
@@ -153,6 +155,7 @@ INSERT INTO responses (
     200,
     '{"Content-Type": ["application/json"]}'::jsonb,
     '{"id":456,"name":"Alice","age":30}',
+    187,
     NOW()
 );
 ```

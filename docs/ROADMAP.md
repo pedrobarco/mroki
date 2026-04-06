@@ -39,9 +39,9 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 
 ### Request List Metadata
 
-- [ ] **P1** Status codes in list view — Hardcoded per row (`RequestList.vue`). Add `live_status_code` / `shadow_status_code` to summary DTO.
-- [ ] **P1** Diff count per request — Hardcoded per row (`RequestList.vue`). Add `diff_count` to summary DTO.
-- [ ] **P2** Latency per request — Hardcoded `"142ms"` (`RequestList.vue`, `RequestDetail.vue`). Requires proxy capture + schema field.
+- [x] **P1** Status codes in list view — Wired to `request.live_status_code` / `request.shadow_status_code` via eager-loaded responses.
+- [x] **P1** Diff indicator per request — Wired to `request.has_diff` via eager-loaded diff edge.
+- [x] **P2** Latency per request — Captured in proxy, stored as `latency_ms` on response schema. Wired to `request.live_latency_ms` / `request.shadow_latency_ms` in list and `response.latency_ms` in detail view.
 
 ### Dead UI Elements
 
@@ -113,8 +113,8 @@ Larger capabilities not yet started, organized by priority.
 
 ### Latency Tracking
 
-- [ ] **P2** Agent latency capture — Record `latency_ms` for live and shadow responses.
-- [ ] **P2** Latency in schema/API — Add `latency_ms` to Response entity and DTOs.
+- [x] **P2** Agent latency capture — Proxy measures round-trip time per response via `time.Since()`.
+- [x] **P2** Latency in schema/API — `latency_ms` (required `int64`) added to Response entity, DTOs, and list/detail views.
 - [ ] **P3** Latency analysis — P50/P95/P99 comparison between live and shadow.
 
 ### Per-Gate Diff Configuration

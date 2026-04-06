@@ -520,6 +520,7 @@ curl -X POST http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/re
           "Content-Type": ["application/json"]
         },
         "body": "{\"id\":123,\"name\":\"Alice\",\"age\":30}",
+        "latency_ms": 142,
         "created_at": "2026-01-31T20:00:01Z"
       },
       {
@@ -530,6 +531,7 @@ curl -X POST http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/re
           "Content-Type": ["application/json"]
         },
         "body": "{\"id\":456,\"name\":\"Alice\",\"age\":30}",
+        "latency_ms": 187,
         "created_at": "2026-01-31T20:00:01Z"
       }
   ],
@@ -588,13 +590,23 @@ curl -H "Authorization: Bearer your-api-key" \
       "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
       "method": "POST",
       "path": "/api/users",
-      "created_at": "2026-01-31T20:00:00Z"
+      "created_at": "2026-01-31T20:00:00Z",
+      "live_status_code": 200,
+      "shadow_status_code": 200,
+      "live_latency_ms": 142,
+      "shadow_latency_ms": 187,
+      "has_diff": true
     },
     {
       "id": "8d9f7890-8536-51ef-a55c-f18fd2f91bf9",
       "method": "GET",
       "path": "/api/users/123",
-      "created_at": "2026-01-31T20:01:00Z"
+      "created_at": "2026-01-31T20:01:00Z",
+      "live_status_code": 200,
+      "shadow_status_code": 500,
+      "live_latency_ms": 38,
+      "shadow_latency_ms": 312,
+      "has_diff": false
     }
   ],
   "pagination": {
@@ -605,6 +617,16 @@ curl -H "Authorization: Bearer your-api-key" \
   }
 }
 ```
+
+**List item fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `live_status_code` | `int` | HTTP status code from the live response |
+| `shadow_status_code` | `int` | HTTP status code from the shadow response |
+| `live_latency_ms` | `int64` | Round-trip latency of the live response in milliseconds |
+| `shadow_latency_ms` | `int64` | Round-trip latency of the shadow response in milliseconds |
+| `has_diff` | `bool` | Whether a diff exists between the live and shadow responses |
 
 **Examples:**
 ```bash
