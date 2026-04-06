@@ -179,18 +179,27 @@ onMounted(() => {
             <!-- Status codes -->
             <span class="text-xs font-mono text-dim w-24 text-right whitespace-nowrap">
               <span
-                :class="request.live_status_code < 400 ? 'text-muted-foreground' : 'text-danger'"
-                >{{ request.live_status_code }}</span
+                :class="
+                  (request.live_response?.status_code ?? 0) < 400
+                    ? 'text-muted-foreground'
+                    : 'text-danger'
+                "
+                >{{ request.live_response?.status_code ?? '—' }}</span
               >
               <span class="text-dim"> / </span>
               <span
-                :class="request.shadow_status_code < 400 ? 'text-muted-foreground' : 'text-danger'"
-                >{{ request.shadow_status_code }}</span
+                :class="
+                  (request.shadow_response?.status_code ?? 0) < 400
+                    ? 'text-muted-foreground'
+                    : 'text-danger'
+                "
+                >{{ request.shadow_response?.status_code ?? '—' }}</span
               >
             </span>
             <!-- Latency -->
             <span class="text-xs font-mono text-dim w-24 text-right">
-              {{ request.live_latency_ms }}ms / {{ request.shadow_latency_ms }}ms
+              {{ request.live_response?.latency_ms ?? '—' }}ms /
+              {{ request.shadow_response?.latency_ms ?? '—' }}ms
             </span>
             <!-- Timestamp -->
             <div class="text-xs text-dim w-20 text-right">

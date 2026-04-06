@@ -41,17 +41,21 @@ type DiffPayload struct {
 	Content []diff.PatchOp `json:"content"` // RFC 6902 JSON Patch operations
 }
 
+// ResponseSummary represents a lightweight response summary (used in listings).
+type ResponseSummary struct {
+	StatusCode int   `json:"status_code"`
+	LatencyMs  int64 `json:"latency_ms"`
+}
+
 // Request represents a summary of a captured request (used in listings).
 type Request struct {
-	ID               string    `json:"id"`
-	Method           string    `json:"method"`
-	Path             string    `json:"path"`
-	CreatedAt        time.Time `json:"created_at"`
-	LiveStatusCode   int       `json:"live_status_code"`
-	ShadowStatusCode int       `json:"shadow_status_code"`
-	LiveLatencyMs    int64     `json:"live_latency_ms"`
-	ShadowLatencyMs  int64     `json:"shadow_latency_ms"`
-	HasDiff          bool      `json:"has_diff"`
+	ID             string           `json:"id"`
+	Method         string           `json:"method"`
+	Path           string           `json:"path"`
+	CreatedAt      time.Time        `json:"created_at"`
+	LiveResponse   *ResponseSummary `json:"live_response"`
+	ShadowResponse *ResponseSummary `json:"shadow_response"`
+	HasDiff        bool             `json:"has_diff"`
 }
 
 // RequestDetail represents a complete request with all responses and diff.

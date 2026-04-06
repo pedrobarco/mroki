@@ -32,6 +32,14 @@ export interface Gate {
 }
 
 /**
+ * ResponseSummary represents a lightweight response summary (used in listings)
+ */
+export interface ResponseSummary {
+  status_code: number
+  latency_ms: number
+}
+
+/**
  * Request represents a captured HTTP request in list views
  */
 export interface Request {
@@ -39,10 +47,8 @@ export interface Request {
   method: string
   path: string
   created_at: string
-  live_status_code: number
-  shadow_status_code: number
-  live_latency_ms: number
-  shadow_latency_ms: number
+  live_response: ResponseSummary | null
+  shadow_response: ResponseSummary | null
   has_diff: boolean
 }
 

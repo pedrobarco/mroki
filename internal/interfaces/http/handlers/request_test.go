@@ -569,17 +569,23 @@ func TestGetAllRequestsByGateID_Success(t *testing.T) {
 
 	// Verify metadata fields are populated from the domain objects
 	first := response.Data[0]
-	if first.LiveStatusCode != 200 {
-		t.Errorf("expected LiveStatusCode 200, got %d", first.LiveStatusCode)
+	if first.LiveResponse == nil {
+		t.Fatal("expected LiveResponse to be non-nil")
 	}
-	if first.ShadowStatusCode != 200 {
-		t.Errorf("expected ShadowStatusCode 200, got %d", first.ShadowStatusCode)
+	if first.LiveResponse.StatusCode != 200 {
+		t.Errorf("expected LiveResponse.StatusCode 200, got %d", first.LiveResponse.StatusCode)
 	}
-	if first.LiveLatencyMs != 50 {
-		t.Errorf("expected LiveLatencyMs 50, got %d", first.LiveLatencyMs)
+	if first.LiveResponse.LatencyMs != 50 {
+		t.Errorf("expected LiveResponse.LatencyMs 50, got %d", first.LiveResponse.LatencyMs)
 	}
-	if first.ShadowLatencyMs != 60 {
-		t.Errorf("expected ShadowLatencyMs 60, got %d", first.ShadowLatencyMs)
+	if first.ShadowResponse == nil {
+		t.Fatal("expected ShadowResponse to be non-nil")
+	}
+	if first.ShadowResponse.StatusCode != 200 {
+		t.Errorf("expected ShadowResponse.StatusCode 200, got %d", first.ShadowResponse.StatusCode)
+	}
+	if first.ShadowResponse.LatencyMs != 60 {
+		t.Errorf("expected ShadowResponse.LatencyMs 60, got %d", first.ShadowResponse.LatencyMs)
 	}
 	if !first.HasDiff {
 		t.Error("expected HasDiff true, got false")
@@ -646,17 +652,23 @@ func TestGetAllRequestsByGateID_WithoutDiff(t *testing.T) {
 	}
 
 	first := response.Data[0]
-	if first.LiveStatusCode != 404 {
-		t.Errorf("expected LiveStatusCode 404, got %d", first.LiveStatusCode)
+	if first.LiveResponse == nil {
+		t.Fatal("expected LiveResponse to be non-nil")
 	}
-	if first.ShadowStatusCode != 500 {
-		t.Errorf("expected ShadowStatusCode 500, got %d", first.ShadowStatusCode)
+	if first.LiveResponse.StatusCode != 404 {
+		t.Errorf("expected LiveResponse.StatusCode 404, got %d", first.LiveResponse.StatusCode)
 	}
-	if first.LiveLatencyMs != 30 {
-		t.Errorf("expected LiveLatencyMs 30, got %d", first.LiveLatencyMs)
+	if first.LiveResponse.LatencyMs != 30 {
+		t.Errorf("expected LiveResponse.LatencyMs 30, got %d", first.LiveResponse.LatencyMs)
 	}
-	if first.ShadowLatencyMs != 200 {
-		t.Errorf("expected ShadowLatencyMs 200, got %d", first.ShadowLatencyMs)
+	if first.ShadowResponse == nil {
+		t.Fatal("expected ShadowResponse to be non-nil")
+	}
+	if first.ShadowResponse.StatusCode != 500 {
+		t.Errorf("expected ShadowResponse.StatusCode 500, got %d", first.ShadowResponse.StatusCode)
+	}
+	if first.ShadowResponse.LatencyMs != 200 {
+		t.Errorf("expected ShadowResponse.LatencyMs 200, got %d", first.ShadowResponse.LatencyMs)
 	}
 	if first.HasDiff {
 		t.Error("expected HasDiff false, got true")

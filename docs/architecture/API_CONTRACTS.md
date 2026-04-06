@@ -591,10 +591,8 @@ curl -H "Authorization: Bearer your-api-key" \
       "method": "POST",
       "path": "/api/users",
       "created_at": "2026-01-31T20:00:00Z",
-      "live_status_code": 200,
-      "shadow_status_code": 200,
-      "live_latency_ms": 142,
-      "shadow_latency_ms": 187,
+      "live_response": { "status_code": 200, "latency_ms": 142 },
+      "shadow_response": { "status_code": 200, "latency_ms": 187 },
       "has_diff": true
     },
     {
@@ -602,10 +600,8 @@ curl -H "Authorization: Bearer your-api-key" \
       "method": "GET",
       "path": "/api/users/123",
       "created_at": "2026-01-31T20:01:00Z",
-      "live_status_code": 200,
-      "shadow_status_code": 500,
-      "live_latency_ms": 38,
-      "shadow_latency_ms": 312,
+      "live_response": { "status_code": 200, "latency_ms": 38 },
+      "shadow_response": { "status_code": 500, "latency_ms": 312 },
       "has_diff": false
     }
   ],
@@ -622,11 +618,16 @@ curl -H "Authorization: Bearer your-api-key" \
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `live_status_code` | `int` | HTTP status code from the live response |
-| `shadow_status_code` | `int` | HTTP status code from the shadow response |
-| `live_latency_ms` | `int64` | Round-trip latency of the live response in milliseconds |
-| `shadow_latency_ms` | `int64` | Round-trip latency of the shadow response in milliseconds |
+| `live_response` | `ResponseSummary?` | Live response summary (`null` if not yet received) |
+| `shadow_response` | `ResponseSummary?` | Shadow response summary (`null` if not yet received) |
 | `has_diff` | `bool` | Whether a diff exists between the live and shadow responses |
+
+**ResponseSummary:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status_code` | `int` | HTTP status code |
+| `latency_ms` | `int64` | Round-trip latency in milliseconds |
 
 **Examples:**
 ```bash

@@ -236,13 +236,15 @@ func toRequestResponseDTO(req *traffictesting.Request) dto.Request {
 	}
 
 	for _, resp := range req.Responses {
+		summary := &dto.ResponseSummary{
+			StatusCode: resp.StatusCode.Int(),
+			LatencyMs:  resp.LatencyMs,
+		}
 		switch resp.Type {
 		case traffictesting.ResponseTypeLive:
-			result.LiveStatusCode = resp.StatusCode.Int()
-			result.LiveLatencyMs = resp.LatencyMs
+			result.LiveResponse = summary
 		case traffictesting.ResponseTypeShadow:
-			result.ShadowStatusCode = resp.StatusCode.Int()
-			result.ShadowLatencyMs = resp.LatencyMs
+			result.ShadowResponse = summary
 		}
 	}
 
