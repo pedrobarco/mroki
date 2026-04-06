@@ -450,15 +450,16 @@ curl -H "Authorization: Bearer your-api-key" \
 - `method` (required) - HTTP method (GET, POST, etc.)
 - `path` (required) - Request path
 - `headers` (required) - Request headers
-- `body` (required) - Request body (string)
+- `body` (required) - Request body (Base64 encoded string)
 - `created_at` (required) - Request timestamp
-- `responses` (required) - Array of 2 responses (live + shadow)
+- `live_response` (required) - HTTP response from the live service
   - `id` (optional) - Response UUID, generated if omitted
-  - `type` (required) - "live" or "shadow"
   - `status_code` (required) - HTTP status code
   - `headers` (required) - Response headers
-  - `body` (required) - Response body (string)
+  - `body` (required) - Response body (Base64 encoded string)
+  - `latency_ms` (required) - Round-trip latency in milliseconds
   - `created_at` (required) - Response timestamp
+- `shadow_response` (required) - HTTP response from the shadow service (same structure as `live_response`)
 - `diff` (optional) - Pre-computed difference (value object, no ID). If omitted, mroki-api computes the diff server-side from the response bodies.
   - `content` (required if `diff` is present) - Array of RFC 6902 JSON Patch operations (empty array `[]` when no differences)
 

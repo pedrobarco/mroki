@@ -206,7 +206,7 @@ func TestCreateRequest_MissingGateID(t *testing.T) {
 	repo := &mockRequestRepository{}
 	handler := commands.NewCreateRequestHandler(repo)
 
-	body := `{"method":"GET","path":"/test","headers":{},"body":"","responses":[],"diff":{"content":[]}}`
+	body := `{"method":"GET","path":"/test","headers":{},"body":"","live_response":{"status_code":200,"headers":{},"body":"","latency_ms":0,"created_at":"2026-01-01T00:00:00Z"},"shadow_response":{"status_code":200,"headers":{},"body":"","latency_ms":0,"created_at":"2026-01-01T00:00:00Z"},"diff":{"content":[]}}`
 	req := httptest.NewRequest(http.MethodPost, "/gates//requests", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
 
@@ -238,21 +238,19 @@ func TestCreateRequest_InvalidGateID(t *testing.T) {
 		"headers":    map[string][]string{},
 		"body":       "",
 		"created_at": now.Format(time.RFC3339Nano),
-		"responses": []map[string]interface{}{
-			{
-				"type":        "live",
-				"status_code": 200,
-				"headers":     map[string][]string{},
-				"body":        "",
-				"created_at":  now.Format(time.RFC3339Nano),
-			},
-			{
-				"type":        "shadow",
-				"status_code": 200,
-				"headers":     map[string][]string{},
-				"body":        "",
-				"created_at":  now.Format(time.RFC3339Nano),
-			},
+		"live_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{},
+			"body":        "",
+			"latency_ms":  0,
+			"created_at":  now.Format(time.RFC3339Nano),
+		},
+		"shadow_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{},
+			"body":        "",
+			"latency_ms":  0,
+			"created_at":  now.Format(time.RFC3339Nano),
 		},
 		"diff": map[string]interface{}{
 			"content": []map[string]interface{}{},
@@ -293,21 +291,19 @@ func TestCreateRequest_RepositoryError(t *testing.T) {
 		"headers":    map[string][]string{},
 		"body":       "",
 		"created_at": now.Format(time.RFC3339Nano),
-		"responses": []map[string]interface{}{
-			{
-				"type":        "live",
-				"status_code": 200,
-				"headers":     map[string][]string{},
-				"body":        "",
-				"created_at":  now.Format(time.RFC3339Nano),
-			},
-			{
-				"type":        "shadow",
-				"status_code": 200,
-				"headers":     map[string][]string{},
-				"body":        "",
-				"created_at":  now.Format(time.RFC3339Nano),
-			},
+		"live_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{},
+			"body":        "",
+			"latency_ms":  0,
+			"created_at":  now.Format(time.RFC3339Nano),
+		},
+		"shadow_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{},
+			"body":        "",
+			"latency_ms":  0,
+			"created_at":  now.Format(time.RFC3339Nano),
 		},
 		"diff": map[string]interface{}{
 			"content": []map[string]interface{}{},

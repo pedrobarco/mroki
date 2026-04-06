@@ -39,9 +39,9 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 
 ### Request List Metadata
 
-- [x] **P1** Status codes in list view — Wired to `request.live_status_code` / `request.shadow_status_code` via eager-loaded responses.
+- [x] **P1** Status codes in list view — Wired to `request.live_response.status_code` / `request.shadow_response.status_code` via eager-loaded responses.
 - [x] **P1** Diff indicator per request — Wired to `request.has_diff` via eager-loaded diff edge.
-- [x] **P2** Latency per request — Captured in proxy, stored as `latency_ms` on response schema. Wired to `request.live_latency_ms` / `request.shadow_latency_ms` in list and `response.latency_ms` in detail view.
+- [x] **P2** Latency per request — Captured in proxy, stored as `latency_ms` on response schema. Wired to `request.live_response.latency_ms` / `request.shadow_response.latency_ms` in list and detail views.
 
 ### Dead UI Elements
 
