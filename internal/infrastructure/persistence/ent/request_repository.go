@@ -170,7 +170,7 @@ func (r *requestRepository) GetAllByGateID(
 			q.Select(response.FieldID, response.FieldType, response.FieldStatusCode, response.FieldLatencyMs)
 		}).
 		WithDiff(func(q *ent.DiffQuery) {
-			q.Select(entdiff.FieldID)
+			q.Select(entdiff.FieldID, entdiff.FieldFromResponseID)
 		}).
 		Order(r.buildOrderBy(sort)).
 		Limit(params.Limit()).

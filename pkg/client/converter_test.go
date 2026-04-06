@@ -30,7 +30,8 @@ func TestConvertProxyToCapture(t *testing.T) {
 				"X-Response-ID": []string{"resp-live"},
 			},
 		},
-		Body: []byte(`{"id":1,"name":"John"}`),
+		Body:      []byte(`{"id":1,"name":"John"}`),
+		LatencyMs: 142,
 	}
 
 	shadowResp := proxy.ProxyResponse{
@@ -42,7 +43,8 @@ func TestConvertProxyToCapture(t *testing.T) {
 				"X-Response-ID": []string{"resp-shadow"},
 			},
 		},
-		Body: []byte(`{"id":2,"name":"John"}`),
+		Body:      []byte(`{"id":2,"name":"John"}`),
+		LatencyMs: 187,
 	}
 
 	// Convert
@@ -65,12 +67,16 @@ func TestConvertProxyToCapture(t *testing.T) {
 	assert.Equal(t, map[string][]string(liveResp.Response.Header), liveCapture.Headers)
 	assert.Equal(t, "eyJpZCI6MSwibmFtZSI6IkpvaG4ifQ==", liveCapture.Body) // Base64 encoded {"id":1,"name":"John"}
 
+	// Verify live latency
+	assert.Equal(t, int64(142), liveCapture.LatencyMs)
+
 	// Verify shadow response
 	shadowCapture := captured.Responses[1]
 	assert.Equal(t, "shadow", shadowCapture.Type)
 	assert.Equal(t, 201, shadowCapture.StatusCode)
 	assert.Equal(t, map[string][]string(shadowResp.Response.Header), shadowCapture.Headers)
 	assert.Equal(t, "eyJpZCI6MiwibmFtZSI6IkpvaG4ifQ==", shadowCapture.Body) // Base64 encoded {"id":2,"name":"John"}
+	assert.Equal(t, int64(187), shadowCapture.LatencyMs)
 
 	// Verify diff is nil (computed server-side)
 	assert.Nil(t, captured.Diff)

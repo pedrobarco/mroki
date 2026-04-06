@@ -566,6 +566,101 @@ func TestGetAllRequestsByGateID_Success(t *testing.T) {
 	if response.Pagination.Total != 2 {
 		t.Errorf("expected total 2, got %d", response.Pagination.Total)
 	}
+
+	// Verify metadata fields are populated from the domain objects
+	first := response.Data[0]
+	if first.LiveStatusCode != 200 {
+		t.Errorf("expected LiveStatusCode 200, got %d", first.LiveStatusCode)
+	}
+	if first.ShadowStatusCode != 200 {
+		t.Errorf("expected ShadowStatusCode 200, got %d", first.ShadowStatusCode)
+	}
+	if first.LiveLatencyMs != 50 {
+		t.Errorf("expected LiveLatencyMs 50, got %d", first.LiveLatencyMs)
+	}
+	if first.ShadowLatencyMs != 60 {
+		t.Errorf("expected ShadowLatencyMs 60, got %d", first.ShadowLatencyMs)
+	}
+	if !first.HasDiff {
+		t.Error("expected HasDiff true, got false")
+	}
+}
+
+func TestGetAllRequestsByGateID_WithoutDiff(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+
+	statusCode, _ := traffictesting.ParseStatusCode(404)
+	liveResp, _ := traffictesting.NewResponse(
+		traffictesting.ResponseTypeLive,
+		statusCode,
+		traffictesting.NewHeaders(http.Header{}),
+		[]byte(""),
+		int64(30),
+		time.Now(),
+	)
+	shadowStatusCode, _ := traffictesting.ParseStatusCode(500)
+	shadowResp, _ := traffictesting.NewResponse(
+		traffictesting.ResponseTypeShadow,
+		shadowStatusCode,
+		traffictesting.NewHeaders(http.Header{}),
+		[]byte(""),
+		int64(200),
+		time.Now(),
+	)
+
+	method, _ := traffictesting.NewHTTPMethod("POST")
+	path, _ := traffictesting.ParsePath("/api/test")
+	req1, _ := traffictesting.NewRequest(
+		gateID, method, path,
+		traffictesting.NewHeaders(http.Header{}),
+		[]byte(""),
+		time.Now(),
+		[]traffictesting.Response{*liveResp, *shadowResp},
+		traffictesting.Diff{}, // no diff
+	)
+
+	params, _ := pagination.NewParams(10, 0)
+	result := pagination.NewPagedResult([]*traffictesting.Request{req1}, 1, params)
+
+	repo := &mockRequestRepository{
+		getAllByGateIDFunc: func(ctx context.Context, gid traffictesting.GateID, filters traffictesting.RequestFilters, sort traffictesting.RequestSort, p *pagination.Params) (*pagination.PagedResult[*traffictesting.Request], error) {
+			return result, nil
+		},
+	}
+	handler := queries.NewListRequestsHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/gates/"+gateID.String()+"/requests?limit=10&offset=0", nil)
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := GetAllRequestsByGateID(handler)
+	err := appHandler(rec, req)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var response dto.PaginatedResponse[[]dto.Request]
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	first := response.Data[0]
+	if first.LiveStatusCode != 404 {
+		t.Errorf("expected LiveStatusCode 404, got %d", first.LiveStatusCode)
+	}
+	if first.ShadowStatusCode != 500 {
+		t.Errorf("expected ShadowStatusCode 500, got %d", first.ShadowStatusCode)
+	}
+	if first.LiveLatencyMs != 30 {
+		t.Errorf("expected LiveLatencyMs 30, got %d", first.LiveLatencyMs)
+	}
+	if first.ShadowLatencyMs != 200 {
+		t.Errorf("expected ShadowLatencyMs 200, got %d", first.ShadowLatencyMs)
+	}
+	if first.HasDiff {
+		t.Error("expected HasDiff false, got true")
+	}
 }
 
 func TestGetAllRequestsByGateID_EmptyResults(t *testing.T) {

@@ -56,6 +56,7 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 				StatusCode: statusCode,
 				Headers:    traffictesting.NewHeaders(http.Header{}),
 				Body:       []byte(`{"status":"ok"}`),
+				LatencyMs:  142,
 				CreatedAt:  time.Now(),
 			},
 			{
@@ -64,6 +65,7 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 				StatusCode: statusCode,
 				Headers:    traffictesting.NewHeaders(http.Header{}),
 				Body:       []byte(`{"status":"ok"}`),
+				LatencyMs:  187,
 				CreatedAt:  time.Now(),
 			},
 		},
@@ -163,6 +165,64 @@ func TestRequestRepository_GetAllByGateID_success(t *testing.T) {
 	assert.False(t, result.HasMore)
 }
 
+func TestRequestRepository_GetAllByGateID_eager_loads_metadata(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	gateRepo := ent.NewGateRepository(client)
+	reqRepo := ent.NewRequestRepository(client)
+	gateID := setupGate(t, gateRepo)
+
+	// Create a request with responses and diff
+	reqWithDiff := newTestRequest(t, gateID)
+	require.NoError(t, reqRepo.Save(context.Background(), reqWithDiff))
+
+	// Create a request without responses or diff
+	reqWithoutDiff := newTestRequestWithoutDiff(t, gateID)
+	require.NoError(t, reqRepo.Save(context.Background(), reqWithoutDiff))
+
+	params, _ := pagination.NewParams(50, 0)
+	filters := traffictesting.EmptyRequestFilters()
+	sort := traffictesting.DefaultRequestSort()
+
+	result, err := reqRepo.GetAllByGateID(context.Background(), gateID, filters, sort, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, result.Items, 2)
+
+	// Find the request with diff and verify its metadata
+	for _, req := range result.Items {
+		switch req.ID {
+		case reqWithDiff.ID:
+			// Should have eager-loaded responses
+			assert.Len(t, req.Responses, 2, "request with diff should have 2 responses")
+
+			var liveResp, shadowResp *traffictesting.Response
+			for i := range req.Responses {
+				switch req.Responses[i].Type {
+				case traffictesting.ResponseTypeLive:
+					liveResp = &req.Responses[i]
+				case traffictesting.ResponseTypeShadow:
+					shadowResp = &req.Responses[i]
+				}
+			}
+
+			assert.NotNil(t, liveResp, "should have live response")
+			assert.NotNil(t, shadowResp, "should have shadow response")
+			assert.Equal(t, 200, liveResp.StatusCode.Int())
+			assert.Equal(t, 200, shadowResp.StatusCode.Int())
+			assert.Equal(t, int64(142), liveResp.LatencyMs)
+			assert.Equal(t, int64(187), shadowResp.LatencyMs)
+
+			// Should have diff
+			assert.False(t, req.Diff.IsZero(), "request with diff should have non-zero diff")
+		case reqWithoutDiff.ID:
+			// Should have no responses or diff
+			assert.Empty(t, req.Responses, "request without diff should have no responses")
+			assert.True(t, req.Diff.IsZero(), "request without diff should have zero diff")
+		}
+	}
+}
 
 func TestRequestRepository_GetAllByGateID_empty(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")

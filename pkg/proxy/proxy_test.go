@@ -221,6 +221,10 @@ func TestProxy_ServeHTTP_with_callback(t *testing.T) {
 	assert.Equal(t, "/test", capturedReq.Path)
 	assert.Equal(t, http.StatusOK, capturedLive.StatusCode)
 	assert.Equal(t, http.StatusOK, capturedShadow.StatusCode)
+
+	// Verify latency is captured (>= 0; may be 0ms for localhost test servers)
+	assert.GreaterOrEqual(t, capturedLive.LatencyMs, int64(0), "live latency should be captured")
+	assert.GreaterOrEqual(t, capturedShadow.LatencyMs, int64(0), "shadow latency should be captured")
 }
 
 func TestProxy_ServeHTTP_skips_shadow_when_not_sampled(t *testing.T) {

@@ -45,7 +45,24 @@ func TestNewResponse_creates_response_with_auto_generated_id(t *testing.T) {
 	assert.Equal(t, 200, response.StatusCode.Int())
 	assert.Equal(t, http.Header{"Content-Type": []string{"application/json"}}, response.Headers.HTTPHeader())
 	assert.Equal(t, body, response.Body)
+	assert.Equal(t, int64(142), response.LatencyMs)
 	assert.Equal(t, createdAt, response.CreatedAt)
+}
+
+func TestNewResponse_zero_latency(t *testing.T) {
+	statusCode, _ := traffictesting.ParseStatusCode(204)
+
+	response, err := traffictesting.NewResponse(
+		traffictesting.ResponseTypeLive,
+		statusCode,
+		traffictesting.NewHeaders(nil),
+		nil,
+		int64(0),
+		time.Now(),
+	)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), response.LatencyMs)
 }
 
 func TestNewResponse_with_custom_id(t *testing.T) {
