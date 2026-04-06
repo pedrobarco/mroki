@@ -18,19 +18,22 @@ interface RequestSummary {
   created_at: string
 }
 
+interface ResponsePayload {
+  status_code: number
+  headers: Record<string, string[]>
+  body: string
+  latency_ms: number
+  created_at: string
+}
+
 interface CreateRequestPayload {
   method: string
   path: string
   headers: Record<string, string[]>
   body: string
   created_at: string
-  responses: {
-    type: 'live' | 'shadow'
-    status_code: number
-    headers: Record<string, string[]>
-    body: string
-    created_at: string
-  }[]
+  live_response: ResponsePayload
+  shadow_response: ResponsePayload
   diff: { content: { op: string; path: string; value?: unknown }[] }
 }
 
@@ -104,22 +107,20 @@ export const test = base.extend<{ api: ApiHelper }>({
           headers: { 'Content-Type': ['application/json'] },
           body: '',
           created_at: createdAt,
-          responses: [
-            {
-              type: 'live',
-              status_code: liveStatus,
-              headers: { 'Content-Type': ['application/json'] },
-              body: liveBody,
-              created_at: createdAt,
-            },
-            {
-              type: 'shadow',
-              status_code: shadowStatus,
-              headers: { 'Content-Type': ['application/json'] },
-              body: shadowBody,
-              created_at: createdAt,
-            },
-          ],
+          live_response: {
+            status_code: liveStatus,
+            headers: { 'Content-Type': ['application/json'] },
+            body: liveBody,
+            latency_ms: Math.floor(Math.random() * 200) + 20,
+            created_at: createdAt,
+          },
+          shadow_response: {
+            status_code: shadowStatus,
+            headers: { 'Content-Type': ['application/json'] },
+            body: shadowBody,
+            latency_ms: Math.floor(Math.random() * 300) + 30,
+            created_at: createdAt,
+          },
           diff: { content: diffContent },
         })
       },
