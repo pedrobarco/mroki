@@ -127,6 +127,43 @@ curl http://localhost:8090/health/ready
 
 ---
 
+### Global Stats
+
+#### GET /stats
+
+**Purpose:** Retrieve global aggregate statistics across all gates
+
+**Response:**
+- `200 OK` on success
+- `500 Internal Server Error` on failure
+
+**Success Response Body:**
+```json
+{
+  "data": {
+    "total_gates": 4,
+    "total_requests_24h": 12847,
+    "total_diff_rate": 4.2
+  }
+}
+```
+
+**Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `total_gates` | `int64` | Total number of gates |
+| `total_requests_24h` | `int64` | Request count in the last 24 hours across all gates |
+| `total_diff_rate` | `float64` | `total_diffs_24h / total_requests_24h * 100`, `0.0` when no requests |
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/stats
+```
+
+---
+
 ### Gates
 
 #### POST /gates
@@ -161,10 +198,18 @@ curl http://localhost:8090/health/ready
     "name": "checkout-api",
     "live_url": "https://api.production.example.com",
     "shadow_url": "https://api.shadow.example.com",
-    "created_at": "2026-03-29T09:00:00Z"
+    "created_at": "2026-03-29T09:00:00Z",
+    "stats": {
+      "request_count_24h": 0,
+      "diff_count_24h": 0,
+      "diff_rate": 0,
+      "last_active": null
+    }
   }
 }
 ```
+
+> **Note:** Newly created gates have zero stats. Stats are populated as requests are captured.
 
 **Error Response Examples:**
 ```json
@@ -231,10 +276,25 @@ curl -X POST http://localhost:8090/gates \
     "name": "checkout-api",
     "live_url": "https://api.production.example.com",
     "shadow_url": "https://api.shadow.example.com",
-    "created_at": "2026-03-29T09:00:00Z"
+    "created_at": "2026-03-29T09:00:00Z",
+    "stats": {
+      "request_count_24h": 5241,
+      "diff_count_24h": 162,
+      "diff_rate": 3.09,
+      "last_active": "2026-03-29T14:32:05Z"
+    }
   }
 }
 ```
+
+**Stats fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `request_count_24h` | `int64` | Request count in the last 24 hours |
+| `diff_count_24h` | `int64` | Number of requests with diffs in the last 24 hours |
+| `diff_rate` | `float64` | `diff_count_24h / request_count_24h * 100`, `0.0` when no requests |
+| `last_active` | `string?` | RFC 3339 timestamp of the most recent request, `null` if no requests |
 
 **Example:**
 ```bash
@@ -274,14 +334,26 @@ curl -H "Authorization: Bearer your-api-key" \
       "name": "checkout-api",
       "live_url": "https://api.production.example.com",
       "shadow_url": "https://api.shadow.example.com",
-      "created_at": "2026-03-29T09:00:00Z"
+      "created_at": "2026-03-29T09:00:00Z",
+      "stats": {
+        "request_count_24h": 5241,
+        "diff_count_24h": 162,
+        "diff_rate": 3.09,
+        "last_active": "2026-03-29T14:32:05Z"
+      }
     },
     {
       "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
       "name": "user-service",
       "live_url": "https://api2.production.example.com",
       "shadow_url": "https://api2.shadow.example.com",
-      "created_at": "2026-03-28T14:30:00Z"
+      "created_at": "2026-03-28T14:30:00Z",
+      "stats": {
+        "request_count_24h": 832,
+        "diff_count_24h": 25,
+        "diff_rate": 3.0,
+        "last_active": "2026-03-29T14:28:00Z"
+      }
     }
   ],
   "pagination": {

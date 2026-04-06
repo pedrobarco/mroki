@@ -1,6 +1,6 @@
 # mroki Roadmap
 
-**Last Updated:** 2026-03-29
+**Last Updated:** 2026-04-06
 
 All completed, pending, and planned work for mroki. Items use a consistent format:
 - `[x]` Complete · `[ ]` Not started
@@ -31,11 +31,11 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 
 ### Gate Statistics
 
-- [ ] **P1** Wire total gates count — Stats bar shows hardcoded `"4"` (`Gates.vue`). Use pagination `total` from API.
-- [ ] **P1** Requests in last 24h — Shows hardcoded `"5,241"` (`GateCard.vue`, `GateDetail.vue`). Add aggregate query.
-- [ ] **P1** Diff count per gate — Shows hardcoded `"162"` (`GateCard.vue`). Add aggregate query.
-- [ ] **P1** Diff rate — Shows hardcoded `"3.1%"` / `"4.2%"` (`GateCard.vue`, `Gates.vue`). Compute `diffs / requests`.
-- [ ] **P2** Last active timestamp — Shows hardcoded `"2 min ago"` (`GateCard.vue`). Derive from latest request.
+- [x] **P1** Wire total gates count — Stats bar wired to `GET /stats` → `total_gates` (`Gates.vue`).
+- [x] **P1** Requests in last 24h — Wired to `gate.stats.request_count_24h` (`GateCard.vue`, `GateDetail.vue`).
+- [x] **P1** Diff count per gate — Wired to `gate.stats.diff_count_24h` (`GateCard.vue`).
+- [x] **P1** Diff rate — Wired to `gate.stats.diff_rate` / `GET /stats` → `total_diff_rate` (`GateCard.vue`, `Gates.vue`).
+- [x] **P2** Last active timestamp — Wired to `gate.stats.last_active` with relative formatting (`GateCard.vue`).
 
 ### Request List Metadata
 
@@ -70,7 +70,7 @@ Pending infrastructure tasks for production readiness.
 
 - [ ] **P1** Request ID middleware — `X-Request-ID` header generation + propagation through logs and proxy.
 - [ ] **P1** Circuit breaker in proxy — Stop retrying when API is down. Use `gobreaker` with 5-failure threshold.
-- [ ] **P1** HTTP connection pooling — Configure `MaxIdleConns`, `IdleConnTimeout` in proxy client.
+- [x] **P1** HTTP connection pooling — Configure `MaxIdleConns`, `IdleConnTimeout` in proxy client.
 - [ ] **P2** Structured error logging — Add request context (method, path, request ID) to all error logs.
 - [ ] **P2** Update API_CONTRACTS.md — Document auth, rate limiting, pagination (currently marked "Planned v2").
 
@@ -102,8 +102,8 @@ Larger capabilities not yet started, organized by priority.
 
 ### Gate Summary Endpoint
 
-- [ ] **P1** `GET /gates/{id}/summary` — Request count (24h), diff count, diff rate, last active. Unblocks most gate statistic wiring gaps above.
-- [ ] **P2** `GET /stats` — Global dashboard: total gates, requests (24h), diff rate.
+- [x] **P1** Embed per-gate stats in gate responses — Stats (`request_count_24h`, `diff_count_24h`, `diff_rate`, `last_active`) embedded in `GET /gates` and `GET /gates/{id}` responses. Replaces the originally planned `GET /gates/{id}/summary` to avoid N+1 calls.
+- [x] **P2** `GET /stats` — Global dashboard: total gates, requests (24h), diff rate.
 
 ### Cross-Gate Request Explorer
 

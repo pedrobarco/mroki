@@ -1,5 +1,7 @@
 # Gate Stats Design
 
+> **Status:** ✅ Implemented (2026-04-06)
+
 This document describes the design for adding statistics to gate responses, covering both per-gate stats and global stats.
 
 ## Problem
@@ -37,10 +39,9 @@ Stats are included as a nested `stats` object on every gate response. No new end
     "shadow_url": "https://shadow.example.com",
     "created_at": "2026-03-15T10:00:00Z",
     "stats": {
-      "total_requests": 1250,
-      "recent_requests": 347,
-      "diff_count": 87,
-      "diff_rate": 6.96,
+      "request_count_24h": 347,
+      "diff_count_24h": 87,
+      "diff_rate": 25.07,
       "last_active": "2026-03-29T14:32:05Z"
     }
   }
@@ -53,11 +54,10 @@ Stats are included as a nested `stats` object on every gate response. No new end
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `total_requests` | `int64` | All-time request count for this gate |
-| `recent_requests` | `int64` | Request count in the last 24 hours |
-| `diff_count` | `int64` | Number of requests that produced a diff |
-| `diff_rate` | `float64` | `diff_count / total_requests * 100`, `0.0` when no requests |
-| `last_active` | `string?` | ISO 8601 timestamp of the most recent request, `null` if no requests |
+| `request_count_24h` | `int64` | Request count in the last 24 hours |
+| `diff_count_24h` | `int64` | Number of requests with diffs in the last 24 hours |
+| `diff_rate` | `float64` | `diff_count_24h / request_count_24h * 100`, `0.0` when no requests |
+| `last_active` | `string?` | RFC 3339 timestamp of the most recent request, `null` if no requests |
 
 ### Global Stats — New Endpoint
 
@@ -69,10 +69,8 @@ Returns cross-gate aggregate statistics for the dashboard stats bar.
 {
   "data": {
     "total_gates": 4,
-    "total_requests": 12847,
-    "recent_requests": 5241,
-    "total_diffs": 576,
-    "diff_rate": 4.48,
+    "total_requests_24h": 5241,
+    "total_diff_rate": 4.48
   }
 }
 ```
@@ -80,10 +78,8 @@ Returns cross-gate aggregate statistics for the dashboard stats bar.
 | Field | Type | Description |
 |-------|------|-------------|
 | `total_gates` | `int64` | Total number of gates |
-| `total_requests` | `int64` | All-time request count across all gates |
-| `recent_requests` | `int64` | Request count in the last 24 hours across all gates |
-| `total_diffs` | `int64` | Total diffs across all gates |
-| `diff_rate` | `float64` | `total_diffs / total_requests * 100` |
+| `total_requests_24h` | `int64` | Request count in the last 24 hours across all gates |
+| `total_diff_rate` | `float64` | `total_diffs_24h / total_requests_24h * 100`, `0.0` when no requests |
 
 **Errors:** Only `500 Internal Server Error` (no user input to validate).
 
@@ -93,20 +89,19 @@ Returns cross-gate aggregate statistics for the dashboard stats bar.
 
 All stats are derived from existing tables. No new schema required.
 
-| Stat | SQL Source |
-|------|-----------|
-| `total_requests` | `COUNT(*) FROM requests WHERE gate_id = ?` |
-| `recent_requests` | `COUNT(*) FROM requests WHERE gate_id = ? AND created_at >= now() - 24h` |
-| `diff_count` | `COUNT(*) FROM diffs d JOIN requests r ON d.request_id = r.id WHERE r.gate_id = ?` |
-| `diff_rate` | Computed in Go: `diff_count / total_requests * 100` |
-| `last_active` | `MAX(created_at) FROM requests WHERE gate_id = ?` |
+| Stat | Source |
+|------|--------|
+| `request_count_24h` | ent: `Request.Query().Where(GateIDIn(...), CreatedAtGTE(since24h)).GroupBy(FieldGateID).Aggregate(Count())` |
+| `diff_count_24h` | ent: `Request.Query().Where(GateIDIn(...), CreatedAtGTE(since24h), HasDiff()).GroupBy(FieldGateID).Aggregate(Count())` |
+| `diff_rate` | Computed in Go: `diff_count_24h / request_count_24h * 100` |
+| `last_active` | ent: `Request.Query().Where(GateIDIn(...)).GroupBy(FieldGateID).Aggregate(Max(FieldCreatedAt))` |
 
 **Existing indexes that support these queries:**
 
 - `requests(gate_id)` — filters by gate
 - `requests(gate_id, created_at)` — time-windowed counts
 
-Global stats use the same queries without the `WHERE gate_id = ?` filter.
+Global stats use similar queries without `GroupBy`/`GateIDIn` — just `Count()` on the full table.
 
 ---
 
@@ -114,45 +109,34 @@ Global stats use the same queries without the `WHERE gate_id = ?` filter.
 
 ### Domain Layer (`internal/domain/traffictesting/`)
 
-Add `GateStats` struct and embed in `Gate`:
+**`gate_stats.go`** — per-gate stats value object:
 
 ```go
-// gate_stats.go
 type GateStats struct {
-    TotalRequests  int64
-    RecentRequests int64
-    DiffCount      int64
-    DiffRate       float64
-    LastActive     *time.Time
+    RequestCount24h int64
+    DiffCount24h    int64
+    DiffRate        float64
+    LastActive      *time.Time
 }
 ```
 
-Add `Stats` field to `Gate` struct:
+**`gate.go`** — `Stats GateStats` field added to `Gate` struct. Zero-valued by default, populated by persistence layer.
+
+**`global_stats.go`** — cross-gate aggregates:
 
 ```go
-// gate.go
-type Gate struct {
-    ID        GateID
-    Name      GateName
-    LiveURL   GateURL
-    ShadowURL GateURL
-    CreatedAt time.Time
-    Stats     GateStats  // zero-valued by default
-
-    Requests []Request
-}
-```
-
-Add `GlobalStats` struct for the `/stats` endpoint:
-
-```go
-// global_stats.go
 type GlobalStats struct {
-    TotalGates     int64
-    TotalRequests  int64
-    RecentRequests int64
-    TotalDiffs     int64
-    DiffRate       float64
+    TotalGates       int64
+    TotalRequests24h int64
+    TotalDiffRate    float64
+}
+```
+
+**`stats_repository.go`** — new interface:
+
+```go
+type StatsRepository interface {
+    GetGlobalStats(ctx context.Context) (*GlobalStats, error)
 }
 ```
 
@@ -160,145 +144,70 @@ No changes to `GateRepository` interface — `GetByID` and `GetAll` populate `St
 
 ### Persistence Layer (`internal/infrastructure/persistence/ent/`)
 
-**`gate_repository.go`** — update `GetByID` and `GetAll`:
+**`gate_repository.go`** — private `attachStats(ctx, []*Gate)` method runs 3 batch ent queries:
 
-1. Fetch gate(s) as before
-2. Collect gate IDs from the result
-3. Run a single batched stats query for all IDs
-4. Attach stats to each domain `Gate`
+1. Request count 24h per gate — `GroupBy(FieldGateID).Aggregate(Count())`
+2. Diff count 24h per gate — same with `HasDiff()` predicate
+3. Last active per gate — `GroupBy(FieldGateID).Aggregate(Max(FieldCreatedAt))`
 
-Private helper on the repository:
+Both `GetByID` and `GetAll` call `attachStats` after fetching gates. Gates with zero requests keep zero-valued stats.
 
-```go
-func (r *gateRepository) queryStats(ctx context.Context, gateIDs []uuid.UUID) (map[uuid.UUID]*traffictesting.GateStats, error) {
-    // Single SQL query:
-    // SELECT r.gate_id, COUNT(*), COUNT(created_at >= ...), COUNT(d.id),
-    //        MAX(r.created_at)
-    // FROM requests r LEFT JOIN diffs d ON d.request_id = r.id
-    // WHERE r.gate_id IN (...)
-    // GROUP BY r.gate_id
-}
-```
-
-- `GetByID`: calls `queryStats` with a single-element slice
-- `GetAll`: calls `queryStats` with all gate IDs from the page
-
-Gates with zero requests will not appear in the stats result — their `GateStats` stays zero-valued.
-
-**Global stats** — add a new repository or a standalone query function (not on `GateRepository`):
-
-```go
-type StatsRepository interface {
-    GetGlobalStats(ctx context.Context) (*traffictesting.GlobalStats, error)
-}
-```
-
-Implementation runs the same aggregate query without a `WHERE gate_id` filter, plus a `COUNT(*)` on the gates table.
+**`stats_repository.go`** — implements `StatsRepository` with 3 simple ent queries (gate count, request count 24h, diff count 24h). DiffRate computed in Go.
 
 ### Application Layer (`internal/application/queries/`)
 
 **No changes** to `GetGateHandler` or `ListGatesHandler` — stats flow through `Gate.Stats` automatically.
 
-**New** `GetGlobalStatsHandler`:
+**`get_global_stats.go`** — thin handler delegating to `StatsRepository.GetGlobalStats`.
 
-```go
-type GetGlobalStatsHandler struct {
-    repo traffictesting.StatsRepository
-}
+### DTO Layer (`pkg/dto/`)
 
-func (h *GetGlobalStatsHandler) Handle(ctx context.Context) (*traffictesting.GlobalStats, error) {
-    return h.repo.GetGlobalStats(ctx)
-}
-```
-
-### DTO Layer (`pkg/dto/gate.go`)
+**`gate.go`** — `GateStats` struct with JSON tags, embedded in `Gate`:
 
 ```go
 type GateStats struct {
-    TotalRequests  int64   `json:"total_requests"`
-    RecentRequests int64   `json:"recent_requests"`
-    DiffCount      int64   `json:"diff_count"`
-    DiffRate       float64 `json:"diff_rate"`
-    LastActive     *string `json:"last_active"`
+    RequestCount24h int64   `json:"request_count_24h"`
+    DiffCount24h    int64   `json:"diff_count_24h"`
+    DiffRate        float64 `json:"diff_rate"`
+    LastActive      *string `json:"last_active"`
 }
+```
 
-// Embedded in existing Gate DTO
-type Gate struct {
-    ID        string    `json:"id"`
-    Name      string    `json:"name"`
-    LiveURL   string    `json:"live_url"`
-    ShadowURL string    `json:"shadow_url"`
-    CreatedAt string    `json:"created_at"`
-    Stats     GateStats `json:"stats"`
-}
+**`stats.go`** — `GlobalStats` struct:
 
+```go
 type GlobalStats struct {
-    TotalGates     int64   `json:"total_gates"`
-    TotalRequests  int64   `json:"total_requests"`
-    RecentRequests int64   `json:"recent_requests"`
-    TotalDiffs     int64   `json:"total_diffs"`
-    DiffRate       float64 `json:"diff_rate"`
+    TotalGates       int64   `json:"total_gates"`
+    TotalRequests24h int64   `json:"total_requests_24h"`
+    TotalDiffRate    float64 `json:"total_diff_rate"`
 }
 ```
 
 ### HTTP Handler Layer (`internal/interfaces/http/handlers/`)
 
-**`gate.go`** — update `mapGateToDTO` to include stats:
+**`gate.go`** — `mapGateToDTO` maps `Gate.Stats` → `dto.GateStats`, formatting `LastActive` as RFC 3339 string pointer.
 
-```go
-func mapGateToDTO(gate *traffictesting.Gate) dto.Gate {
-    var lastActive *string
-    if gate.Stats.LastActive != nil {
-        t := gate.Stats.LastActive.Format(time.RFC3339)
-        lastActive = &t
-    }
-    return dto.Gate{
-        // ... existing fields ...
-        Stats: dto.GateStats{
-            TotalRequests:  gate.Stats.TotalRequests,
-            RecentRequests: gate.Stats.RecentRequests,
-            DiffCount:      gate.Stats.DiffCount,
-            DiffRate:       gate.Stats.DiffRate,
-            LastActive:     lastActive,
-        },
-    }
-}
-```
+**`stats.go`** — `GetGlobalStats` handler for `GET /stats`, returns `dto.Response[dto.GlobalStats]`.
 
-**New `stats.go`** handler for `GET /stats`:
-
-```go
-func GetGlobalStats(handler *queries.GetGlobalStatsHandler) AppHandler {
-    return func(w http.ResponseWriter, r *http.Request) error {
-        stats, err := handler.Handle(r.Context())
-        // ... map to dto.Response[dto.GlobalStats] ...
-    }
-}
-```
-
-**`cmd/mroki-api/main.go`** — register the new route:
-
-```go
-mux.Handle("GET /stats", baseChain.Then(getGlobalStats))
-```
+**`cmd/mroki-api/main.go`** — wires `NewStatsRepository` → `NewGetGlobalStatsHandler` → `GetGlobalStats` handler, registers `GET /stats` route.
 
 ---
 
 ## Frontend Wiring
 
-Once the API returns stats, the frontend changes are:
+All hardcoded dummy data has been replaced with real API data:
 
-| Component | Current | Wired To |
-|-----------|---------|----------|
-| `GateCard.vue` — requests 24h | Hardcoded `"5,241"` | `gate.stats.recent_requests` |
-| `GateCard.vue` — diff count | Hardcoded `"162"` | `gate.stats.diff_count` |
-| `GateCard.vue` — diff rate | Hardcoded `"3.1%"` | `gate.stats.diff_rate` |
-| `GateCard.vue` — last active | Hardcoded `"2 min ago"` | `gate.stats.last_active` |
-| `GateDetail.vue` — requests 24h | Hardcoded `"5,241"` | `gate.stats.recent_requests` |
-| `GateDetail.vue` — diff rate | Hardcoded `"3.1%"` | `gate.stats.diff_rate` |
-| `Gates.vue` — total gates | Hardcoded `"4"` | `globalStats.total_gates` |
-| `Gates.vue` — requests 24h | Hardcoded `"12,847"` | `globalStats.recent_requests` |
-| `Gates.vue` — diff rate | Hardcoded `"4.2%"` | `globalStats.diff_rate` |
+| Component | Wired To |
+|-----------|----------|
+| `GateCard.vue` — requests 24h | `gate.stats.request_count_24h` |
+| `GateCard.vue` — diff count | `gate.stats.diff_count_24h` |
+| `GateCard.vue` — diff rate | `gate.stats.diff_rate` |
+| `GateCard.vue` — last active | `gate.stats.last_active` (formatted as relative time) |
+| `GateDetail.vue` — requests 24h | `gate.stats.request_count_24h` |
+| `GateDetail.vue` — diff rate | `gate.stats.diff_rate` |
+| `Gates.vue` — total gates | `globalStats.total_gates` via `GET /stats` |
+| `Gates.vue` — requests 24h | `globalStats.total_requests_24h` via `GET /stats` |
+| `Gates.vue` — diff rate | `globalStats.total_diff_rate` via `GET /stats` |
 
 ---
 
@@ -306,11 +215,13 @@ Once the API returns stats, the frontend changes are:
 
 ### Current Approach (v1)
 
-Stats are computed on-the-fly from `requests` + `diffs` tables using aggregate queries. Acceptable at current scale.
+Stats are computed on-the-fly from `requests` + `diffs` tables using ent GroupBy aggregate queries. Acceptable at current scale.
 
-- `GetByID`: 1 gate query + 1 stats query (single gate ID)
-- `GetAll`: 1 gate list query + 1 batched stats query (all gate IDs on page)
-- Global stats: 1 aggregate query across all requests
+- `GetByID`: 1 gate query + 3 stats queries (request count, diff count, last active)
+- `GetAll`: 1 gate list query + 1 count query + 3 batched stats queries
+- `GET /stats`: 3 queries (gate count, request count, diff count)
+
+All stats queries are batch-scoped to the gate IDs on the current page — no N+1 from the frontend.
 
 **Indexes already in place:** `requests(gate_id)`, `requests(gate_id, created_at)`.
 
@@ -318,7 +229,7 @@ Stats are computed on-the-fly from `requests` + `diffs` tables using aggregate q
 
 If aggregate queries become a bottleneck at scale, introduce a `gate_stats` table with precomputed counters updated on writes:
 
-- Counters (`total_requests`, `diff_count`) incremented atomically in the `CreateRequest` transaction
+- Counters (`request_count_24h`, `diff_count_24h`) incremented atomically in the `CreateRequest` transaction
 - Timestamps (`last_active`) updated on each write
-- Time-windowed stats (`recent_requests`) either refreshed periodically or kept as the only live-computed stat
+- Time-windowed stats either refreshed periodically or kept as the only live-computed stat
 - Turns read path into a simple `LEFT JOIN` with no aggregation
