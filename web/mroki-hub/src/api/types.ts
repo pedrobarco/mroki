@@ -1,6 +1,25 @@
 // Core API entities matching mroki-api contracts
 
 /**
+ * Gate statistics computed from request/diff data
+ */
+export interface GateStats {
+  request_count_24h: number
+  diff_count_24h: number
+  diff_rate: number
+  last_active: string | null
+}
+
+/**
+ * Global statistics across all gates
+ */
+export interface GlobalStats {
+  total_gates: number
+  total_requests_24h: number
+  total_diff_rate: number
+}
+
+/**
  * Gate represents a live/shadow service pair
  */
 export interface Gate {
@@ -9,6 +28,7 @@ export interface Gate {
   live_url: string
   shadow_url: string
   created_at: string
+  stats: GateStats
 }
 
 /**

@@ -7,29 +7,33 @@ import type { Gate } from '@/api'
 
 interface Props {
   gate: Gate
-  index?: number
 }
 
-const props = withDefaults(defineProps<Props>(), { index: 0 })
+const props = defineProps<Props>()
 const router = useRouter()
 
 function handleClick() {
   router.push(`/gates/${props.gate.id}`)
 }
 
-// Dummy metadata derived from gate properties (not available in API yet)
-const dummyRequests = ['5,241', '4,832', '2,774', '0']
-const dummyDiffs = ['162', '328', '39', '0']
-const dummyRates = ['3.1%', '6.8%', '1.4%', '0%']
-const dummyLastActive = ['2 min ago', '5 min ago', '12 min ago', 'Paused']
+function formatRelativeTime(isoString: string | null): string {
+  if (!isoString) return 'Never'
+  const diff = Date.now() - new Date(isoString).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins} min ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
 
-const idx = computed(() => props.index % dummyRequests.length)
 const gateName = computed(() => props.gate.name)
-const requests24h = computed(() => dummyRequests[idx.value])
-const diffs = computed(() => dummyDiffs[idx.value])
-const diffRate = computed(() => dummyRates[idx.value])
-const lastActive = computed(() => dummyLastActive[idx.value])
-const isActive = computed(() => lastActive.value !== 'Paused')
+const requests24h = computed(() => props.gate.stats.request_count_24h.toLocaleString())
+const diffs = computed(() => props.gate.stats.diff_count_24h.toLocaleString())
+const diffRate = computed(() => `${props.gate.stats.diff_rate.toFixed(1)}%`)
+const lastActive = computed(() => formatRelativeTime(props.gate.stats.last_active))
+const isActive = computed(() => props.gate.stats.last_active !== null)
 </script>
 
 <template>

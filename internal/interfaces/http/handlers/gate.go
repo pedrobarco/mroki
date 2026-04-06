@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/pedrobarco/mroki/internal/application/commands"
 	"github.com/pedrobarco/mroki/internal/application/queries"
@@ -187,11 +188,23 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 
 
 func mapGateToDTO(gate *traffictesting.Gate) dto.Gate {
+	var lastActive *string
+	if gate.Stats.LastActive != nil {
+		t := gate.Stats.LastActive.Format(time.RFC3339)
+		lastActive = &t
+	}
+
 	return dto.Gate{
 		ID:        gate.ID.String(),
 		Name:      gate.Name.String(),
 		LiveURL:   gate.LiveURL.String(),
 		ShadowURL: gate.ShadowURL.String(),
 		CreatedAt: gate.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Stats: dto.GateStats{
+			RequestCount24h: gate.Stats.RequestCount24h,
+			DiffCount24h:    gate.Stats.DiffCount24h,
+			DiffRate:        gate.Stats.DiffRate,
+			LastActive:      lastActive,
+		},
 	}
 }

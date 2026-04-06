@@ -17,6 +17,12 @@ function makeGate(overrides: Partial<Gate> = {}): Gate {
     live_url: 'https://live.example.com',
     shadow_url: 'https://shadow.example.com',
     created_at: '2026-03-29T09:00:00Z',
+    stats: {
+      request_count_24h: 0,
+      diff_count_24h: 0,
+      diff_rate: 0,
+      last_active: null,
+    },
     ...overrides,
   }
 }

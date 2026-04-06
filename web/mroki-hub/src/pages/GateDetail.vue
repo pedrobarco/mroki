@@ -11,10 +11,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, Settings, Pause } from 'lucide-vue-next'
 
-// Dummy metadata (not available in API yet)
-const dummyRequests24h = '5,241'
-const dummyDiffRate = '3.1%'
-
 const route = useRoute()
 const router = useRouter()
 const { setGate: cacheGate } = useGateCache()
@@ -160,11 +156,13 @@ onMounted(() => {
           </div>
           <div>
             <span class="text-dim">Requests 24h</span>
-            <span class="text-muted-foreground ml-1">{{ dummyRequests24h }}</span>
+            <span class="text-muted-foreground ml-1">{{
+              gate.stats.request_count_24h.toLocaleString()
+            }}</span>
           </div>
           <div>
             <span class="text-dim">Diff rate</span>
-            <span class="text-warning ml-1">{{ dummyDiffRate }}</span>
+            <span class="text-warning ml-1">{{ gate.stats.diff_rate.toFixed(1) }}%</span>
           </div>
         </div>
       </div>

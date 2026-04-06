@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { getGlobalStats } from '@/api'
+import type { GlobalStats } from '@/api'
 import GateList from '@/components/gates/GateList.vue'
 import GateForm from '@/components/gates/GateForm.vue'
 import GateFilters from '@/components/gates/GateFilters.vue'
@@ -24,21 +26,41 @@ const filters = reactive<GateFilterState>({
   order: 'desc',
 })
 
-const stats = [
-  { label: 'TOTAL GATES', value: '4' },
-  { label: 'REQUESTS (24H)', value: '12,847' },
-  { label: 'DIFF RATE', value: '4.2%', highlight: true },
-]
+const globalStats = ref<GlobalStats | null>(null)
+
+const stats = computed(() => [
+  { label: 'TOTAL GATES', value: globalStats.value?.total_gates.toLocaleString() ?? '—' },
+  { label: 'REQUESTS (24H)', value: globalStats.value?.total_requests_24h.toLocaleString() ?? '—' },
+  {
+    label: 'DIFF RATE',
+    value: globalStats.value ? `${globalStats.value.total_diff_rate.toFixed(1)}%` : '—',
+    highlight: true,
+  },
+])
 const listKey = ref(0)
+
+async function loadStats() {
+  try {
+    const response = await getGlobalStats()
+    globalStats.value = response.data
+  } catch {
+    // Stats are non-critical; leave as null
+  }
+}
 
 function handleGateCreated() {
   dialogOpen.value = false
   listKey.value++ // Force GateList to reload
+  loadStats() // Refresh stats after gate creation
 }
 
 function onFiltersUpdate(newFilters: GateFilterState) {
   Object.assign(filters, newFilters)
 }
+
+onMounted(() => {
+  loadStats()
+})
 </script>
 
 <template>

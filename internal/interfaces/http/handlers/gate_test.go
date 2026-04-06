@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/pedrobarco/mroki/internal/application/commands"
 	"github.com/pedrobarco/mroki/internal/application/queries"
@@ -238,6 +239,72 @@ func TestGetGateByID_Success(t *testing.T) {
 
 	if response.Data.ID != gateID.String() {
 		t.Errorf("expected ID %s, got %s", gateID.String(), response.Data.ID)
+	}
+
+	// Verify stats field is present (zero values since domain object has no stats set)
+	if response.Data.Stats.RequestCount24h != 0 {
+		t.Errorf("expected RequestCount24h 0, got %d", response.Data.Stats.RequestCount24h)
+	}
+	if response.Data.Stats.DiffCount24h != 0 {
+		t.Errorf("expected DiffCount24h 0, got %d", response.Data.Stats.DiffCount24h)
+	}
+	if response.Data.Stats.DiffRate != 0 {
+		t.Errorf("expected DiffRate 0, got %f", response.Data.Stats.DiffRate)
+	}
+	if response.Data.Stats.LastActive != nil {
+		t.Errorf("expected LastActive nil, got %v", response.Data.Stats.LastActive)
+	}
+}
+
+func TestGetGateByID_StatsPopulated(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+	name, _ := traffictesting.ParseGateName("stats-gate")
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	expectedGate, _ := traffictesting.NewGate(name, liveURL, shadowURL, traffictesting.WithGateID(gateID))
+
+	lastActive := time.Now()
+	expectedGate.Stats = traffictesting.GateStats{
+		RequestCount24h: 100,
+		DiffCount24h:    25,
+		DiffRate:        25.0,
+		LastActive:      &lastActive,
+	}
+
+	repo := &mockGateRepository{
+		getByIDFunc: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			return expectedGate, nil
+		},
+	}
+	handler := queries.NewGetGateHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/gates/"+gateID.String(), nil)
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := GetGateByID(handler)
+	err := appHandler(rec, req)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var response dto.Response[dto.Gate]
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Data.Stats.RequestCount24h != 100 {
+		t.Errorf("expected RequestCount24h 100, got %d", response.Data.Stats.RequestCount24h)
+	}
+	if response.Data.Stats.DiffCount24h != 25 {
+		t.Errorf("expected DiffCount24h 25, got %d", response.Data.Stats.DiffCount24h)
+	}
+	if response.Data.Stats.DiffRate != 25.0 {
+		t.Errorf("expected DiffRate 25.0, got %f", response.Data.Stats.DiffRate)
+	}
+	if response.Data.Stats.LastActive == nil {
+		t.Fatal("expected LastActive to be non-nil")
 	}
 }
 

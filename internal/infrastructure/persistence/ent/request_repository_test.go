@@ -17,6 +17,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newTestRequestWithoutDiff(t *testing.T, gateID traffictesting.GateID) *traffictesting.Request {
+	t.Helper()
+	method, _ := traffictesting.NewHTTPMethod("GET")
+	path, _ := traffictesting.ParsePath("/api/test")
+
+	return &traffictesting.Request{
+		ID:        traffictesting.NewRequestID(),
+		GateID:    gateID,
+		Method:    method,
+		Path:      path,
+		Headers:   traffictesting.NewHeaders(http.Header{}),
+		Body:      []byte{},
+		CreatedAt: time.Now(),
+	}
+}
+
 func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.Request {
 	t.Helper()
 	method, _ := traffictesting.NewHTTPMethod("POST")

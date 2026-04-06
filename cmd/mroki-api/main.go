@@ -61,6 +61,7 @@ func main() {
 	// Infrastructure Layer: Repository implementations
 	gateRepo := ent.NewGateRepository(client)
 	reqRepo := ent.NewRequestRepository(client)
+	statsRepo := ent.NewStatsRepository(client)
 
 	// Application Layer: Command Handlers (Write operations)
 	createGateHandler := commands.NewCreateGateHandler(gateRepo)
@@ -71,6 +72,7 @@ func main() {
 	listGatesHandler := queries.NewListGatesHandler(gateRepo)
 	getRequestHandler := queries.NewGetRequestHandler(reqRepo)
 	listRequestsHandler := queries.NewListRequestsHandler(reqRepo)
+	getGlobalStatsHandler := queries.NewGetGlobalStatsHandler(statsRepo)
 
 	// Auth error handler maps middleware errors to dto errors
 	handleAuthError := func(w http.ResponseWriter, r *http.Request, err error) {
@@ -149,6 +151,7 @@ func main() {
 	createRequest := handlers.CreateRequest(createRequestHandler)
 	getRequestByID := handlers.GetRequestByID(getRequestHandler)
 	getAllRequestsByGateID := handlers.GetAllRequestsByGateID(listRequestsHandler)
+	getGlobalStats := handlers.GetGlobalStats(getGlobalStatsHandler)
 
 	mux := http.NewServeMux()
 
@@ -157,6 +160,7 @@ func main() {
 	mux.Handle("GET /health/ready", handlers.Readiness(healthChecker{db: db}))
 
 	// API endpoints (with middleware)
+	mux.Handle("GET /stats", baseChain.Then(getGlobalStats))
 	mux.Handle("GET /gates", baseChain.Then(getAllGates))
 	mux.Handle("POST /gates", postChain.Then(createGate))
 	mux.Handle("GET /gates/{gate_id}", baseChain.Then(getGateByID))

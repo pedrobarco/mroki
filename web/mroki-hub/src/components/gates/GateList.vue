@@ -110,7 +110,7 @@ onMounted(() => {
     <!-- Gates List -->
     <div v-else>
       <div class="space-y-3">
-        <GateCard v-for="(gate, i) in gates" :key="gate.id" :gate="gate" :index="i" />
+        <GateCard v-for="gate in gates" :key="gate.id" :gate="gate" />
       </div>
 
       <!-- Pagination Controls -->

@@ -1,6 +1,7 @@
 import { request } from './client'
 import type {
   Gate,
+  GlobalStats,
   ApiResponse,
   PaginatedResponse,
   CreateGatePayload,
@@ -82,4 +83,17 @@ export async function createGate(payload: CreateGatePayload): Promise<ApiRespons
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+/**
+ * Get global statistics across all gates
+ *
+ * @returns Global stats (total gates, requests 24h, diff rate)
+ *
+ * @example
+ * const response = await getGlobalStats()
+ * console.log(response.data.total_requests_24h)
+ */
+export async function getGlobalStats(): Promise<ApiResponse<GlobalStats>> {
+  return request<ApiResponse<GlobalStats>>('/stats')
 }
