@@ -53,11 +53,10 @@ export interface Request {
 }
 
 /**
- * Response represents a single HTTP response (live or shadow)
+ * Response represents a single HTTP response with full details
  */
 export interface Response {
   id: string
-  type: 'live' | 'shadow'
   status_code: number
   headers: Record<string, string[]>
   body: string
@@ -90,7 +89,8 @@ export interface RequestDetail {
   method: string
   path: string
   created_at: string
-  responses: Response[]
+  live_response: Response
+  shadow_response: Response
   diff: Diff
 }
 

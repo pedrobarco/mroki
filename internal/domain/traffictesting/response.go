@@ -1,31 +1,13 @@
 package traffictesting
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-type ResponseType string
-
-const (
-	ResponseTypeLive   ResponseType = "live"
-	ResponseTypeShadow ResponseType = "shadow"
-)
-
-func NewResponseType(s string) (ResponseType, error) {
-	switch s {
-	case string(ResponseTypeLive), string(ResponseTypeShadow):
-		return ResponseType(s), nil
-	default:
-		return "", fmt.Errorf("invalid response type: %s", s)
-	}
-}
-
 type Response struct {
 	ID         uuid.UUID
-	Type       ResponseType
 	StatusCode StatusCode
 	Headers    Headers
 	Body       []byte
@@ -33,25 +15,23 @@ type Response struct {
 	CreatedAt  time.Time
 }
 
-type responseOption func(*Response)
+type ResponseOption func(*Response)
 
-func WithResponseID(id uuid.UUID) responseOption {
+func WithResponseID(id uuid.UUID) ResponseOption {
 	return func(r *Response) {
 		r.ID = id
 	}
 }
 
 func NewResponse(
-	responseType ResponseType,
 	statusCode StatusCode,
 	headers Headers,
 	body []byte,
 	latencyMs int64,
 	createdAt time.Time,
-	opts ...responseOption,
+	opts ...ResponseOption,
 ) (*Response, error) {
 	response := &Response{
-		Type:       responseType,
 		StatusCode: statusCode,
 		Headers:    headers,
 		Body:       body,

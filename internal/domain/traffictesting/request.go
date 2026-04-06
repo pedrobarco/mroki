@@ -15,8 +15,9 @@ type Request struct {
 	Body      []byte
 	CreatedAt time.Time
 
-	Responses []Response
-	Diff      Diff
+	LiveResponse   Response
+	ShadowResponse Response
+	Diff           Diff
 }
 
 type requestOption func(*Request)
@@ -34,19 +35,21 @@ func NewRequest(
 	headers Headers,
 	body []byte,
 	createdAt time.Time,
-	responses []Response,
+	liveResponse Response,
+	shadowResponse Response,
 	diff Diff,
 	opts ...requestOption,
 ) (*Request, error) {
 	request := &Request{
-		GateID:    gateID,
-		Method:    method,
-		Path:      path,
-		Headers:   headers,
-		Body:      body,
-		CreatedAt: createdAt,
-		Responses: responses,
-		Diff:      diff,
+		GateID:         gateID,
+		Method:         method,
+		Path:           path,
+		Headers:        headers,
+		Body:           body,
+		CreatedAt:      createdAt,
+		LiveResponse:   liveResponse,
+		ShadowResponse: shadowResponse,
+		Diff:           diff,
 	}
 
 	for _, o := range opts {

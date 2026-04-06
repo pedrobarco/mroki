@@ -45,7 +45,8 @@ func TestGetRequestHandler_Handle_success(t *testing.T) {
 		traffictesting.NewHeaders(map[string][]string{"Content-Type": {"application/json"}}),
 		[]byte(`{"test":"data"}`),
 		time.Now(),
-		[]traffictesting.Response{},
+		traffictesting.Response{},
+		traffictesting.Response{},
 		traffictesting.Diff{},
 	)
 	expectedRequest.ID = requestID

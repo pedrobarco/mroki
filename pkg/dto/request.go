@@ -19,16 +19,16 @@ type CreateRequestPayload struct {
 	CreatedAt time.Time           `json:"created_at"`   // When request was captured
 
 	// Responses from both services
-	Responses []ResponsePayload `json:"responses"` // Always 2: live + shadow
+	LiveResponse   ResponsePayload `json:"live_response"`
+	ShadowResponse ResponsePayload `json:"shadow_response"`
 
 	// Computed diff (optional — if omitted, mroki-api computes it server-side)
 	Diff *DiffPayload `json:"diff,omitempty"`
 }
 
-// ResponsePayload represents a single HTTP response (live or shadow).
+// ResponsePayload represents a single HTTP response.
 type ResponsePayload struct {
 	ID         string              `json:"id,omitempty"` // Optional
-	Type       string              `json:"type"`         // "live" or "shadow"
 	StatusCode int                 `json:"status_code"`  // e.g., 200, 404, 500
 	Headers    map[string][]string `json:"headers"`      // Response headers
 	Body       string              `json:"body"`         // Base64 encoded
@@ -65,14 +65,14 @@ type RequestDetail struct {
 	Path      string    `json:"path"`
 	CreatedAt time.Time `json:"created_at"`
 
-	Responses []ResponseDetail `json:"responses"`
-	Diff      DiffDetail       `json:"diff"`
+	LiveResponse   ResponseDetail `json:"live_response"`
+	ShadowResponse ResponseDetail `json:"shadow_response"`
+	Diff           DiffDetail     `json:"diff"`
 }
 
 // ResponseDetail represents a response with full details (used in request detail view).
 type ResponseDetail struct {
 	ID         string      `json:"id"`
-	Type       string      `json:"type"`
 	StatusCode int         `json:"status_code"`
 	Headers    http.Header `json:"headers"`
 	Body       string      `json:"body"`

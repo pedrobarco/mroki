@@ -35,19 +35,22 @@ func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 			Headers:   req.Headers,
 			Body:      []byte(req.Body),
 			CreatedAt: req.CreatedAt,
-		}
-
-		// Map responses
-		for _, resp := range req.Responses {
-			cmd.Responses = append(cmd.Responses, commands.CreateRequestResponseProps{
-				ID:         resp.ID,
-				Type:       resp.Type,
-				StatusCode: resp.StatusCode,
-				Headers:    resp.Headers,
-				Body:       []byte(resp.Body),
-				LatencyMs:  resp.LatencyMs,
-				CreatedAt:  resp.CreatedAt,
-			})
+			LiveResponse: commands.CreateRequestResponseProps{
+				ID:         req.LiveResponse.ID,
+				StatusCode: req.LiveResponse.StatusCode,
+				Headers:    req.LiveResponse.Headers,
+				Body:       []byte(req.LiveResponse.Body),
+				LatencyMs:  req.LiveResponse.LatencyMs,
+				CreatedAt:  req.LiveResponse.CreatedAt,
+			},
+			ShadowResponse: commands.CreateRequestResponseProps{
+				ID:         req.ShadowResponse.ID,
+				StatusCode: req.ShadowResponse.StatusCode,
+				Headers:    req.ShadowResponse.Headers,
+				Body:       []byte(req.ShadowResponse.Body),
+				LatencyMs:  req.ShadowResponse.LatencyMs,
+				CreatedAt:  req.ShadowResponse.CreatedAt,
+			},
 		}
 
 		// Diff is optional — if provided by the proxy, pass it through;
@@ -227,53 +230,44 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 }
 
 func toRequestResponseDTO(req *traffictesting.Request) dto.Request {
-	result := dto.Request{
+	return dto.Request{
 		ID:        req.ID.String(),
 		Method:    req.Method.String(),
 		Path:      req.Path.String(),
 		CreatedAt: req.CreatedAt,
-		HasDiff:   !req.Diff.IsZero(),
+		LiveResponse: &dto.ResponseSummary{
+			StatusCode: req.LiveResponse.StatusCode.Int(),
+			LatencyMs:  req.LiveResponse.LatencyMs,
+		},
+		ShadowResponse: &dto.ResponseSummary{
+			StatusCode: req.ShadowResponse.StatusCode.Int(),
+			LatencyMs:  req.ShadowResponse.LatencyMs,
+		},
+		HasDiff: !req.Diff.IsZero(),
 	}
+}
 
-	for _, resp := range req.Responses {
-		summary := &dto.ResponseSummary{
-			StatusCode: resp.StatusCode.Int(),
-			LatencyMs:  resp.LatencyMs,
-		}
-		switch resp.Type {
-		case traffictesting.ResponseTypeLive:
-			result.LiveResponse = summary
-		case traffictesting.ResponseTypeShadow:
-			result.ShadowResponse = summary
-		}
+func mapResponseDetail(resp traffictesting.Response) dto.ResponseDetail {
+	return dto.ResponseDetail{
+		ID:         resp.ID.String(),
+		StatusCode: resp.StatusCode.Int(),
+		Headers:    resp.Headers.HTTPHeader(),
+		Body:       string(resp.Body),
+		LatencyMs:  resp.LatencyMs,
+		CreatedAt:  resp.CreatedAt,
 	}
-
-	return result
 }
 
 func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
-	result := dto.RequestDetail{
-		ID:        req.ID.String(),
-		Method:    req.Method.String(),
-		Path:      req.Path.String(),
-		CreatedAt: req.CreatedAt,
+	return dto.RequestDetail{
+		ID:             req.ID.String(),
+		Method:         req.Method.String(),
+		Path:           req.Path.String(),
+		CreatedAt:      req.CreatedAt,
+		LiveResponse:   mapResponseDetail(req.LiveResponse),
+		ShadowResponse: mapResponseDetail(req.ShadowResponse),
+		Diff: dto.DiffDetail{
+			Content: req.Diff.Content,
+		},
 	}
-
-	for _, resp := range req.Responses {
-		result.Responses = append(result.Responses, dto.ResponseDetail{
-			ID:         resp.ID.String(),
-			Type:       string(resp.Type),
-			StatusCode: resp.StatusCode.Int(),
-			Headers:    resp.Headers.HTTPHeader(),
-			Body:       string(resp.Body),
-			LatencyMs:  resp.LatencyMs,
-			CreatedAt:  resp.CreatedAt,
-		})
-	}
-
-	result.Diff = dto.DiffDetail{
-		Content: req.Diff.Content,
-	}
-
-	return result
 }

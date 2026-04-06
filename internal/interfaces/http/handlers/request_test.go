@@ -65,21 +65,17 @@ func TestCreateRequest_Success(t *testing.T) {
 		"headers":    map[string][]string{"Content-Type": {"application/json"}},
 		"body":       "test body",
 		"created_at": now.Format(time.RFC3339Nano),
-		"responses": []map[string]interface{}{
-			{
-				"type":        "live",
-				"status_code": 200,
-				"headers":     map[string][]string{"Content-Type": {"application/json"}},
-				"body":        "response 1",
-				"created_at":  now.Format(time.RFC3339Nano),
-			},
-			{
-				"type":        "shadow",
-				"status_code": 200,
-				"headers":     map[string][]string{"Content-Type": {"application/json"}},
-				"body":        "response 2",
-				"created_at":  now.Format(time.RFC3339Nano),
-			},
+		"live_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{"Content-Type": {"application/json"}},
+			"body":        "response 1",
+			"created_at":  now.Format(time.RFC3339Nano),
+		},
+		"shadow_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{"Content-Type": {"application/json"}},
+			"body":        "response 2",
+			"created_at":  now.Format(time.RFC3339Nano),
 		},
 		"diff": map[string]interface{}{
 			"content": []map[string]interface{}{
@@ -143,21 +139,17 @@ func TestCreateRequest_Success_WithoutDiff(t *testing.T) {
 		"headers":    map[string][]string{"Content-Type": {"application/json"}},
 		"body":       "",
 		"created_at": now.Format(time.RFC3339Nano),
-		"responses": []map[string]interface{}{
-			{
-				"type":        "live",
-				"status_code": 200,
-				"headers":     map[string][]string{"Content-Type": {"application/json"}},
-				"body":        liveBody,
-				"created_at":  now.Format(time.RFC3339Nano),
-			},
-			{
-				"type":        "shadow",
-				"status_code": 200,
-				"headers":     map[string][]string{"Content-Type": {"application/json"}},
-				"body":        shadowBody,
-				"created_at":  now.Format(time.RFC3339Nano),
-			},
+		"live_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{"Content-Type": {"application/json"}},
+			"body":        liveBody,
+			"created_at":  now.Format(time.RFC3339Nano),
+		},
+		"shadow_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{"Content-Type": {"application/json"}},
+			"body":        shadowBody,
+			"created_at":  now.Format(time.RFC3339Nano),
 		},
 		// No "diff" field — server computes it
 	}
@@ -346,7 +338,6 @@ func TestGetRequestByID_Success(t *testing.T) {
 
 	statusCode, _ := traffictesting.ParseStatusCode(200)
 	liveResp, _ := traffictesting.NewResponse(
-		traffictesting.ResponseTypeLive,
 		statusCode,
 		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
 		[]byte("live body"),
@@ -354,7 +345,6 @@ func TestGetRequestByID_Success(t *testing.T) {
 		time.Now(),
 	)
 	shadowResp, _ := traffictesting.NewResponse(
-		traffictesting.ResponseTypeShadow,
 		statusCode,
 		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
 		[]byte("shadow body"),
@@ -362,7 +352,7 @@ func TestGetRequestByID_Success(t *testing.T) {
 		time.Now(),
 	)
 
-	diff, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{{Op: "replace", Path: "/status", Value: "error"}})
+	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{{Op: "replace", Path: "/status", Value: "error"}})
 	method, _ := traffictesting.NewHTTPMethod("GET")
 	path, _ := traffictesting.ParsePath("/test")
 	expectedRequest, _ := traffictesting.NewRequest(
@@ -372,8 +362,9 @@ func TestGetRequestByID_Success(t *testing.T) {
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte("request body"),
 		time.Now(),
-		[]traffictesting.Response{*liveResp, *shadowResp},
-		*diff,
+		*liveResp,
+		*shadowResp,
+		*d,
 		traffictesting.WithRequestID(requestID),
 	)
 
@@ -415,8 +406,17 @@ func TestGetRequestByID_Success(t *testing.T) {
 		t.Errorf("expected ID %s, got %s", requestID.String(), response.Data.ID)
 	}
 
-	if len(response.Data.Responses) != 2 {
-		t.Errorf("expected 2 responses, got %d", len(response.Data.Responses))
+	if response.Data.LiveResponse.StatusCode != 200 {
+		t.Errorf("expected live status code 200, got %d", response.Data.LiveResponse.StatusCode)
+	}
+	if response.Data.ShadowResponse.StatusCode != 200 {
+		t.Errorf("expected shadow status code 200, got %d", response.Data.ShadowResponse.StatusCode)
+	}
+	if response.Data.LiveResponse.LatencyMs != 142 {
+		t.Errorf("expected live latency 142, got %d", response.Data.LiveResponse.LatencyMs)
+	}
+	if response.Data.ShadowResponse.LatencyMs != 187 {
+		t.Errorf("expected shadow latency 187, got %d", response.Data.ShadowResponse.LatencyMs)
 	}
 }
 
@@ -595,10 +595,9 @@ func TestGetAllRequestsByGateID_Success(t *testing.T) {
 func TestGetAllRequestsByGateID_WithoutDiff(t *testing.T) {
 	gateID := traffictesting.NewGateID()
 
-	statusCode, _ := traffictesting.ParseStatusCode(404)
+	liveStatusCode, _ := traffictesting.ParseStatusCode(404)
 	liveResp, _ := traffictesting.NewResponse(
-		traffictesting.ResponseTypeLive,
-		statusCode,
+		liveStatusCode,
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
 		int64(30),
@@ -606,7 +605,6 @@ func TestGetAllRequestsByGateID_WithoutDiff(t *testing.T) {
 	)
 	shadowStatusCode, _ := traffictesting.ParseStatusCode(500)
 	shadowResp, _ := traffictesting.NewResponse(
-		traffictesting.ResponseTypeShadow,
 		shadowStatusCode,
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
@@ -621,7 +619,8 @@ func TestGetAllRequestsByGateID_WithoutDiff(t *testing.T) {
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
 		time.Now(),
-		[]traffictesting.Response{*liveResp, *shadowResp},
+		*liveResp,
+		*shadowResp,
 		traffictesting.Diff{}, // no diff
 	)
 
@@ -779,7 +778,6 @@ func TestGetAllRequestsByGateID_InvalidPagination(t *testing.T) {
 func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, error) {
 	statusCode, _ := traffictesting.ParseStatusCode(200)
 	liveResp, _ := traffictesting.NewResponse(
-		traffictesting.ResponseTypeLive,
 		statusCode,
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
@@ -787,7 +785,6 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 		time.Now(),
 	)
 	shadowResp, _ := traffictesting.NewResponse(
-		traffictesting.ResponseTypeShadow,
 		statusCode,
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
@@ -795,7 +792,7 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 		time.Now(),
 	)
 
-	diff, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{})
+	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{})
 	method, _ := traffictesting.NewHTTPMethod("GET")
 	path, _ := traffictesting.ParsePath("/test")
 	return traffictesting.NewRequest(
@@ -805,7 +802,8 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
 		time.Now(),
-		[]traffictesting.Response{*liveResp, *shadowResp},
-		*diff,
+		*liveResp,
+		*shadowResp,
+		*d,
 	)
 }

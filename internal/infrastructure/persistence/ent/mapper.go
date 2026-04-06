@@ -80,7 +80,6 @@ func mapResponseToDomain(raw *ent.Response) (traffictesting.Response, error) {
 
 	return traffictesting.Response{
 		ID:         raw.ID,
-		Type:       traffictesting.ResponseType(raw.Type),
 		StatusCode: statusCode,
 		Headers:    headers,
 		Body:       raw.Body,

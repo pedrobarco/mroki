@@ -8,27 +8,28 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 // CreateRequestCommand represents the intent to create a new request with responses and diff
 type CreateRequestCommand struct {
-	ID        string
-	GateID    string
-	Method    string
-	Path      string
-	Headers   map[string][]string
-	Body      []byte
-	CreatedAt time.Time
-	Responses []CreateRequestResponseProps
-	Diff      *CreateRequestDiffProps // Optional: if nil, diff is computed server-side
+	ID             string
+	GateID         string
+	Method         string
+	Path           string
+	Headers        map[string][]string
+	Body           []byte
+	CreatedAt      time.Time
+	LiveResponse   CreateRequestResponseProps
+	ShadowResponse CreateRequestResponseProps
+	Diff           *CreateRequestDiffProps // Optional: if nil, diff is computed server-side
 }
 
 // CreateRequestResponseProps represents response data in the command
 type CreateRequestResponseProps struct {
 	ID         string
-	Type       string
 	StatusCode int
 	Headers    http.Header
 	Body       []byte
@@ -80,64 +81,24 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		return nil, err
 	}
 
-	// Parse and create responses
-	var live, shadow *traffictesting.Response
-	var responses []traffictesting.Response
-	for i, dto := range cmd.Responses {
-		// Parse response type
-		rtype, err := traffictesting.NewResponseType(dto.Type)
-		if err != nil {
-			return nil, fmt.Errorf("response %d: invalid response type: %w", i, err)
-		}
-
-		// Parse status code
-		statusCode, err := traffictesting.ParseStatusCode(dto.StatusCode)
-		if err != nil {
-			return nil, fmt.Errorf("response %d: %w", i, err)
-		}
-
-		// Create response with value objects
-		resp, err := traffictesting.NewResponse(
-			rtype,
-			statusCode,
-			traffictesting.NewHeaders(dto.Headers),
-			dto.Body,
-			dto.LatencyMs,
-			dto.CreatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("response %d: failed to create response: %w", i, err)
-		}
-		responses = append(responses, *resp)
-
-		switch resp.Type {
-		case traffictesting.ResponseTypeLive:
-			live = resp
-		case traffictesting.ResponseTypeShadow:
-			shadow = resp
-		}
+	// Parse and create live response
+	live, err := buildResponse(cmd.LiveResponse)
+	if err != nil {
+		return nil, fmt.Errorf("live response: %w", err)
 	}
 
-	if len(responses) != 2 {
-		return nil, fmt.Errorf("exactly two responses are required, got %d", len(responses))
-	}
-
-	if live == nil {
-		return nil, fmt.Errorf("live response is required")
-	}
-
-	if shadow == nil {
-		return nil, fmt.Errorf("shadow response is required")
+	// Parse and create shadow response
+	shadow, err := buildResponse(cmd.ShadowResponse)
+	if err != nil {
+		return nil, fmt.Errorf("shadow response: %w", err)
 	}
 
 	// Compute or use provided diff content
 	var diffContent []diff.PatchOp
 	if cmd.Diff != nil {
-		// Agent provided pre-computed diff (backward compatibility)
 		diffContent = cmd.Diff.Content
 	} else {
-		// Compute diff server-side from response bodies
-		computed, err := computeDiff(cmd.Responses)
+		computed, err := computeDiff(cmd.LiveResponse, cmd.ShadowResponse)
 		if err != nil {
 			// Diff computation errors are non-fatal — store empty diff
 			diffContent = []diff.PatchOp{}
@@ -159,7 +120,8 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		traffictesting.NewHeaders(cmd.Headers),
 		cmd.Body,
 		cmd.CreatedAt,
-		responses,
+		*live,
+		*shadow,
 		*d,
 	)
 	if err != nil {
@@ -180,24 +142,36 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 }
 
 
+// buildResponse creates a domain Response from command props.
+func buildResponse(props CreateRequestResponseProps) (*traffictesting.Response, error) {
+	statusCode, err := traffictesting.ParseStatusCode(props.StatusCode)
+	if err != nil {
+		return nil, err
+	}
+
+	opts := []traffictesting.ResponseOption{}
+	if props.ID != "" {
+		id, err := uuid.Parse(props.ID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid response ID: %w", err)
+		}
+		opts = append(opts, traffictesting.WithResponseID(id))
+	}
+
+	return traffictesting.NewResponse(
+		statusCode,
+		traffictesting.NewHeaders(props.Headers),
+		props.Body,
+		props.LatencyMs,
+		props.CreatedAt,
+		opts...,
+	)
+}
+
 // computeDiff computes a JSON diff between live and shadow response bodies.
 // Response bodies are expected to be base64-encoded JSON strings.
 // Returns RFC 6902 JSON Patch operations describing the differences.
-func computeDiff(responses []CreateRequestResponseProps) ([]diff.PatchOp, error) {
-	var live, shadow *CreateRequestResponseProps
-	for i := range responses {
-		switch responses[i].Type {
-		case "live":
-			live = &responses[i]
-		case "shadow":
-			shadow = &responses[i]
-		}
-	}
-
-	if live == nil || shadow == nil {
-		return nil, fmt.Errorf("both live and shadow responses are required for diff computation")
-	}
-
+func computeDiff(live, shadow CreateRequestResponseProps) ([]diff.PatchOp, error) {
 	// Decode base64 bodies
 	liveBody, err := base64.StdEncoding.DecodeString(string(live.Body))
 	if err != nil {

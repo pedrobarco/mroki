@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/ent"
 	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/predicate"
@@ -44,9 +45,13 @@ func (r *requestRepository) Save(ctx context.Context, req *traffictesting.Reques
 		return err
 	}
 
-	if err := r.saveResponses(ctx, tx, req); err != nil {
+	if err := r.saveResponse(ctx, tx, req.ID.UUID(), req.LiveResponse, "live"); err != nil {
 		_ = tx.Rollback()
-		return err
+		return fmt.Errorf("failed to save live response: %w", err)
+	}
+	if err := r.saveResponse(ctx, tx, req.ID.UUID(), req.ShadowResponse, "shadow"); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("failed to save shadow response: %w", err)
 	}
 
 	if err := r.saveDiff(ctx, tx, req); err != nil {
@@ -76,20 +81,18 @@ func (r *requestRepository) saveRequest(ctx context.Context, tx *ent.Tx, req *tr
 	return nil
 }
 
-func (r *requestRepository) saveResponses(ctx context.Context, tx *ent.Tx, req *traffictesting.Request) error {
-	for _, resp := range req.Responses {
-		if _, err := tx.Response.Create().
-			SetID(resp.ID).
-			SetRequestID(req.ID.UUID()).
-			SetType(string(resp.Type)).
-			SetStatusCode(int32(resp.StatusCode.Int())).
-			SetHeaders(resp.Headers.HTTPHeader()).
-			SetBody(resp.Body).
-			SetLatencyMs(resp.LatencyMs).
-			SetCreatedAt(resp.CreatedAt).
-			Save(ctx); err != nil {
-			return fmt.Errorf("failed to save response: %w", err)
-		}
+func (r *requestRepository) saveResponse(ctx context.Context, tx *ent.Tx, requestID uuid.UUID, resp traffictesting.Response, respType string) error {
+	if _, err := tx.Response.Create().
+		SetID(resp.ID).
+		SetRequestID(requestID).
+		SetType(respType).
+		SetStatusCode(int32(resp.StatusCode.Int())).
+		SetHeaders(resp.Headers.HTTPHeader()).
+		SetBody(resp.Body).
+		SetLatencyMs(resp.LatencyMs).
+		SetCreatedAt(resp.CreatedAt).
+		Save(ctx); err != nil {
+		return fmt.Errorf("failed to save response: %w", err)
 	}
 	return nil
 }
@@ -133,13 +136,18 @@ func (r *requestRepository) GetByID(ctx context.Context, id traffictesting.Reque
 		return nil, fmt.Errorf("failed to convert request: %w", err)
 	}
 
-	// Map eager-loaded responses
+	// Map eager-loaded responses by type
 	for _, respRaw := range raw.Edges.Responses {
 		resp, err := mapResponseToDomain(respRaw)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert response: %w", err)
 		}
-		req.Responses = append(req.Responses, resp)
+		switch respRaw.Type {
+		case "live":
+			req.LiveResponse = resp
+		case "shadow":
+			req.ShadowResponse = resp
+		}
 	}
 
 	// Map eager-loaded diff
@@ -187,13 +195,18 @@ func (r *requestRepository) GetAllByGateID(
 			return nil, fmt.Errorf("failed to convert request: %w", err)
 		}
 
-		// Map eager-loaded responses (partial: type, status_code, latency_ms only)
+		// Map eager-loaded responses by type
 		for _, respRaw := range raw.Edges.Responses {
 			resp, err := mapResponseToDomain(respRaw)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert response: %w", err)
 			}
-			req.Responses = append(req.Responses, resp)
+			switch respRaw.Type {
+			case "live":
+				req.LiveResponse = resp
+			case "shadow":
+				req.ShadowResponse = resp
+			}
 		}
 
 		// Map eager-loaded diff (partial: ID only, for existence check)

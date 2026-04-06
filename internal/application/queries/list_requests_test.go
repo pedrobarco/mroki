@@ -46,7 +46,8 @@ func TestListRequestsHandler_Handle_success(t *testing.T) {
 		traffictesting.NewHeaders(map[string][]string{}),
 		[]byte{},
 		time.Now(),
-		[]traffictesting.Response{},
+		traffictesting.Response{},
+		traffictesting.Response{},
 		traffictesting.Diff{},
 	)
 	req2, _ := traffictesting.NewRequest(
@@ -56,7 +57,8 @@ func TestListRequestsHandler_Handle_success(t *testing.T) {
 		traffictesting.NewHeaders(map[string][]string{}),
 		[]byte{},
 		time.Now(),
-		[]traffictesting.Response{},
+		traffictesting.Response{},
+		traffictesting.Response{},
 		traffictesting.Diff{},
 	)
 

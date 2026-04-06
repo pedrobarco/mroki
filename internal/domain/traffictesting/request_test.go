@@ -16,10 +16,11 @@ func TestNewRequest_creates_request_with_auto_generated_id(t *testing.T) {
 	headers := traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}})
 	body := []byte(`{"test":"data"}`)
 	createdAt := time.Now()
-	responses := []traffictesting.Response{}
+	liveResp := traffictesting.Response{}
+	shadowResp := traffictesting.Response{}
 	diff := traffictesting.Diff{}
 
-	request, err := traffictesting.NewRequest(gateID, method, path, headers, body, createdAt, responses, diff)
+	request, err := traffictesting.NewRequest(gateID, method, path, headers, body, createdAt, liveResp, shadowResp, diff)
 
 	assert.NoError(t, err)
 	assert.False(t, request.ID.IsZero())
@@ -45,7 +46,8 @@ func TestNewRequest_with_custom_id(t *testing.T) {
 		traffictesting.NewHeaders(nil),
 		nil,
 		createdAt,
-		[]traffictesting.Response{},
+		traffictesting.Response{},
+		traffictesting.Response{},
 		traffictesting.Diff{},
 		traffictesting.WithRequestID(customID),
 	)

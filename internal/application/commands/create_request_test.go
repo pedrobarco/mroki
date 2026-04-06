@@ -40,7 +40,8 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
 			assert.NotNil(t, req)
 			assert.False(t, req.ID.IsZero())
-			assert.Len(t, req.Responses, 2)
+			assert.NotEqual(t, 0, req.LiveResponse.StatusCode.Int())
+			assert.NotEqual(t, 0, req.ShadowResponse.StatusCode.Int())
 			return nil
 		},
 	}
@@ -56,21 +57,17 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 		},
 		Body:      []byte(`{"test": "data"}`),
 		CreatedAt: time.Now(),
-		Responses: []CreateRequestResponseProps{
-			{
-				Type:       "live",
-				StatusCode: 200,
-				Headers:    http.Header{"Content-Type": []string{"application/json"}},
-				Body:       []byte(`{"result": "ok"}`),
-				CreatedAt:  time.Now(),
-			},
-			{
-				Type:       "shadow",
-				StatusCode: 200,
-				Headers:    http.Header{"Content-Type": []string{"application/json"}},
-				Body:       []byte(`{"result": "ok"}`),
-				CreatedAt:  time.Now(),
-			},
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{"Content-Type": []string{"application/json"}},
+			Body:       []byte(`{"result": "ok"}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{"Content-Type": []string{"application/json"}},
+			Body:       []byte(`{"result": "ok"}`),
+			CreatedAt:  time.Now(),
 		},
 		Diff: &CreateRequestDiffProps{
 			Content: nil,
@@ -87,7 +84,8 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 	assert.Equal(t, gateID, req.GateID)
 	assert.Equal(t, "GET", req.Method.String())
 	assert.Equal(t, "/api/test", req.Path.String())
-	assert.Len(t, req.Responses, 2)
+	assert.Equal(t, 200, req.LiveResponse.StatusCode.Int())
+	assert.Equal(t, 200, req.ShadowResponse.StatusCode.Int())
 }
 
 func TestCreateRequestHandler_Handle_server_side_diff_computation(t *testing.T) {
@@ -111,21 +109,17 @@ func TestCreateRequestHandler_Handle_server_side_diff_computation(t *testing.T) 
 		},
 		Body:      []byte(`{}`),
 		CreatedAt: time.Now(),
-		Responses: []CreateRequestResponseProps{
-			{
-				Type:       "live",
-				StatusCode: 200,
-				Headers:    http.Header{"Content-Type": []string{"application/json"}},
-				Body:       b64(`{"user":"alice"}`),
-				CreatedAt:  time.Now(),
-			},
-			{
-				Type:       "shadow",
-				StatusCode: 200,
-				Headers:    http.Header{"Content-Type": []string{"application/json"}},
-				Body:       b64(`{"user":"bob"}`),
-				CreatedAt:  time.Now(),
-			},
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{"Content-Type": []string{"application/json"}},
+			Body:       b64(`{"user":"alice"}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{"Content-Type": []string{"application/json"}},
+			Body:       b64(`{"user":"bob"}`),
+			CreatedAt:  time.Now(),
 		},
 		Diff: nil, // No diff provided — should be computed server-side
 	}
@@ -168,21 +162,17 @@ func TestCreateRequestHandler_Handle_server_side_diff_identical_responses(t *tes
 		Headers:   map[string][]string{},
 		Body:      []byte(`{}`),
 		CreatedAt: time.Now(),
-		Responses: []CreateRequestResponseProps{
-			{
-				Type:       "live",
-				StatusCode: 200,
-				Headers:    http.Header{},
-				Body:       b64(`{"status":"ok"}`),
-				CreatedAt:  time.Now(),
-			},
-			{
-				Type:       "shadow",
-				StatusCode: 200,
-				Headers:    http.Header{},
-				Body:       b64(`{"status":"ok"}`),
-				CreatedAt:  time.Now(),
-			},
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       b64(`{"status":"ok"}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       b64(`{"status":"ok"}`),
+			CreatedAt:  time.Now(),
 		},
 		Diff: nil, // No diff provided
 	}
@@ -215,21 +205,17 @@ func TestCreateRequestHandler_Handle_with_custom_ids(t *testing.T) {
 		Headers:   map[string][]string{},
 		Body:      []byte(`{"key": "value"}`),
 		CreatedAt: time.Now(),
-		Responses: []CreateRequestResponseProps{
-			{
-				Type:       "live",
-				StatusCode: 201,
-				Headers:    http.Header{},
-				Body:       []byte(`{"id": 1}`),
-				CreatedAt:  time.Now(),
-			},
-			{
-				Type:       "shadow",
-				StatusCode: 201,
-				Headers:    http.Header{},
-				Body:       []byte(`{"id": 1}`),
-				CreatedAt:  time.Now(),
-			},
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 201,
+			Headers:    http.Header{},
+			Body:       []byte(`{"id": 1}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 201,
+			Headers:    http.Header{},
+			Body:       []byte(`{"id": 1}`),
+			CreatedAt:  time.Now(),
 		},
 		Diff: &CreateRequestDiffProps{
 			Content: nil,
@@ -252,13 +238,11 @@ func TestCreateRequestHandler_Handle_invalid_gate_id(t *testing.T) {
 	handler := NewCreateRequestHandler(repo)
 
 	cmd := CreateRequestCommand{
-		GateID: "invalid-uuid",
-		Method: "GET",
-		Path:   "/test",
-		Responses: []CreateRequestResponseProps{
-			{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
-			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
-		},
+		GateID:         "invalid-uuid",
+		Method:         "GET",
+		Path:           "/test",
+		LiveResponse:   CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
+		ShadowResponse: CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
 	}
 
 	// Act
@@ -276,14 +260,12 @@ func TestCreateRequestHandler_Handle_invalid_request_id(t *testing.T) {
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
-		ID:     "invalid-uuid",
-		GateID: gateID.String(),
-		Method: "GET",
-		Path:   "/test",
-		Responses: []CreateRequestResponseProps{
-			{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
-			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
-		},
+		ID:             "invalid-uuid",
+		GateID:         gateID.String(),
+		Method:         "GET",
+		Path:           "/test",
+		LiveResponse:   CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
+		ShadowResponse: CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
 	}
 
 	// Act
@@ -294,20 +276,18 @@ func TestCreateRequestHandler_Handle_invalid_request_id(t *testing.T) {
 	assert.Nil(t, req)
 }
 
-func TestCreateRequestHandler_Handle_invalid_response_type(t *testing.T) {
+func TestCreateRequestHandler_Handle_invalid_live_status_code(t *testing.T) {
 	// Arrange
 	repo := &mockRequestRepository{}
 	handler := NewCreateRequestHandler(repo)
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
-		GateID: gateID.String(),
-		Method: "GET",
-		Path:   "/test",
-		Responses: []CreateRequestResponseProps{
-			{Type: "invalid-type", StatusCode: 200, CreatedAt: time.Now()},
-			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
-		},
+		GateID:         gateID.String(),
+		Method:         "GET",
+		Path:           "/test",
+		LiveResponse:   CreateRequestResponseProps{StatusCode: 999, CreatedAt: time.Now()},
+		ShadowResponse: CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
 	}
 
 	// Act
@@ -316,73 +296,21 @@ func TestCreateRequestHandler_Handle_invalid_response_type(t *testing.T) {
 	// Assert
 	require.Error(t, err)
 	assert.Nil(t, req)
-	assert.Contains(t, err.Error(), "invalid response type")
+	assert.Contains(t, err.Error(), "live response")
 }
 
-func TestCreateRequestHandler_Handle_wrong_number_of_responses(t *testing.T) {
-	tests := []struct {
-		name      string
-		responses []CreateRequestResponseProps
-	}{
-		{
-			name:      "no responses",
-			responses: []CreateRequestResponseProps{},
-		},
-		{
-			name: "one response",
-			responses: []CreateRequestResponseProps{
-				{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
-			},
-		},
-		{
-			name: "three responses",
-			responses: []CreateRequestResponseProps{
-				{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
-				{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
-				{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
-			repo := &mockRequestRepository{}
-			handler := NewCreateRequestHandler(repo)
-
-			gateID := traffictesting.NewGateID()
-			cmd := CreateRequestCommand{
-				GateID:    gateID.String(),
-				Method:    "GET",
-				Path:      "/test",
-				Responses: tt.responses,
-			}
-
-			// Act
-			req, err := handler.Handle(context.Background(), cmd)
-
-			// Assert
-			require.Error(t, err)
-			assert.Nil(t, req)
-			assert.Contains(t, err.Error(), "exactly two responses are required")
-		})
-	}
-}
-
-func TestCreateRequestHandler_Handle_missing_live_response(t *testing.T) {
+func TestCreateRequestHandler_Handle_invalid_shadow_status_code(t *testing.T) {
 	// Arrange
 	repo := &mockRequestRepository{}
 	handler := NewCreateRequestHandler(repo)
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
-		GateID: gateID.String(),
-		Method: "GET",
-		Path:   "/test",
-		Responses: []CreateRequestResponseProps{
-			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
-			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
-		},
+		GateID:         gateID.String(),
+		Method:         "GET",
+		Path:           "/test",
+		LiveResponse:   CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
+		ShadowResponse: CreateRequestResponseProps{StatusCode: 999, CreatedAt: time.Now()},
 	}
 
 	// Act
@@ -391,32 +319,7 @@ func TestCreateRequestHandler_Handle_missing_live_response(t *testing.T) {
 	// Assert
 	require.Error(t, err)
 	assert.Nil(t, req)
-	assert.Contains(t, err.Error(), "live response is required")
-}
-
-func TestCreateRequestHandler_Handle_missing_shadow_response(t *testing.T) {
-	// Arrange
-	repo := &mockRequestRepository{}
-	handler := NewCreateRequestHandler(repo)
-
-	gateID := traffictesting.NewGateID()
-	cmd := CreateRequestCommand{
-		GateID: gateID.String(),
-		Method: "GET",
-		Path:   "/test",
-		Responses: []CreateRequestResponseProps{
-			{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
-			{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
-		},
-	}
-
-	// Act
-	req, err := handler.Handle(context.Background(), cmd)
-
-	// Assert
-	require.Error(t, err)
-	assert.Nil(t, req)
-	assert.Contains(t, err.Error(), "shadow response is required")
+	assert.Contains(t, err.Error(), "shadow response")
 }
 
 func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
@@ -431,14 +334,12 @@ func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
-		GateID: gateID.String(),
-		Method: "GET",
-		Path:   "/test",
-		Responses: []CreateRequestResponseProps{
-			{Type: "live", StatusCode: 200, CreatedAt: time.Now()},
-			{Type: "shadow", StatusCode: 200, CreatedAt: time.Now()},
-		},
-		Diff: &CreateRequestDiffProps{Content: nil},
+		GateID:         gateID.String(),
+		Method:         "GET",
+		Path:           "/test",
+		LiveResponse:   CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
+		ShadowResponse: CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
+		Diff:           &CreateRequestDiffProps{Content: nil},
 	}
 
 	// Act
@@ -451,7 +352,6 @@ func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
 	assert.ErrorIs(t, err, expectedErr)
 }
 
-
 // --- computeDiff tests ---
 
 func b64(s string) []byte {
@@ -459,24 +359,20 @@ func b64(s string) []byte {
 }
 
 func TestComputeDiff_identical_responses(t *testing.T) {
-	responses := []CreateRequestResponseProps{
-		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)},
-		{Type: "shadow", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)},
-	}
+	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
+	shadow := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
 
-	ops, err := computeDiff(responses)
+	ops, err := computeDiff(live, shadow)
 
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 }
 
 func TestComputeDiff_different_bodies(t *testing.T) {
-	responses := []CreateRequestResponseProps{
-		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"alice"}`)},
-		{Type: "shadow", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"bob"}`)},
-	}
+	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"alice"}`)}
+	shadow := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"bob"}`)}
 
-	ops, err := computeDiff(responses)
+	ops, err := computeDiff(live, shadow)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, ops)
@@ -493,12 +389,10 @@ func TestComputeDiff_different_bodies(t *testing.T) {
 }
 
 func TestComputeDiff_different_status_codes(t *testing.T) {
-	responses := []CreateRequestResponseProps{
-		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)},
-		{Type: "shadow", StatusCode: 500, Headers: http.Header{}, Body: b64(`{"ok":false}`)},
-	}
+	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
+	shadow := CreateRequestResponseProps{StatusCode: 500, Headers: http.Header{}, Body: b64(`{"ok":false}`)}
 
-	ops, err := computeDiff(responses)
+	ops, err := computeDiff(live, shadow)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, ops)
@@ -511,54 +405,28 @@ func TestComputeDiff_different_status_codes(t *testing.T) {
 }
 
 func TestComputeDiff_different_headers(t *testing.T) {
-	responses := []CreateRequestResponseProps{
-		{
-			Type:       "live",
-			StatusCode: 200,
-			Headers:    http.Header{"X-Req-Id": []string{"abc"}},
-			Body:       b64(`{"ok":true}`),
-		},
-		{
-			Type:       "shadow",
-			StatusCode: 200,
-			Headers:    http.Header{"X-Req-Id": []string{"def"}},
-			Body:       b64(`{"ok":true}`),
-		},
+	live := CreateRequestResponseProps{
+		StatusCode: 200,
+		Headers:    http.Header{"X-Req-Id": []string{"abc"}},
+		Body:       b64(`{"ok":true}`),
+	}
+	shadow := CreateRequestResponseProps{
+		StatusCode: 200,
+		Headers:    http.Header{"X-Req-Id": []string{"def"}},
+		Body:       b64(`{"ok":true}`),
 	}
 
-	ops, err := computeDiff(responses)
+	ops, err := computeDiff(live, shadow)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, ops, "expected diff on headers")
 }
 
 func TestComputeDiff_invalid_base64_body(t *testing.T) {
-	responses := []CreateRequestResponseProps{
-		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: []byte("not-valid-base64!!!")},
-		{Type: "shadow", StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)},
-	}
+	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: []byte("not-valid-base64!!!")}
+	shadow := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
 
-	_, err := computeDiff(responses)
+	_, err := computeDiff(live, shadow)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to decode live response body")
-}
-
-func TestComputeDiff_missing_live_response(t *testing.T) {
-	responses := []CreateRequestResponseProps{
-		{Type: "shadow", StatusCode: 200, Headers: http.Header{}, Body: b64(`{}`)},
-	}
-
-	_, err := computeDiff(responses)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "both live and shadow responses are required")
-}
-
-func TestComputeDiff_missing_shadow_response(t *testing.T) {
-	responses := []CreateRequestResponseProps{
-		{Type: "live", StatusCode: 200, Headers: http.Header{}, Body: b64(`{}`)},
-	}
-
-	_, err := computeDiff(responses)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "both live and shadow responses are required")
 }

@@ -21,6 +21,7 @@ func newTestRequestWithoutDiff(t *testing.T, gateID traffictesting.GateID) *traf
 	t.Helper()
 	method, _ := traffictesting.NewHTTPMethod("GET")
 	path, _ := traffictesting.ParsePath("/api/test")
+	statusCode, _ := traffictesting.ParseStatusCode(200)
 
 	return &traffictesting.Request{
 		ID:        traffictesting.NewRequestID(),
@@ -30,6 +31,22 @@ func newTestRequestWithoutDiff(t *testing.T, gateID traffictesting.GateID) *traf
 		Headers:   traffictesting.NewHeaders(http.Header{}),
 		Body:      []byte{},
 		CreatedAt: time.Now(),
+		LiveResponse: traffictesting.Response{
+			ID:         uuid.New(),
+			StatusCode: statusCode,
+			Headers:    traffictesting.NewHeaders(http.Header{}),
+			Body:       []byte(`{}`),
+			LatencyMs:  10,
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: traffictesting.Response{
+			ID:         uuid.New(),
+			StatusCode: statusCode,
+			Headers:    traffictesting.NewHeaders(http.Header{}),
+			Body:       []byte(`{}`),
+			LatencyMs:  15,
+			CreatedAt:  time.Now(),
+		},
 	}
 }
 
@@ -49,25 +66,21 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 		Headers:   traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
 		Body:      []byte(`{"test":"data"}`),
 		CreatedAt: time.Now(),
-		Responses: []traffictesting.Response{
-			{
-				ID:         liveRespID,
-				Type:       traffictesting.ResponseTypeLive,
-				StatusCode: statusCode,
-				Headers:    traffictesting.NewHeaders(http.Header{}),
-				Body:       []byte(`{"status":"ok"}`),
-				LatencyMs:  142,
-				CreatedAt:  time.Now(),
-			},
-			{
-				ID:         shadowRespID,
-				Type:       traffictesting.ResponseTypeShadow,
-				StatusCode: statusCode,
-				Headers:    traffictesting.NewHeaders(http.Header{}),
-				Body:       []byte(`{"status":"ok"}`),
-				LatencyMs:  187,
-				CreatedAt:  time.Now(),
-			},
+		LiveResponse: traffictesting.Response{
+			ID:         liveRespID,
+			StatusCode: statusCode,
+			Headers:    traffictesting.NewHeaders(http.Header{}),
+			Body:       []byte(`{"status":"ok"}`),
+			LatencyMs:  142,
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: traffictesting.Response{
+			ID:         shadowRespID,
+			StatusCode: statusCode,
+			Headers:    traffictesting.NewHeaders(http.Header{}),
+			Body:       []byte(`{"status":"ok"}`),
+			LatencyMs:  187,
+			CreatedAt:  time.Now(),
 		},
 		Diff: traffictesting.Diff{
 			FromResponseID: liveRespID,
@@ -119,7 +132,8 @@ func TestRequestRepository_GetByID_success(t *testing.T) {
 	assert.Equal(t, req.ID.String(), result.ID.String())
 	assert.Equal(t, gateID.String(), result.GateID.String())
 	assert.Equal(t, "POST", result.Method.String())
-	assert.Len(t, result.Responses, 2)
+	assert.Equal(t, 200, result.LiveResponse.StatusCode.Int())
+	assert.Equal(t, 200, result.ShadowResponse.StatusCode.Int())
 	assert.False(t, result.Diff.IsZero())
 }
 
@@ -194,31 +208,18 @@ func TestRequestRepository_GetAllByGateID_eager_loads_metadata(t *testing.T) {
 	for _, req := range result.Items {
 		switch req.ID {
 		case reqWithDiff.ID:
-			// Should have eager-loaded responses
-			assert.Len(t, req.Responses, 2, "request with diff should have 2 responses")
-
-			var liveResp, shadowResp *traffictesting.Response
-			for i := range req.Responses {
-				switch req.Responses[i].Type {
-				case traffictesting.ResponseTypeLive:
-					liveResp = &req.Responses[i]
-				case traffictesting.ResponseTypeShadow:
-					shadowResp = &req.Responses[i]
-				}
-			}
-
-			assert.NotNil(t, liveResp, "should have live response")
-			assert.NotNil(t, shadowResp, "should have shadow response")
-			assert.Equal(t, 200, liveResp.StatusCode.Int())
-			assert.Equal(t, 200, shadowResp.StatusCode.Int())
-			assert.Equal(t, int64(142), liveResp.LatencyMs)
-			assert.Equal(t, int64(187), shadowResp.LatencyMs)
+			// Should have eager-loaded live and shadow responses
+			assert.Equal(t, 200, req.LiveResponse.StatusCode.Int())
+			assert.Equal(t, 200, req.ShadowResponse.StatusCode.Int())
+			assert.Equal(t, int64(142), req.LiveResponse.LatencyMs)
+			assert.Equal(t, int64(187), req.ShadowResponse.LatencyMs)
 
 			// Should have diff
 			assert.False(t, req.Diff.IsZero(), "request with diff should have non-zero diff")
 		case reqWithoutDiff.ID:
-			// Should have no responses or diff
-			assert.Empty(t, req.Responses, "request without diff should have no responses")
+			// Should have responses but no diff
+			assert.Equal(t, 200, req.LiveResponse.StatusCode.Int())
+			assert.Equal(t, 200, req.ShadowResponse.StatusCode.Int())
 			assert.True(t, req.Diff.IsZero(), "request without diff should have zero diff")
 		}
 	}
@@ -292,9 +293,8 @@ func TestRequestRepository_DeleteOlderThan(t *testing.T) {
 	// Create request with old timestamp
 	req := newTestRequest(t, gateID)
 	req.CreatedAt = time.Now().Add(-48 * time.Hour)
-	for i := range req.Responses {
-		req.Responses[i].CreatedAt = req.CreatedAt
-	}
+	req.LiveResponse.CreatedAt = req.CreatedAt
+	req.ShadowResponse.CreatedAt = req.CreatedAt
 	require.NoError(t, reqRepo.Save(context.Background(), req))
 
 	// Delete requests older than 24 hours
@@ -319,18 +319,7 @@ func TestRequestRepository_Save_without_diff(t *testing.T) {
 	reqRepo := ent.NewRequestRepository(client)
 	gateID := setupGate(t, gateRepo)
 
-	method, _ := traffictesting.NewHTTPMethod("GET")
-	path, _ := traffictesting.ParsePath("/test")
-
-	req := &traffictesting.Request{
-		ID:        traffictesting.NewRequestID(),
-		GateID:    gateID,
-		Method:    method,
-		Path:      path,
-		Headers:   traffictesting.NewHeaders(http.Header{}),
-		Body:      []byte{},
-		CreatedAt: time.Now(),
-	}
+	req := newTestRequestWithoutDiff(t, gateID)
 
 	err := reqRepo.Save(context.Background(), req)
 	assert.NoError(t, err)
@@ -338,5 +327,6 @@ func TestRequestRepository_Save_without_diff(t *testing.T) {
 	result, err := reqRepo.GetByID(context.Background(), req.ID, gateID)
 	assert.NoError(t, err)
 	assert.True(t, result.Diff.IsZero())
-	assert.Empty(t, result.Responses)
+	assert.Equal(t, 200, result.LiveResponse.StatusCode.Int())
+	assert.Equal(t, 200, result.ShadowResponse.StatusCode.Int())
 }

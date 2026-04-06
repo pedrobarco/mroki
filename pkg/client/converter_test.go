@@ -57,22 +57,15 @@ func TestConvertProxyToCapture(t *testing.T) {
 	assert.Equal(t, "eyJuYW1lIjoiSm9obiJ9", captured.Body) // Base64 encoded {"name":"John"}
 	assert.NotZero(t, captured.CreatedAt)
 
-	// Verify responses
-	assert.Len(t, captured.Responses, 2)
-
 	// Verify live response
-	liveCapture := captured.Responses[0]
-	assert.Equal(t, "live", liveCapture.Type)
+	liveCapture := captured.LiveResponse
 	assert.Equal(t, 200, liveCapture.StatusCode)
 	assert.Equal(t, map[string][]string(liveResp.Response.Header), liveCapture.Headers)
 	assert.Equal(t, "eyJpZCI6MSwibmFtZSI6IkpvaG4ifQ==", liveCapture.Body) // Base64 encoded {"id":1,"name":"John"}
-
-	// Verify live latency
 	assert.Equal(t, int64(142), liveCapture.LatencyMs)
 
 	// Verify shadow response
-	shadowCapture := captured.Responses[1]
-	assert.Equal(t, "shadow", shadowCapture.Type)
+	shadowCapture := captured.ShadowResponse
 	assert.Equal(t, 201, shadowCapture.StatusCode)
 	assert.Equal(t, map[string][]string(shadowResp.Response.Header), shadowCapture.Headers)
 	assert.Equal(t, "eyJpZCI6MiwibmFtZSI6IkpvaG4ifQ==", shadowCapture.Body) // Base64 encoded {"id":2,"name":"John"}
@@ -117,8 +110,8 @@ func TestConvertProxyToCapture_EmptyBody(t *testing.T) {
 
 	// Base64 encoding of empty byte array is empty string
 	assert.Equal(t, "", captured.Body)
-	assert.Equal(t, "", captured.Responses[0].Body)
-	assert.Equal(t, "", captured.Responses[1].Body)
+	assert.Equal(t, "", captured.LiveResponse.Body)
+	assert.Equal(t, "", captured.ShadowResponse.Body)
 }
 
 func TestConvertProxyToCapture_MultipleHeaders(t *testing.T) {
@@ -162,8 +155,8 @@ func TestConvertProxyToCapture_MultipleHeaders(t *testing.T) {
 	assert.Equal(t, []string{"gzip", "deflate"}, captured.Headers["Accept-Encoding"])
 
 	// Verify response headers preserved
-	assert.Equal(t, []string{"session=abc", "user=xyz"}, captured.Responses[0].Headers["Set-Cookie"])
-	assert.Equal(t, []string{"session=def", "user=uvw"}, captured.Responses[1].Headers["Set-Cookie"])
+	assert.Equal(t, []string{"session=abc", "user=xyz"}, captured.LiveResponse.Headers["Set-Cookie"])
+	assert.Equal(t, []string{"session=def", "user=uvw"}, captured.ShadowResponse.Headers["Set-Cookie"])
 }
 
 func TestConvertProxyToCapture_TimestampConsistency(t *testing.T) {
@@ -195,6 +188,6 @@ func TestConvertProxyToCapture_TimestampConsistency(t *testing.T) {
 	assert.True(t, captured.CreatedAt.Before(after) || captured.CreatedAt.Equal(after))
 
 	// Verify all timestamps are the same
-	assert.Equal(t, captured.CreatedAt, captured.Responses[0].CreatedAt)
-	assert.Equal(t, captured.CreatedAt, captured.Responses[1].CreatedAt)
+	assert.Equal(t, captured.CreatedAt, captured.LiveResponse.CreatedAt)
+	assert.Equal(t, captured.CreatedAt, captured.ShadowResponse.CreatedAt)
 }

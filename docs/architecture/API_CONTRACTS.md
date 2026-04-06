@@ -411,28 +411,26 @@ curl -H "Authorization: Bearer your-api-key" \
   },
   "body": "{\"name\":\"Alice\",\"age\":30}",
   "created_at": "2026-01-31T20:00:00Z",
-  "responses": [
-    {
-      "id": "8d0e7780-8536-51ef-a55c-f18fd2f91bf8",
-      "type": "live",
-      "status_code": 200,
-      "headers": {
-        "Content-Type": ["application/json"]
-      },
-      "body": "{\"id\":123,\"name\":\"Alice\",\"age\":30}",
-      "created_at": "2026-01-31T20:00:01Z"
+  "live_response": {
+    "id": "8d0e7780-8536-51ef-a55c-f18fd2f91bf8",
+    "status_code": 200,
+    "headers": {
+      "Content-Type": ["application/json"]
     },
-    {
-      "id": "9e1f8891-9647-62f0-b66d-027fe3f02cf9",
-      "type": "shadow",
-      "status_code": 200,
-      "headers": {
-        "Content-Type": ["application/json"]
-      },
-      "body": "{\"id\":456,\"name\":\"Alice\",\"age\":30}",
-      "created_at": "2026-01-31T20:00:01Z"
-    }
-  ],
+    "body": "{\"id\":123,\"name\":\"Alice\",\"age\":30}",
+    "latency_ms": 142,
+    "created_at": "2026-01-31T20:00:01Z"
+  },
+  "shadow_response": {
+    "id": "9e1f8891-9647-62f0-b66d-027fe3f02cf9",
+    "status_code": 200,
+    "headers": {
+      "Content-Type": ["application/json"]
+    },
+    "body": "{\"id\":456,\"name\":\"Alice\",\"age\":30}",
+    "latency_ms": 187,
+    "created_at": "2026-01-31T20:00:01Z"
+  },
   "diff": {                          // ← optional: omit to let mroki-api compute it
     "content": [
       {
@@ -511,30 +509,26 @@ curl -X POST http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/re
     "method": "POST",
     "path": "/api/users",
     "created_at": "2026-01-31T20:00:00Z",
-    "responses": [
-      {
-        "id": "8d0e7780-8536-51ef-a55c-f18fd2f91bf8",
-        "type": "live",
-        "status_code": 200,
-        "headers": {
-          "Content-Type": ["application/json"]
-        },
-        "body": "{\"id\":123,\"name\":\"Alice\",\"age\":30}",
-        "latency_ms": 142,
-        "created_at": "2026-01-31T20:00:01Z"
+    "live_response": {
+      "id": "8d0e7780-8536-51ef-a55c-f18fd2f91bf8",
+      "status_code": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
       },
-      {
-        "id": "9e1f8891-9647-62f0-b66d-027fe3f02cf9",
-        "type": "shadow",
-        "status_code": 200,
-        "headers": {
-          "Content-Type": ["application/json"]
-        },
-        "body": "{\"id\":456,\"name\":\"Alice\",\"age\":30}",
-        "latency_ms": 187,
-        "created_at": "2026-01-31T20:00:01Z"
-      }
-  ],
+      "body": "{\"id\":123,\"name\":\"Alice\",\"age\":30}",
+      "latency_ms": 142,
+      "created_at": "2026-01-31T20:00:01Z"
+    },
+    "shadow_response": {
+      "id": "9e1f8891-9647-62f0-b66d-027fe3f02cf9",
+      "status_code": 200,
+      "headers": {
+        "Content-Type": ["application/json"]
+      },
+      "body": "{\"id\":456,\"name\":\"Alice\",\"age\":30}",
+      "latency_ms": 187,
+      "created_at": "2026-01-31T20:00:01Z"
+    },
   "diff": {
     "content": [
       {

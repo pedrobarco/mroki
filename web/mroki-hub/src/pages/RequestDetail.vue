@@ -22,12 +22,8 @@ const error = ref<string | null>(null)
 const gateId = computed(() => route.params.id as string)
 const requestId = computed(() => route.params.rid as string)
 
-// Find live and shadow responses
-const liveResponse = computed(() => request.value?.responses.find((r) => r.type === 'live') || null)
-
-const shadowResponse = computed(
-  () => request.value?.responses.find((r) => r.type === 'shadow') || null
-)
+const liveResponse = computed(() => request.value?.live_response ?? null)
+const shadowResponse = computed(() => request.value?.shadow_response ?? null)
 
 const methodColors: Record<string, string> = {
   GET: 'bg-blue-500/15 text-blue-400',
