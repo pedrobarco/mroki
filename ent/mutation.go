@@ -2184,6 +2184,8 @@ type ResponseMutation struct {
 	addstatus_code    *int32
 	headers           *map[string][]string
 	body              *[]byte
+	latency_ms        *int64
+	addlatency_ms     *int64
 	created_at        *time.Time
 	clearedFields     map[string]struct{}
 	request           *uuid.UUID
@@ -2529,6 +2531,62 @@ func (m *ResponseMutation) ResetBody() {
 	delete(m.clearedFields, response.FieldBody)
 }
 
+// SetLatencyMs sets the "latency_ms" field.
+func (m *ResponseMutation) SetLatencyMs(i int64) {
+	m.latency_ms = &i
+	m.addlatency_ms = nil
+}
+
+// LatencyMs returns the value of the "latency_ms" field in the mutation.
+func (m *ResponseMutation) LatencyMs() (r int64, exists bool) {
+	v := m.latency_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatencyMs returns the old "latency_ms" field's value of the Response entity.
+// If the Response object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ResponseMutation) OldLatencyMs(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatencyMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatencyMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatencyMs: %w", err)
+	}
+	return oldValue.LatencyMs, nil
+}
+
+// AddLatencyMs adds i to the "latency_ms" field.
+func (m *ResponseMutation) AddLatencyMs(i int64) {
+	if m.addlatency_ms != nil {
+		*m.addlatency_ms += i
+	} else {
+		m.addlatency_ms = &i
+	}
+}
+
+// AddedLatencyMs returns the value that was added to the "latency_ms" field in this mutation.
+func (m *ResponseMutation) AddedLatencyMs() (r int64, exists bool) {
+	v := m.addlatency_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLatencyMs resets all changes to the "latency_ms" field.
+func (m *ResponseMutation) ResetLatencyMs() {
+	m.latency_ms = nil
+	m.addlatency_ms = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *ResponseMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -2734,7 +2792,7 @@ func (m *ResponseMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ResponseMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.request != nil {
 		fields = append(fields, response.FieldRequestID)
 	}
@@ -2749,6 +2807,9 @@ func (m *ResponseMutation) Fields() []string {
 	}
 	if m.body != nil {
 		fields = append(fields, response.FieldBody)
+	}
+	if m.latency_ms != nil {
+		fields = append(fields, response.FieldLatencyMs)
 	}
 	if m.created_at != nil {
 		fields = append(fields, response.FieldCreatedAt)
@@ -2771,6 +2832,8 @@ func (m *ResponseMutation) Field(name string) (ent.Value, bool) {
 		return m.Headers()
 	case response.FieldBody:
 		return m.Body()
+	case response.FieldLatencyMs:
+		return m.LatencyMs()
 	case response.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -2792,6 +2855,8 @@ func (m *ResponseMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldHeaders(ctx)
 	case response.FieldBody:
 		return m.OldBody(ctx)
+	case response.FieldLatencyMs:
+		return m.OldLatencyMs(ctx)
 	case response.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -2838,6 +2903,13 @@ func (m *ResponseMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetBody(v)
 		return nil
+	case response.FieldLatencyMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatencyMs(v)
+		return nil
 	case response.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -2856,6 +2928,9 @@ func (m *ResponseMutation) AddedFields() []string {
 	if m.addstatus_code != nil {
 		fields = append(fields, response.FieldStatusCode)
 	}
+	if m.addlatency_ms != nil {
+		fields = append(fields, response.FieldLatencyMs)
+	}
 	return fields
 }
 
@@ -2866,6 +2941,8 @@ func (m *ResponseMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case response.FieldStatusCode:
 		return m.AddedStatusCode()
+	case response.FieldLatencyMs:
+		return m.AddedLatencyMs()
 	}
 	return nil, false
 }
@@ -2881,6 +2958,13 @@ func (m *ResponseMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddStatusCode(v)
+		return nil
+	case response.FieldLatencyMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLatencyMs(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Response numeric field %s", name)
@@ -2938,6 +3022,9 @@ func (m *ResponseMutation) ResetField(name string) error {
 		return nil
 	case response.FieldBody:
 		m.ResetBody()
+		return nil
+	case response.FieldLatencyMs:
+		m.ResetLatencyMs()
 		return nil
 	case response.FieldCreatedAt:
 		m.ResetCreatedAt()

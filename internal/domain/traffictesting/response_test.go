@@ -37,7 +37,7 @@ func TestNewResponse_creates_response_with_auto_generated_id(t *testing.T) {
 	createdAt := time.Now()
 	statusCode, _ := traffictesting.ParseStatusCode(200)
 
-	response, err := traffictesting.NewResponse(traffictesting.ResponseTypeLive, statusCode, headers, body, createdAt)
+	response, err := traffictesting.NewResponse(traffictesting.ResponseTypeLive, statusCode, headers, body, int64(142), createdAt)
 
 	assert.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, response.ID)
@@ -58,6 +58,7 @@ func TestNewResponse_with_custom_id(t *testing.T) {
 		statusCode,
 		traffictesting.NewHeaders(nil),
 		nil,
+		int64(0),
 		createdAt,
 		traffictesting.WithResponseID(customID),
 	)

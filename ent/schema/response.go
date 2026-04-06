@@ -27,6 +27,7 @@ func (Response) Fields() []ent.Field {
 			Optional(),
 		field.Bytes("body").
 			Optional(),
+		field.Int64("latency_ms"),
 		field.Time("created_at"),
 	}
 }

@@ -29,6 +29,7 @@ type Response struct {
 	StatusCode StatusCode
 	Headers    Headers
 	Body       []byte
+	LatencyMs  int64
 	CreatedAt  time.Time
 }
 
@@ -45,6 +46,7 @@ func NewResponse(
 	statusCode StatusCode,
 	headers Headers,
 	body []byte,
+	latencyMs int64,
 	createdAt time.Time,
 	opts ...responseOption,
 ) (*Response, error) {
@@ -53,6 +55,7 @@ func NewResponse(
 		StatusCode: statusCode,
 		Headers:    headers,
 		Body:       body,
+		LatencyMs:  latencyMs,
 		CreatedAt:  createdAt,
 	}
 

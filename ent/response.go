@@ -30,6 +30,8 @@ type Response struct {
 	Headers map[string][]string `json:"headers,omitempty"`
 	// Body holds the value of the "body" field.
 	Body []byte `json:"body,omitempty"`
+	// LatencyMs holds the value of the "latency_ms" field.
+	LatencyMs int64 `json:"latency_ms,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -87,7 +89,7 @@ func (*Response) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case response.FieldHeaders, response.FieldBody:
 			values[i] = new([]byte)
-		case response.FieldStatusCode:
+		case response.FieldStatusCode, response.FieldLatencyMs:
 			values[i] = new(sql.NullInt64)
 		case response.FieldType:
 			values[i] = new(sql.NullString)
@@ -147,6 +149,12 @@ func (_m *Response) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field body", values[i])
 			} else if value != nil {
 				_m.Body = *value
+			}
+		case response.FieldLatencyMs:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field latency_ms", values[i])
+			} else if value.Valid {
+				_m.LatencyMs = value.Int64
 			}
 		case response.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -219,6 +227,9 @@ func (_m *Response) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("body=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Body))
+	builder.WriteString(", ")
+	builder.WriteString("latency_ms=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LatencyMs))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

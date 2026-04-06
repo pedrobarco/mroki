@@ -10,10 +10,6 @@ import { ChevronLeft, Copy, Download } from 'lucide-vue-next'
 import { truncateId } from '@/lib/utils'
 import { useGateCache } from '@/composables/use-gate-cache'
 
-// Dummy metadata (not available in API yet)
-const dummyLiveLatency = '142ms'
-const dummyShadowLatency = '187ms'
-
 const route = useRoute()
 const router = useRouter()
 const { getGateById } = useGateCache()
@@ -167,7 +163,7 @@ onMounted(() => {
               >
                 {{ liveResponse.status_code }}
               </span>
-              <span class="text-xs text-dim">OK · {{ dummyLiveLatency }}</span>
+              <span class="text-xs text-dim">{{ liveResponse.latency_ms }}ms</span>
             </div>
           </div>
           <div v-if="shadowResponse">
@@ -179,7 +175,7 @@ onMounted(() => {
               >
                 {{ shadowResponse.status_code }}
               </span>
-              <span class="text-xs text-dim">OK · {{ dummyShadowLatency }}</span>
+              <span class="text-xs text-dim">{{ shadowResponse.latency_ms }}ms</span>
             </div>
           </div>
         </div>

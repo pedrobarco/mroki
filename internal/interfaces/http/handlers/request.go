@@ -45,6 +45,7 @@ func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 				StatusCode: resp.StatusCode,
 				Headers:    resp.Headers,
 				Body:       []byte(resp.Body),
+				LatencyMs:  resp.LatencyMs,
 				CreatedAt:  resp.CreatedAt,
 			})
 		}
@@ -226,12 +227,26 @@ func GetAllRequestsByGateID(handler *queries.ListRequestsHandler) AppHandler {
 }
 
 func toRequestResponseDTO(req *traffictesting.Request) dto.Request {
-	return dto.Request{
+	result := dto.Request{
 		ID:        req.ID.String(),
 		Method:    req.Method.String(),
 		Path:      req.Path.String(),
 		CreatedAt: req.CreatedAt,
+		HasDiff:   !req.Diff.IsZero(),
 	}
+
+	for _, resp := range req.Responses {
+		switch resp.Type {
+		case traffictesting.ResponseTypeLive:
+			result.LiveStatusCode = resp.StatusCode.Int()
+			result.LiveLatencyMs = resp.LatencyMs
+		case traffictesting.ResponseTypeShadow:
+			result.ShadowStatusCode = resp.StatusCode.Int()
+			result.ShadowLatencyMs = resp.LatencyMs
+		}
+	}
+
+	return result
 }
 
 func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
@@ -249,6 +264,7 @@ func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
 			StatusCode: resp.StatusCode.Int(),
 			Headers:    resp.Headers.HTTPHeader(),
 			Body:       string(resp.Body),
+			LatencyMs:  resp.LatencyMs,
 			CreatedAt:  resp.CreatedAt,
 		})
 	}

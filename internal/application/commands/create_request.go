@@ -32,6 +32,7 @@ type CreateRequestResponseProps struct {
 	StatusCode int
 	Headers    http.Header
 	Body       []byte
+	LatencyMs  int64
 	CreatedAt  time.Time
 }
 
@@ -101,6 +102,7 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 			statusCode,
 			traffictesting.NewHeaders(dto.Headers),
 			dto.Body,
+			dto.LatencyMs,
 			dto.CreatedAt,
 		)
 		if err != nil {

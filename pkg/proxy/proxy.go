@@ -130,12 +130,14 @@ type ProxyResponse struct {
 	StatusCode int
 	Response   *http.Response
 	Body       []byte
+	LatencyMs  int64
 }
 
 type responseResult struct {
-	resp *http.Response
-	body []byte
-	err  error
+	resp      *http.Response
+	body      []byte
+	latencyMs int64
+	err       error
 }
 
 // shouldProxyToShadow evaluates all registered checks
@@ -207,6 +209,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Launch live request
 	go func() {
+		start := time.Now()
 		resp, err := p.forwardRequest(liveCtx, r, p.Live, body)
 		if err != nil {
 			liveCh <- responseResult{err: err}
@@ -214,6 +217,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		b, err := io.ReadAll(resp.Body)
 		closeErr := resp.Body.Close()
+		latencyMs := time.Since(start).Milliseconds()
 		if err != nil {
 			liveCh <- responseResult{err: err}
 			return
@@ -222,7 +226,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			liveCh <- responseResult{err: closeErr}
 			return
 		}
-		liveCh <- responseResult{resp: resp, body: b, err: nil}
+		liveCh <- responseResult{resp: resp, body: b, latencyMs: latencyMs}
 	}()
 
 	// Shadow uses Background() context so it's independent of client connection
@@ -231,6 +235,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	shadowCtx, shadowCancel := context.WithTimeout(context.Background(), p.shadowTimeout)
 	// Launch shadow request
 	go func() {
+		start := time.Now()
 		resp, err := p.forwardRequest(shadowCtx, r, p.Shadow, body)
 		if err != nil {
 			shadowCh <- responseResult{err: err}
@@ -238,6 +243,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		b, err := io.ReadAll(resp.Body)
 		closeErr := resp.Body.Close()
+		latencyMs := time.Since(start).Milliseconds()
 		if err != nil {
 			shadowCh <- responseResult{err: err}
 			return
@@ -246,7 +252,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			shadowCh <- responseResult{err: closeErr}
 			return
 		}
-		shadowCh <- responseResult{resp: resp, body: b, err: nil}
+		shadowCh <- responseResult{resp: resp, body: b, latencyMs: latencyMs}
 	}()
 
 	// Wait for live first
@@ -295,11 +301,13 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				StatusCode: liveResp.resp.StatusCode,
 				Response:   liveResp.resp,
 				Body:       liveBody,
+				LatencyMs:  liveResp.latencyMs,
 			}
 			shadow := ProxyResponse{
 				StatusCode: shadowResp.resp.StatusCode,
 				Response:   shadowResp.resp,
 				Body:       shadowResp.body,
+				LatencyMs:  shadowResp.latencyMs,
 			}
 
 			// Invoke callback with raw responses (no diff — computed by caller if needed)

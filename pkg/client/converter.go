@@ -28,6 +28,7 @@ func ConvertProxyToCapture(
 				StatusCode: live.StatusCode,
 				Headers:    live.Response.Header,
 				Body:       base64.StdEncoding.EncodeToString(live.Body),
+				LatencyMs:  live.LatencyMs,
 				CreatedAt:  now,
 			},
 			{
@@ -35,6 +36,7 @@ func ConvertProxyToCapture(
 				StatusCode: shadow.StatusCode,
 				Headers:    shadow.Response.Header,
 				Body:       base64.StdEncoding.EncodeToString(shadow.Body),
+				LatencyMs:  shadow.LatencyMs,
 				CreatedAt:  now,
 			},
 		},

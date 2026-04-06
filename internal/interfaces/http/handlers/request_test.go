@@ -350,6 +350,7 @@ func TestGetRequestByID_Success(t *testing.T) {
 		statusCode,
 		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
 		[]byte("live body"),
+		int64(142),
 		time.Now(),
 	)
 	shadowResp, _ := traffictesting.NewResponse(
@@ -357,6 +358,7 @@ func TestGetRequestByID_Success(t *testing.T) {
 		statusCode,
 		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
 		[]byte("shadow body"),
+		int64(187),
 		time.Now(),
 	)
 
@@ -674,6 +676,7 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 		statusCode,
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
+		int64(50),
 		time.Now(),
 	)
 	shadowResp, _ := traffictesting.NewResponse(
@@ -681,6 +684,7 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 		statusCode,
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
+		int64(60),
 		time.Now(),
 	)
 

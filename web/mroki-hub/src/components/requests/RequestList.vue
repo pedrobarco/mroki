@@ -113,28 +113,6 @@ function formatTimestamp(timestamp: string): string {
   return date.toLocaleDateString()
 }
 
-// Dummy per-request metadata (not available in API yet)
-const dummyRowMeta = [
-  { diffs: 3, liveStatus: 200, shadowStatus: 200, liveLatency: 142, shadowLatency: 187 },
-  { diffs: 0, liveStatus: 200, shadowStatus: 200, liveLatency: 38, shadowLatency: 42 },
-  { diffs: 0, liveStatus: 200, shadowStatus: 200, liveLatency: 4, shadowLatency: 6 },
-  { diffs: 1, liveStatus: 200, shadowStatus: 200, liveLatency: 89, shadowLatency: 124 },
-  { diffs: 0, liveStatus: 200, shadowStatus: 200, liveLatency: 67, shadowLatency: 71 },
-  { diffs: 5, liveStatus: 204, shadowStatus: 500, liveLatency: 23, shadowLatency: 312 },
-]
-
-const defaultMeta = {
-  diffs: 0,
-  liveStatus: 200,
-  shadowStatus: 200,
-  liveLatency: 0,
-  shadowLatency: 0,
-}
-
-function getRowMeta(idx: number) {
-  return dummyRowMeta[idx % dummyRowMeta.length] ?? defaultMeta
-}
-
 onMounted(() => {
   loadRequests()
 })
@@ -167,7 +145,7 @@ onMounted(() => {
     <div v-else>
       <div class="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
         <div
-          v-for="(request, idx) in requests"
+          v-for="request in requests"
           :key="request.id"
           class="flex items-center px-5 py-3.5 cursor-pointer transition-colors hover:bg-accent"
           @click="handleRequestClick(request.id)"
@@ -186,11 +164,11 @@ onMounted(() => {
           <div class="flex items-center gap-4 shrink-0 ml-4">
             <!-- Diff badge -->
             <span
-              v-if="getRowMeta(idx).diffs > 0"
+              v-if="request.has_diff"
               class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-400"
             >
               <span class="w-1 h-1 rounded-full bg-red-400" />
-              {{ getRowMeta(idx).diffs }} diff{{ getRowMeta(idx).diffs > 1 ? 's' : '' }}
+              Diff
             </span>
             <span
               v-else
@@ -201,20 +179,18 @@ onMounted(() => {
             <!-- Status codes -->
             <span class="text-xs font-mono text-dim w-24 text-right whitespace-nowrap">
               <span
-                :class="getRowMeta(idx).liveStatus < 400 ? 'text-muted-foreground' : 'text-danger'"
-                >{{ getRowMeta(idx).liveStatus }}</span
+                :class="request.live_status_code < 400 ? 'text-muted-foreground' : 'text-danger'"
+                >{{ request.live_status_code }}</span
               >
               <span class="text-dim"> / </span>
               <span
-                :class="
-                  getRowMeta(idx).shadowStatus < 400 ? 'text-muted-foreground' : 'text-danger'
-                "
-                >{{ getRowMeta(idx).shadowStatus }}</span
+                :class="request.shadow_status_code < 400 ? 'text-muted-foreground' : 'text-danger'"
+                >{{ request.shadow_status_code }}</span
               >
             </span>
             <!-- Latency -->
             <span class="text-xs font-mono text-dim w-24 text-right">
-              {{ getRowMeta(idx).liveLatency }}ms / {{ getRowMeta(idx).shadowLatency }}ms
+              {{ request.live_latency_ms }}ms / {{ request.shadow_latency_ms }}ms
             </span>
             <!-- Timestamp -->
             <div class="text-xs text-dim w-20 text-right">

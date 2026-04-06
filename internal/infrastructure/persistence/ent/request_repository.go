@@ -9,8 +9,10 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/pedrobarco/mroki/ent"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
+	"github.com/pedrobarco/mroki/ent/response"
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 )
@@ -83,6 +85,7 @@ func (r *requestRepository) saveResponses(ctx context.Context, tx *ent.Tx, req *
 			SetStatusCode(int32(resp.StatusCode.Int())).
 			SetHeaders(resp.Headers.HTTPHeader()).
 			SetBody(resp.Body).
+			SetLatencyMs(resp.LatencyMs).
 			SetCreatedAt(resp.CreatedAt).
 			Save(ctx); err != nil {
 			return fmt.Errorf("failed to save response: %w", err)
@@ -163,6 +166,12 @@ func (r *requestRepository) GetAllByGateID(
 
 	rows, err := r.client.Request.Query().
 		Where(where).
+		WithResponses(func(q *ent.ResponseQuery) {
+			q.Select(response.FieldID, response.FieldType, response.FieldStatusCode, response.FieldLatencyMs)
+		}).
+		WithDiff(func(q *ent.DiffQuery) {
+			q.Select(entdiff.FieldID)
+		}).
 		Order(r.buildOrderBy(sort)).
 		Limit(params.Limit()).
 		Offset(params.Offset()).
@@ -177,6 +186,19 @@ func (r *requestRepository) GetAllByGateID(
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert request: %w", err)
 		}
+
+		// Map eager-loaded responses (partial: type, status_code, latency_ms only)
+		for _, respRaw := range raw.Edges.Responses {
+			resp, err := mapResponseToDomain(respRaw)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert response: %w", err)
+			}
+			req.Responses = append(req.Responses, resp)
+		}
+
+		// Map eager-loaded diff (partial: ID only, for existence check)
+		req.Diff = mapDiffToDomain(raw.Edges.Diff)
+
 		reqs = append(reqs, req)
 	}
 

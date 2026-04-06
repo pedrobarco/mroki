@@ -32,6 +32,7 @@ type ResponsePayload struct {
 	StatusCode int                 `json:"status_code"`  // e.g., 200, 404, 500
 	Headers    map[string][]string `json:"headers"`      // Response headers
 	Body       string              `json:"body"`         // Base64 encoded
+	LatencyMs  int64               `json:"latency_ms"`   // Response time in milliseconds
 	CreatedAt  time.Time           `json:"created_at"`   // Same as request
 }
 
@@ -42,10 +43,15 @@ type DiffPayload struct {
 
 // Request represents a summary of a captured request (used in listings).
 type Request struct {
-	ID        string    `json:"id"`
-	Method    string    `json:"method"`
-	Path      string    `json:"path"`
-	CreatedAt time.Time `json:"created_at"`
+	ID               string    `json:"id"`
+	Method           string    `json:"method"`
+	Path             string    `json:"path"`
+	CreatedAt        time.Time `json:"created_at"`
+	LiveStatusCode   int       `json:"live_status_code"`
+	ShadowStatusCode int       `json:"shadow_status_code"`
+	LiveLatencyMs    int64     `json:"live_latency_ms"`
+	ShadowLatencyMs  int64     `json:"shadow_latency_ms"`
+	HasDiff          bool      `json:"has_diff"`
 }
 
 // RequestDetail represents a complete request with all responses and diff.
@@ -66,6 +72,7 @@ type ResponseDetail struct {
 	StatusCode int         `json:"status_code"`
 	Headers    http.Header `json:"headers"`
 	Body       string      `json:"body"`
+	LatencyMs  int64       `json:"latency_ms"`
 	CreatedAt  time.Time   `json:"created_at"`
 }
 

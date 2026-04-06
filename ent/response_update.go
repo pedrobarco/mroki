@@ -104,6 +104,27 @@ func (_u *ResponseUpdate) ClearBody() *ResponseUpdate {
 	return _u
 }
 
+// SetLatencyMs sets the "latency_ms" field.
+func (_u *ResponseUpdate) SetLatencyMs(v int64) *ResponseUpdate {
+	_u.mutation.ResetLatencyMs()
+	_u.mutation.SetLatencyMs(v)
+	return _u
+}
+
+// SetNillableLatencyMs sets the "latency_ms" field if the given value is not nil.
+func (_u *ResponseUpdate) SetNillableLatencyMs(v *int64) *ResponseUpdate {
+	if v != nil {
+		_u.SetLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddLatencyMs adds value to the "latency_ms" field.
+func (_u *ResponseUpdate) AddLatencyMs(v int64) *ResponseUpdate {
+	_u.mutation.AddLatencyMs(v)
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *ResponseUpdate) SetCreatedAt(v time.Time) *ResponseUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -278,6 +299,12 @@ func (_u *ResponseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.BodyCleared() {
 		_spec.ClearField(response.FieldBody, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.LatencyMs(); ok {
+		_spec.SetField(response.FieldLatencyMs, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLatencyMs(); ok {
+		_spec.AddField(response.FieldLatencyMs, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(response.FieldCreatedAt, field.TypeTime, value)
@@ -494,6 +521,27 @@ func (_u *ResponseUpdateOne) ClearBody() *ResponseUpdateOne {
 	return _u
 }
 
+// SetLatencyMs sets the "latency_ms" field.
+func (_u *ResponseUpdateOne) SetLatencyMs(v int64) *ResponseUpdateOne {
+	_u.mutation.ResetLatencyMs()
+	_u.mutation.SetLatencyMs(v)
+	return _u
+}
+
+// SetNillableLatencyMs sets the "latency_ms" field if the given value is not nil.
+func (_u *ResponseUpdateOne) SetNillableLatencyMs(v *int64) *ResponseUpdateOne {
+	if v != nil {
+		_u.SetLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddLatencyMs adds value to the "latency_ms" field.
+func (_u *ResponseUpdateOne) AddLatencyMs(v int64) *ResponseUpdateOne {
+	_u.mutation.AddLatencyMs(v)
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *ResponseUpdateOne) SetCreatedAt(v time.Time) *ResponseUpdateOne {
 	_u.mutation.SetCreatedAt(v)
@@ -698,6 +746,12 @@ func (_u *ResponseUpdateOne) sqlSave(ctx context.Context) (_node *Response, err 
 	}
 	if _u.mutation.BodyCleared() {
 		_spec.ClearField(response.FieldBody, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.LatencyMs(); ok {
+		_spec.SetField(response.FieldLatencyMs, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedLatencyMs(); ok {
+		_spec.AddField(response.FieldLatencyMs, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(response.FieldCreatedAt, field.TypeTime, value)

@@ -76,6 +76,11 @@ func Body(v []byte) predicate.Response {
 	return predicate.Response(sql.FieldEQ(FieldBody, v))
 }
 
+// LatencyMs applies equality check predicate on the "latency_ms" field. It's identical to LatencyMsEQ.
+func LatencyMs(v int64) predicate.Response {
+	return predicate.Response(sql.FieldEQ(FieldLatencyMs, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Response {
 	return predicate.Response(sql.FieldEQ(FieldCreatedAt, v))
@@ -264,6 +269,46 @@ func BodyIsNil() predicate.Response {
 // BodyNotNil applies the NotNil predicate on the "body" field.
 func BodyNotNil() predicate.Response {
 	return predicate.Response(sql.FieldNotNull(FieldBody))
+}
+
+// LatencyMsEQ applies the EQ predicate on the "latency_ms" field.
+func LatencyMsEQ(v int64) predicate.Response {
+	return predicate.Response(sql.FieldEQ(FieldLatencyMs, v))
+}
+
+// LatencyMsNEQ applies the NEQ predicate on the "latency_ms" field.
+func LatencyMsNEQ(v int64) predicate.Response {
+	return predicate.Response(sql.FieldNEQ(FieldLatencyMs, v))
+}
+
+// LatencyMsIn applies the In predicate on the "latency_ms" field.
+func LatencyMsIn(vs ...int64) predicate.Response {
+	return predicate.Response(sql.FieldIn(FieldLatencyMs, vs...))
+}
+
+// LatencyMsNotIn applies the NotIn predicate on the "latency_ms" field.
+func LatencyMsNotIn(vs ...int64) predicate.Response {
+	return predicate.Response(sql.FieldNotIn(FieldLatencyMs, vs...))
+}
+
+// LatencyMsGT applies the GT predicate on the "latency_ms" field.
+func LatencyMsGT(v int64) predicate.Response {
+	return predicate.Response(sql.FieldGT(FieldLatencyMs, v))
+}
+
+// LatencyMsGTE applies the GTE predicate on the "latency_ms" field.
+func LatencyMsGTE(v int64) predicate.Response {
+	return predicate.Response(sql.FieldGTE(FieldLatencyMs, v))
+}
+
+// LatencyMsLT applies the LT predicate on the "latency_ms" field.
+func LatencyMsLT(v int64) predicate.Response {
+	return predicate.Response(sql.FieldLT(FieldLatencyMs, v))
+}
+
+// LatencyMsLTE applies the LTE predicate on the "latency_ms" field.
+func LatencyMsLTE(v int64) predicate.Response {
+	return predicate.Response(sql.FieldLTE(FieldLatencyMs, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

@@ -117,6 +117,7 @@ var (
 		{Name: "status_code", Type: field.TypeInt32},
 		{Name: "headers", Type: field.TypeJSON, Nullable: true},
 		{Name: "body", Type: field.TypeBytes, Nullable: true},
+		{Name: "latency_ms", Type: field.TypeInt64},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "request_id", Type: field.TypeUUID},
 	}
@@ -128,7 +129,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "responses_requests_responses",
-				Columns:    []*schema.Column{ResponsesColumns[6]},
+				Columns:    []*schema.Column{ResponsesColumns[7]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -137,7 +138,7 @@ var (
 			{
 				Name:    "response_request_id",
 				Unique:  false,
-				Columns: []*schema.Column{ResponsesColumns[6]},
+				Columns: []*schema.Column{ResponsesColumns[7]},
 			},
 		},
 	}

@@ -23,6 +23,8 @@ const (
 	FieldHeaders = "headers"
 	// FieldBody holds the string denoting the body field in the database.
 	FieldBody = "body"
+	// FieldLatencyMs holds the string denoting the latency_ms field in the database.
+	FieldLatencyMs = "latency_ms"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeRequest holds the string denoting the request edge name in mutations.
@@ -64,6 +66,7 @@ var Columns = []string{
 	FieldStatusCode,
 	FieldHeaders,
 	FieldBody,
+	FieldLatencyMs,
 	FieldCreatedAt,
 }
 
@@ -105,6 +108,11 @@ func ByType(opts ...sql.OrderTermOption) OrderOption {
 // ByStatusCode orders the results by the status_code field.
 func ByStatusCode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatusCode, opts...).ToFunc()
+}
+
+// ByLatencyMs orders the results by the latency_ms field.
+func ByLatencyMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLatencyMs, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

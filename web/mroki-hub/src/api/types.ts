@@ -32,16 +32,18 @@ export interface Gate {
 }
 
 /**
- * Request represents a captured HTTP request
+ * Request represents a captured HTTP request in list views
  */
 export interface Request {
   id: string
-  gate_id: string
   method: string
   path: string
-  headers: Record<string, string[]>
-  body: string
   created_at: string
+  live_status_code: number
+  shadow_status_code: number
+  live_latency_ms: number
+  shadow_latency_ms: number
+  has_diff: boolean
 }
 
 /**
@@ -53,6 +55,7 @@ export interface Response {
   status_code: number
   headers: Record<string, string[]>
   body: string
+  latency_ms: number
   created_at: string
 }
 

@@ -53,6 +53,12 @@ func (_c *ResponseCreate) SetBody(v []byte) *ResponseCreate {
 	return _c
 }
 
+// SetLatencyMs sets the "latency_ms" field.
+func (_c *ResponseCreate) SetLatencyMs(v int64) *ResponseCreate {
+	_c.mutation.SetLatencyMs(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *ResponseCreate) SetCreatedAt(v time.Time) *ResponseCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -165,6 +171,9 @@ func (_c *ResponseCreate) check() error {
 	if _, ok := _c.mutation.StatusCode(); !ok {
 		return &ValidationError{Name: "status_code", err: errors.New(`ent: missing required field "Response.status_code"`)}
 	}
+	if _, ok := _c.mutation.LatencyMs(); !ok {
+		return &ValidationError{Name: "latency_ms", err: errors.New(`ent: missing required field "Response.latency_ms"`)}
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Response.created_at"`)}
 	}
@@ -221,6 +230,10 @@ func (_c *ResponseCreate) createSpec() (*Response, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Body(); ok {
 		_spec.SetField(response.FieldBody, field.TypeBytes, value)
 		_node.Body = value
+	}
+	if value, ok := _c.mutation.LatencyMs(); ok {
+		_spec.SetField(response.FieldLatencyMs, field.TypeInt64, value)
+		_node.LatencyMs = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(response.FieldCreatedAt, field.TypeTime, value)

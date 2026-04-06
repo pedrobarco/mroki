@@ -84,6 +84,7 @@ func mapResponseToDomain(raw *ent.Response) (traffictesting.Response, error) {
 		StatusCode: statusCode,
 		Headers:    headers,
 		Body:       raw.Body,
+		LatencyMs:  raw.LatencyMs,
 		CreatedAt:  raw.CreatedAt,
 	}, nil
 }
