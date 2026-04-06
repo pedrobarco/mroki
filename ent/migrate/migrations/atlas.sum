@@ -1,5 +1,6 @@
-h1:wP6y7AZLDfOwrFI1ArDBomqrXD/DTukPQcJr7i9BjE0=
+h1:WwuY7rEnWXVkshLaDnGI6N+O6zMflAUVGhq67E5bhL4=
 20260328015306_initial_schema.sql h1:WlF0KlGjvsoe/5LtCONshCG4VWAB3T7Ps+VxioJdGbs=
 20260329090852_add_gate_name_created_at.sql h1:ohqRYAmYZBxlS43u3pbRLWBFKgzsY1yfWHElNws5RjM=
 20260329092402_add_gate_url_unique_index.sql h1:PwZD+lSFjbKrO8YCYEGfIB1MKRlt1FRsSJrLT/T1jwo=
 20260329152117_remove_agent_id.sql h1:eGlAyIfULJQ/Xme2YjbfbL2xKKNTvTXwVaRbkj77cA4=
+20260406183403_add_response_latency_ms.sql h1:HGSp9ulXVU2sFGz7whbZfGoPNwUewXXm41X/jVeEbfA=
