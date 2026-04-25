@@ -30,9 +30,24 @@ func mapGateToDomain(raw *ent.Gate) (*traffictesting.Gate, error) {
 		return nil, fmt.Errorf("invalid shadow URL in database: %w", err)
 	}
 
+	ignoredFields := raw.DiffIgnoredFields
+	if ignoredFields == nil {
+		ignoredFields = []string{}
+	}
+	includedFields := raw.DiffIncludedFields
+	if includedFields == nil {
+		includedFields = []string{}
+	}
+
+	diffConfig, err := traffictesting.NewDiffConfig(ignoredFields, includedFields, raw.DiffFloatTolerance)
+	if err != nil {
+		return nil, fmt.Errorf("invalid diff config in database: %w", err)
+	}
+
 	return traffictesting.NewGate(name, live, shadow,
 		traffictesting.WithGateID(id),
 		traffictesting.WithGateCreatedAt(raw.CreatedAt),
+		traffictesting.WithGateDiffConfig(diffConfig),
 	)
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/ent/gate"
@@ -40,6 +41,69 @@ func (_u *GateUpdate) SetNillableName(v *string) *GateUpdate {
 	if v != nil {
 		_u.SetName(*v)
 	}
+	return _u
+}
+
+// SetDiffIgnoredFields sets the "diff_ignored_fields" field.
+func (_u *GateUpdate) SetDiffIgnoredFields(v []string) *GateUpdate {
+	_u.mutation.SetDiffIgnoredFields(v)
+	return _u
+}
+
+// AppendDiffIgnoredFields appends value to the "diff_ignored_fields" field.
+func (_u *GateUpdate) AppendDiffIgnoredFields(v []string) *GateUpdate {
+	_u.mutation.AppendDiffIgnoredFields(v)
+	return _u
+}
+
+// ClearDiffIgnoredFields clears the value of the "diff_ignored_fields" field.
+func (_u *GateUpdate) ClearDiffIgnoredFields() *GateUpdate {
+	_u.mutation.ClearDiffIgnoredFields()
+	return _u
+}
+
+// SetDiffIncludedFields sets the "diff_included_fields" field.
+func (_u *GateUpdate) SetDiffIncludedFields(v []string) *GateUpdate {
+	_u.mutation.SetDiffIncludedFields(v)
+	return _u
+}
+
+// AppendDiffIncludedFields appends value to the "diff_included_fields" field.
+func (_u *GateUpdate) AppendDiffIncludedFields(v []string) *GateUpdate {
+	_u.mutation.AppendDiffIncludedFields(v)
+	return _u
+}
+
+// ClearDiffIncludedFields clears the value of the "diff_included_fields" field.
+func (_u *GateUpdate) ClearDiffIncludedFields() *GateUpdate {
+	_u.mutation.ClearDiffIncludedFields()
+	return _u
+}
+
+// SetDiffFloatTolerance sets the "diff_float_tolerance" field.
+func (_u *GateUpdate) SetDiffFloatTolerance(v float64) *GateUpdate {
+	_u.mutation.ResetDiffFloatTolerance()
+	_u.mutation.SetDiffFloatTolerance(v)
+	return _u
+}
+
+// SetNillableDiffFloatTolerance sets the "diff_float_tolerance" field if the given value is not nil.
+func (_u *GateUpdate) SetNillableDiffFloatTolerance(v *float64) *GateUpdate {
+	if v != nil {
+		_u.SetDiffFloatTolerance(*v)
+	}
+	return _u
+}
+
+// AddDiffFloatTolerance adds value to the "diff_float_tolerance" field.
+func (_u *GateUpdate) AddDiffFloatTolerance(v float64) *GateUpdate {
+	_u.mutation.AddDiffFloatTolerance(v)
+	return _u
+}
+
+// ClearDiffFloatTolerance clears the value of the "diff_float_tolerance" field.
+func (_u *GateUpdate) ClearDiffFloatTolerance() *GateUpdate {
+	_u.mutation.ClearDiffFloatTolerance()
 	return _u
 }
 
@@ -136,6 +200,37 @@ func (_u *GateUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(gate.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.DiffIgnoredFields(); ok {
+		_spec.SetField(gate.FieldDiffIgnoredFields, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDiffIgnoredFields(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, gate.FieldDiffIgnoredFields, value)
+		})
+	}
+	if _u.mutation.DiffIgnoredFieldsCleared() {
+		_spec.ClearField(gate.FieldDiffIgnoredFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DiffIncludedFields(); ok {
+		_spec.SetField(gate.FieldDiffIncludedFields, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDiffIncludedFields(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, gate.FieldDiffIncludedFields, value)
+		})
+	}
+	if _u.mutation.DiffIncludedFieldsCleared() {
+		_spec.ClearField(gate.FieldDiffIncludedFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DiffFloatTolerance(); ok {
+		_spec.SetField(gate.FieldDiffFloatTolerance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDiffFloatTolerance(); ok {
+		_spec.AddField(gate.FieldDiffFloatTolerance, field.TypeFloat64, value)
+	}
+	if _u.mutation.DiffFloatToleranceCleared() {
+		_spec.ClearField(gate.FieldDiffFloatTolerance, field.TypeFloat64)
+	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -212,6 +307,69 @@ func (_u *GateUpdateOne) SetNillableName(v *string) *GateUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
 	}
+	return _u
+}
+
+// SetDiffIgnoredFields sets the "diff_ignored_fields" field.
+func (_u *GateUpdateOne) SetDiffIgnoredFields(v []string) *GateUpdateOne {
+	_u.mutation.SetDiffIgnoredFields(v)
+	return _u
+}
+
+// AppendDiffIgnoredFields appends value to the "diff_ignored_fields" field.
+func (_u *GateUpdateOne) AppendDiffIgnoredFields(v []string) *GateUpdateOne {
+	_u.mutation.AppendDiffIgnoredFields(v)
+	return _u
+}
+
+// ClearDiffIgnoredFields clears the value of the "diff_ignored_fields" field.
+func (_u *GateUpdateOne) ClearDiffIgnoredFields() *GateUpdateOne {
+	_u.mutation.ClearDiffIgnoredFields()
+	return _u
+}
+
+// SetDiffIncludedFields sets the "diff_included_fields" field.
+func (_u *GateUpdateOne) SetDiffIncludedFields(v []string) *GateUpdateOne {
+	_u.mutation.SetDiffIncludedFields(v)
+	return _u
+}
+
+// AppendDiffIncludedFields appends value to the "diff_included_fields" field.
+func (_u *GateUpdateOne) AppendDiffIncludedFields(v []string) *GateUpdateOne {
+	_u.mutation.AppendDiffIncludedFields(v)
+	return _u
+}
+
+// ClearDiffIncludedFields clears the value of the "diff_included_fields" field.
+func (_u *GateUpdateOne) ClearDiffIncludedFields() *GateUpdateOne {
+	_u.mutation.ClearDiffIncludedFields()
+	return _u
+}
+
+// SetDiffFloatTolerance sets the "diff_float_tolerance" field.
+func (_u *GateUpdateOne) SetDiffFloatTolerance(v float64) *GateUpdateOne {
+	_u.mutation.ResetDiffFloatTolerance()
+	_u.mutation.SetDiffFloatTolerance(v)
+	return _u
+}
+
+// SetNillableDiffFloatTolerance sets the "diff_float_tolerance" field if the given value is not nil.
+func (_u *GateUpdateOne) SetNillableDiffFloatTolerance(v *float64) *GateUpdateOne {
+	if v != nil {
+		_u.SetDiffFloatTolerance(*v)
+	}
+	return _u
+}
+
+// AddDiffFloatTolerance adds value to the "diff_float_tolerance" field.
+func (_u *GateUpdateOne) AddDiffFloatTolerance(v float64) *GateUpdateOne {
+	_u.mutation.AddDiffFloatTolerance(v)
+	return _u
+}
+
+// ClearDiffFloatTolerance clears the value of the "diff_float_tolerance" field.
+func (_u *GateUpdateOne) ClearDiffFloatTolerance() *GateUpdateOne {
+	_u.mutation.ClearDiffFloatTolerance()
 	return _u
 }
 
@@ -337,6 +495,37 @@ func (_u *GateUpdateOne) sqlSave(ctx context.Context) (_node *Gate, err error) {
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(gate.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DiffIgnoredFields(); ok {
+		_spec.SetField(gate.FieldDiffIgnoredFields, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDiffIgnoredFields(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, gate.FieldDiffIgnoredFields, value)
+		})
+	}
+	if _u.mutation.DiffIgnoredFieldsCleared() {
+		_spec.ClearField(gate.FieldDiffIgnoredFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DiffIncludedFields(); ok {
+		_spec.SetField(gate.FieldDiffIncludedFields, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDiffIncludedFields(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, gate.FieldDiffIncludedFields, value)
+		})
+	}
+	if _u.mutation.DiffIncludedFieldsCleared() {
+		_spec.ClearField(gate.FieldDiffIncludedFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DiffFloatTolerance(); ok {
+		_spec.SetField(gate.FieldDiffFloatTolerance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDiffFloatTolerance(); ok {
+		_spec.AddField(gate.FieldDiffFloatTolerance, field.TypeFloat64, value)
+	}
+	if _u.mutation.DiffFloatToleranceCleared() {
+		_spec.ClearField(gate.FieldDiffFloatTolerance, field.TypeFloat64)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{

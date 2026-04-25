@@ -76,6 +76,11 @@ func CreatedAt(v time.Time) predicate.Gate {
 	return predicate.Gate(sql.FieldEQ(FieldCreatedAt, v))
 }
 
+// DiffFloatTolerance applies equality check predicate on the "diff_float_tolerance" field. It's identical to DiffFloatToleranceEQ.
+func DiffFloatTolerance(v float64) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldDiffFloatTolerance, v))
+}
+
 // NameEQ applies the EQ predicate on the "name" field.
 func NameEQ(v string) predicate.Gate {
 	return predicate.Gate(sql.FieldEQ(FieldName, v))
@@ -309,6 +314,76 @@ func CreatedAtLT(v time.Time) predicate.Gate {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.Gate {
 	return predicate.Gate(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// DiffIgnoredFieldsIsNil applies the IsNil predicate on the "diff_ignored_fields" field.
+func DiffIgnoredFieldsIsNil() predicate.Gate {
+	return predicate.Gate(sql.FieldIsNull(FieldDiffIgnoredFields))
+}
+
+// DiffIgnoredFieldsNotNil applies the NotNil predicate on the "diff_ignored_fields" field.
+func DiffIgnoredFieldsNotNil() predicate.Gate {
+	return predicate.Gate(sql.FieldNotNull(FieldDiffIgnoredFields))
+}
+
+// DiffIncludedFieldsIsNil applies the IsNil predicate on the "diff_included_fields" field.
+func DiffIncludedFieldsIsNil() predicate.Gate {
+	return predicate.Gate(sql.FieldIsNull(FieldDiffIncludedFields))
+}
+
+// DiffIncludedFieldsNotNil applies the NotNil predicate on the "diff_included_fields" field.
+func DiffIncludedFieldsNotNil() predicate.Gate {
+	return predicate.Gate(sql.FieldNotNull(FieldDiffIncludedFields))
+}
+
+// DiffFloatToleranceEQ applies the EQ predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceEQ(v float64) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldDiffFloatTolerance, v))
+}
+
+// DiffFloatToleranceNEQ applies the NEQ predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceNEQ(v float64) predicate.Gate {
+	return predicate.Gate(sql.FieldNEQ(FieldDiffFloatTolerance, v))
+}
+
+// DiffFloatToleranceIn applies the In predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceIn(vs ...float64) predicate.Gate {
+	return predicate.Gate(sql.FieldIn(FieldDiffFloatTolerance, vs...))
+}
+
+// DiffFloatToleranceNotIn applies the NotIn predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceNotIn(vs ...float64) predicate.Gate {
+	return predicate.Gate(sql.FieldNotIn(FieldDiffFloatTolerance, vs...))
+}
+
+// DiffFloatToleranceGT applies the GT predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceGT(v float64) predicate.Gate {
+	return predicate.Gate(sql.FieldGT(FieldDiffFloatTolerance, v))
+}
+
+// DiffFloatToleranceGTE applies the GTE predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceGTE(v float64) predicate.Gate {
+	return predicate.Gate(sql.FieldGTE(FieldDiffFloatTolerance, v))
+}
+
+// DiffFloatToleranceLT applies the LT predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceLT(v float64) predicate.Gate {
+	return predicate.Gate(sql.FieldLT(FieldDiffFloatTolerance, v))
+}
+
+// DiffFloatToleranceLTE applies the LTE predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceLTE(v float64) predicate.Gate {
+	return predicate.Gate(sql.FieldLTE(FieldDiffFloatTolerance, v))
+}
+
+// DiffFloatToleranceIsNil applies the IsNil predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceIsNil() predicate.Gate {
+	return predicate.Gate(sql.FieldIsNull(FieldDiffFloatTolerance))
+}
+
+// DiffFloatToleranceNotNil applies the NotNil predicate on the "diff_float_tolerance" field.
+func DiffFloatToleranceNotNil() predicate.Gate {
+	return predicate.Gate(sql.FieldNotNull(FieldDiffFloatTolerance))
 }
 
 // HasRequests applies the HasEdge predicate on the "requests" edge.

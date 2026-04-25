@@ -748,20 +748,26 @@ func (m *DiffMutation) ResetEdge(name string) error {
 // GateMutation represents an operation that mutates the Gate nodes in the graph.
 type GateMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *uuid.UUID
-	name            *string
-	live_url        *string
-	shadow_url      *string
-	created_at      *time.Time
-	clearedFields   map[string]struct{}
-	requests        map[uuid.UUID]struct{}
-	removedrequests map[uuid.UUID]struct{}
-	clearedrequests bool
-	done            bool
-	oldValue        func(context.Context) (*Gate, error)
-	predicates      []predicate.Gate
+	op                         Op
+	typ                        string
+	id                         *uuid.UUID
+	name                       *string
+	live_url                   *string
+	shadow_url                 *string
+	created_at                 *time.Time
+	diff_ignored_fields        *[]string
+	appenddiff_ignored_fields  []string
+	diff_included_fields       *[]string
+	appenddiff_included_fields []string
+	diff_float_tolerance       *float64
+	adddiff_float_tolerance    *float64
+	clearedFields              map[string]struct{}
+	requests                   map[uuid.UUID]struct{}
+	removedrequests            map[uuid.UUID]struct{}
+	clearedrequests            bool
+	done                       bool
+	oldValue                   func(context.Context) (*Gate, error)
+	predicates                 []predicate.Gate
 }
 
 var _ ent.Mutation = (*GateMutation)(nil)
@@ -1012,6 +1018,206 @@ func (m *GateMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// SetDiffIgnoredFields sets the "diff_ignored_fields" field.
+func (m *GateMutation) SetDiffIgnoredFields(s []string) {
+	m.diff_ignored_fields = &s
+	m.appenddiff_ignored_fields = nil
+}
+
+// DiffIgnoredFields returns the value of the "diff_ignored_fields" field in the mutation.
+func (m *GateMutation) DiffIgnoredFields() (r []string, exists bool) {
+	v := m.diff_ignored_fields
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiffIgnoredFields returns the old "diff_ignored_fields" field's value of the Gate entity.
+// If the Gate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GateMutation) OldDiffIgnoredFields(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiffIgnoredFields is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiffIgnoredFields requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiffIgnoredFields: %w", err)
+	}
+	return oldValue.DiffIgnoredFields, nil
+}
+
+// AppendDiffIgnoredFields adds s to the "diff_ignored_fields" field.
+func (m *GateMutation) AppendDiffIgnoredFields(s []string) {
+	m.appenddiff_ignored_fields = append(m.appenddiff_ignored_fields, s...)
+}
+
+// AppendedDiffIgnoredFields returns the list of values that were appended to the "diff_ignored_fields" field in this mutation.
+func (m *GateMutation) AppendedDiffIgnoredFields() ([]string, bool) {
+	if len(m.appenddiff_ignored_fields) == 0 {
+		return nil, false
+	}
+	return m.appenddiff_ignored_fields, true
+}
+
+// ClearDiffIgnoredFields clears the value of the "diff_ignored_fields" field.
+func (m *GateMutation) ClearDiffIgnoredFields() {
+	m.diff_ignored_fields = nil
+	m.appenddiff_ignored_fields = nil
+	m.clearedFields[gate.FieldDiffIgnoredFields] = struct{}{}
+}
+
+// DiffIgnoredFieldsCleared returns if the "diff_ignored_fields" field was cleared in this mutation.
+func (m *GateMutation) DiffIgnoredFieldsCleared() bool {
+	_, ok := m.clearedFields[gate.FieldDiffIgnoredFields]
+	return ok
+}
+
+// ResetDiffIgnoredFields resets all changes to the "diff_ignored_fields" field.
+func (m *GateMutation) ResetDiffIgnoredFields() {
+	m.diff_ignored_fields = nil
+	m.appenddiff_ignored_fields = nil
+	delete(m.clearedFields, gate.FieldDiffIgnoredFields)
+}
+
+// SetDiffIncludedFields sets the "diff_included_fields" field.
+func (m *GateMutation) SetDiffIncludedFields(s []string) {
+	m.diff_included_fields = &s
+	m.appenddiff_included_fields = nil
+}
+
+// DiffIncludedFields returns the value of the "diff_included_fields" field in the mutation.
+func (m *GateMutation) DiffIncludedFields() (r []string, exists bool) {
+	v := m.diff_included_fields
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiffIncludedFields returns the old "diff_included_fields" field's value of the Gate entity.
+// If the Gate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GateMutation) OldDiffIncludedFields(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiffIncludedFields is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiffIncludedFields requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiffIncludedFields: %w", err)
+	}
+	return oldValue.DiffIncludedFields, nil
+}
+
+// AppendDiffIncludedFields adds s to the "diff_included_fields" field.
+func (m *GateMutation) AppendDiffIncludedFields(s []string) {
+	m.appenddiff_included_fields = append(m.appenddiff_included_fields, s...)
+}
+
+// AppendedDiffIncludedFields returns the list of values that were appended to the "diff_included_fields" field in this mutation.
+func (m *GateMutation) AppendedDiffIncludedFields() ([]string, bool) {
+	if len(m.appenddiff_included_fields) == 0 {
+		return nil, false
+	}
+	return m.appenddiff_included_fields, true
+}
+
+// ClearDiffIncludedFields clears the value of the "diff_included_fields" field.
+func (m *GateMutation) ClearDiffIncludedFields() {
+	m.diff_included_fields = nil
+	m.appenddiff_included_fields = nil
+	m.clearedFields[gate.FieldDiffIncludedFields] = struct{}{}
+}
+
+// DiffIncludedFieldsCleared returns if the "diff_included_fields" field was cleared in this mutation.
+func (m *GateMutation) DiffIncludedFieldsCleared() bool {
+	_, ok := m.clearedFields[gate.FieldDiffIncludedFields]
+	return ok
+}
+
+// ResetDiffIncludedFields resets all changes to the "diff_included_fields" field.
+func (m *GateMutation) ResetDiffIncludedFields() {
+	m.diff_included_fields = nil
+	m.appenddiff_included_fields = nil
+	delete(m.clearedFields, gate.FieldDiffIncludedFields)
+}
+
+// SetDiffFloatTolerance sets the "diff_float_tolerance" field.
+func (m *GateMutation) SetDiffFloatTolerance(f float64) {
+	m.diff_float_tolerance = &f
+	m.adddiff_float_tolerance = nil
+}
+
+// DiffFloatTolerance returns the value of the "diff_float_tolerance" field in the mutation.
+func (m *GateMutation) DiffFloatTolerance() (r float64, exists bool) {
+	v := m.diff_float_tolerance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiffFloatTolerance returns the old "diff_float_tolerance" field's value of the Gate entity.
+// If the Gate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GateMutation) OldDiffFloatTolerance(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiffFloatTolerance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiffFloatTolerance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiffFloatTolerance: %w", err)
+	}
+	return oldValue.DiffFloatTolerance, nil
+}
+
+// AddDiffFloatTolerance adds f to the "diff_float_tolerance" field.
+func (m *GateMutation) AddDiffFloatTolerance(f float64) {
+	if m.adddiff_float_tolerance != nil {
+		*m.adddiff_float_tolerance += f
+	} else {
+		m.adddiff_float_tolerance = &f
+	}
+}
+
+// AddedDiffFloatTolerance returns the value that was added to the "diff_float_tolerance" field in this mutation.
+func (m *GateMutation) AddedDiffFloatTolerance() (r float64, exists bool) {
+	v := m.adddiff_float_tolerance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDiffFloatTolerance clears the value of the "diff_float_tolerance" field.
+func (m *GateMutation) ClearDiffFloatTolerance() {
+	m.diff_float_tolerance = nil
+	m.adddiff_float_tolerance = nil
+	m.clearedFields[gate.FieldDiffFloatTolerance] = struct{}{}
+}
+
+// DiffFloatToleranceCleared returns if the "diff_float_tolerance" field was cleared in this mutation.
+func (m *GateMutation) DiffFloatToleranceCleared() bool {
+	_, ok := m.clearedFields[gate.FieldDiffFloatTolerance]
+	return ok
+}
+
+// ResetDiffFloatTolerance resets all changes to the "diff_float_tolerance" field.
+func (m *GateMutation) ResetDiffFloatTolerance() {
+	m.diff_float_tolerance = nil
+	m.adddiff_float_tolerance = nil
+	delete(m.clearedFields, gate.FieldDiffFloatTolerance)
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by ids.
 func (m *GateMutation) AddRequestIDs(ids ...uuid.UUID) {
 	if m.requests == nil {
@@ -1100,7 +1306,7 @@ func (m *GateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GateMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 7)
 	if m.name != nil {
 		fields = append(fields, gate.FieldName)
 	}
@@ -1112,6 +1318,15 @@ func (m *GateMutation) Fields() []string {
 	}
 	if m.created_at != nil {
 		fields = append(fields, gate.FieldCreatedAt)
+	}
+	if m.diff_ignored_fields != nil {
+		fields = append(fields, gate.FieldDiffIgnoredFields)
+	}
+	if m.diff_included_fields != nil {
+		fields = append(fields, gate.FieldDiffIncludedFields)
+	}
+	if m.diff_float_tolerance != nil {
+		fields = append(fields, gate.FieldDiffFloatTolerance)
 	}
 	return fields
 }
@@ -1129,6 +1344,12 @@ func (m *GateMutation) Field(name string) (ent.Value, bool) {
 		return m.ShadowURL()
 	case gate.FieldCreatedAt:
 		return m.CreatedAt()
+	case gate.FieldDiffIgnoredFields:
+		return m.DiffIgnoredFields()
+	case gate.FieldDiffIncludedFields:
+		return m.DiffIncludedFields()
+	case gate.FieldDiffFloatTolerance:
+		return m.DiffFloatTolerance()
 	}
 	return nil, false
 }
@@ -1146,6 +1367,12 @@ func (m *GateMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldShadowURL(ctx)
 	case gate.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
+	case gate.FieldDiffIgnoredFields:
+		return m.OldDiffIgnoredFields(ctx)
+	case gate.FieldDiffIncludedFields:
+		return m.OldDiffIncludedFields(ctx)
+	case gate.FieldDiffFloatTolerance:
+		return m.OldDiffFloatTolerance(ctx)
 	}
 	return nil, fmt.Errorf("unknown Gate field %s", name)
 }
@@ -1183,6 +1410,27 @@ func (m *GateMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCreatedAt(v)
 		return nil
+	case gate.FieldDiffIgnoredFields:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiffIgnoredFields(v)
+		return nil
+	case gate.FieldDiffIncludedFields:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiffIncludedFields(v)
+		return nil
+	case gate.FieldDiffFloatTolerance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiffFloatTolerance(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Gate field %s", name)
 }
@@ -1190,13 +1438,21 @@ func (m *GateMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *GateMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.adddiff_float_tolerance != nil {
+		fields = append(fields, gate.FieldDiffFloatTolerance)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *GateMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case gate.FieldDiffFloatTolerance:
+		return m.AddedDiffFloatTolerance()
+	}
 	return nil, false
 }
 
@@ -1205,6 +1461,13 @@ func (m *GateMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *GateMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case gate.FieldDiffFloatTolerance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDiffFloatTolerance(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Gate numeric field %s", name)
 }
@@ -1212,7 +1475,17 @@ func (m *GateMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *GateMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(gate.FieldDiffIgnoredFields) {
+		fields = append(fields, gate.FieldDiffIgnoredFields)
+	}
+	if m.FieldCleared(gate.FieldDiffIncludedFields) {
+		fields = append(fields, gate.FieldDiffIncludedFields)
+	}
+	if m.FieldCleared(gate.FieldDiffFloatTolerance) {
+		fields = append(fields, gate.FieldDiffFloatTolerance)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -1225,6 +1498,17 @@ func (m *GateMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *GateMutation) ClearField(name string) error {
+	switch name {
+	case gate.FieldDiffIgnoredFields:
+		m.ClearDiffIgnoredFields()
+		return nil
+	case gate.FieldDiffIncludedFields:
+		m.ClearDiffIncludedFields()
+		return nil
+	case gate.FieldDiffFloatTolerance:
+		m.ClearDiffFloatTolerance()
+		return nil
+	}
 	return fmt.Errorf("unknown Gate nullable field %s", name)
 }
 
@@ -1243,6 +1527,15 @@ func (m *GateMutation) ResetField(name string) error {
 		return nil
 	case gate.FieldCreatedAt:
 		m.ResetCreatedAt()
+		return nil
+	case gate.FieldDiffIgnoredFields:
+		m.ResetDiffIgnoredFields()
+		return nil
+	case gate.FieldDiffIncludedFields:
+		m.ResetDiffIncludedFields()
+		return nil
+	case gate.FieldDiffFloatTolerance:
+		m.ResetDiffFloatTolerance()
 		return nil
 	}
 	return fmt.Errorf("unknown Gate field %s", name)

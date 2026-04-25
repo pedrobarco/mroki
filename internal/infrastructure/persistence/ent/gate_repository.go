@@ -30,11 +30,32 @@ func (r *gateRepository) Save(ctx context.Context, g *traffictesting.Gate) error
 		SetLiveURL(g.LiveURL.String()).
 		SetShadowURL(g.ShadowURL.String()).
 		SetCreatedAt(g.CreatedAt).
+		SetDiffIgnoredFields(g.DiffConfig.IgnoredFields).
+		SetDiffIncludedFields(g.DiffConfig.IncludedFields).
+		SetDiffFloatTolerance(g.DiffConfig.FloatTolerance).
 		Save(ctx); err != nil {
 		if isUniqueConstraintError(err) {
 			return classifyGateUniqueViolation(err, g)
 		}
 		return fmt.Errorf("failed to save gate: %w", err)
+	}
+	return nil
+}
+
+func (r *gateRepository) Update(ctx context.Context, g *traffictesting.Gate) error {
+	if _, err := r.client.Gate.UpdateOneID(g.ID.UUID()).
+		SetName(g.Name.String()).
+		SetDiffIgnoredFields(g.DiffConfig.IgnoredFields).
+		SetDiffIncludedFields(g.DiffConfig.IncludedFields).
+		SetDiffFloatTolerance(g.DiffConfig.FloatTolerance).
+		Save(ctx); err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("%w: %s", traffictesting.ErrGateNotFound, g.ID)
+		}
+		if isUniqueConstraintError(err) {
+			return classifyGateUniqueViolation(err, g)
+		}
+		return fmt.Errorf("failed to update gate: %w", err)
 	}
 	return nil
 }

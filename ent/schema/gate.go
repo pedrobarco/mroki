@@ -34,6 +34,12 @@ func (Gate) Fields() []ent.Field {
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),
+		field.JSON("diff_ignored_fields", []string{}).
+			Optional(),
+		field.JSON("diff_included_fields", []string{}).
+			Optional(),
+		field.Float("diff_float_tolerance").
+			Optional(),
 	}
 }
 

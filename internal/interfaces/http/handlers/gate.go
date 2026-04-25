@@ -187,6 +187,72 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 }
 
 
+func UpdateGate(handler *commands.UpdateGateHandler) AppHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id := r.PathValue("gate_id")
+		if id == "" {
+			return dto.MissingPathParam("gate_id")
+		}
+
+		var req struct {
+			Name       *string         `json:"name"`
+			DiffConfig *dto.DiffConfig `json:"diff_config"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return dto.InvalidRequestBody(err)
+		}
+
+		cmd := commands.UpdateGateCommand{
+			ID:   id,
+			Name: req.Name,
+		}
+
+		if req.DiffConfig != nil {
+			cmd.DiffConfig = &commands.UpdateDiffConfigProps{
+				IgnoredFields:  req.DiffConfig.IgnoredFields,
+				IncludedFields: req.DiffConfig.IncludedFields,
+				FloatTolerance: req.DiffConfig.FloatTolerance,
+			}
+		}
+
+		gate, err := handler.Handle(r.Context(), cmd)
+		if err != nil {
+			switch {
+			case errors.Is(err, traffictesting.ErrInvalidGateID):
+				return dto.InvalidGateID(id)
+			case errors.Is(err, traffictesting.ErrGateNotFound):
+				return dto.GateNotFound(id)
+			case errors.Is(err, traffictesting.ErrInvalidGateName):
+				return dto.InvalidGateName(err)
+			case errors.Is(err, traffictesting.ErrInvalidDiffConfig):
+				return dto.InvalidDiffConfig(err)
+			case errors.Is(err, traffictesting.ErrDuplicateGateName):
+				return dto.DuplicateGateName(err)
+			default:
+				return dto.NewError(
+					http.StatusInternalServerError,
+					dto.ErrorTypeInternalError,
+					"Internal Server Error",
+					"An unknown error occurred. Please try again later.",
+					err,
+				)
+			}
+		}
+
+		response := dto.Response[dto.Gate]{
+			Data: mapGateToDTO(&queries.GateWithStats{Gate: gate}),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			return dto.InvalidResponseBody(err)
+		}
+		return nil
+	}
+}
+
 func mapGateToDTO(gws *queries.GateWithStats) dto.Gate {
 	var lastActive *string
 	if gws.Stats.LastActive != nil {
@@ -199,6 +265,11 @@ func mapGateToDTO(gws *queries.GateWithStats) dto.Gate {
 		Name:      gws.Gate.Name.String(),
 		LiveURL:   gws.Gate.LiveURL.String(),
 		ShadowURL: gws.Gate.ShadowURL.String(),
+		DiffConfig: dto.DiffConfig{
+			IgnoredFields:  gws.Gate.DiffConfig.IgnoredFields,
+			IncludedFields: gws.Gate.DiffConfig.IncludedFields,
+			FloatTolerance: gws.Gate.DiffConfig.FloatTolerance,
+		},
 		CreatedAt: gws.Gate.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Stats: dto.GateStats{
 			RequestCount24h: gws.Stats.RequestCount24h,

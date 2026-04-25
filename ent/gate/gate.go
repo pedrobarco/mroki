@@ -23,6 +23,12 @@ const (
 	FieldShadowURL = "shadow_url"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldDiffIgnoredFields holds the string denoting the diff_ignored_fields field in the database.
+	FieldDiffIgnoredFields = "diff_ignored_fields"
+	// FieldDiffIncludedFields holds the string denoting the diff_included_fields field in the database.
+	FieldDiffIncludedFields = "diff_included_fields"
+	// FieldDiffFloatTolerance holds the string denoting the diff_float_tolerance field in the database.
+	FieldDiffFloatTolerance = "diff_float_tolerance"
 	// EdgeRequests holds the string denoting the requests edge name in mutations.
 	EdgeRequests = "requests"
 	// Table holds the table name of the gate in the database.
@@ -43,6 +49,9 @@ var Columns = []string{
 	FieldLiveURL,
 	FieldShadowURL,
 	FieldCreatedAt,
+	FieldDiffIgnoredFields,
+	FieldDiffIncludedFields,
+	FieldDiffFloatTolerance,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -94,6 +103,11 @@ func ByShadowURL(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByDiffFloatTolerance orders the results by the diff_float_tolerance field.
+func ByDiffFloatTolerance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiffFloatTolerance, opts...).ToFunc()
 }
 
 // ByRequestsCount orders the results by requests count.

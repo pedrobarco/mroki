@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -26,6 +27,12 @@ type Gate struct {
 	ShadowURL string `json:"shadow_url,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
+	// DiffIgnoredFields holds the value of the "diff_ignored_fields" field.
+	DiffIgnoredFields []string `json:"diff_ignored_fields,omitempty"`
+	// DiffIncludedFields holds the value of the "diff_included_fields" field.
+	DiffIncludedFields []string `json:"diff_included_fields,omitempty"`
+	// DiffFloatTolerance holds the value of the "diff_float_tolerance" field.
+	DiffFloatTolerance float64 `json:"diff_float_tolerance,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GateQuery when eager-loading is set.
 	Edges        GateEdges `json:"edges"`
@@ -55,6 +62,10 @@ func (*Gate) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case gate.FieldDiffIgnoredFields, gate.FieldDiffIncludedFields:
+			values[i] = new([]byte)
+		case gate.FieldDiffFloatTolerance:
+			values[i] = new(sql.NullFloat64)
 		case gate.FieldName, gate.FieldLiveURL, gate.FieldShadowURL:
 			values[i] = new(sql.NullString)
 		case gate.FieldCreatedAt:
@@ -105,6 +116,28 @@ func (_m *Gate) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
+			}
+		case gate.FieldDiffIgnoredFields:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field diff_ignored_fields", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.DiffIgnoredFields); err != nil {
+					return fmt.Errorf("unmarshal field diff_ignored_fields: %w", err)
+				}
+			}
+		case gate.FieldDiffIncludedFields:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field diff_included_fields", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.DiffIncludedFields); err != nil {
+					return fmt.Errorf("unmarshal field diff_included_fields: %w", err)
+				}
+			}
+		case gate.FieldDiffFloatTolerance:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field diff_float_tolerance", values[i])
+			} else if value.Valid {
+				_m.DiffFloatTolerance = value.Float64
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -158,6 +191,15 @@ func (_m *Gate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("diff_ignored_fields=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiffIgnoredFields))
+	builder.WriteString(", ")
+	builder.WriteString("diff_included_fields=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiffIncludedFields))
+	builder.WriteString(", ")
+	builder.WriteString("diff_float_tolerance=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiffFloatTolerance))
 	builder.WriteByte(')')
 	return builder.String()
 }

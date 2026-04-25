@@ -34,6 +34,29 @@ func (m *mockRequestRepository) GetAllByGateID(ctx context.Context, gateID traff
 	return nil, errors.New("not implemented")
 }
 
+// mockGateRepoForRequest is a minimal mock of GateRepository for create_request tests
+type mockGateRepoForRequest struct{}
+
+func (m *mockGateRepoForRequest) Save(ctx context.Context, gate *traffictesting.Gate) error {
+	return nil
+}
+
+func (m *mockGateRepoForRequest) Update(ctx context.Context, gate *traffictesting.Gate) error {
+	return nil
+}
+
+func (m *mockGateRepoForRequest) GetByID(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+	name, _ := traffictesting.ParseGateName("test")
+	live, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadow, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate, _ := traffictesting.NewGate(name, live, shadow, traffictesting.WithGateID(id))
+	return gate, nil
+}
+
+func (m *mockGateRepoForRequest) GetAll(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+	return nil, errors.New("not implemented")
+}
+
 func TestCreateRequestHandler_Handle_success(t *testing.T) {
 	// Arrange
 	repo := &mockRequestRepository{
@@ -45,7 +68,7 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 			return nil
 		},
 	}
-	handler := NewCreateRequestHandler(repo)
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
@@ -97,7 +120,7 @@ func TestCreateRequestHandler_Handle_server_side_diff_computation(t *testing.T) 
 			return nil
 		},
 	}
-	handler := NewCreateRequestHandler(repo)
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
@@ -152,7 +175,7 @@ func TestCreateRequestHandler_Handle_server_side_diff_identical_responses(t *tes
 			return nil
 		},
 	}
-	handler := NewCreateRequestHandler(repo)
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
@@ -192,7 +215,7 @@ func TestCreateRequestHandler_Handle_with_custom_ids(t *testing.T) {
 			return nil
 		},
 	}
-	handler := NewCreateRequestHandler(repo)
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
 
 	gateID := traffictesting.NewGateID()
 	requestID := traffictesting.NewRequestID()
@@ -235,7 +258,7 @@ func TestCreateRequestHandler_Handle_with_custom_ids(t *testing.T) {
 func TestCreateRequestHandler_Handle_invalid_gate_id(t *testing.T) {
 	// Arrange
 	repo := &mockRequestRepository{}
-	handler := NewCreateRequestHandler(repo)
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
 
 	cmd := CreateRequestCommand{
 		GateID:         "invalid-uuid",
@@ -256,7 +279,7 @@ func TestCreateRequestHandler_Handle_invalid_gate_id(t *testing.T) {
 func TestCreateRequestHandler_Handle_invalid_request_id(t *testing.T) {
 	// Arrange
 	repo := &mockRequestRepository{}
-	handler := NewCreateRequestHandler(repo)
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
@@ -279,7 +302,7 @@ func TestCreateRequestHandler_Handle_invalid_request_id(t *testing.T) {
 func TestCreateRequestHandler_Handle_invalid_live_status_code(t *testing.T) {
 	// Arrange
 	repo := &mockRequestRepository{}
-	handler := NewCreateRequestHandler(repo)
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
@@ -302,7 +325,7 @@ func TestCreateRequestHandler_Handle_invalid_live_status_code(t *testing.T) {
 func TestCreateRequestHandler_Handle_invalid_shadow_status_code(t *testing.T) {
 	// Arrange
 	repo := &mockRequestRepository{}
-	handler := NewCreateRequestHandler(repo)
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
@@ -330,7 +353,7 @@ func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
 			return expectedErr
 		},
 	}
-	handler := NewCreateRequestHandler(repo)
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{

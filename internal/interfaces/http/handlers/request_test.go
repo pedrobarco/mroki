@@ -49,6 +49,29 @@ func (m *mockRequestRepository) GetAllByGateID(ctx context.Context, gateID traff
 	return nil, nil
 }
 
+// mockGateRepoForRequestHandlers is a minimal gate repo mock for request handler tests
+type mockGateRepoForRequestHandlers struct{}
+
+func (m *mockGateRepoForRequestHandlers) Save(ctx context.Context, gate *traffictesting.Gate) error {
+	return nil
+}
+
+func (m *mockGateRepoForRequestHandlers) Update(ctx context.Context, gate *traffictesting.Gate) error {
+	return nil
+}
+
+func (m *mockGateRepoForRequestHandlers) GetByID(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+	name, _ := traffictesting.ParseGateName("test")
+	live, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadow, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	gate, _ := traffictesting.NewGate(name, live, shadow, traffictesting.WithGateID(id))
+	return gate, nil
+}
+
+func (m *mockGateRepoForRequestHandlers) GetAll(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
+	return nil, nil
+}
+
 func TestCreateRequest_Success(t *testing.T) {
 	gateID := traffictesting.NewGateID()
 	repo := &mockRequestRepository{
@@ -56,7 +79,7 @@ func TestCreateRequest_Success(t *testing.T) {
 			return nil
 		},
 	}
-	handler := commands.NewCreateRequestHandler(repo)
+	handler := commands.NewCreateRequestHandler(repo, &mockGateRepoForRequestHandlers{})
 
 	now := time.Now()
 	body := map[string]interface{}{
@@ -125,7 +148,7 @@ func TestCreateRequest_Success_WithoutDiff(t *testing.T) {
 			return nil
 		},
 	}
-	handler := commands.NewCreateRequestHandler(repo)
+	handler := commands.NewCreateRequestHandler(repo, &mockGateRepoForRequestHandlers{})
 
 	now := time.Now()
 
@@ -183,7 +206,7 @@ func TestCreateRequest_Success_WithoutDiff(t *testing.T) {
 func TestCreateRequest_InvalidJSON(t *testing.T) {
 	gateID := traffictesting.NewGateID()
 	repo := &mockRequestRepository{}
-	handler := commands.NewCreateRequestHandler(repo)
+	handler := commands.NewCreateRequestHandler(repo, &mockGateRepoForRequestHandlers{})
 
 	req := httptest.NewRequest(http.MethodPost, "/gates/"+gateID.String()+"/requests", bytes.NewBufferString("{invalid}"))
 	req.SetPathValue("gate_id", gateID.String())
@@ -204,7 +227,7 @@ func TestCreateRequest_InvalidJSON(t *testing.T) {
 
 func TestCreateRequest_MissingGateID(t *testing.T) {
 	repo := &mockRequestRepository{}
-	handler := commands.NewCreateRequestHandler(repo)
+	handler := commands.NewCreateRequestHandler(repo, &mockGateRepoForRequestHandlers{})
 
 	body := `{"method":"GET","path":"/test","headers":{},"body":"","live_response":{"status_code":200,"headers":{},"body":"","latency_ms":0,"created_at":"2026-01-01T00:00:00Z"},"shadow_response":{"status_code":200,"headers":{},"body":"","latency_ms":0,"created_at":"2026-01-01T00:00:00Z"},"diff":{"content":[]}}`
 	req := httptest.NewRequest(http.MethodPost, "/gates//requests", bytes.NewBufferString(body))
@@ -229,7 +252,7 @@ func TestCreateRequest_InvalidGateID(t *testing.T) {
 			return traffictesting.ErrInvalidGateID
 		},
 	}
-	handler := commands.NewCreateRequestHandler(repo)
+	handler := commands.NewCreateRequestHandler(repo, &mockGateRepoForRequestHandlers{})
 
 	now := time.Now()
 	body := map[string]interface{}{
@@ -282,7 +305,7 @@ func TestCreateRequest_RepositoryError(t *testing.T) {
 			return errors.New("database error")
 		},
 	}
-	handler := commands.NewCreateRequestHandler(repo)
+	handler := commands.NewCreateRequestHandler(repo, &mockGateRepoForRequestHandlers{})
 
 	now := time.Now()
 	body := map[string]interface{}{

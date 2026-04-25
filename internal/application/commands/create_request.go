@@ -44,12 +44,13 @@ type CreateRequestDiffProps struct {
 
 // CreateRequestHandler handles the CreateRequest command
 type CreateRequestHandler struct {
-	repo traffictesting.RequestRepository
+	repo     traffictesting.RequestRepository
+	gateRepo traffictesting.GateRepository
 }
 
 // NewCreateRequestHandler creates a new CreateRequestHandler
-func NewCreateRequestHandler(repo traffictesting.RequestRepository) *CreateRequestHandler {
-	return &CreateRequestHandler{repo: repo}
+func NewCreateRequestHandler(repo traffictesting.RequestRepository, gateRepo traffictesting.GateRepository) *CreateRequestHandler {
+	return &CreateRequestHandler{repo: repo, gateRepo: gateRepo}
 }
 
 // Handle executes the CreateRequest command
@@ -98,7 +99,14 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	if cmd.Diff != nil {
 		diffContent = cmd.Diff.Content
 	} else {
-		computed, err := computeDiff(cmd.LiveResponse, cmd.ShadowResponse)
+		// Fetch gate's diff config for server-side computation
+		var diffOpts []diff.Option
+		gate, err := h.gateRepo.GetByID(ctx, gateID)
+		if err == nil {
+			diffOpts = gate.DiffConfig.ToDiffOptions()
+		}
+
+		computed, err := computeDiff(cmd.LiveResponse, cmd.ShadowResponse, diffOpts...)
 		if err != nil {
 			// Diff computation errors are non-fatal — store empty diff
 			diffContent = []diff.PatchOp{}
@@ -171,7 +179,7 @@ func buildResponse(props CreateRequestResponseProps) (*traffictesting.Response, 
 // computeDiff computes a JSON diff between live and shadow response bodies.
 // Response bodies are expected to be base64-encoded JSON strings.
 // Returns RFC 6902 JSON Patch operations describing the differences.
-func computeDiff(live, shadow CreateRequestResponseProps) ([]diff.PatchOp, error) {
+func computeDiff(live, shadow CreateRequestResponseProps, opts ...diff.Option) ([]diff.PatchOp, error) {
 	// Decode base64 bodies
 	liveBody, err := base64.StdEncoding.DecodeString(string(live.Body))
 	if err != nil {
@@ -201,5 +209,5 @@ func computeDiff(live, shadow CreateRequestResponseProps) ([]diff.PatchOp, error
 	shadowJSON := fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`,
 		shadow.StatusCode, shadowHeaders, shadowBody)
 
-	return diff.JSON(liveJSON, shadowJSON)
+	return diff.JSON(liveJSON, shadowJSON, opts...)
 }

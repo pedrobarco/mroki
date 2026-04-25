@@ -54,6 +54,32 @@ func (_c *GateCreate) SetNillableCreatedAt(v *time.Time) *GateCreate {
 	return _c
 }
 
+// SetDiffIgnoredFields sets the "diff_ignored_fields" field.
+func (_c *GateCreate) SetDiffIgnoredFields(v []string) *GateCreate {
+	_c.mutation.SetDiffIgnoredFields(v)
+	return _c
+}
+
+// SetDiffIncludedFields sets the "diff_included_fields" field.
+func (_c *GateCreate) SetDiffIncludedFields(v []string) *GateCreate {
+	_c.mutation.SetDiffIncludedFields(v)
+	return _c
+}
+
+// SetDiffFloatTolerance sets the "diff_float_tolerance" field.
+func (_c *GateCreate) SetDiffFloatTolerance(v float64) *GateCreate {
+	_c.mutation.SetDiffFloatTolerance(v)
+	return _c
+}
+
+// SetNillableDiffFloatTolerance sets the "diff_float_tolerance" field if the given value is not nil.
+func (_c *GateCreate) SetNillableDiffFloatTolerance(v *float64) *GateCreate {
+	if v != nil {
+		_c.SetDiffFloatTolerance(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *GateCreate) SetID(v uuid.UUID) *GateCreate {
 	_c.mutation.SetID(v)
@@ -207,6 +233,18 @@ func (_c *GateCreate) createSpec() (*Gate, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(gate.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.DiffIgnoredFields(); ok {
+		_spec.SetField(gate.FieldDiffIgnoredFields, field.TypeJSON, value)
+		_node.DiffIgnoredFields = value
+	}
+	if value, ok := _c.mutation.DiffIncludedFields(); ok {
+		_spec.SetField(gate.FieldDiffIncludedFields, field.TypeJSON, value)
+		_node.DiffIncludedFields = value
+	}
+	if value, ok := _c.mutation.DiffFloatTolerance(); ok {
+		_spec.SetField(gate.FieldDiffFloatTolerance, field.TypeFloat64, value)
+		_node.DiffFloatTolerance = value
 	}
 	if nodes := _c.mutation.RequestsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

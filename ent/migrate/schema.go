@@ -50,6 +50,9 @@ var (
 		{Name: "live_url", Type: field.TypeString},
 		{Name: "shadow_url", Type: field.TypeString},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "diff_ignored_fields", Type: field.TypeJSON, Nullable: true},
+		{Name: "diff_included_fields", Type: field.TypeJSON, Nullable: true},
+		{Name: "diff_float_tolerance", Type: field.TypeFloat64, Nullable: true},
 	}
 	// GatesTable holds the schema information for the "gates" table.
 	GatesTable = &schema.Table{

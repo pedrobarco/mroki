@@ -247,6 +247,22 @@ func DuplicateGateName(err error) *APIError {
 	)
 }
 
+// InvalidDiffConfig returns an RFC 7807 error for invalid diff configuration.
+// Used when diff_config fields are invalid (e.g., negative float tolerance, empty field paths).
+func InvalidDiffConfig(err error) *APIError {
+	detail := "diff_config is invalid"
+	if err != nil {
+		detail = fmt.Sprintf("%s: %v", detail, err)
+	}
+	return NewError(
+		http.StatusBadRequest,
+		ErrorTypeInvalidRequestBody,
+		"Invalid Diff Config",
+		detail,
+		err,
+	)
+}
+
 // DuplicateGateURLs returns an RFC 7807 error for duplicate gate URL pairs.
 // Used when a gate with the same live_url + shadow_url combination already exists.
 func DuplicateGateURLs(err error) *APIError {

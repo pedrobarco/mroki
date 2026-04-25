@@ -65,7 +65,8 @@ func main() {
 
 	// Application Layer: Command Handlers (Write operations)
 	createGateHandler := commands.NewCreateGateHandler(gateRepo)
-	createRequestHandler := commands.NewCreateRequestHandler(reqRepo)
+	updateGateHandler := commands.NewUpdateGateHandler(gateRepo)
+	createRequestHandler := commands.NewCreateRequestHandler(reqRepo, gateRepo)
 
 	// Application Layer: Query Handlers (Read operations)
 	getGateHandler := queries.NewGetGateHandler(gateRepo, statsRepo)
@@ -145,6 +146,7 @@ func main() {
 
 	// Interface Layer: HTTP Handlers
 	createGate := handlers.CreateGate(createGateHandler)
+	updateGate := handlers.UpdateGate(updateGateHandler)
 	getGateByID := handlers.GetGateByID(getGateHandler)
 	getAllGates := handlers.GetAllGates(listGatesHandler)
 
@@ -163,6 +165,7 @@ func main() {
 	mux.Handle("GET /stats", baseChain.Then(getGlobalStats))
 	mux.Handle("GET /gates", baseChain.Then(getAllGates))
 	mux.Handle("POST /gates", postChain.Then(createGate))
+	mux.Handle("PATCH /gates/{gate_id}", postChain.Then(updateGate))
 	mux.Handle("GET /gates/{gate_id}", baseChain.Then(getGateByID))
 	mux.Handle("GET /gates/{gate_id}/requests", baseChain.Then(getAllRequestsByGateID))
 	mux.Handle("POST /gates/{gate_id}/requests", postChain.Then(createRequest))
@@ -174,7 +177,7 @@ func main() {
 	if origins := cfg.ParseCORSOrigins(); len(origins) > 0 {
 		handler = cors.New(cors.Options{
 			AllowedOrigins: origins,
-			AllowedMethods: []string{"GET", "POST", "OPTIONS"},
+			AllowedMethods: []string{"GET", "POST", "PATCH", "OPTIONS"},
 			AllowedHeaders: []string{"Content-Type", "Authorization"},
 			MaxAge:         86400,
 		}).Handler(mux)

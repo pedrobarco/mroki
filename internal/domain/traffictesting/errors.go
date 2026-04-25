@@ -10,7 +10,8 @@ var (
 	ErrInvalidGateName = errors.New("invalid gate name")
 	ErrDuplicateGateName = errors.New("gate name already exists")
 	ErrDuplicateGateURLs = errors.New("gate URL pair already exists")
-	ErrInvalidGateURL  = errors.New("invalid gate URL")
+	ErrInvalidGateURL    = errors.New("invalid gate URL")
+	ErrInvalidDiffConfig = errors.New("invalid diff config")
 
 	// Request errors
 	ErrRequestNotFound  = errors.New("request not found")
