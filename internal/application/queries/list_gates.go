@@ -26,16 +26,17 @@ type ListGatesQuery struct {
 
 // ListGatesHandler handles the ListGates query
 type ListGatesHandler struct {
-	repo traffictesting.GateRepository
+	repo      traffictesting.GateRepository
+	statsRepo traffictesting.StatsRepository
 }
 
 // NewListGatesHandler creates a new ListGatesHandler
-func NewListGatesHandler(repo traffictesting.GateRepository) *ListGatesHandler {
-	return &ListGatesHandler{repo: repo}
+func NewListGatesHandler(repo traffictesting.GateRepository, statsRepo traffictesting.StatsRepository) *ListGatesHandler {
+	return &ListGatesHandler{repo: repo, statsRepo: statsRepo}
 }
 
 // Handle executes the ListGates query
-func (h *ListGatesHandler) Handle(ctx context.Context, q ListGatesQuery) (*pagination.PagedResult[*traffictesting.Gate], error) {
+func (h *ListGatesHandler) Handle(ctx context.Context, q ListGatesQuery) (*pagination.PagedResult[*GateWithStats], error) {
 	// Create and validate pagination parameters
 	params, err := pagination.NewParams(q.Limit, q.Offset)
 	if err != nil {
@@ -51,8 +52,30 @@ func (h *ListGatesHandler) Handle(ctx context.Context, q ListGatesQuery) (*pagin
 		return nil, fmt.Errorf("%w: %v", traffictesting.ErrInvalidGateSort, err)
 	}
 
-	// Retrieve from repository with filters and sort
-	return h.repo.GetAll(ctx, filters, sort, params)
+	// Retrieve gate aggregates
+	result, err := h.repo.GetAll(ctx, filters, sort, params)
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect gate IDs for batch stats fetch
+	gateIDs := make([]traffictesting.GateID, len(result.Items))
+	for i, g := range result.Items {
+		gateIDs[i] = g.ID
+	}
+
+	statsMap, err := h.statsRepo.GetStatsByGateIDs(ctx, gateIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gate stats: %w", err)
+	}
+
+	// Compose GateWithStats items
+	items := make([]*GateWithStats, len(result.Items))
+	for i, g := range result.Items {
+		items[i] = &GateWithStats{Gate: g, Stats: statsMap[g.ID]}
+	}
+
+	return pagination.NewPagedResult(items, result.Total, params), nil
 }
 
 // buildSort creates GateSort value object from query primitives

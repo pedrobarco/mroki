@@ -19,6 +19,10 @@ func (m *mockGateRepositoryForListGates) Save(ctx context.Context, gate *traffic
 	return errors.New("not implemented")
 }
 
+func (m *mockGateRepositoryForListGates) Update(ctx context.Context, gate *traffictesting.Gate) error {
+	return errors.New("not implemented")
+}
+
 func (m *mockGateRepositoryForListGates) GetByID(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
 	return nil, errors.New("not implemented")
 }
@@ -28,6 +32,16 @@ func (m *mockGateRepositoryForListGates) GetAll(ctx context.Context, filters tra
 		return m.getAllFn(ctx, filters, sort, params)
 	}
 	return nil, errors.New("not implemented")
+}
+
+type mockStatsRepositoryForListGates struct{}
+
+func (m *mockStatsRepositoryForListGates) GetGlobalStats(ctx context.Context) (*traffictesting.GlobalStats, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockStatsRepositoryForListGates) GetStatsByGateIDs(ctx context.Context, ids []traffictesting.GateID) (map[traffictesting.GateID]traffictesting.GateStats, error) {
+	return map[traffictesting.GateID]traffictesting.GateStats{}, nil
 }
 
 func TestListGatesHandler_Handle_success(t *testing.T) {
@@ -47,7 +61,7 @@ func TestListGatesHandler_Handle_success(t *testing.T) {
 			return pagination.NewPagedResult([]*traffictesting.Gate{gate1, gate2}, 2, params), nil
 		},
 	}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:  10,
@@ -72,7 +86,7 @@ func TestListGatesHandler_Handle_empty_result(t *testing.T) {
 			return pagination.NewPagedResult([]*traffictesting.Gate{}, 0, params), nil
 		},
 	}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:  10,
@@ -98,7 +112,7 @@ func TestListGatesHandler_Handle_with_pagination(t *testing.T) {
 			return pagination.NewPagedResult([]*traffictesting.Gate{}, 100, params), nil
 		},
 	}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:  20,
@@ -121,7 +135,7 @@ func TestListGatesHandler_Handle_repository_error(t *testing.T) {
 			return nil, expectedErr
 		},
 	}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:  10,
@@ -155,7 +169,7 @@ func TestListGatesHandler_Handle_with_filters(t *testing.T) {
 			return pagination.NewPagedResult([]*traffictesting.Gate{gate1}, 1, params), nil
 		},
 	}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:     10,
@@ -183,7 +197,7 @@ func TestListGatesHandler_Handle_with_sort(t *testing.T) {
 			return pagination.NewPagedResult([]*traffictesting.Gate{}, 0, params), nil
 		},
 	}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:     10,
@@ -203,7 +217,7 @@ func TestListGatesHandler_Handle_with_sort(t *testing.T) {
 func TestListGatesHandler_Handle_invalid_sort_field(t *testing.T) {
 	// Arrange
 	repo := &mockGateRepositoryForListGates{}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:     10,
@@ -223,7 +237,7 @@ func TestListGatesHandler_Handle_invalid_sort_field(t *testing.T) {
 func TestListGatesHandler_Handle_invalid_sort_order(t *testing.T) {
 	// Arrange
 	repo := &mockGateRepositoryForListGates{}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:     10,
@@ -250,7 +264,7 @@ func TestListGatesHandler_Handle_default_sort(t *testing.T) {
 			return pagination.NewPagedResult([]*traffictesting.Gate{}, 0, params), nil
 		},
 	}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:  10,
@@ -275,7 +289,7 @@ func TestListGatesHandler_Handle_empty_filters(t *testing.T) {
 			return pagination.NewPagedResult([]*traffictesting.Gate{}, 0, params), nil
 		},
 	}
-	handler := NewListGatesHandler(repo)
+	handler := NewListGatesHandler(repo, &mockStatsRepositoryForListGates{})
 
 	query := ListGatesQuery{
 		Limit:  10,

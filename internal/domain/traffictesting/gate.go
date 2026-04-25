@@ -8,9 +8,6 @@ type Gate struct {
 	LiveURL   GateURL
 	ShadowURL GateURL
 	CreatedAt time.Time
-	Stats     GateStats
-
-	Requests []Request
 }
 
 type gateOption func(*Gate)

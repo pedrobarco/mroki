@@ -67,7 +67,7 @@ func CreateGate(handler *commands.CreateGateHandler) AppHandler {
 		}
 
 		response := dto.Response[dto.Gate]{
-			Data: mapGateToDTO(gate),
+			Data: mapGateToDTO(&queries.GateWithStats{Gate: gate}),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -90,7 +90,7 @@ func GetGateByID(handler *queries.GetGateHandler) AppHandler {
 			ID: id,
 		}
 
-		gate, err := handler.Handle(r.Context(), query)
+		result, err := handler.Handle(r.Context(), query)
 		if err != nil {
 			switch {
 			case errors.Is(err, traffictesting.ErrInvalidGateID):
@@ -109,7 +109,7 @@ func GetGateByID(handler *queries.GetGateHandler) AppHandler {
 		}
 
 		response := dto.Response[dto.Gate]{
-			Data: mapGateToDTO(gate),
+			Data: mapGateToDTO(result),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -162,8 +162,8 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 
 		// Map domain entities to DTOs (empty slice for empty results)
 		data := make([]dto.Gate, 0, len(result.Items))
-		for _, gate := range result.Items {
-			data = append(data, mapGateToDTO(gate))
+		for _, gws := range result.Items {
+			data = append(data, mapGateToDTO(gws))
 		}
 
 		// Map PagedResult to response DTO
@@ -187,23 +187,23 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 }
 
 
-func mapGateToDTO(gate *traffictesting.Gate) dto.Gate {
+func mapGateToDTO(gws *queries.GateWithStats) dto.Gate {
 	var lastActive *string
-	if gate.Stats.LastActive != nil {
-		t := gate.Stats.LastActive.Format(time.RFC3339)
+	if gws.Stats.LastActive != nil {
+		t := gws.Stats.LastActive.Format(time.RFC3339)
 		lastActive = &t
 	}
 
 	return dto.Gate{
-		ID:        gate.ID.String(),
-		Name:      gate.Name.String(),
-		LiveURL:   gate.LiveURL.String(),
-		ShadowURL: gate.ShadowURL.String(),
-		CreatedAt: gate.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:        gws.Gate.ID.String(),
+		Name:      gws.Gate.Name.String(),
+		LiveURL:   gws.Gate.LiveURL.String(),
+		ShadowURL: gws.Gate.ShadowURL.String(),
+		CreatedAt: gws.Gate.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Stats: dto.GateStats{
-			RequestCount24h: gate.Stats.RequestCount24h,
-			DiffCount24h:    gate.Stats.DiffCount24h,
-			DiffRate:        gate.Stats.DiffRate,
+			RequestCount24h: gws.Stats.RequestCount24h,
+			DiffCount24h:    gws.Stats.DiffCount24h,
+			DiffRate:        gws.Stats.DiffRate,
 			LastActive:      lastActive,
 		},
 	}

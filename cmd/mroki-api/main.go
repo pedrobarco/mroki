@@ -68,8 +68,8 @@ func main() {
 	createRequestHandler := commands.NewCreateRequestHandler(reqRepo)
 
 	// Application Layer: Query Handlers (Read operations)
-	getGateHandler := queries.NewGetGateHandler(gateRepo)
-	listGatesHandler := queries.NewListGatesHandler(gateRepo)
+	getGateHandler := queries.NewGetGateHandler(gateRepo, statsRepo)
+	listGatesHandler := queries.NewListGatesHandler(gateRepo, statsRepo)
 	getRequestHandler := queries.NewGetRequestHandler(reqRepo)
 	listRequestsHandler := queries.NewListRequestsHandler(reqRepo)
 	getGlobalStatsHandler := queries.NewGetGlobalStatsHandler(statsRepo)

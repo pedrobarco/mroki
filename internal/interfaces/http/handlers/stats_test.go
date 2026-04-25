@@ -25,6 +25,10 @@ func (m *mockStatsRepository) GetGlobalStats(ctx context.Context) (*traffictesti
 	return nil, nil
 }
 
+func (m *mockStatsRepository) GetStatsByGateIDs(ctx context.Context, ids []traffictesting.GateID) (map[traffictesting.GateID]traffictesting.GateStats, error) {
+	return map[traffictesting.GateID]traffictesting.GateStats{}, nil
+}
+
 func TestGetGlobalStats_Success(t *testing.T) {
 	repo := &mockStatsRepository{
 		getGlobalStatsFunc: func(ctx context.Context) (*traffictesting.GlobalStats, error) {

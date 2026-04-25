@@ -38,11 +38,31 @@ func (m *mockGateRepository) GetByID(ctx context.Context, id traffictesting.Gate
 	return nil, nil
 }
 
+func (m *mockGateRepository) Update(ctx context.Context, gate *traffictesting.Gate) error {
+	return nil
+}
+
 func (m *mockGateRepository) GetAll(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 	if m.getAllFunc != nil {
 		return m.getAllFunc(ctx, filters, sort, params)
 	}
 	return nil, nil
+}
+
+// mockGateStatsRepository implements traffictesting.StatsRepository for gate handler testing
+type mockGateStatsRepository struct {
+	getStatsByGateIDsFn func(context.Context, []traffictesting.GateID) (map[traffictesting.GateID]traffictesting.GateStats, error)
+}
+
+func (m *mockGateStatsRepository) GetGlobalStats(ctx context.Context) (*traffictesting.GlobalStats, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockGateStatsRepository) GetStatsByGateIDs(ctx context.Context, ids []traffictesting.GateID) (map[traffictesting.GateID]traffictesting.GateStats, error) {
+	if m.getStatsByGateIDsFn != nil {
+		return m.getStatsByGateIDsFn(ctx, ids)
+	}
+	return map[traffictesting.GateID]traffictesting.GateStats{}, nil
 }
 
 func TestCreateGate_Success(t *testing.T) {
@@ -215,7 +235,7 @@ func TestGetGateByID_Success(t *testing.T) {
 			return expectedGate, nil
 		},
 	}
-	handler := queries.NewGetGateHandler(repo)
+	handler := queries.NewGetGateHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates/"+gateID.String(), nil)
 	req.SetPathValue("gate_id", gateID.String())
@@ -264,19 +284,20 @@ func TestGetGateByID_StatsPopulated(t *testing.T) {
 	expectedGate, _ := traffictesting.NewGate(name, liveURL, shadowURL, traffictesting.WithGateID(gateID))
 
 	lastActive := time.Now()
-	expectedGate.Stats = traffictesting.GateStats{
-		RequestCount24h: 100,
-		DiffCount24h:    25,
-		DiffRate:        25.0,
-		LastActive:      &lastActive,
-	}
 
 	repo := &mockGateRepository{
 		getByIDFunc: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
 			return expectedGate, nil
 		},
 	}
-	handler := queries.NewGetGateHandler(repo)
+	statsRepo := &mockGateStatsRepository{
+		getStatsByGateIDsFn: func(ctx context.Context, ids []traffictesting.GateID) (map[traffictesting.GateID]traffictesting.GateStats, error) {
+			return map[traffictesting.GateID]traffictesting.GateStats{
+				gateID: {RequestCount24h: 100, DiffCount24h: 25, DiffRate: 25.0, LastActive: &lastActive},
+			}, nil
+		},
+	}
+	handler := queries.NewGetGateHandler(repo, statsRepo)
 
 	req := httptest.NewRequest(http.MethodGet, "/gates/"+gateID.String(), nil)
 	req.SetPathValue("gate_id", gateID.String())
@@ -310,7 +331,7 @@ func TestGetGateByID_StatsPopulated(t *testing.T) {
 
 func TestGetGateByID_MissingPathParam(t *testing.T) {
 	repo := &mockGateRepository{}
-	handler := queries.NewGetGateHandler(repo)
+	handler := queries.NewGetGateHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates/", nil)
 	rec := httptest.NewRecorder()
@@ -334,7 +355,7 @@ func TestGetGateByID_InvalidID(t *testing.T) {
 			return nil, traffictesting.ErrInvalidGateID
 		},
 	}
-	handler := queries.NewGetGateHandler(repo)
+	handler := queries.NewGetGateHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates/invalid-id", nil)
 	req.SetPathValue("gate_id", "invalid-id")
@@ -359,7 +380,7 @@ func TestGetGateByID_NotFound(t *testing.T) {
 			return nil, traffictesting.ErrGateNotFound
 		},
 	}
-	handler := queries.NewGetGateHandler(repo)
+	handler := queries.NewGetGateHandler(repo, &mockGateStatsRepository{})
 
 	gateID := traffictesting.NewGateID()
 	req := httptest.NewRequest(http.MethodGet, "/gates/"+gateID.String(), nil)
@@ -396,7 +417,7 @@ func TestGetAllGates_Success(t *testing.T) {
 			return result, nil
 		},
 	}
-	handler := queries.NewListGatesHandler(repo)
+	handler := queries.NewListGatesHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates?limit=10&offset=0", nil)
 	rec := httptest.NewRecorder()
@@ -435,7 +456,7 @@ func TestGetAllGates_EmptyResults(t *testing.T) {
 			return result, nil
 		},
 	}
-	handler := queries.NewListGatesHandler(repo)
+	handler := queries.NewListGatesHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates", nil)
 	rec := httptest.NewRecorder()
@@ -463,7 +484,7 @@ func TestGetAllGates_EmptyResults(t *testing.T) {
 
 func TestGetAllGates_InvalidPagination(t *testing.T) {
 	repo := &mockGateRepository{}
-	handler := queries.NewListGatesHandler(repo)
+	handler := queries.NewListGatesHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates?limit=invalid", nil)
 	rec := httptest.NewRecorder()
@@ -487,7 +508,7 @@ func TestGetAllGates_PaginationValidationError(t *testing.T) {
 			return nil, traffictesting.ErrInvalidPagination
 		},
 	}
-	handler := queries.NewListGatesHandler(repo)
+	handler := queries.NewListGatesHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates?limit=-1", nil)
 	rec := httptest.NewRecorder()
@@ -521,7 +542,7 @@ func TestGetAllGates_WithSortParams(t *testing.T) {
 			return result, nil
 		},
 	}
-	handler := queries.NewListGatesHandler(repo)
+	handler := queries.NewListGatesHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates?sort=live_url&order=asc", nil)
 	rec := httptest.NewRecorder()
@@ -562,7 +583,7 @@ func TestGetAllGates_WithFilterParams(t *testing.T) {
 			return result, nil
 		},
 	}
-	handler := queries.NewListGatesHandler(repo)
+	handler := queries.NewListGatesHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates?live_url=example&shadow_url=shadow", nil)
 	rec := httptest.NewRecorder()
@@ -581,7 +602,7 @@ func TestGetAllGates_WithFilterParams(t *testing.T) {
 
 func TestGetAllGates_InvalidSortField(t *testing.T) {
 	repo := &mockGateRepository{}
-	handler := queries.NewListGatesHandler(repo)
+	handler := queries.NewListGatesHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates?sort=invalid_field", nil)
 	rec := httptest.NewRecorder()
@@ -601,7 +622,7 @@ func TestGetAllGates_InvalidSortField(t *testing.T) {
 
 func TestGetAllGates_InvalidSortOrder(t *testing.T) {
 	repo := &mockGateRepository{}
-	handler := queries.NewListGatesHandler(repo)
+	handler := queries.NewListGatesHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates?order=invalid", nil)
 	rec := httptest.NewRecorder()
@@ -633,7 +654,7 @@ func TestGetAllGates_AllParamsCombined(t *testing.T) {
 			return result, nil
 		},
 	}
-	handler := queries.NewListGatesHandler(repo)
+	handler := queries.NewListGatesHandler(repo, &mockGateStatsRepository{})
 
 	req := httptest.NewRequest(http.MethodGet, "/gates?limit=10&offset=0&live_url=example&shadow_url=shadow&sort=shadow_url&order=desc", nil)
 	rec := httptest.NewRecorder()
