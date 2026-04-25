@@ -52,7 +52,7 @@ graph TD
 **Purpose:** REST API for managing gates, computing diffs, and persisting traffic data
 
 **Responsibilities:**
-- Gate CRUD operations (create, read, list)
+- Gate CRUD operations (create, read, update, list)
 - Receive raw captured requests and responses from proxies
 - Compute JSON diffs server-side (when not provided by proxy)
 - Persist requests, responses, and computed diffs
@@ -150,13 +150,18 @@ sequenceDiagram
 ### Core Entities
 
 ```go
-// Gate represents a live/shadow service pair
+// Gate represents a live/shadow service pair (command-side aggregate)
 type Gate struct {
-    ID         GateID    // UUID
-    LiveURL    URL       // Production service URL
-    ShadowURL  URL       // Shadow service URL
+    ID         GateID     // UUID
+    Name       GateName   // Unique, mutable name
+    LiveURL    GateURL    // Production service URL (immutable)
+    ShadowURL  GateURL    // Shadow service URL (immutable)
+    DiffConfig DiffConfig // Per-gate diff computation settings
     CreatedAt  time.Time
 }
+
+// GateStats is a read-side projection (not part of Gate aggregate)
+// Fetched via StatsRepository.GetStatsByGateIDs and composed in query handlers
 
 // Request represents a captured HTTP request
 type Request struct {

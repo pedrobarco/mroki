@@ -198,6 +198,11 @@ curl -H "Authorization: Bearer your-api-key" \
     "name": "checkout-api",
     "live_url": "https://api.production.example.com",
     "shadow_url": "https://api.shadow.example.com",
+    "diff_config": {
+      "ignored_fields": [],
+      "included_fields": [],
+      "float_tolerance": 0
+    },
     "created_at": "2026-03-29T09:00:00Z",
     "stats": {
       "request_count_24h": 0,
@@ -209,7 +214,7 @@ curl -H "Authorization: Bearer your-api-key" \
 }
 ```
 
-> **Note:** Newly created gates have zero stats. Stats are populated as requests are captured.
+> **Note:** Newly created gates have zero stats and default diff config. Stats are populated as requests are captured.
 
 **Error Response Examples:**
 ```json
@@ -276,6 +281,11 @@ curl -X POST http://localhost:8090/gates \
     "name": "checkout-api",
     "live_url": "https://api.production.example.com",
     "shadow_url": "https://api.shadow.example.com",
+    "diff_config": {
+      "ignored_fields": ["timestamp", "request_id"],
+      "included_fields": [],
+      "float_tolerance": 0.001
+    },
     "created_at": "2026-03-29T09:00:00Z",
     "stats": {
       "request_count_24h": 5241,
@@ -286,6 +296,14 @@ curl -X POST http://localhost:8090/gates \
   }
 }
 ```
+
+**Diff config fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ignored_fields` | `string[]` | JSON field paths to exclude from diff computation (supports wildcards) |
+| `included_fields` | `string[]` | JSON field paths to include exclusively in diff computation (supports wildcards) |
+| `float_tolerance` | `float64` | Absolute tolerance for floating-point comparisons (`0` = exact match) |
 
 **Stats fields:**
 
@@ -334,6 +352,11 @@ curl -H "Authorization: Bearer your-api-key" \
       "name": "checkout-api",
       "live_url": "https://api.production.example.com",
       "shadow_url": "https://api.shadow.example.com",
+      "diff_config": {
+        "ignored_fields": ["timestamp"],
+        "included_fields": [],
+        "float_tolerance": 0.001
+      },
       "created_at": "2026-03-29T09:00:00Z",
       "stats": {
         "request_count_24h": 5241,
@@ -347,6 +370,11 @@ curl -H "Authorization: Bearer your-api-key" \
       "name": "user-service",
       "live_url": "https://api2.production.example.com",
       "shadow_url": "https://api2.shadow.example.com",
+      "diff_config": {
+        "ignored_fields": [],
+        "included_fields": [],
+        "float_tolerance": 0
+      },
       "created_at": "2026-03-28T14:30:00Z",
       "stats": {
         "request_count_24h": 832,
@@ -386,6 +414,107 @@ curl -H "Authorization: Bearer your-api-key" \
 # Paginate with limit and offset
 curl -H "Authorization: Bearer your-api-key" \
   "http://localhost:8090/gates?limit=10&offset=20&sort=created_at&order=desc"
+```
+
+---
+
+#### PATCH /gates/:gate_id
+
+**Purpose:** Update a gate's name and/or diff configuration
+
+**Path Parameters:**
+- `gate_id` (UUID) - Gate identifier
+
+**Request Body** (all fields optional — only provided fields are updated):
+```json
+{
+  "name": "checkout-api-v2",
+  "diff_config": {
+    "ignored_fields": ["timestamp", "request_id"],
+    "included_fields": [],
+    "float_tolerance": 0.001
+  }
+}
+```
+
+**Validation:**
+- `name` (if provided) must be non-empty, max 255 characters, must be unique across all gates
+- `diff_config.ignored_fields` entries must be non-empty strings (supports wildcards)
+- `diff_config.included_fields` entries must be non-empty strings (supports wildcards)
+- `diff_config.float_tolerance` must be non-negative
+
+**Response:**
+- `200 OK` on success
+- `400 Bad Request` if validation fails
+- `404 Not Found` if gate doesn't exist
+- `409 Conflict` if new name conflicts with existing gate
+
+**Success Response Body:**
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "checkout-api-v2",
+    "live_url": "https://api.production.example.com",
+    "shadow_url": "https://api.shadow.example.com",
+    "diff_config": {
+      "ignored_fields": ["timestamp", "request_id"],
+      "included_fields": [],
+      "float_tolerance": 0.001
+    },
+    "created_at": "2026-03-29T09:00:00Z",
+    "stats": {
+      "request_count_24h": 5241,
+      "diff_count_24h": 162,
+      "diff_rate": 3.09,
+      "last_active": "2026-03-29T14:32:05Z"
+    }
+  }
+}
+```
+
+> **Note:** `live_url` and `shadow_url` are immutable after creation and cannot be changed via PATCH. Stats are returned in the response but computed from the read side.
+
+**Error Response Examples:**
+```json
+{
+  "type": "/errors/invalid-request-body",
+  "title": "Invalid Diff Config",
+  "status": 400,
+  "detail": "diff_config is invalid: float_tolerance must be non-negative",
+  "instance": "/gates/550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+```json
+{
+  "type": "/errors/conflict",
+  "title": "Duplicate Gate Name",
+  "status": 409,
+  "detail": "a gate with this name already exists",
+  "instance": "/gates/550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**Example:**
+```bash
+# Update gate name
+curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "checkout-api-v2"}'
+
+# Update diff config only
+curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "diff_config": {
+      "ignored_fields": ["timestamp"],
+      "included_fields": [],
+      "float_tolerance": 0.001
+    }
+  }'
 ```
 
 ---
@@ -912,7 +1041,7 @@ CORS is configurable via the `MROKI_APP_CORS_ORIGINS` environment variable. When
 
 ```
 Access-Control-Allow-Origin: <configured origin>
-Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Methods: GET, POST, PATCH, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
 Access-Control-Max-Age: 86400
 ```

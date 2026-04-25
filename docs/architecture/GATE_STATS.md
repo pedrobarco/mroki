@@ -109,7 +109,7 @@ Global stats use similar queries without `GroupBy`/`GateIDIn` — just `Count()`
 
 ### Domain Layer (`internal/domain/traffictesting/`)
 
-**`gate_stats.go`** — per-gate stats value object:
+**`gate_stats.go`** — per-gate stats value object (read-side projection, **not** part of the `Gate` aggregate):
 
 ```go
 type GateStats struct {
@@ -120,7 +120,20 @@ type GateStats struct {
 }
 ```
 
-**`gate.go`** — `Stats GateStats` field added to `Gate` struct. Zero-valued by default, populated by persistence layer.
+**`gate.go`** — the `Gate` aggregate is clean and contains only command-side fields:
+
+```go
+type Gate struct {
+    ID         GateID
+    Name       GateName
+    LiveURL    GateURL
+    ShadowURL  GateURL
+    DiffConfig DiffConfig
+    CreatedAt  time.Time
+}
+```
+
+> **Note:** `Stats` and `Requests` are **not** fields on `Gate`. Stats are fetched separately on the read side via `StatsRepository`.
 
 **`global_stats.go`** — cross-gate aggregates:
 
@@ -132,31 +145,42 @@ type GlobalStats struct {
 }
 ```
 
-**`stats_repository.go`** — new interface:
+**`stats_repository.go`** — interface for all stats queries:
 
 ```go
 type StatsRepository interface {
     GetGlobalStats(ctx context.Context) (*GlobalStats, error)
+    GetStatsByGateIDs(ctx context.Context, ids []GateID) (map[GateID]GateStats, error)
 }
 ```
 
-No changes to `GateRepository` interface — `GetByID` and `GetAll` populate `Stats` as part of their existing return values.
+`GateRepository` only handles gate CRUD (`Save`, `Update`, `GetByID`, `GetAll`) — it does **not** fetch or attach stats.
 
 ### Persistence Layer (`internal/infrastructure/persistence/ent/`)
 
-**`gate_repository.go`** — private `attachStats(ctx, []*Gate)` method runs 3 batch ent queries:
+**`gate_repository.go`** — simple CRUD operations. `GetByID` and `GetAll` return gates without stats (single query each, no aggregation joins).
 
-1. Request count 24h per gate — `GroupBy(FieldGateID).Aggregate(Count())`
-2. Diff count 24h per gate — same with `HasDiff()` predicate
-3. Last active per gate — `GroupBy(FieldGateID).Aggregate(Max(FieldCreatedAt))`
+**`stats_repository.go`** — implements `StatsRepository`:
+- `GetGlobalStats`: 3 ent queries (gate count, request count 24h, diff count 24h). DiffRate computed in Go.
+- `GetStatsByGateIDs`: 3 batched ent queries per gate ID set:
+  1. Request count 24h per gate — `GroupBy(FieldGateID).Aggregate(Count())`
+  2. Diff count 24h per gate — same with `HasDiff()` predicate
+  3. Last active per gate — `GroupBy(FieldGateID).Aggregate(Max(FieldCreatedAt))`
 
-Both `GetByID` and `GetAll` call `attachStats` after fetching gates. Gates with zero requests keep zero-valued stats.
-
-**`stats_repository.go`** — implements `StatsRepository` with 3 simple ent queries (gate count, request count 24h, diff count 24h). DiffRate computed in Go.
+Returns a `map[GateID]GateStats` keyed by gate ID. Gates with zero requests get zero-valued stats.
 
 ### Application Layer (`internal/application/queries/`)
 
-**No changes** to `GetGateHandler` or `ListGatesHandler` — stats flow through `Gate.Stats` automatically.
+**`GateWithStats`** — read-side composition type:
+
+```go
+type GateWithStats struct {
+    Gate  *traffictesting.Gate
+    Stats traffictesting.GateStats
+}
+```
+
+**`GetGateHandler`** and **`ListGatesHandler`** accept both `GateRepository` and `StatsRepository`. They fetch gates from the gate repo, then fetch stats from the stats repo, and compose `GateWithStats` results for the HTTP layer.
 
 **`get_global_stats.go`** — thin handler delegating to `StatsRepository.GetGlobalStats`.
 
@@ -185,11 +209,11 @@ type GlobalStats struct {
 
 ### HTTP Handler Layer (`internal/interfaces/http/handlers/`)
 
-**`gate.go`** — `mapGateToDTO` maps `Gate.Stats` → `dto.GateStats`, formatting `LastActive` as RFC 3339 string pointer.
+**`gate.go`** — `mapGateToDTO` accepts `*queries.GateWithStats` and maps both gate fields and stats to `dto.Gate`, formatting `LastActive` as RFC 3339 string pointer.
 
 **`stats.go`** — `GetGlobalStats` handler for `GET /stats`, returns `dto.Response[dto.GlobalStats]`.
 
-**`cmd/mroki-api/main.go`** — wires `NewStatsRepository` → `NewGetGlobalStatsHandler` → `GetGlobalStats` handler, registers `GET /stats` route.
+**`cmd/mroki-api/main.go`** — wires `statsRepo` into both query handlers (`NewGetGateHandler(gateRepo, statsRepo)`, `NewListGatesHandler(gateRepo, statsRepo)`) and `NewGetGlobalStatsHandler`. Registers `GET /stats` route.
 
 ---
 
@@ -213,13 +237,17 @@ All hardcoded dummy data has been replaced with real API data:
 
 ## Performance
 
-### Current Approach (v1)
+### Current Approach (v2 — CQRS Read-Side Projection)
 
-Stats are computed on-the-fly from `requests` + `diffs` tables using ent GroupBy aggregate queries. Acceptable at current scale.
+Stats are computed on-the-fly from `requests` + `diffs` tables using ent GroupBy aggregate queries via `StatsRepository`. The `Gate` aggregate on the command side does **not** carry stats, which reduces the command path (e.g., `CreateRequest`) from 4 DB queries to 1.
 
-- `GetByID`: 1 gate query + 3 stats queries (request count, diff count, last active)
-- `GetAll`: 1 gate list query + 1 count query + 3 batched stats queries
+**Read path (query handlers compose `GateWithStats`):**
+- `GetGate`: 1 gate query + 3 stats queries (request count, diff count, last active)
+- `ListGates`: 1 gate list query + 1 count query + 3 batched stats queries
 - `GET /stats`: 3 queries (gate count, request count, diff count)
+
+**Command path (no stats overhead):**
+- `CreateRequest`: 1 gate query (to fetch `DiffConfig` for server-side diff computation)
 
 All stats queries are batch-scoped to the gate IDs on the current page — no N+1 from the frontend.
 

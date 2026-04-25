@@ -1,6 +1,6 @@
 # mroki Roadmap
 
-**Last Updated:** 2026-04-06
+**Last Updated:** 2026-04-25
 
 All completed, pending, and planned work for mroki. Items use a consistent format:
 - `[x]` Complete · `[ ]` Not started
@@ -45,7 +45,7 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 
 ### Dead UI Elements
 
-- [ ] **P1** "Configure" button — No handler, no endpoint (`GateDetail.vue`). Needs `PUT /gates/{id}` + form.
+- [x] **P1** "Configure" button — `PATCH /gates/{id}` endpoint implemented. Supports updating `name` and `diff_config` (ignored fields, included fields, float tolerance). Frontend form not yet wired.
 - [ ] **P2** "Copy cURL" button — No click handler (`RequestDetail.vue`). Client-side: generate cURL from request data.
 - [ ] **P2** "Export JSON" button — No click handler (`RequestDetail.vue`). Client-side: serialize + download.
 - [ ] **P2** "Showing N of M requests" label — Hardcoded count (`GateDetail.vue`). Wire to pagination `total`.
@@ -96,7 +96,7 @@ Larger capabilities not yet started, organized by priority.
 ### Core CRUD Completeness
 
 - [ ] **P1** Delete gate — `DELETE /gates/{id}` with cascade delete.
-- [ ] **P1** Update gate — `PUT /gates/{id}` to modify name (live_url and shadow_url are immutable).
+- [x] **P1** Update gate — `PATCH /gates/{id}` to modify name and diff config (live_url and shadow_url are immutable).
 - [ ] **P2** Delete request — `DELETE /gates/{id}/requests/{request_id}`.
 - [ ] **P3** Bulk delete requests — `DELETE /gates/{id}/requests?older_than=30d`.
 
@@ -119,9 +119,9 @@ Larger capabilities not yet started, organized by priority.
 
 ### Per-Gate Diff Configuration
 
-- [ ] **P2** Per-gate DiffConfig — Store field filtering rules per gate in database.
-- [ ] **P2** Diff config API — `PUT /gates/{id}/diff-config` to manage per-gate rules.
-- [ ] **P2** API-side diff options — Apply per-gate diff config during server-side diff computation (ignored fields, float tolerance, etc.).
+- [x] **P2** Per-gate DiffConfig — `DiffConfig` value object stored as JSON fields on gate schema (ignored fields, included fields, float tolerance).
+- [x] **P2** Diff config API — `PATCH /gates/{id}` accepts `diff_config` in the request body.
+- [x] **P2** API-side diff options — Server-side diff computation applies per-gate `DiffConfig` (ignored fields, included fields, float tolerance) when computing diffs on request ingest.
 
 ### Export & Tooling
 
