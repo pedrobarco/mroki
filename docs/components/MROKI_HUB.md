@@ -6,15 +6,13 @@ mroki-hub is a Vue 3 single-page application that provides a user-friendly inter
 
 ## Features
 
-- **Gate Management:** Create new gates (live/shadow service pairs), list and filter all gates
-- **Request Browser:** List captured requests for a gate with filters (method, path, has_diff), sorting, and pagination
+- **Gate Management:** Create, configure (name + diff config), and delete gates. List and filter all gates with pagination and sorting.
+- **Request Browser:** List captured requests for a gate with filters (method, path, has_diff), sorting, and pagination. "Showing N of M requests" label.
 - **Diff Visualization:** View response diffs with side-by-side and unified views
 - **JSON Diff Engine:** Custom client-side diff renderer from RFC 6902 patch operations
-
-### Not Yet Implemented
-
-- Dashboard statistics (no backend endpoint)
-- Gate edit/delete (no backend endpoints)
+- **Copy cURL:** Dropdown with Live/Shadow options, generates full cURL command with headers and body
+- **Export JSON:** Downloads full request detail as `request-{id}.json`
+- **Dashboard Stats:** Global stats bar (total gates, requests 24h, diff rate) via `GET /stats`
 
 ## Technology Stack
 
@@ -23,7 +21,7 @@ mroki-hub is a Vue 3 single-page application that provides a user-friendly inter
 - **Build Tool:** Vite
 - **Routing:** Vue Router with `createWebHistory`
 - **HTTP Client:** Native `fetch()` (no Axios, no Pinia)
-- **Diff Library:** `vue-diff`
+- **Diff Engine:** Custom JSON diff renderer (RFC 6902 patch operations)
 - **Styling:** Tailwind CSS v4 with CSS variables theming
 - **UI Components:** shadcn-vue
 - **Testing:** Vitest + Vue Test Utils

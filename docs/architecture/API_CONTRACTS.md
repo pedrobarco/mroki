@@ -670,6 +670,11 @@ curl -X POST http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/re
     "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
     "method": "POST",
     "path": "/api/users",
+    "headers": {
+      "Content-Type": ["application/json"],
+      "User-Agent": ["curl/7.68.0"]
+    },
+    "body": "{\"name\":\"Alice\",\"age\":30}",
     "created_at": "2026-01-31T20:00:00Z",
     "live_response": {
       "id": "8d0e7780-8536-51ef-a55c-f18fd2f91bf8",

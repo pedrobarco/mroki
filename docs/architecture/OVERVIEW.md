@@ -52,7 +52,7 @@ graph TD
 **Purpose:** REST API for managing gates, computing diffs, and persisting traffic data
 
 **Responsibilities:**
-- Gate CRUD operations (create, read, update, list)
+- Gate CRUD operations (create, read, update, delete, list)
 - Receive raw captured requests and responses from proxies
 - Compute JSON diffs server-side (when not provided by proxy)
 - Persist requests, responses, and computed diffs
@@ -63,7 +63,7 @@ graph TD
 - Language: Go 1.24+
 - Framework: net/http (stdlib, Go 1.22+ routing)
 - Database: PostgreSQL with pgx/v5
-- Query Builder: sqlc (type-safe SQL)
+- ORM: Ent (schema-first, type-safe)
 
 **Deployment:** Stateless service, horizontally scalable
 
