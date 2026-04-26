@@ -152,7 +152,7 @@ func TestCreateGate_MissingLiveURL(t *testing.T) {
 		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 
-	if apiErr.Detail != "live_url is required" { //nolint:goconst
+	if apiErr.Detail != "live_url is required" {
 		t.Errorf("unexpected error detail: %s", apiErr.Detail)
 	}
 }
