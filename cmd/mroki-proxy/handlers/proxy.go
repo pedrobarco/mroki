@@ -80,6 +80,12 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 	}
 
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+		reqLogger := logger.With(
+			slog.String("request.id", req.Headers.Get("X-Request-ID")),
+			slog.String("request.method", req.Method),
+			slog.String("request.path", req.Path),
+		)
+
 		captured := client.ConvertProxyToCapture(req, live, shadow)
 
 		timeout := cfg.APITimeout
@@ -91,25 +97,18 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 
 		if err := cfg.APIClient.SendRequest(ctx, captured); err != nil {
 			if errors.Is(err, circuitbreaker.ErrOpen) {
-				logger.Warn("circuit breaker open, skipping API request",
-					"method", req.Method,
-					"path", req.Path,
-				)
+				reqLogger.Warn("circuit breaker open, skipping API request")
 				return nil
 			}
-			logger.Warn("failed to send request to API",
-				"error", err,
-				"method", req.Method,
-				"path", req.Path,
+			reqLogger.Warn("failed to send request to API",
+				slog.String("error", err.Error()),
 			)
 			return nil
 		}
 
-		logger.Debug("successfully sent request to API",
-			"method", req.Method,
-			"path", req.Path,
-			"live_status", live.StatusCode,
-			"shadow_status", shadow.StatusCode,
+		reqLogger.Debug("successfully sent request to API",
+			slog.Int("live_status", live.StatusCode),
+			slog.Int("shadow_status", shadow.StatusCode),
 		)
 
 		return nil
@@ -127,9 +126,15 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 	differ := proxy.NewProxyResponseDiffer(cfg.DiffOptions...)
 
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+		reqLogger := logger.With(
+			slog.String("request.id", req.Headers.Get("X-Request-ID")),
+			slog.String("request.method", req.Method),
+			slog.String("request.path", req.Path),
+		)
+
 		ops, err := differ.Diff(live, shadow)
 		if err != nil {
-			logger.Warn("failed to diff responses",
+			reqLogger.Warn("failed to diff responses",
 				slog.String("error", err.Error()),
 				slog.Int("live_status", live.StatusCode),
 				slog.Int("shadow_status", shadow.StatusCode),
@@ -138,9 +143,7 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 		}
 
 		if len(ops) > 0 {
-			logger.Info("response diff detected",
-				slog.String("method", req.Method),
-				slog.String("path", req.Path),
+			reqLogger.Info("response diff detected",
 				slog.Int("live_status", live.StatusCode),
 				slog.Int("shadow_status", shadow.StatusCode),
 				slog.Int("changes", len(ops)),
@@ -148,9 +151,7 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 			fmt.Println("Diff:")
 			fmt.Print(diff.FormatOps(ops))
 		} else {
-			logger.Debug("responses match",
-				slog.String("method", req.Method),
-				slog.String("path", req.Path),
+			reqLogger.Debug("responses match",
 				slog.Int("live_status", live.StatusCode),
 				slog.Int("shadow_status", shadow.StatusCode),
 			)

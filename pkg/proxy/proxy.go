@@ -203,9 +203,15 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.Header.Set("X-Request-ID", requestID)
 	}
 
+	reqLogger := p.logger.With(
+		slog.String("request.id", requestID),
+		slog.String("request.method", r.Method),
+		slog.String("request.path", r.URL.Path),
+	)
+
 	// Check if we should proxy to shadow BEFORE reading body
 	if !p.shouldProxyToShadow(r) {
-		p.proxyToLiveOnly(w, r)
+		p.proxyToLiveOnly(w, r, reqLogger)
 		return
 	}
 
@@ -214,13 +220,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		reqLogger.Error("failed to read request body", slog.String("error", err.Error()))
 		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 		return
 	}
 	// Best effort close - log error but don't fail the request
 	// The body has already been read successfully
 	if err := r.Body.Close(); err != nil {
-		p.logger.Warn("failed to close request body", "error", err)
+		reqLogger.Warn("failed to close request body", slog.String("error", err.Error()))
 	}
 
 	liveCh := make(chan responseResult, 1)
@@ -279,11 +286,13 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	select {
 	case liveResp = <-liveCh:
 	case <-liveCtx.Done():
+		reqLogger.Error("timeout waiting for live response", slog.Duration("timeout", p.liveTimeout))
 		http.Error(w, "timeout waiting for live response", http.StatusGatewayTimeout)
 		return
 	}
 
 	if liveResp.err != nil {
+		reqLogger.Error("live backend error", slog.String("error", liveResp.err.Error()))
 		http.Error(w, "live backend error: "+liveResp.err.Error(), http.StatusBadGateway)
 		return
 	}
@@ -294,7 +303,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(liveResp.resp.StatusCode)
 	if _, err = w.Write(liveResp.body); err != nil {
 		// Can't call http.Error after writing response body
-		p.logger.Error("failed to write response body", "error", err)
+		reqLogger.Error("failed to write response body", slog.String("error", err.Error()))
 		return
 	}
 
@@ -307,7 +316,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		select {
 		case shadowResp := <-shadowCh:
 			if shadowResp.err != nil {
-				p.logger.Error("shadow request error", "error", shadowResp.err)
+				reqLogger.Error("shadow request error", slog.String("error", shadowResp.err.Error()))
 				return
 			}
 
@@ -332,12 +341,12 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			// Invoke callback with raw responses (no diff — computed by caller if needed)
 			if err := p.callbackFn(proxyReq, live, shadow); err != nil {
-				p.logger.Error("callback error", "error", err)
+				reqLogger.Error("callback error", slog.String("error", err.Error()))
 			}
 
 		case <-shadowCtx.Done():
 			// Shadow request timed out or was cancelled
-			p.logger.Error("shadow request timeout", "timeout", p.shadowTimeout)
+			reqLogger.Error("shadow request timeout", slog.Duration("timeout", p.shadowTimeout))
 		}
 	}(liveResp.body)
 }
@@ -358,8 +367,8 @@ func (p *Proxy) forwardRequest(ctx context.Context, original *http.Request, targ
 	}
 	req.Header = original.Header.Clone()
 	p.logger.Debug("forwarding request",
-		"method", req.Method,
-		"url", req.URL.String())
+		slog.String("method", req.Method),
+		slog.String("url", req.URL.String()))
 	return p.client.Do(req)
 }
 
@@ -411,19 +420,20 @@ func defaultCallbackFn() CallbackFunc {
 
 // proxyToLiveOnly forwards request to live service only, skipping shadow.
 // Used when sampling checks fail (e.g., body size exceeds limit or chunked encoding)
-func (p *Proxy) proxyToLiveOnly(w http.ResponseWriter, r *http.Request) {
+func (p *Proxy) proxyToLiveOnly(w http.ResponseWriter, r *http.Request, reqLogger *slog.Logger) {
 	ctx, cancel := context.WithTimeout(r.Context(), p.liveTimeout)
 	defer cancel()
 
 	// Forward request to live service (pass nil for body to use original body)
 	resp, err := p.forwardRequest(ctx, r, p.Live, nil)
 	if err != nil {
+		reqLogger.Error("live backend error", slog.String("error", err.Error()))
 		http.Error(w, "live backend error: "+err.Error(), http.StatusBadGateway)
 		return
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			p.logger.Error("failed to close response body", "error", closeErr)
+			reqLogger.Error("failed to close response body", slog.String("error", closeErr.Error()))
 		}
 	}()
 
@@ -434,6 +444,6 @@ func (p *Proxy) proxyToLiveOnly(w http.ResponseWriter, r *http.Request) {
 
 	// Stream body directly (don't buffer)
 	if _, err := io.Copy(w, resp.Body); err != nil {
-		p.logger.Error("failed to copy response body", "error", err)
+		reqLogger.Error("failed to copy response body", slog.String("error", err.Error()))
 	}
 }

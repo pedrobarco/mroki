@@ -25,13 +25,19 @@ func (rt *loggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 
 	if err != nil {
 		rt.logger.Warn("outgoing HTTP request failed",
-			"method", req.Method, "url", req.URL.String(),
-			"error", err, "latency", latency)
+			slog.String("method", req.Method),
+			slog.String("url", req.URL.String()),
+			slog.String("error", err.Error()),
+			slog.Duration("latency", latency),
+		)
 		return nil, err
 	}
 
 	rt.logger.Debug("outgoing HTTP request",
-		"method", req.Method, "url", req.URL.String(),
-		"status", resp.StatusCode, "latency", latency)
+		slog.String("method", req.Method),
+		slog.String("url", req.URL.String()),
+		slog.Int("status", resp.StatusCode),
+		slog.Duration("latency", latency),
+	)
 	return resp, nil
 }

@@ -570,8 +570,9 @@ All logs use structured logging (slog) with JSON output.
 ```json
 {"time":"2026-01-31T20:00:00Z","level":"INFO","msg":"API integration enabled","api_url":"http://localhost:8081","gate_id":"550e8400"}
 {"time":"2026-01-31T20:00:00Z","level":"INFO","msg":"Started server","address":":8080","live":"https://api.example.com"}
-{"time":"2026-01-31T20:00:15Z","level":"INFO","msg":"response diff detected","method":"POST","path":"/api/users","live_status":200,"shadow_status":200}
-{"time":"2026-01-31T20:00:15Z","level":"DEBUG","msg":"successfully sent request to API","method":"POST","path":"/api/users","has_diff":true}
+{"time":"2026-01-31T20:00:15Z","level":"INFO","msg":"response diff detected","request.id":"7c9e6679","request.method":"POST","request.path":"/api/users","live_status":200,"shadow_status":200}
+{"time":"2026-01-31T20:00:15Z","level":"DEBUG","msg":"successfully sent request to API","request.id":"7c9e6679","request.method":"POST","request.path":"/api/users","live_status":200,"shadow_status":200}
+{"time":"2026-01-31T20:00:30Z","level":"ERROR","msg":"live backend error","request.id":"8d0e7780","request.method":"GET","request.path":"/api/health","error":"connection refused"}
 ```
 
 ## Troubleshooting

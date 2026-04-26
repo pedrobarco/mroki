@@ -37,6 +37,8 @@ func (fn AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		slog.Error("API error",
 			slog.String("request.id", middleware.GetRequestID(r.Context())),
+			slog.String("request.method", r.Method),
+			slog.String("request.path", r.URL.Path),
 			slog.String("error.type", apiErrCopy.Type),
 			slog.String("error.title", apiErrCopy.Title),
 			slog.Int("error.status", apiErrCopy.Status),

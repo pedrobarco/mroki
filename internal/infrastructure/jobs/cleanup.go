@@ -62,8 +62,8 @@ func (j *CleanupJob) Start() {
 	}()
 
 	j.logger.Info("Cleanup job started",
-		"retention", j.retention.String(),
-		"interval", j.interval.String(),
+		slog.Duration("retention", j.retention),
+		slog.Duration("interval", j.interval),
 	)
 }
 
@@ -95,7 +95,11 @@ func (j *CleanupJob) run() {
 
 	deleted, err := j.cleaner.DeleteOlderThan(ctx, j.retention)
 	if err != nil {
-		j.logger.Error("Cleanup failed", "error", err)
+		j.logger.Error("Cleanup failed",
+			slog.String("error", err.Error()),
+			slog.Duration("retention", j.retention),
+			slog.Duration("elapsed", time.Since(start)),
+		)
 		return
 	}
 
@@ -103,8 +107,8 @@ func (j *CleanupJob) run() {
 
 	if deleted > 0 {
 		j.logger.Info("Cleanup completed",
-			"deleted_requests", deleted,
-			"duration", duration.String(),
+			slog.Int64("deleted_requests", deleted),
+			slog.Duration("duration", duration),
 		)
 	}
 }

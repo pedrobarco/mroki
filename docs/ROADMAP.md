@@ -75,7 +75,7 @@ Pending infrastructure tasks for production readiness.
 - [x] **P1** Request ID middleware — `X-Request-ID` header generation + propagation through logs and proxy.
 - [x] **P1** Circuit breaker in proxy — Resilient HTTP client with `failsafe-go` retry + circuit breaker RoundTripper stack.
 - [x] **P1** HTTP connection pooling — Configure `MaxIdleConns`, `IdleConnTimeout` in proxy client.
-- [ ] **P2** Structured error logging — Add request context (method, path, request ID) to all error logs.
+- [x] **P2** Structured error logging — All error/warn logs now include `request.id`, `request.method`, `request.path`. Normalized to typed `slog.String`/`slog.Int`/`slog.Duration` style throughout.
 
 ### Production Hardening
 
@@ -83,7 +83,6 @@ Pending infrastructure tasks for production readiness.
 - [x] **P2** Align transport TLS timeout with context — Reduced `TLSHandshakeTimeout` from 10s to 5s to match default `LIVE_TIMEOUT`.
 - [x] **P2** Validate API timeout budget — Warn at startup if retry config (retries × backoff) could exceed `API_TIMEOUT`. Implemented as a `SeverityWarning` in the validation system.
 - [ ] **P2** TLS/HTTPS support — Optional `ListenAndServeTLS` with cert/key config.
-- [ ] **P2** Request deduplication — Return 200 for duplicate request IDs instead of error.
 - [ ] **P3** Compression middleware — Gzip responses > 1KB.
 - [ ] **P3** Config hot-reload — Reload safe settings on SIGHUP without restart.
 
