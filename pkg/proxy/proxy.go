@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -184,6 +186,13 @@ func (p *Proxy) shouldProxyToShadow(r *http.Request) bool {
 //   - shadowTimeout: Controls how long shadow service can run (doesn't block client)
 //   - Shadow timeout can be longer since it doesn't impact user experience
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Generate or reuse X-Request-ID
+	requestID := r.Header.Get("X-Request-ID")
+	if requestID == "" {
+		requestID = uuid.New().String()
+		r.Header.Set("X-Request-ID", requestID)
+	}
+
 	// Check if we should proxy to shadow BEFORE reading body
 	if !p.shouldProxyToShadow(r) {
 		p.proxyToLiveOnly(w, r)
@@ -271,6 +280,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Write live response to client
 	copyHeader(liveResp.resp.Header, w.Header())
+	w.Header().Set("X-Request-ID", requestID)
 	w.WriteHeader(liveResp.resp.StatusCode)
 	if _, err = w.Write(liveResp.body); err != nil {
 		// Can't call http.Error after writing response body
@@ -409,6 +419,7 @@ func (p *Proxy) proxyToLiveOnly(w http.ResponseWriter, r *http.Request) {
 
 	// Copy response to client
 	copyHeader(resp.Header, w.Header())
+	w.Header().Set("X-Request-ID", r.Header.Get("X-Request-ID"))
 	w.WriteHeader(resp.StatusCode)
 
 	// Stream body directly (don't buffer)

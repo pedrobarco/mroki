@@ -45,6 +45,10 @@ func (m *mockGateRepoForRequest) Update(ctx context.Context, gate *traffictestin
 	return nil
 }
 
+func (m *mockGateRepoForRequest) Delete(ctx context.Context, id traffictesting.GateID) error {
+	return nil
+}
+
 func (m *mockGateRepoForRequest) GetByID(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
 	name, _ := traffictesting.ParseGateName("test")
 	live, _ := traffictesting.ParseGateURL("http://live.example.com")

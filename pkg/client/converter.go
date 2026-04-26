@@ -16,6 +16,7 @@ func ConvertProxyToCapture(
 	now := time.Now()
 
 	return &CapturedRequest{
+		ID:        req.Headers.Get("X-Request-ID"),
 		Method:    req.Method,
 		Path:      req.Path,
 		Headers:   req.Headers,

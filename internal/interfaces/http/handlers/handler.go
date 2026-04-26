@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/pedrobarco/mroki/internal/interfaces/http/middleware"
 	"github.com/pedrobarco/mroki/pkg/dto"
 )
 
@@ -35,6 +36,7 @@ func (fn AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(apiErrCopy.Status)
 
 		slog.Error("API error",
+			slog.String("request.id", middleware.GetRequestID(r.Context())),
 			slog.String("error.type", apiErrCopy.Type),
 			slog.String("error.title", apiErrCopy.Title),
 			slog.Int("error.status", apiErrCopy.Status),

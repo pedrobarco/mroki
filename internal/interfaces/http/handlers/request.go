@@ -53,6 +53,11 @@ func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 			},
 		}
 
+		// If no ID in payload, use X-Request-ID from the incoming request header
+		if cmd.ID == "" {
+			cmd.ID = r.Header.Get("X-Request-ID")
+		}
+
 		// Diff is optional — if provided by the proxy, pass it through;
 		// otherwise the command handler computes it server-side
 		if req.Diff != nil {

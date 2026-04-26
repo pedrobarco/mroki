@@ -187,6 +187,39 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 }
 
 
+func DeleteGate(handler *commands.DeleteGateHandler) AppHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id := r.PathValue("gate_id")
+		if id == "" {
+			return dto.MissingPathParam("gate_id")
+		}
+
+		cmd := commands.DeleteGateCommand{
+			ID: id,
+		}
+
+		if err := handler.Handle(r.Context(), cmd); err != nil {
+			switch {
+			case errors.Is(err, traffictesting.ErrInvalidGateID):
+				return dto.InvalidGateID(id)
+			case errors.Is(err, traffictesting.ErrGateNotFound):
+				return dto.GateNotFound(id)
+			default:
+				return dto.NewError(
+					http.StatusInternalServerError,
+					dto.ErrorTypeInternalError,
+					"Internal Server Error",
+					"An unknown error occurred. Please try again later.",
+					err,
+				)
+			}
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	}
+}
+
 func UpdateGate(handler *commands.UpdateGateHandler) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("gate_id")

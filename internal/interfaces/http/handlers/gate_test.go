@@ -22,6 +22,7 @@ type mockGateRepository struct {
 	saveFunc    func(ctx context.Context, gate *traffictesting.Gate) error
 	getByIDFunc func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error)
 	getAllFunc  func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error)
+	deleteFunc  func(ctx context.Context, id traffictesting.GateID) error
 }
 
 func (m *mockGateRepository) Save(ctx context.Context, gate *traffictesting.Gate) error {
@@ -39,6 +40,13 @@ func (m *mockGateRepository) GetByID(ctx context.Context, id traffictesting.Gate
 }
 
 func (m *mockGateRepository) Update(ctx context.Context, gate *traffictesting.Gate) error {
+	return nil
+}
+
+func (m *mockGateRepository) Delete(ctx context.Context, id traffictesting.GateID) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, id)
+	}
 	return nil
 }
 
@@ -677,5 +685,126 @@ func TestGetAllGates_AllParamsCombined(t *testing.T) {
 
 	if len(response.Data) != 1 {
 		t.Errorf("expected 1 gate, got %d", len(response.Data))
+	}
+}
+
+func TestDeleteGate_Success(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+	repo := &mockGateRepository{
+		deleteFunc: func(ctx context.Context, id traffictesting.GateID) error {
+			if id != gateID {
+				t.Errorf("unexpected gate ID: %s", id)
+			}
+			return nil
+		},
+	}
+	handler := commands.NewDeleteGateHandler(repo)
+
+	req := httptest.NewRequest(http.MethodDelete, "/gates/"+gateID.String(), nil)
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := DeleteGate(handler)
+	err := appHandler(rec, req)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d", rec.Code)
+	}
+}
+
+func TestDeleteGate_InvalidID(t *testing.T) {
+	repo := &mockGateRepository{}
+	handler := commands.NewDeleteGateHandler(repo)
+
+	req := httptest.NewRequest(http.MethodDelete, "/gates/invalid-id", nil)
+	req.SetPathValue("gate_id", "invalid-id")
+	rec := httptest.NewRecorder()
+
+	appHandler := DeleteGate(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+func TestDeleteGate_NotFound(t *testing.T) {
+	repo := &mockGateRepository{
+		deleteFunc: func(ctx context.Context, id traffictesting.GateID) error {
+			return traffictesting.ErrGateNotFound
+		},
+	}
+	handler := commands.NewDeleteGateHandler(repo)
+
+	gateID := traffictesting.NewGateID()
+	req := httptest.NewRequest(http.MethodDelete, "/gates/"+gateID.String(), nil)
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := DeleteGate(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", apiErr.Status)
+	}
+}
+
+func TestDeleteGate_InternalError(t *testing.T) {
+	repo := &mockGateRepository{
+		deleteFunc: func(ctx context.Context, id traffictesting.GateID) error {
+			return errors.New("database error")
+		},
+	}
+	handler := commands.NewDeleteGateHandler(repo)
+
+	gateID := traffictesting.NewGateID()
+	req := httptest.NewRequest(http.MethodDelete, "/gates/"+gateID.String(), nil)
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := DeleteGate(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusInternalServerError {
+		t.Errorf("expected status 500, got %d", apiErr.Status)
+	}
+}
+
+func TestDeleteGate_MissingPathParam(t *testing.T) {
+	repo := &mockGateRepository{}
+	handler := commands.NewDeleteGateHandler(repo)
+
+	req := httptest.NewRequest(http.MethodDelete, "/gates/", nil)
+	rec := httptest.NewRecorder()
+
+	appHandler := DeleteGate(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 }

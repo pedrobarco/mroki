@@ -31,6 +31,10 @@ func (m *mockGateRepository) Update(ctx context.Context, gate *traffictesting.Ga
 	return nil
 }
 
+func (m *mockGateRepository) Delete(ctx context.Context, id traffictesting.GateID) error {
+	return nil
+}
+
 func (m *mockGateRepository) GetAll(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error) {
 	return nil, errors.New("not implemented")
 }

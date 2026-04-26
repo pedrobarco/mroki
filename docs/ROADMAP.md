@@ -68,7 +68,7 @@ Pending infrastructure tasks for production readiness.
 
 ### Observability & Resilience
 
-- [ ] **P1** Request ID middleware — `X-Request-ID` header generation + propagation through logs and proxy.
+- [x] **P1** Request ID middleware — `X-Request-ID` header generation + propagation through logs and proxy.
 - [ ] **P1** Circuit breaker in proxy — Stop retrying when API is down. Use `gobreaker` with 5-failure threshold.
 - [x] **P1** HTTP connection pooling — Configure `MaxIdleConns`, `IdleConnTimeout` in proxy client.
 - [ ] **P2** Structured error logging — Add request context (method, path, request ID) to all error logs.
@@ -95,7 +95,7 @@ Larger capabilities not yet started, organized by priority.
 
 ### Core CRUD Completeness
 
-- [ ] **P1** Delete gate — `DELETE /gates/{id}` with cascade delete.
+- [x] **P1** Delete gate — `DELETE /gates/{id}` with cascade delete.
 - [x] **P1** Update gate — `PATCH /gates/{id}` to modify name and diff config (live_url and shadow_url are immutable).
 - [ ] **P2** Delete request — `DELETE /gates/{id}/requests/{request_id}`.
 - [ ] **P3** Bulk delete requests — `DELETE /gates/{id}/requests?older_than=30d`.

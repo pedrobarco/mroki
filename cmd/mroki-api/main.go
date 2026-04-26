@@ -66,6 +66,7 @@ func main() {
 	// Application Layer: Command Handlers (Write operations)
 	createGateHandler := commands.NewCreateGateHandler(gateRepo)
 	updateGateHandler := commands.NewUpdateGateHandler(gateRepo)
+	deleteGateHandler := commands.NewDeleteGateHandler(gateRepo)
 	createRequestHandler := commands.NewCreateRequestHandler(reqRepo, gateRepo)
 
 	// Application Layer: Query Handlers (Read operations)
@@ -121,6 +122,7 @@ func main() {
 
 	// Middleware
 	baseChain := middleware.Chain{
+		middleware.RequestID(),
 		middleware.Logging(logger),
 		middleware.RateLimit(rateLimiter,
 			middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
@@ -133,6 +135,7 @@ func main() {
 
 	// Middleware chain for POST endpoints with body size limit
 	postChain := middleware.Chain{
+		middleware.RequestID(),
 		middleware.Logging(logger),
 		middleware.RateLimit(rateLimiter,
 			middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
@@ -147,6 +150,7 @@ func main() {
 	// Interface Layer: HTTP Handlers
 	createGate := handlers.CreateGate(createGateHandler)
 	updateGate := handlers.UpdateGate(updateGateHandler)
+	deleteGate := handlers.DeleteGate(deleteGateHandler)
 	getGateByID := handlers.GetGateByID(getGateHandler)
 	getAllGates := handlers.GetAllGates(listGatesHandler)
 
@@ -166,6 +170,7 @@ func main() {
 	mux.Handle("GET /gates", baseChain.Then(getAllGates))
 	mux.Handle("POST /gates", postChain.Then(createGate))
 	mux.Handle("PATCH /gates/{gate_id}", postChain.Then(updateGate))
+	mux.Handle("DELETE /gates/{gate_id}", baseChain.Then(deleteGate))
 	mux.Handle("GET /gates/{gate_id}", baseChain.Then(getGateByID))
 	mux.Handle("GET /gates/{gate_id}/requests", baseChain.Then(getAllRequestsByGateID))
 	mux.Handle("POST /gates/{gate_id}/requests", postChain.Then(createRequest))
@@ -177,7 +182,7 @@ func main() {
 	if origins := cfg.ParseCORSOrigins(); len(origins) > 0 {
 		handler = cors.New(cors.Options{
 			AllowedOrigins: origins,
-			AllowedMethods: []string{"GET", "POST", "PATCH", "OPTIONS"},
+			AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 			AllowedHeaders: []string{"Content-Type", "Authorization"},
 			MaxAge:         86400,
 		}).Handler(mux)

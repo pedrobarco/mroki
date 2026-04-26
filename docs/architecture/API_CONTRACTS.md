@@ -92,6 +92,16 @@ The following endpoints do not require authentication:
 
 ---
 
+## Request ID
+
+All API responses include an `X-Request-ID` header. If the client sends an `X-Request-ID` header, the same value is echoed back. If no header is provided, the API generates a UUID v4 and returns it.
+
+This ID is logged with every request (`request.id` field) and enables end-to-end correlation when used with mroki-proxy, which generates and propagates the same ID across live/shadow services and API calls.
+
+For `POST /gates/:gate_id/requests`, if no `id` field is provided in the request body, the `X-Request-ID` header value is used as the domain Request ID, ensuring the same UUID traces the entire flow from proxy through to the stored entity.
+
+---
+
 ## Endpoints
 
 ### Health Checks
@@ -519,6 +529,28 @@ curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
 
 ---
 
+#### DELETE /gates/:gate_id
+
+**Purpose:** Delete a gate and all its related data (requests, responses, diffs) via cascade delete
+
+**Path Parameters:**
+- `gate_id` (UUID) - Gate identifier
+
+**Response:**
+- `204 No Content` on success
+- `400 Bad Request` if gate_id is invalid UUID
+- `404 Not Found` if gate doesn't exist
+
+**Example:**
+```bash
+curl -X DELETE http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer your-api-key"
+```
+
+> **Note:** This operation is irreversible. All requests, responses, and diffs associated with the gate will be permanently deleted via database cascade.
+
+---
+
 ### Requests
 
 #### POST /gates/:gate_id/requests
@@ -819,6 +851,7 @@ The API uses the following generic error types:
 
 - `200 OK` - Request succeeded
 - `201 Created` - Resource created successfully
+- `204 No Content` - Resource deleted successfully
 - `400 Bad Request` - Invalid request data (validation failed)
 - `401 Unauthorized` - Missing or invalid API key
 - `404 Not Found` - Resource not found
@@ -1041,7 +1074,7 @@ CORS is configurable via the `MROKI_APP_CORS_ORIGINS` environment variable. When
 
 ```
 Access-Control-Allow-Origin: <configured origin>
-Access-Control-Allow-Methods: GET, POST, PATCH, OPTIONS
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization
 Access-Control-Max-Age: 86400
 ```

@@ -12,6 +12,7 @@ import (
 type GateRepository interface {
 	Save(ctx context.Context, gate *Gate) error
 	Update(ctx context.Context, gate *Gate) error
+	Delete(ctx context.Context, id GateID) error
 	GetByID(ctx context.Context, id GateID) (*Gate, error)
 	GetAll(ctx context.Context, filters GateFilters, sort GateSort, params *pagination.Params) (*pagination.PagedResult[*Gate], error)
 }

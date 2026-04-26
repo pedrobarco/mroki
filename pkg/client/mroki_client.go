@@ -180,6 +180,9 @@ func (c *MrokiClient) sendRequestOnce(ctx context.Context, req *CapturedRequest)
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	if req.ID != "" {
+		httpReq.Header.Set("X-Request-ID", req.ID)
+	}
 
 	// Send request
 	resp, err := c.httpClient.Do(httpReq)

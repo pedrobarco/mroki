@@ -23,6 +23,10 @@ func (m *mockGateRepositoryForListGates) Update(ctx context.Context, gate *traff
 	return errors.New("not implemented")
 }
 
+func (m *mockGateRepositoryForListGates) Delete(ctx context.Context, id traffictesting.GateID) error {
+	return errors.New("not implemented")
+}
+
 func (m *mockGateRepositoryForListGates) GetByID(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
 	return nil, errors.New("not implemented")
 }

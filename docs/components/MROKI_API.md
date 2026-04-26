@@ -11,6 +11,7 @@ mroki-api is a stateless REST API that manages gates (live/shadow service pairs)
 - **Traffic Storage**: Persist captured requests, responses, and computed diffs
 - **Backward Compatibility**: Accepts pre-computed diffs from proxies (if provided)
 - **Query API**: Retrieve captured traffic for analysis with filtering and sorting
+- **Request ID Propagation**: `X-Request-ID` header generation and correlation across logs
 - **Health Checks**: Kubernetes-ready liveness/readiness probes
 - **Connection Pooling**: Efficient PostgreSQL connection management
 - **Type-Safe Queries**: Generated queries via sqlc
@@ -492,9 +493,11 @@ All logs use structured logging (slog) with JSON output.
 **Example Log Output:**
 ```json
 {"time":"2026-01-31T20:00:00Z","level":"INFO","msg":"Started server","address":":8090"}
-{"time":"2026-01-31T20:00:15Z","level":"INFO","msg":"gate created","gate_id":"550e8400-e29b-41d4-a716-446655440000"}
-{"time":"2026-01-31T20:00:30Z","level":"INFO","msg":"request created","gate_id":"550e8400","request_id":"7c9e6679"}
+{"time":"2026-01-31T20:00:15Z","level":"INFO","msg":"200: OK","request.id":"7c9e6679-7425-40de-944b-e07fc1f90ae7","request.method":"GET","request.path":"/gates","response.status":200,"response.latency":"1.234ms"}
+{"time":"2026-01-31T20:00:30Z","level":"ERROR","msg":"API error","request.id":"8d0e7780-8536-51ef-a55c-f18fd2f91bf8","error.type":"/errors/not-found","error.title":"Gate Not Found","error.status":404}
 ```
+
+> **Note:** Every request is assigned an `X-Request-ID` (generated if not provided by the client). This ID appears in all log entries as `request.id` and is returned in the `X-Request-ID` response header, enabling end-to-end correlation across proxy and API logs.
 
 ## Performance
 

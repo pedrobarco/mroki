@@ -122,17 +122,18 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     C->>P: HTTP Request
-    par Forward in parallel
+    Note over P: Generate X-Request-ID (or reuse)
+    par Forward in parallel (same X-Request-ID)
         P->>L: Forward request
         P->>S: Forward request
     end
     L-->>P: Live Response
-    P-->>C: Return Live Response
+    P-->>C: Return Live Response (X-Request-ID header)
     S-->>P: Shadow Response
     Note over P: Background (non-blocking)
-    P->>API: Send raw responses (with retry)
+    P->>API: Send raw responses (X-Request-ID header, with retry)
     API->>API: Compute Diff server-side
-    API->>DB: Store request + responses + diff
+    API->>DB: Store request + responses + diff (Request.ID = X-Request-ID)
 ```
 
 ### Key Properties
@@ -319,15 +320,25 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 ## Observability
 
+### Request ID Correlation
+
+All components propagate an `X-Request-ID` header (UUID v4) through the entire request lifecycle:
+
+- **Proxy:** Generates the ID (or reuses an incoming header), forwards to live/shadow services and mroki-api
+- **API:** Middleware extracts/generates the ID, stores in context, logs it as `request.id`, returns in response header
+- **Domain:** The propagated ID becomes the stored `Request.ID`, enabling direct correlation between proxy logs, API logs, and stored entities
+
 ### Structured Logging
 
-All components use structured logging (slog):
+All components use structured logging (slog) with request ID correlation:
 
 ```go
-log.Info("request captured",
-    "method", "POST",
-    "path", "/api/users",
-    "has_diff", true,
+log.Info("200: OK",
+    "request.id", "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "request.method", "POST",
+    "request.path", "/api/users",
+    "response.status", 200,
+    "response.latency", "1.234ms",
 )
 ```
 

@@ -60,6 +60,17 @@ func (r *gateRepository) Update(ctx context.Context, g *traffictesting.Gate) err
 	return nil
 }
 
+func (r *gateRepository) Delete(ctx context.Context, id traffictesting.GateID) error {
+	err := r.client.Gate.DeleteOneID(id.UUID()).Exec(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("%w: %s", traffictesting.ErrGateNotFound, id)
+		}
+		return fmt.Errorf("failed to delete gate: %w", err)
+	}
+	return nil
+}
+
 func (r *gateRepository) GetByID(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
 	raw, err := r.client.Gate.Get(ctx, id.UUID())
 	if err != nil {

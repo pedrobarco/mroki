@@ -33,6 +33,7 @@ func Logging(logger *slog.Logger) Middleware {
 			msg := fmt.Sprintf("%d: %s", wrapped.statusCode, http.StatusText(wrapped.statusCode))
 
 			logger.Info(msg,
+				slog.String("request.id", GetRequestID(r.Context())),
 				slog.String("request.method", r.Method),
 				slog.String("request.path", r.URL.Path),
 				slog.Int("response.status", wrapped.statusCode),

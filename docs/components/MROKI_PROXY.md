@@ -15,6 +15,7 @@ mroki-proxy is a lightweight proxy that intercepts HTTP traffic, forwards it to 
 - **Server-Side Diffing** (API mode): Sends raw responses to mroki-api — diff computation happens server-side
 - **Local Diffing** (standalone mode): Computes JSON diffs and prints them to stdout
 - **Retry Logic**: Exponential backoff for API failures (1s, 2s, 4s)
+- **Request ID Propagation**: Generates `X-Request-ID` (UUID v4) per request or reuses incoming header; propagated to live/shadow services and mroki-api
 - **Best-Effort Delivery**: API failures never affect live traffic
 - **Structured Logging**: All events logged with context
 
@@ -298,13 +299,14 @@ curl -X POST http://localhost:8080/test \
 ### Request Flow
 
 1. **Client sends request** to proxy (e.g., `POST http://localhost:8080/api/users`)
-2. **Agent forwards** to both live and shadow services in parallel
-3. **Live response returned** to client immediately (shadow still processing)
-4. **Background processing:**
+2. **Proxy generates `X-Request-ID`** (UUID v4) if not present in the incoming request, or reuses the existing header value. The ID is set on the request header and returned in the response header.
+3. **Agent forwards** to both live and shadow services in parallel (same `X-Request-ID` propagated)
+4. **Live response returned** to client immediately (shadow still processing)
+5. **Background processing:**
    - Wait for shadow response
-   - **API mode:** Send raw responses to mroki-api (diff computed server-side)
+   - **API mode:** Send raw responses to mroki-api with `X-Request-ID` header (used as the domain Request ID, diff computed server-side)
    - **Standalone mode:** Compute JSON diff locally and print to stdout
-5. **Failures logged** but never propagate to client
+6. **Failures logged** but never propagate to client
 
 ### Response Selection
 
