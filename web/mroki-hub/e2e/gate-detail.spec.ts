@@ -144,4 +144,90 @@ test.describe('Gate Detail Page', () => {
     await page.getByText('Back to Gates').click()
     await expect(page).toHaveURL(/\/gates$/)
   })
+
+  test('configure dialog opens and updates gate name', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `config-name-gate-${suffix}`,
+      `https://cfgname-live-${suffix}.example.com`,
+      `https://cfgname-shadow-${suffix}.example.com`
+    )
+
+    await page.goto(`/gates/${gate.id}`)
+    await expect(page.getByText(`config-name-gate-${suffix}`)).toBeVisible()
+
+    // Open configure dialog
+    await page.getByRole('button', { name: 'Configure' }).click()
+    await expect(page.getByText('Configure Gate')).toBeVisible()
+
+    // Update name
+    const nameInput = page.getByLabel('Name')
+    await nameInput.clear()
+    await nameInput.fill(`renamed-gate-${suffix}`)
+
+    // Submit
+    await page.getByRole('button', { name: 'Save Changes' }).click()
+
+    // Dialog closes and name updates
+    await expect(page.getByText('Configure Gate')).not.toBeVisible()
+    await expect(page.getByText(`renamed-gate-${suffix}`)).toBeVisible()
+  })
+
+  test('configure dialog updates diff config', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `config-diff-gate-${suffix}`,
+      `https://cfgdiff-live-${suffix}.example.com`,
+      `https://cfgdiff-shadow-${suffix}.example.com`
+    )
+
+    await page.goto(`/gates/${gate.id}`)
+
+    // Open configure dialog
+    await page.getByRole('button', { name: 'Configure' }).click()
+    await expect(page.getByText('Configure Gate')).toBeVisible()
+
+    // Fill diff config fields
+    await page.getByLabel('Ignored Fields').fill('timestamp, trace_id')
+    await page.getByLabel('Float Tolerance').fill('0.001')
+
+    // Submit
+    await page.getByRole('button', { name: 'Save Changes' }).click()
+
+    // Dialog closes
+    await expect(page.getByText('Configure Gate')).not.toBeVisible()
+
+    // Verify via API that diff config was persisted
+    const updated = await api.updateGate(gate.id, {})
+    expect(updated.diff_config.ignored_fields).toEqual(['timestamp', 'trace_id'])
+    expect(updated.diff_config.float_tolerance).toBe(0.001)
+  })
+
+  test('configure dialog shows error on duplicate name', async ({ page, api }) => {
+    const suffix = Date.now()
+    await api.createGate(
+      `existing-gate-name-${suffix}`,
+      `https://existing-live-${suffix}.example.com`,
+      `https://existing-shadow-${suffix}.example.com`
+    )
+    const gate = await api.createGate(
+      `dup-test-gate-${suffix}`,
+      `https://dup-live-${suffix}.example.com`,
+      `https://dup-shadow-${suffix}.example.com`
+    )
+
+    await page.goto(`/gates/${gate.id}`)
+
+    // Open configure dialog
+    await page.getByRole('button', { name: 'Configure' }).click()
+
+    // Try to rename to existing name
+    const nameInput = page.getByLabel('Name')
+    await nameInput.clear()
+    await nameInput.fill(`existing-gate-name-${suffix}`)
+    await page.getByRole('button', { name: 'Save Changes' }).click()
+
+    // Should show error (dialog stays open)
+    await expect(page.getByRole('alert')).toBeVisible()
+  })
 })

@@ -15,9 +15,9 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "format": "prettier --write \"src/**/*.{js,ts,vue,json,css,scss,md}\"",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test --grep-invert @screenshots",
-    "test:e2e:ui": "playwright test --ui --grep-invert @screenshots",
-    "test:e2e:setup": "docker compose -f ../../build/dev/compose.yaml down -v && docker compose -f ../../build/dev/compose.yaml up -d --wait",
+    "test:e2e": "pnpm test:e2e:setup && playwright test --grep-invert @screenshots",
+    "test:e2e:ui": "pnpm test:e2e:setup && playwright test --ui --grep-invert @screenshots",
+    "test:e2e:setup": "docker compose -f ../../build/dev/compose.yaml down -v && docker compose -f ../../build/dev/compose.yaml up -d --build --wait",
     "screenshots": "playwright test --grep @screenshots"
   },
   "dependencies": {

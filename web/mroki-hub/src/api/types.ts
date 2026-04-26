@@ -20,6 +20,15 @@ export interface GlobalStats {
 }
 
 /**
+ * Diff configuration for a gate
+ */
+export interface DiffConfig {
+  ignored_fields: string[]
+  included_fields: string[]
+  float_tolerance: number
+}
+
+/**
  * Gate represents a live/shadow service pair
  */
 export interface Gate {
@@ -27,6 +36,7 @@ export interface Gate {
   name: string
   live_url: string
   shadow_url: string
+  diff_config: DiffConfig
   created_at: string
   stats: GateStats
 }
@@ -156,6 +166,14 @@ export interface CreateGatePayload {
   name: string
   live_url: string
   shadow_url: string
+}
+
+/**
+ * Payload for updating an existing gate (all fields optional)
+ */
+export interface UpdateGatePayload {
+  name?: string
+  diff_config?: DiffConfig
 }
 
 /**

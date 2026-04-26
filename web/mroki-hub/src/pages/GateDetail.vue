@@ -7,9 +7,10 @@ import { useGateCache } from '@/composables/use-gate-cache'
 import RequestList from '@/components/requests/RequestList.vue'
 import RequestFilters from '@/components/requests/RequestFilters.vue'
 import type { FilterState } from '@/components/requests/RequestFilters.vue'
+import GateConfigDialog from '@/components/gates/GateConfigDialog.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, Settings, Pause } from 'lucide-vue-next'
+import { ChevronLeft, Settings } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +20,12 @@ const gate = ref<Gate | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const requestTotal = ref<number | null>(null)
+const configDialogOpen = ref(false)
+
+function handleConfigSuccess(updatedGate: Gate) {
+  gate.value = updatedGate
+  cacheGate(updatedGate)
+}
 
 const gateId = computed(() => route.params.id as string)
 
@@ -105,15 +112,23 @@ onMounted(() => {
             <code class="text-xs font-mono text-dim">{{ gate.id }}</code>
           </div>
           <div class="flex items-center gap-2">
-            <Button variant="outline" size="sm" class="gap-1.5 text-xs">
+            <Button
+              variant="outline"
+              size="sm"
+              class="gap-1.5 text-xs"
+              @click="configDialogOpen = true"
+            >
               <Settings class="h-3.5 w-3.5" />
               Configure
             </Button>
-            <Button variant="outline" size="sm" class="gap-1.5 text-xs">
-              <Pause class="h-3.5 w-3.5" />
-              Pause
-            </Button>
           </div>
+
+          <!-- Configure Dialog -->
+          <GateConfigDialog
+            v-model:open="configDialogOpen"
+            :gate="gate"
+            @success="handleConfigSuccess"
+          />
         </div>
 
         <!-- Live / Shadow URLs -->

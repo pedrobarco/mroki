@@ -16,6 +16,11 @@ function makeGate(overrides: Partial<Gate> = {}): Gate {
     name: 'test-gate',
     live_url: 'https://live.example.com',
     shadow_url: 'https://shadow.example.com',
+    diff_config: {
+      ignored_fields: [],
+      included_fields: [],
+      float_tolerance: 0,
+    },
     created_at: '2026-03-29T09:00:00Z',
     stats: {
       request_count_24h: 0,

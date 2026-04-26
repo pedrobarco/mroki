@@ -5,6 +5,7 @@ import type {
   ApiResponse,
   PaginatedResponse,
   CreateGatePayload,
+  UpdateGatePayload,
   ListGatesParams,
 } from './types'
 
@@ -81,6 +82,27 @@ export async function getGate(id: string): Promise<ApiResponse<Gate>> {
 export async function createGate(payload: CreateGatePayload): Promise<ApiResponse<Gate>> {
   return request<ApiResponse<Gate>>('/gates', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
+ * Update an existing gate
+ *
+ * @param id - Gate UUID
+ * @param payload - Fields to update (name and/or diff_config)
+ * @returns Updated gate
+ *
+ * @example
+ * const response = await updateGate('550e8400-...', { name: 'checkout-api-v2' })
+ * console.log(response.data.name) // 'checkout-api-v2'
+ */
+export async function updateGate(
+  id: string,
+  payload: UpdateGatePayload
+): Promise<ApiResponse<Gate>> {
+  return request<ApiResponse<Gate>>(`/gates/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   })
 }

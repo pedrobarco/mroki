@@ -3,12 +3,24 @@ import { test as base } from '@playwright/test'
 const API_BASE = 'http://localhost:8090'
 const API_KEY = 'mroki-dev-api-key-16'
 
+interface DiffConfig {
+  ignored_fields: string[]
+  included_fields: string[]
+  float_tolerance: number
+}
+
 interface Gate {
   id: string
   name: string
   live_url: string
   shadow_url: string
+  diff_config: DiffConfig
   created_at: string
+}
+
+interface UpdateGatePayload {
+  name?: string
+  diff_config?: DiffConfig
 }
 
 interface RequestSummary {
@@ -39,6 +51,7 @@ interface CreateRequestPayload {
 
 export interface ApiHelper {
   createGate(name: string, liveUrl: string, shadowUrl: string): Promise<Gate>
+  updateGate(gateId: string, payload: UpdateGatePayload): Promise<Gate>
   createRequest(gateId: string, data: CreateRequestPayload): Promise<RequestSummary>
   seedRequest(
     gateId: string,
@@ -79,6 +92,13 @@ export const test = base.extend<{ api: ApiHelper }>({
         return apiRequest<Gate>('/gates', {
           method: 'POST',
           body: JSON.stringify({ name, live_url: liveUrl, shadow_url: shadowUrl }),
+        })
+      },
+
+      async updateGate(gateId, payload) {
+        return apiRequest<Gate>(`/gates/${gateId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
         })
       },
 

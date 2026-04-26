@@ -23,6 +23,7 @@ type mockGateRepository struct {
 	getByIDFunc func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error)
 	getAllFunc  func(ctx context.Context, filters traffictesting.GateFilters, sort traffictesting.GateSort, params *pagination.Params) (*pagination.PagedResult[*traffictesting.Gate], error)
 	deleteFunc  func(ctx context.Context, id traffictesting.GateID) error
+	updateFunc  func(ctx context.Context, gate *traffictesting.Gate) error
 }
 
 func (m *mockGateRepository) Save(ctx context.Context, gate *traffictesting.Gate) error {
@@ -40,6 +41,9 @@ func (m *mockGateRepository) GetByID(ctx context.Context, id traffictesting.Gate
 }
 
 func (m *mockGateRepository) Update(ctx context.Context, gate *traffictesting.Gate) error {
+	if m.updateFunc != nil {
+		return m.updateFunc(ctx, gate)
+	}
 	return nil
 }
 
@@ -806,5 +810,228 @@ func TestDeleteGate_MissingPathParam(t *testing.T) {
 
 	if apiErr.Status != http.StatusBadRequest {
 		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+func TestUpdateGate_Success_NameOnly(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+	name, _ := traffictesting.ParseGateName("original-gate")
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	existingGate, _ := traffictesting.NewGate(name, liveURL, shadowURL, traffictesting.WithGateID(gateID))
+
+	repo := &mockGateRepository{
+		getByIDFunc: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			return existingGate, nil
+		},
+		updateFunc: func(ctx context.Context, gate *traffictesting.Gate) error {
+			return nil
+		},
+	}
+	handler := commands.NewUpdateGateHandler(repo)
+
+	body := `{"name":"updated-gate"}`
+	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := UpdateGate(handler)
+	err := appHandler(rec, req)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+
+	var response dto.Response[dto.Gate]
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Data.Name != "updated-gate" {
+		t.Errorf("expected name 'updated-gate', got %q", response.Data.Name)
+	}
+}
+
+func TestUpdateGate_Success_DiffConfig(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+	name, _ := traffictesting.ParseGateName("diff-gate")
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	existingGate, _ := traffictesting.NewGate(name, liveURL, shadowURL, traffictesting.WithGateID(gateID))
+
+	var updatedGate *traffictesting.Gate
+	repo := &mockGateRepository{
+		getByIDFunc: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			return existingGate, nil
+		},
+		updateFunc: func(ctx context.Context, gate *traffictesting.Gate) error {
+			updatedGate = gate
+			return nil
+		},
+	}
+	handler := commands.NewUpdateGateHandler(repo)
+
+	body := `{"diff_config":{"ignored_fields":["timestamp","trace_id"],"included_fields":[],"float_tolerance":0.001}}`
+	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := UpdateGate(handler)
+	err := appHandler(rec, req)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+
+	if updatedGate == nil {
+		t.Fatal("expected gate to be updated")
+	}
+
+	var response dto.Response[dto.Gate]
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(response.Data.DiffConfig.IgnoredFields) != 2 {
+		t.Errorf("expected 2 ignored fields, got %d", len(response.Data.DiffConfig.IgnoredFields))
+	}
+	if response.Data.DiffConfig.FloatTolerance != 0.001 {
+		t.Errorf("expected float tolerance 0.001, got %f", response.Data.DiffConfig.FloatTolerance)
+	}
+}
+
+func TestUpdateGate_NotFound(t *testing.T) {
+	repo := &mockGateRepository{
+		getByIDFunc: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			return nil, traffictesting.ErrGateNotFound
+		},
+	}
+	handler := commands.NewUpdateGateHandler(repo)
+
+	gateID := traffictesting.NewGateID()
+	body := `{"name":"new-name"}`
+	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := UpdateGate(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", apiErr.Status)
+	}
+}
+
+func TestUpdateGate_InvalidID(t *testing.T) {
+	repo := &mockGateRepository{}
+	handler := commands.NewUpdateGateHandler(repo)
+
+	body := `{"name":"new-name"}`
+	req := httptest.NewRequest(http.MethodPatch, "/gates/invalid-id", bytes.NewBufferString(body))
+	req.SetPathValue("gate_id", "invalid-id")
+	rec := httptest.NewRecorder()
+
+	appHandler := UpdateGate(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+func TestUpdateGate_MissingPathParam(t *testing.T) {
+	repo := &mockGateRepository{}
+	handler := commands.NewUpdateGateHandler(repo)
+
+	body := `{"name":"new-name"}`
+	req := httptest.NewRequest(http.MethodPatch, "/gates/", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+
+	appHandler := UpdateGate(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+func TestUpdateGate_InvalidJSON(t *testing.T) {
+	repo := &mockGateRepository{}
+	handler := commands.NewUpdateGateHandler(repo)
+
+	gateID := traffictesting.NewGateID()
+	body := `{invalid json}`
+	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := UpdateGate(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+func TestUpdateGate_DuplicateName(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+	name, _ := traffictesting.ParseGateName("existing-gate")
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	existingGate, _ := traffictesting.NewGate(name, liveURL, shadowURL, traffictesting.WithGateID(gateID))
+
+	repo := &mockGateRepository{
+		getByIDFunc: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			return existingGate, nil
+		},
+		updateFunc: func(ctx context.Context, gate *traffictesting.Gate) error {
+			return traffictesting.ErrDuplicateGateName
+		},
+	}
+	handler := commands.NewUpdateGateHandler(repo)
+
+	body := `{"name":"duplicate-name"}`
+	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := UpdateGate(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusConflict {
+		t.Errorf("expected status 409, got %d", apiErr.Status)
 	}
 }

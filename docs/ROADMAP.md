@@ -27,7 +27,6 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 - [x] **P1** Add `name` field — Unique, mutable name. Added to schema, domain model, create API, DTO, and wired in `GateCard.vue`, `GateDetail.vue`, `GateForm.vue`.
 - [x] **P1** Add `created_at` field — Immutable default timestamp. Wired in `GateDetail.vue`. Added `created_at` sort field.
 - [x] **P1** Unique + immutable URL pair — `(live_url, shadow_url)` composite unique index. Both fields immutable after creation. 409 Conflict on duplicates.
-- [ ] **P2** Add `status` field — "Pause" button exists with no handler (`GateDetail.vue`). Add active/paused status + `PATCH /gates/{id}/status`.
 
 ### Gate Statistics
 
@@ -46,18 +45,13 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 ### Dead UI Elements
 
 - [x] **P1** "Configure" button (backend) — `PATCH /gates/{id}` endpoint implemented. Supports updating `name` and `diff_config` (ignored fields, included fields, float tolerance).
-- [ ] **P2** "Configure" button (frontend) — Wire the configure button in `GateDetail.vue` to the existing `PATCH /gates/{id}` endpoint. Add edit form for name and diff config.
+- [x] **P2** "Configure" button (frontend) — Wired in `GateDetail.vue` via `GateConfigDialog.vue` dialog. Calls `PATCH /gates/{id}` with name and diff config (ignored/included fields, float tolerance). Added `DiffConfig` type, `UpdateGatePayload`, and `updateGate()` API function. Removed dead "Pause" button (gate status feature removed).
 - [ ] **P2** "Copy cURL" button — No click handler (`RequestDetail.vue`). Client-side: generate cURL from request data.
 - [ ] **P2** "Export JSON" button — No click handler (`RequestDetail.vue`). Client-side: serialize + download.
 - [ ] **P2** "Showing N of M requests" label — Hardcoded count (`GateDetail.vue`). Wire to pagination `total`.
 - [ ] **P2** Gate delete button — Backend `DELETE /gates/{id}` exists but no UI button or confirmation dialog.
 - [ ] **P2** Response headers viewer — Response headers are captured but not displayed in `RequestDetail.vue`.
 - [ ] **P2** Request body viewer — Request body is captured but not viewable in `RequestDetail.vue`.
-
-### Dead Navigation Links
-
-- [ ] **P2** "Requests" nav link — Points to `#` (`Header.vue`). No route or page.
-- [ ] **P2** "Settings" nav link — Points to `#` (`Header.vue`). No route or page.
 
 ### Hardcoded UI State
 
@@ -82,7 +76,6 @@ Pending infrastructure tasks for production readiness.
 - [x] **P2** Configurable server timeouts — `ReadTimeout`, `WriteTimeout`, `IdleTimeout` exposed via env vars with previous hardcoded values as defaults.
 - [x] **P2** Align transport TLS timeout with context — Reduced `TLSHandshakeTimeout` from 10s to 5s to match default `LIVE_TIMEOUT`.
 - [x] **P2** Validate API timeout budget — Warn at startup if retry config (retries × backoff) could exceed `API_TIMEOUT`. Implemented as a `SeverityWarning` in the validation system.
-- [ ] **P2** TLS/HTTPS support — Optional `ListenAndServeTLS` with cert/key config.
 - [ ] **P3** Compression middleware — Gzip responses > 1KB.
 - [ ] **P3** Config hot-reload — Reload safe settings on SIGHUP without restart.
 
@@ -108,19 +101,11 @@ Larger capabilities not yet started, organized by priority.
 
 - [x] **P1** Delete gate — `DELETE /gates/{id}` with cascade delete.
 - [x] **P1** Update gate — `PATCH /gates/{id}` to modify name and diff config (live_url and shadow_url are immutable).
-- [ ] **P2** Delete request — `DELETE /gates/{id}/requests/{request_id}`.
-- [ ] **P3** Bulk delete requests — `DELETE /gates/{id}/requests?older_than=30d`.
 
 ### Gate Summary Endpoint
 
 - [x] **P1** Embed per-gate stats in gate responses — Stats (`request_count_24h`, `diff_count_24h`, `diff_rate`, `last_active`) embedded in `GET /gates` and `GET /gates/{id}` responses. Replaces the originally planned `GET /gates/{id}/summary` to avoid N+1 calls.
 - [x] **P2** `GET /stats` — Global dashboard: total gates, requests (24h), diff rate.
-
-### Cross-Gate Request Explorer
-
-- [ ] **P2** Cross-gate search — `GET /requests?method=POST&path=/api/*&has_diff=true`.
-- [ ] **P2** Requests page — Vue page at `/requests` with cross-gate filtering.
-- [ ] **P3** Full-text body search — Search within request/response bodies.
 
 ### Latency Tracking
 
