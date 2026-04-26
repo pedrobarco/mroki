@@ -84,7 +84,7 @@ Pending infrastructure tasks for production readiness.
 - [ ] **P2** Create PRODUCTION_READINESS.md — Pre-deployment checklist, monitoring requirements, runbook.
 - [ ] **P2** Update MROKI_API.md — Production deployment, security config, performance tuning.
 - [x] **P2** Update MROKI_PROXY.md — Circuit breaker behavior, connection pooling, auth setup.
-- [ ] **P2** Update API_CONTRACTS.md — Document auth, rate limiting, pagination (currently marked "Planned v2").
+- [x] **P2** Update API_CONTRACTS.md — Auth, rate limiting, and pagination are fully documented.
 
 ### Technical Debt
 
