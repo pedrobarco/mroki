@@ -2,11 +2,17 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getRequest } from '@/api'
-import type { RequestDetail } from '@/api'
+import type { Gate, RequestDetail } from '@/api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import DiffViewer from '@/components/diff/DiffViewer.vue'
-import { ChevronLeft, Copy, Download } from 'lucide-vue-next'
+import { ChevronLeft, Copy, Download, ChevronDown, Check } from 'lucide-vue-next'
 import { truncateId } from '@/lib/utils'
 import { useGateCache } from '@/composables/use-gate-cache'
 
@@ -14,10 +20,12 @@ const route = useRoute()
 const router = useRouter()
 const { getGateById } = useGateCache()
 
-const gateName = ref<string | null>(null)
+const gate = ref<Gate | null>(null)
+const gateName = computed(() => gate.value?.name ?? null)
 const request = ref<RequestDetail | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const copied = ref(false)
 
 const gateId = computed(() => route.params.id as string)
 const requestId = computed(() => route.params.rid as string)
@@ -44,11 +52,11 @@ async function loadRequest() {
   error.value = null
 
   try {
-    const [gate, requestResponse] = await Promise.all([
+    const [gateData, requestResponse] = await Promise.all([
       getGateById(gateId.value),
       getRequest(gateId.value, requestId.value),
     ])
-    gateName.value = gate.name
+    gate.value = gateData
     request.value = requestResponse.data
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load request'
@@ -63,6 +71,47 @@ function goBack() {
 
 function formatTimestamp(timestamp: string): string {
   return new Date(timestamp).toLocaleString()
+}
+
+function buildCurl(targetUrl: string): string {
+  const req = request.value
+  if (!req) return ''
+
+  const parts: string[] = [`curl -X ${req.method} '${targetUrl}${req.path}'`]
+
+  // Add request headers
+  if (req.headers) {
+    for (const [name, values] of Object.entries(req.headers)) {
+      for (const value of values) {
+        parts.push(`  -H '${name}: ${value}'`)
+      }
+    }
+  }
+
+  // Add request body (base64-decoded)
+  if (req.body) {
+    try {
+      const decoded = atob(req.body)
+      parts.push(`  -d '${decoded.replace(/'/g, "'\\''")}'`)
+    } catch {
+      parts.push(`  --data-binary '${req.body}'`)
+    }
+  }
+
+  return parts.join(' \\\n')
+}
+
+async function copyCurl(target: 'live' | 'shadow') {
+  const url = target === 'live' ? gate.value?.live_url : gate.value?.shadow_url
+  if (!url) return
+
+  const curl = buildCurl(url)
+  await navigator.clipboard.writeText(curl)
+
+  copied.value = true
+  setTimeout(() => {
+    copied.value = false
+  }, 2000)
 }
 
 onMounted(() => {
@@ -93,10 +142,25 @@ onMounted(() => {
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-xl font-semibold tracking-tight">Request Detail</h1>
       <div class="flex items-center gap-2">
-        <Button variant="outline" size="sm" class="gap-1.5 text-xs">
-          <Copy class="h-3.5 w-3.5" />
-          Copy cURL
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="outline" size="sm" class="gap-1.5 text-xs">
+              <component :is="copied ? Check : Copy" class="h-3.5 w-3.5" />
+              {{ copied ? 'Copied!' : 'Copy cURL' }}
+              <ChevronDown class="h-3 w-3 ml-0.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem @click="copyCurl('live')">
+              <span class="w-1.5 h-1.5 rounded-full bg-success mr-2" />
+              Live endpoint
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="copyCurl('shadow')">
+              <span class="w-1.5 h-1.5 rounded-full bg-info mr-2" />
+              Shadow endpoint
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="outline" size="sm" class="gap-1.5 text-xs">
           <Download class="h-3.5 w-3.5" />
           Export JSON

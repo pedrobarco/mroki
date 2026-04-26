@@ -429,6 +429,14 @@ func TestGetRequestByID_Success(t *testing.T) {
 		t.Errorf("expected ID %s, got %s", requestID.String(), response.Data.ID)
 	}
 
+	// Verify request headers and body are included in detail response
+	if response.Data.Body != "request body" {
+		t.Errorf("expected body 'request body', got %q", response.Data.Body)
+	}
+	if response.Data.Headers == nil {
+		t.Error("expected headers to be non-nil")
+	}
+
 	if response.Data.LiveResponse.StatusCode != 200 {
 		t.Errorf("expected live status code 200, got %d", response.Data.LiveResponse.StatusCode)
 	}

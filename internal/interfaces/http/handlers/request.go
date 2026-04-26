@@ -268,6 +268,8 @@ func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
 		ID:             req.ID.String(),
 		Method:         req.Method.String(),
 		Path:           req.Path.String(),
+		Headers:        req.Headers.HTTPHeader(),
+		Body:           string(req.Body),
 		CreatedAt:      req.CreatedAt,
 		LiveResponse:   mapResponseDetail(req.LiveResponse),
 		ShadowResponse: mapResponseDetail(req.ShadowResponse),

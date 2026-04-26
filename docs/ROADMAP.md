@@ -46,12 +46,10 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 
 - [x] **P1** "Configure" button (backend) — `PATCH /gates/{id}` endpoint implemented. Supports updating `name` and `diff_config` (ignored fields, included fields, float tolerance).
 - [x] **P2** "Configure" button (frontend) — Wired in `GateDetail.vue` via `GateConfigDialog.vue` dialog. Calls `PATCH /gates/{id}` with name and diff config (ignored/included fields, float tolerance). Added `DiffConfig` type, `UpdateGatePayload`, and `updateGate()` API function. Removed dead "Pause" button (gate status feature removed).
-- [ ] **P2** "Copy cURL" button — No click handler (`RequestDetail.vue`). Client-side: generate cURL from request data.
+- [x] **P2** "Copy cURL" button — Dropdown menu with Live/Shadow endpoint options. Generates cURL with method, URL, request headers, and body. Copies to clipboard with visual feedback. Added request `headers` and `body` to `RequestDetail` DTO.
 - [ ] **P2** "Export JSON" button — No click handler (`RequestDetail.vue`). Client-side: serialize + download.
 - [ ] **P2** "Showing N of M requests" label — Hardcoded count (`GateDetail.vue`). Wire to pagination `total`.
 - [ ] **P2** Gate delete button — Backend `DELETE /gates/{id}` exists but no UI button or confirmation dialog.
-- [ ] **P2** Response headers viewer — Response headers are captured but not displayed in `RequestDetail.vue`.
-- [ ] **P2** Request body viewer — Request body is captured but not viewable in `RequestDetail.vue`.
 
 ### Hardcoded UI State
 

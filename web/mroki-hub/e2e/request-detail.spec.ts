@@ -64,4 +64,44 @@ test.describe('Request Detail Page', () => {
     await page.getByText('Back to Gate').click()
     await expect(page).toHaveURL(`/gates/${gate.id}`)
   })
+
+  test('copy cURL dropdown shows live and shadow options', async ({ page, api, context }) => {
+    // Grant clipboard permissions
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `curl-gate-${suffix}`,
+      `https://curl-live-${suffix}.example.com`,
+      `https://curl-shadow-${suffix}.example.com`
+    )
+    const req = await api.seedRequest(gate.id, {
+      method: 'POST',
+      path: '/api/curl-test',
+      liveBody: btoa(JSON.stringify({ test: true })),
+      shadowBody: btoa(JSON.stringify({ test: false })),
+      liveStatus: 200,
+      shadowStatus: 200,
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+
+    // Click Copy cURL dropdown trigger
+    await page.getByRole('button', { name: 'Copy cURL' }).click()
+
+    // Verify dropdown options
+    await expect(page.getByText('Live endpoint')).toBeVisible()
+    await expect(page.getByText('Shadow endpoint')).toBeVisible()
+
+    // Click live endpoint option
+    await page.getByText('Live endpoint').click()
+
+    // Button should show "Copied!" feedback
+    await expect(page.getByText('Copied!')).toBeVisible()
+
+    // Verify clipboard contains cURL with live URL
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText())
+    expect(clipboardText).toContain(`curl -X POST`)
+    expect(clipboardText).toContain(`curl-live-${suffix}.example.com/api/curl-test`)
+  })
 })

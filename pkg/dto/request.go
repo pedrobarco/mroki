@@ -60,10 +60,12 @@ type Request struct {
 
 // RequestDetail represents a complete request with all responses and diff.
 type RequestDetail struct {
-	ID        string    `json:"id"`
-	Method    string    `json:"method"`
-	Path      string    `json:"path"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        string              `json:"id"`
+	Method    string              `json:"method"`
+	Path      string              `json:"path"`
+	Headers   map[string][]string `json:"headers"`
+	Body      string              `json:"body"`
+	CreatedAt time.Time           `json:"created_at"`
 
 	LiveResponse   ResponseDetail `json:"live_response"`
 	ShadowResponse ResponseDetail `json:"shadow_response"`

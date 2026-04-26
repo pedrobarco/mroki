@@ -92,12 +92,13 @@ export interface Diff {
 
 /**
  * RequestDetail represents a request with full response details and diff
- * Note: This has fewer fields than Request (used in listings)
  */
 export interface RequestDetail {
   id: string
   method: string
   path: string
+  headers: Record<string, string[]>
+  body: string
   created_at: string
   live_response: Response
   shadow_response: Response
