@@ -104,4 +104,45 @@ test.describe('Request Detail Page', () => {
     expect(clipboardText).toContain(`curl -X POST`)
     expect(clipboardText).toContain(`curl-live-${suffix}.example.com/api/curl-test`)
   })
+
+  test('export JSON downloads request data', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `export-gate-${suffix}`,
+      `https://export-live-${suffix}.example.com`,
+      `https://export-shadow-${suffix}.example.com`
+    )
+    const req = await api.seedRequest(gate.id, {
+      method: 'POST',
+      path: '/api/export-test',
+      liveBody: btoa(JSON.stringify({ status: 'ok' })),
+      shadowBody: btoa(JSON.stringify({ status: 'error' })),
+      liveStatus: 200,
+      shadowStatus: 500,
+      diffContent: [{ op: 'replace', path: '/status', value: 'error' }],
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+
+    // Listen for the download event
+    const downloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Export JSON' }).click()
+    const download = await downloadPromise
+
+    // Verify filename
+    expect(download.suggestedFilename()).toMatch(/^request-.*\.json$/)
+
+    // Read downloaded file and verify content
+    const filePath = await download.path()
+    expect(filePath).toBeTruthy()
+
+    const fs = await import('fs')
+    const content = JSON.parse(fs.readFileSync(filePath!, 'utf-8'))
+    expect(content.id).toBe(req.id)
+    expect(content.method).toBe('POST')
+    expect(content.path).toBe('/api/export-test')
+    expect(content.live_response.status_code).toBe(200)
+    expect(content.shadow_response.status_code).toBe(500)
+    expect(content.diff.content).toHaveLength(1)
+  })
 })

@@ -3,11 +3,7 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 
-const navItems = [
-  { label: 'Gates', to: '/gates', matchPrefix: '/gates' },
-  { label: 'Requests', to: '#', matchPrefix: '/requests' },
-  { label: 'Settings', to: '#', matchPrefix: '/settings' },
-]
+const navItems = [{ label: 'Gates', to: '/gates', matchPrefix: '/gates' }]
 
 function isActive(matchPrefix: string): boolean {
   return route.path === matchPrefix || route.path.startsWith(matchPrefix + '/')
@@ -41,12 +37,6 @@ function isActive(matchPrefix: string): boolean {
       </div>
 
       <div class="flex items-center gap-3">
-        <div
-          class="flex items-center gap-1.5 text-xs text-success bg-success-dim/30 px-2.5 py-1 rounded-full"
-        >
-          <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-          <span>API Connected</span>
-        </div>
         <div
           class="w-7 h-7 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-medium text-muted-foreground"
         >

@@ -47,14 +47,16 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 - [x] **P1** "Configure" button (backend) — `PATCH /gates/{id}` endpoint implemented. Supports updating `name` and `diff_config` (ignored fields, included fields, float tolerance).
 - [x] **P2** "Configure" button (frontend) — Wired in `GateDetail.vue` via `GateConfigDialog.vue` dialog. Calls `PATCH /gates/{id}` with name and diff config (ignored/included fields, float tolerance). Added `DiffConfig` type, `UpdateGatePayload`, and `updateGate()` API function. Removed dead "Pause" button (gate status feature removed).
 - [x] **P2** "Copy cURL" button — Dropdown menu with Live/Shadow endpoint options. Generates cURL with method, URL, request headers, and body. Copies to clipboard with visual feedback. Added request `headers` and `body` to `RequestDetail` DTO.
-- [ ] **P2** "Export JSON" button — No click handler (`RequestDetail.vue`). Client-side: serialize + download.
+- [x] **P2** "Export JSON" button — Downloads full request detail (method, path, headers, body, responses, diff) as `request-{id}.json`.
 - [ ] **P2** "Showing N of M requests" label — Hardcoded count (`GateDetail.vue`). Wire to pagination `total`.
 - [ ] **P2** Gate delete button — Backend `DELETE /gates/{id}` exists but no UI button or confirmation dialog.
 
 ### Hardcoded UI State
 
-- [ ] **P3** "API Connected" badge — Always green (`Header.vue`). Wire to `GET /health/ready`.
-- [ ] **P3** User avatar "DK" — Hardcoded initials (`Header.vue`). No auth system yet.
+- [x] **P3** "API Connected" badge — Removed (misleading static indicator). Will be re-added when health check wiring is implemented.
+- [x] **P3** "Requests" / "Settings" nav links — Removed dead links pointing to `#`. Will be re-added when pages are implemented.
+- [x] **P3** "Active" badge on gate detail — Removed (no gate status concept).
+- [ ] **P3** User avatar "DK" — Hardcoded initials (`Header.vue`). Will be dynamic when auth is added.
 
 ---
 

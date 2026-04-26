@@ -114,6 +114,22 @@ async function copyCurl(target: 'live' | 'shadow') {
   }, 2000)
 }
 
+function exportJson() {
+  const req = request.value
+  if (!req) return
+
+  const json = JSON.stringify(req, null, 2)
+  const blob = new Blob([json], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `request-${truncateId(req.id)}.json`
+  a.click()
+
+  URL.revokeObjectURL(url)
+}
+
 onMounted(() => {
   loadRequest()
 })
@@ -161,7 +177,7 @@ onMounted(() => {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" size="sm" class="gap-1.5 text-xs">
+        <Button variant="outline" size="sm" class="gap-1.5 text-xs" @click="exportJson">
           <Download class="h-3.5 w-3.5" />
           Export JSON
         </Button>

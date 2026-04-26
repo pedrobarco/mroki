@@ -102,12 +102,6 @@ onMounted(() => {
           <div>
             <div class="flex items-center gap-2.5 mb-1.5">
               <h1 class="text-xl font-semibold tracking-tight">{{ gate.name }}</h1>
-              <span
-                class="inline-flex items-center gap-1.5 text-xs text-success bg-success-dim/30 px-2 py-0.5 rounded-full"
-              >
-                <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                Active
-              </span>
             </div>
             <code class="text-xs font-mono text-dim">{{ gate.id }}</code>
           </div>
