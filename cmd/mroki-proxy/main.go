@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -21,10 +22,25 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
-
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	log := logger.New()
+
+	cfg, err := config.Load()
+	if err != nil {
+		var verr *config.ValidationError
+		if errors.As(err, &verr) {
+			for _, w := range verr.Warnings() {
+				log.Warn("Configuration warning", "detail", w.Message)
+			}
+			if verr.HasErrors() {
+				log.Error("Configuration validation failed", "error", verr.Error())
+				os.Exit(1)
+			}
+		} else {
+			log.Error("Configuration loading failed", "error", err)
+			os.Exit(1)
+		}
+	}
 
 	// Determine mode and configure URLs
 	var liveURL, shadowURL *url.URL

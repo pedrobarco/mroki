@@ -97,6 +97,65 @@ func TestValidate_invalid_server_timeouts(t *testing.T) {
 	assert.Contains(t, err.Error(), "idle_timeout must be positive")
 }
 
+func TestValidate_server_timeout_ordering(t *testing.T) {
+	// ReadTimeout >= WriteTimeout
+	cfg := validConfig()
+	cfg.App.ReadTimeout = 30 * time.Second
+	cfg.App.WriteTimeout = 15 * time.Second
+	cfg.App.IdleTimeout = 60 * time.Second
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read_timeout (30s) must be less than write_timeout (15s)")
+
+	// WriteTimeout >= IdleTimeout
+	cfg = validConfig()
+	cfg.App.ReadTimeout = 15 * time.Second
+	cfg.App.WriteTimeout = 60 * time.Second
+	cfg.App.IdleTimeout = 30 * time.Second
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write_timeout (1m0s) must be less than idle_timeout (30s)")
+
+	// Equal values are also invalid
+	cfg = validConfig()
+	cfg.App.ReadTimeout = 30 * time.Second
+	cfg.App.WriteTimeout = 30 * time.Second
+	cfg.App.IdleTimeout = 60 * time.Second
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read_timeout (30s) must be less than write_timeout (30s)")
+}
+
+func TestValidate_cors_origins(t *testing.T) {
+	t.Run("valid origins", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.CORSOrigins = "http://localhost:5173, https://example.com"
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("empty is valid", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.CORSOrigins = ""
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("invalid scheme", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.CORSOrigins = "ftp://example.com"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cors_origins entry \"ftp://example.com\" must use http or https scheme")
+	})
+
+	t.Run("mixed valid and invalid", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.CORSOrigins = "https://good.com, ftp://bad.com"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cors_origins entry \"ftp://bad.com\" must use http or https scheme")
+	})
+}
+
 func TestValidate_invalid_retention(t *testing.T) {
 	cfg := validConfig()
 	cfg.App.Retention = -1 * time.Hour

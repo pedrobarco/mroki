@@ -235,6 +235,100 @@ func TestValidate_invalid_server_timeouts(t *testing.T) {
 	assert.Contains(t, err.Error(), "idle_timeout must be positive")
 }
 
+func TestValidate_write_timeout_less_than_live_timeout(t *testing.T) {
+	cfg := validStandaloneConfig()
+	cfg.App.LiveTimeout = 10 * time.Second
+	cfg.App.WriteTimeout = 5 * time.Second
+	cfg.App.IdleTimeout = 120 * time.Second
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write_timeout (5s) must be >= live_timeout (10s)")
+}
+
+func TestValidate_server_timeout_ordering(t *testing.T) {
+	// ReadTimeout >= WriteTimeout
+	cfg := validStandaloneConfig()
+	cfg.App.ReadTimeout = 60 * time.Second
+	cfg.App.WriteTimeout = 30 * time.Second
+	cfg.App.IdleTimeout = 120 * time.Second
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read_timeout (1m0s) must be less than write_timeout (30s)")
+
+	// WriteTimeout >= IdleTimeout
+	cfg = validStandaloneConfig()
+	cfg.App.ReadTimeout = 30 * time.Second
+	cfg.App.WriteTimeout = 120 * time.Second
+	cfg.App.IdleTimeout = 60 * time.Second
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write_timeout (2m0s) must be less than idle_timeout (1m0s)")
+
+	// Equal values are also invalid
+	cfg = validStandaloneConfig()
+	cfg.App.ReadTimeout = 30 * time.Second
+	cfg.App.WriteTimeout = 30 * time.Second
+	cfg.App.IdleTimeout = 120 * time.Second
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read_timeout (30s) must be less than write_timeout (30s)")
+}
+
+func asValidationError(t *testing.T, err error) *ValidationError {
+	t.Helper()
+	verr, ok := err.(*ValidationError)
+	require.True(t, ok, "expected *ValidationError, got %T", err)
+	return verr
+}
+
+func TestValidate_warning_live_timeout_below_tls(t *testing.T) {
+	cfg := validStandaloneConfig()
+	cfg.App.LiveTimeout = 3 * time.Second
+	err := cfg.Validate()
+	require.Error(t, err)
+	verr := asValidationError(t, err)
+	require.False(t, verr.HasErrors())
+	require.True(t, verr.HasWarnings())
+	warnings := verr.Warnings()
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0].Message, "live_timeout (3s) is less than the TLS handshake safety net (5s)")
+}
+
+func TestValidate_no_warning_live_timeout_at_or_above_tls(t *testing.T) {
+	cfg := validStandaloneConfig()
+	cfg.App.LiveTimeout = 5 * time.Second
+	require.NoError(t, cfg.Validate())
+}
+
+func TestValidate_warning_retry_budget_exceeds_api_timeout(t *testing.T) {
+	cfg := validAPIConfig()
+	cfg.App.MaxRetries = 5
+	cfg.App.RetryDelay = 2 * time.Second
+	cfg.App.APITimeout = 10 * time.Second
+	err := cfg.Validate()
+	require.Error(t, err)
+	verr := asValidationError(t, err)
+	require.False(t, verr.HasErrors())
+	require.True(t, verr.HasWarnings())
+	warnings := verr.Warnings()
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0].Message, "retry budget")
+	assert.Contains(t, warnings[0].Message, "may exceed api_timeout")
+}
+
+func TestValidate_no_warning_retry_budget_within_api_timeout(t *testing.T) {
+	cfg := validAPIConfig()
+	cfg.App.MaxRetries = 3
+	cfg.App.RetryDelay = 1 * time.Second
+	cfg.App.APITimeout = 30 * time.Second
+	require.NoError(t, cfg.Validate())
+}
+
+func TestValidate_no_warnings_standalone(t *testing.T) {
+	cfg := validStandaloneConfig()
+	require.NoError(t, cfg.Validate())
+}
+
 func TestValidate_multiple_errors(t *testing.T) {
 	var cfg Config
 	cfg.App.Port = 0

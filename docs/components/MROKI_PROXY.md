@@ -139,6 +139,11 @@ MROKI_APP_LIVE_TIMEOUT=5s
 # Shadow request timeout (default: 10s)
 # Doesn't block client - can be longer
 MROKI_APP_SHADOW_TIMEOUT=10s
+
+# Server timeouts (must satisfy: Read < Write < Idle)
+MROKI_APP_READ_TIMEOUT=30s    # default: 30s
+MROKI_APP_WRITE_TIMEOUT=60s   # default: 60s — must be >= LIVE_TIMEOUT
+MROKI_APP_IDLE_TIMEOUT=120s   # default: 120s
 ```
 
 ### Diff Configuration (Optional)
@@ -573,27 +578,21 @@ All logs use structured logging (slog) with JSON output.
 
 ### Proxy won't start
 
-**Problem:** `panic: configuration validation failed: must configure either API mode or standalone mode`
+**Problem:** `Configuration validation failed: must configure either API mode or standalone mode`
 
 **Solution:** Set either API mode (API_URL + GATE_ID + API_KEY) or standalone mode (LIVE_URL + SHADOW_URL), not both.
 
 ---
 
-**Problem:** `panic: configuration validation failed: gate_id must be a valid UUID`
+**Problem:** `Configuration validation failed: gate_id must be a valid UUID`
 
 **Solution:** Ensure `GATE_ID` is a valid UUID format (create gate via mroki-api first).
 
 ---
 
-**Problem:** `panic: configuration validation failed: api_url and gate_id must both be set or both be empty`
+**Problem:** `Configuration validation failed: read_timeout must be less than write_timeout`
 
-**Solution:** Either set both `API_URL` and `GATE_ID`, or remove both for standalone mode.
-
----
-
-**Problem:** `panic: configuration validation failed: gate_id must be a valid UUID`
-
-**Solution:** Ensure `GATE_ID` is a valid UUID format (create gate via mroki-api first).
+**Solution:** Ensure server timeouts satisfy: `READ_TIMEOUT` < `WRITE_TIMEOUT` < `IDLE_TIMEOUT`.
 
 ### No diffs captured
 

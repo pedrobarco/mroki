@@ -28,9 +28,24 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
-
 	logger := logger.New()
+
+	cfg, err := config.Load()
+	if err != nil {
+		var verr *config.ValidationError
+		if errors.As(err, &verr) {
+			for _, w := range verr.Warnings() {
+				logger.Warn("Configuration warning", "detail", w.Message)
+			}
+			if verr.HasErrors() {
+				logger.Error("Configuration validation failed", "error", verr.Error())
+				os.Exit(1)
+			}
+		} else {
+			logger.Error("Configuration loading failed", "error", err)
+			os.Exit(1)
+		}
+	}
 
 	// Parse pool configuration timeouts (safe after validation)
 	maxConnIdleDuration, _ := time.ParseDuration(cfg.App.Database.MaxConnIdle)

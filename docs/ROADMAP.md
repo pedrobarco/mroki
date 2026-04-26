@@ -81,7 +81,7 @@ Pending infrastructure tasks for production readiness.
 
 - [x] **P2** Configurable server timeouts — `ReadTimeout`, `WriteTimeout`, `IdleTimeout` exposed via env vars with previous hardcoded values as defaults.
 - [x] **P2** Align transport TLS timeout with context — Reduced `TLSHandshakeTimeout` from 10s to 5s to match default `LIVE_TIMEOUT`.
-- [ ] **P2** Validate API timeout budget — Warn at startup if retry config (retries × backoff) could exceed `API_TIMEOUT`.
+- [x] **P2** Validate API timeout budget — Warn at startup if retry config (retries × backoff) could exceed `API_TIMEOUT`. Implemented as a `SeverityWarning` in the validation system.
 - [ ] **P2** TLS/HTTPS support — Optional `ListenAndServeTLS` with cert/key config.
 - [ ] **P2** Request deduplication — Return 200 for duplicate request IDs instead of error.
 - [ ] **P3** Compression middleware — Gzip responses > 1KB.

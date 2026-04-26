@@ -9,6 +9,10 @@ import (
 	"github.com/pedrobarco/mroki/internal/config"
 )
 
+// ValidationError is a type alias for config.ValidationError so that
+// consumers don't need to import internal/config directly.
+type ValidationError = config.ValidationError
+
 type Config config.Config[struct {
 	// URLs - optional if API mode configured (proxy fetches from API)
 	LiveURL   *url.URL `env:"LIVE_URL"`
@@ -50,7 +54,7 @@ func (c Config) Validate() error {
 
 	// Validate port range
 	if c.App.Port < 1 || c.App.Port > 65535 {
-		verr.Add(fmt.Errorf("port must be between 1 and 65535, got %d", c.App.Port))
+		verr.Add(config.SeverityError, fmt.Sprintf("port must be between 1 and 65535, got %d", c.App.Port))
 	}
 
 	// Check if API mode or standalone mode
@@ -58,44 +62,44 @@ func (c Config) Validate() error {
 	hasStandaloneConfig := c.App.LiveURL != nil && c.App.ShadowURL != nil
 
 	if !hasAPIConfig && !hasStandaloneConfig {
-		verr.Add(fmt.Errorf("must configure either API mode (API_URL+GATE_ID+API_KEY) or standalone mode (LIVE_URL+SHADOW_URL)"))
+		verr.Add(config.SeverityError, "must configure either API mode (API_URL+GATE_ID+API_KEY) or standalone mode (LIVE_URL+SHADOW_URL)")
 	}
 
 	// Validate API mode configuration
 	if hasAPIConfig {
 		// Validate API URL scheme
 		if c.App.APIURL.Scheme != "http" && c.App.APIURL.Scheme != "https" {
-			verr.Add(fmt.Errorf("api_url must use http or https scheme, got %q", c.App.APIURL.Scheme))
+			verr.Add(config.SeverityError, fmt.Sprintf("api_url must use http or https scheme, got %q", c.App.APIURL.Scheme))
 		}
 
 		// Validate gate ID is a valid UUID
 		if _, err := uuid.Parse(c.App.GateID); err != nil {
-			verr.Add(fmt.Errorf("gate_id must be a valid UUID: %w", err))
+			verr.Add(config.SeverityError, fmt.Sprintf("gate_id must be a valid UUID: %v", err))
 		}
 
 		// API key validation
 		if c.App.APIKey == "" {
-			verr.Add(fmt.Errorf("api_key is required when api integration is configured"))
+			verr.Add(config.SeverityError, "api_key is required when api integration is configured")
 		}
 
 		// Validate retry config
 		if c.App.MaxRetries < 0 {
-			verr.Add(fmt.Errorf("max_retries must be non-negative, got %d", c.App.MaxRetries))
+			verr.Add(config.SeverityError, fmt.Sprintf("max_retries must be non-negative, got %d", c.App.MaxRetries))
 		}
 		if c.App.RetryDelay <= 0 {
-			verr.Add(fmt.Errorf("retry_delay must be positive, got %s", c.App.RetryDelay))
+			verr.Add(config.SeverityError, fmt.Sprintf("retry_delay must be positive, got %s", c.App.RetryDelay))
 		}
 		if c.App.APITimeout <= 0 {
-			verr.Add(fmt.Errorf("api_timeout must be positive, got %s", c.App.APITimeout))
+			verr.Add(config.SeverityError, fmt.Sprintf("api_timeout must be positive, got %s", c.App.APITimeout))
 		}
 		if c.App.CBFailureThreshold < 1 {
-			verr.Add(fmt.Errorf("cb_failure_threshold must be positive, got %d", c.App.CBFailureThreshold))
+			verr.Add(config.SeverityError, fmt.Sprintf("cb_failure_threshold must be positive, got %d", c.App.CBFailureThreshold))
 		}
 		if c.App.CBDelay <= 0 {
-			verr.Add(fmt.Errorf("cb_delay must be positive, got %s", c.App.CBDelay))
+			verr.Add(config.SeverityError, fmt.Sprintf("cb_delay must be positive, got %s", c.App.CBDelay))
 		}
 		if c.App.CBSuccessThreshold < 1 {
-			verr.Add(fmt.Errorf("cb_success_threshold must be positive, got %d", c.App.CBSuccessThreshold))
+			verr.Add(config.SeverityError, fmt.Sprintf("cb_success_threshold must be positive, got %d", c.App.CBSuccessThreshold))
 		}
 	}
 
@@ -103,63 +107,102 @@ func (c Config) Validate() error {
 	if !hasAPIConfig && hasStandaloneConfig {
 		// Validate live URL
 		if c.App.LiveURL.Scheme != "http" && c.App.LiveURL.Scheme != "https" {
-			verr.Add(fmt.Errorf("live_url must use http or https scheme, got %q", c.App.LiveURL.Scheme))
+			verr.Add(config.SeverityError, fmt.Sprintf("live_url must use http or https scheme, got %q", c.App.LiveURL.Scheme))
 		}
 
 		// Validate shadow URL
 		if c.App.ShadowURL.Scheme != "http" && c.App.ShadowURL.Scheme != "https" {
-			verr.Add(fmt.Errorf("shadow_url must use http or https scheme, got %q", c.App.ShadowURL.Scheme))
+			verr.Add(config.SeverityError, fmt.Sprintf("shadow_url must use http or https scheme, got %q", c.App.ShadowURL.Scheme))
 		}
 	}
 
 	// Validate timeouts (both modes)
 	if c.App.LiveTimeout <= 0 {
-		verr.Add(fmt.Errorf("live_timeout must be positive, got %s", c.App.LiveTimeout))
+		verr.Add(config.SeverityError, fmt.Sprintf("live_timeout must be positive, got %s", c.App.LiveTimeout))
 	}
 	if c.App.ShadowTimeout <= 0 {
-		verr.Add(fmt.Errorf("shadow_timeout must be positive, got %s", c.App.ShadowTimeout))
+		verr.Add(config.SeverityError, fmt.Sprintf("shadow_timeout must be positive, got %s", c.App.ShadowTimeout))
 	}
 
 	// Validate server timeouts
 	if c.App.ReadTimeout <= 0 {
-		verr.Add(fmt.Errorf("read_timeout must be positive, got %s", c.App.ReadTimeout))
+		verr.Add(config.SeverityError, fmt.Sprintf("read_timeout must be positive, got %s", c.App.ReadTimeout))
 	}
 	if c.App.WriteTimeout <= 0 {
-		verr.Add(fmt.Errorf("write_timeout must be positive, got %s", c.App.WriteTimeout))
+		verr.Add(config.SeverityError, fmt.Sprintf("write_timeout must be positive, got %s", c.App.WriteTimeout))
 	}
 	if c.App.IdleTimeout <= 0 {
-		verr.Add(fmt.Errorf("idle_timeout must be positive, got %s", c.App.IdleTimeout))
+		verr.Add(config.SeverityError, fmt.Sprintf("idle_timeout must be positive, got %s", c.App.IdleTimeout))
+	}
+
+	// Cross-validate server timeout ordering: Read < Write < Idle
+	if c.App.ReadTimeout > 0 && c.App.WriteTimeout > 0 && c.App.ReadTimeout >= c.App.WriteTimeout {
+		verr.Add(config.SeverityError, fmt.Sprintf("read_timeout (%s) must be less than write_timeout (%s)",
+			c.App.ReadTimeout, c.App.WriteTimeout))
+	}
+	if c.App.WriteTimeout > 0 && c.App.IdleTimeout > 0 && c.App.WriteTimeout >= c.App.IdleTimeout {
+		verr.Add(config.SeverityError, fmt.Sprintf("write_timeout (%s) must be less than idle_timeout (%s)",
+			c.App.WriteTimeout, c.App.IdleTimeout))
+	}
+
+	// Cross-validate write timeout covers live request lifecycle
+	if c.App.WriteTimeout > 0 && c.App.LiveTimeout > 0 && c.App.WriteTimeout < c.App.LiveTimeout {
+		verr.Add(config.SeverityError, fmt.Sprintf("write_timeout (%s) must be >= live_timeout (%s); the proxy needs enough time to write the live response back to the client",
+			c.App.WriteTimeout, c.App.LiveTimeout))
 	}
 
 	// Validate max body size
 	if c.App.MaxBodySize < 0 {
-		verr.Add(fmt.Errorf("max_body_size must be non-negative (0=unlimited), got %d", c.App.MaxBodySize))
+		verr.Add(config.SeverityError, fmt.Sprintf("max_body_size must be non-negative (0=unlimited), got %d", c.App.MaxBodySize))
 	}
 
 	// Validate sampling rate
 	if c.App.SamplingRate < 0 || c.App.SamplingRate > 1 {
-		verr.Add(fmt.Errorf("sampling_rate must be between 0.0 and 1.0, got %f", c.App.SamplingRate))
+		verr.Add(config.SeverityError, fmt.Sprintf("sampling_rate must be between 0.0 and 1.0, got %f", c.App.SamplingRate))
 	}
 
 	// Validate diff float tolerance
 	if c.App.DiffFloatTolerance < 0 {
-		verr.Add(fmt.Errorf("diff_float_tolerance must be non-negative, got %f", c.App.DiffFloatTolerance))
+		verr.Add(config.SeverityError, fmt.Sprintf("diff_float_tolerance must be non-negative, got %f", c.App.DiffFloatTolerance))
 	}
 
-	if verr.HasErrors() {
+	// --- Warnings (non-fatal) ---
+
+	// tlsHandshakeTimeout is the hardcoded TLS handshake safety net used in
+	// pkg/proxy.newDefaultHTTPClient.
+	const tlsHandshakeTimeout = 5 * time.Second
+
+	// Warn if live timeout is shorter than the hardcoded TLS handshake
+	// safety net — TLS failures will surface as generic context errors
+	// instead of clear TLS-specific errors.
+	if c.App.LiveTimeout > 0 && c.App.LiveTimeout < tlsHandshakeTimeout {
+		verr.Add(config.SeverityWarning, fmt.Sprintf(
+			"live_timeout (%s) is less than the TLS handshake safety net (%s); TLS errors to HTTPS backends will appear as generic context deadline errors",
+			c.App.LiveTimeout, tlsHandshakeTimeout))
+	}
+
+	// Warn if the retry budget could exceed the API timeout.
+	// Worst-case backoff: InitialDelay + 2*InitialDelay + 4*InitialDelay + ...
+	// for MaxRetries attempts = InitialDelay * (2^MaxRetries - 1).
+	if c.App.APIURL != nil && c.App.APITimeout > 0 && c.App.MaxRetries > 0 && c.App.RetryDelay > 0 {
+		worstCaseBackoff := c.App.RetryDelay * time.Duration((1<<c.App.MaxRetries)-1)
+		if worstCaseBackoff >= c.App.APITimeout {
+			verr.Add(config.SeverityWarning, fmt.Sprintf(
+				"retry budget (worst-case backoff %s for %d retries with %s initial delay) may exceed api_timeout (%s); retries could be cancelled before completing",
+				worstCaseBackoff, c.App.MaxRetries, c.App.RetryDelay, c.App.APITimeout))
+		}
+	}
+
+	if verr.HasEntries() {
 		return verr
 	}
 	return nil
 }
 
-func Load() Config {
+// Load reads configuration from environment and .env files, validates it,
+// and returns the config along with any validation error.
+func Load() (Config, error) {
 	var cfg Config
 	config.Load("cmd/mroki-proxy", &cfg)
-
-	// Validate configuration before returning
-	if err := cfg.Validate(); err != nil {
-		panic(fmt.Errorf("configuration validation failed: %w", err))
-	}
-
-	return cfg
+	return cfg, cfg.Validate()
 }

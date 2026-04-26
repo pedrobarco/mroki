@@ -88,6 +88,11 @@ MROKI_APP_RETENTION=168h
 # Cleanup job interval (Go duration format, default: 1h)
 MROKI_APP_CLEANUP_INTERVAL=1h
 
+# Server timeouts (must satisfy: Read < Write < Idle)
+MROKI_APP_READ_TIMEOUT=15s    # default: 15s
+MROKI_APP_WRITE_TIMEOUT=30s   # default: 30s
+MROKI_APP_IDLE_TIMEOUT=60s    # default: 60s
+
 # Connection pool settings
 MROKI_APP_DATABASE_MAX_CONNS=25           # default: 25
 MROKI_APP_DATABASE_MIN_CONNS=5            # default: 5
@@ -525,13 +530,13 @@ All logs use structured logging (slog) with JSON output.
 
 ### API won't start
 
-**Problem:** `panic: configuration validation failed: database.url is required`
+**Problem:** `Configuration validation failed: database.url is required`
 
 **Solution:** Set `MROKI_APP_DATABASE_URL` environment variable.
 
 ---
 
-**Problem:** `panic: failed to create connection pool: connection refused`
+**Problem:** `Configuration loading failed: failed to create connection pool: connection refused`
 
 **Solution:** Ensure PostgreSQL is running and accessible:
 
@@ -545,7 +550,7 @@ psql -U postgres -h localhost -p 5432 -d postgres
 
 ---
 
-**Problem:** `panic: configuration validation failed: port must be between 1 and 65535`
+**Problem:** `Configuration validation failed: port must be between 1 and 65535`
 
 **Solution:** Set valid `MROKI_APP_PORT` (1-65535).
 
