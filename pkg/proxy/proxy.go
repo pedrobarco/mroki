@@ -83,6 +83,13 @@ func WithHTTPClient(client *http.Client) Option {
 	}
 }
 
+// WithLogger sets the logger for proxy operations
+func WithLogger(logger *slog.Logger) Option {
+	return func(p *Proxy) {
+		p.logger = logger
+	}
+}
+
 // newDefaultHTTPClient creates an HTTP client with sensible defaults
 // for connection pooling and timeouts
 func newDefaultHTTPClient() *http.Client {

@@ -28,6 +28,11 @@ type Config config.Config[struct {
 	RetryDelay time.Duration `env:"RETRY_DELAY, default=1s"`
 	APITimeout time.Duration `env:"API_TIMEOUT, default=30s"`
 
+	// Circuit breaker
+	CBFailureThreshold int           `env:"CB_FAILURE_THRESHOLD, default=5"`
+	CBDelay            time.Duration `env:"CB_DELAY, default=1m"`
+	CBSuccessThreshold int           `env:"CB_SUCCESS_THRESHOLD, default=2"`
+
 	// Diff options (optional, works in both API and standalone modes)
 	DiffIgnoredFields  []string `env:"DIFF_IGNORED_FIELDS"`  // Comma-separated
 	DiffIncludedFields []string `env:"DIFF_INCLUDED_FIELDS"` // Comma-separated
@@ -79,6 +84,15 @@ func (c Config) Validate() error {
 		}
 		if c.App.APITimeout <= 0 {
 			verr.Add(fmt.Errorf("api_timeout must be positive, got %s", c.App.APITimeout))
+		}
+		if c.App.CBFailureThreshold < 1 {
+			verr.Add(fmt.Errorf("cb_failure_threshold must be positive, got %d", c.App.CBFailureThreshold))
+		}
+		if c.App.CBDelay <= 0 {
+			verr.Add(fmt.Errorf("cb_delay must be positive, got %s", c.App.CBDelay))
+		}
+		if c.App.CBSuccessThreshold < 1 {
+			verr.Add(fmt.Errorf("cb_success_threshold must be positive, got %d", c.App.CBSuccessThreshold))
 		}
 	}
 

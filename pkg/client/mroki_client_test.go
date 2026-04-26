@@ -19,37 +19,26 @@ import (
 func TestNewMrokiClient(t *testing.T) {
 	apiURL, _ := url.Parse("http://localhost:8080")
 	gateID := "gate-123"
-	apiKey := "test-api-key-1234567890"
 
-	client := NewMrokiClient(apiURL, gateID, apiKey)
+	client := NewMrokiClient(apiURL, gateID)
 
 	assert.Equal(t, apiURL, client.baseURL)
 	assert.Equal(t, gateID, client.gateID)
-	assert.Equal(t, apiKey, client.apiKey)
-	assert.Equal(t, 3, client.maxRetries)
-	assert.Equal(t, 1*time.Second, client.initialDelay)
 	assert.NotNil(t, client.httpClient)
 	assert.NotNil(t, client.logger)
 }
 
 func TestNewMrokiClient_WithOptions(t *testing.T) {
 	apiURL, _ := url.Parse("http://localhost:8080")
-	gateID := "gate-123"
-	apiKey := "test-api-key-1234567890"
 	customHTTPClient := &http.Client{Timeout: 5 * time.Second}
 
 	client := NewMrokiClient(
 		apiURL,
-		gateID,
-		apiKey,
+		"gate-123",
 		WithHTTPClient(customHTTPClient),
-		WithMaxRetries(5),
-		WithInitialDelay(2*time.Second),
 	)
 
 	assert.Equal(t, customHTTPClient, client.httpClient)
-	assert.Equal(t, 5, client.maxRetries)
-	assert.Equal(t, 2*time.Second, client.initialDelay)
 }
 
 func TestSendRequest_SuccessOnFirstTry(t *testing.T) {
@@ -61,8 +50,6 @@ func TestSendRequest_SuccessOnFirstTry(t *testing.T) {
 		// Verify request
 		assert.Equal(t, "/gates/gate-123/requests", r.URL.Path)
 		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
 
 		// Parse body
 		body, err := io.ReadAll(r.Body)
@@ -81,7 +68,7 @@ func TestSendRequest_SuccessOnFirstTry(t *testing.T) {
 
 	// Create client
 	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(apiURL, "gate-123", "test-api-key")
+	client := NewMrokiClient(apiURL, "gate-123")
 
 	// Send request
 	req := &CapturedRequest{
@@ -95,127 +82,10 @@ func TestSendRequest_SuccessOnFirstTry(t *testing.T) {
 	assert.Equal(t, int32(1), requestCount.Load(), "should only make 1 request")
 }
 
-func TestSendRequest_RetryThenSucceed(t *testing.T) {
-	// Create test server that fails twice then succeeds
-	var requestCount atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		count := requestCount.Add(1)
-
-		if count <= 2 {
-			// First two attempts fail with 500
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		// Third attempt succeeds
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	// Create client with short delays for testing
-	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(
-		apiURL,
-		"gate-123",
-		"test-api-key",
-		WithInitialDelay(10*time.Millisecond), // Fast for testing
-	)
-
-	// Send request
-	req := &CapturedRequest{
-		Method: "GET",
-		Path:   "/test",
-	}
-
-	start := time.Now()
-	err := client.SendRequest(context.Background(), req)
-	duration := time.Since(start)
-
-	assert.NoError(t, err)
-	assert.Equal(t, int32(3), requestCount.Load(), "should make 3 requests")
-
-	// Verify exponential backoff timing
-	// Expected delays: 0ms (immediate) + 10ms (retry 1) + 20ms (retry 2) = ~30ms
-	assert.GreaterOrEqual(t, duration, 30*time.Millisecond, "should have delays between retries")
-}
-
-func TestSendRequest_ExhaustAllRetries(t *testing.T) {
-	// Create test server that always fails
-	var requestCount atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestCount.Add(1)
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
-
-	// Create client with fast retries for testing
-	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(
-		apiURL,
-		"gate-123",
-		"test-api-key",
-		WithMaxRetries(3),
-		WithInitialDelay(10*time.Millisecond),
-	)
-
-	// Send request
-	req := &CapturedRequest{
-		Method: "GET",
-		Path:   "/test",
-	}
-
-	err := client.SendRequest(context.Background(), req)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed after 4 attempts")
-	assert.Equal(t, int32(4), requestCount.Load(), "should make 4 attempts (initial + 3 retries)")
-}
-
-func TestSendRequest_ContextCancellation(t *testing.T) {
-	// Create test server that always fails
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
-
-	// Create client with long delays
-	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(
-		apiURL,
-		"gate-123",
-		"test-api-key",
-		WithInitialDelay(1*time.Second), // Long delay
-	)
-
-	// Create cancellable context
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	// Send request
-	req := &CapturedRequest{
-		Method: "GET",
-		Path:   "/test",
-	}
-
-	start := time.Now()
-	err := client.SendRequest(ctx, req)
-	duration := time.Since(start)
-
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.Less(t, duration, 500*time.Millisecond, "should cancel quickly")
-}
-
 func TestSendRequest_NetworkError(t *testing.T) {
 	// Create client pointing to non-existent server
 	apiURL, _ := url.Parse("http://localhost:9999")
-	client := NewMrokiClient(
-		apiURL,
-		"gate-123",
-		"test-api-key",
-		WithMaxRetries(1),
-		WithInitialDelay(10*time.Millisecond),
-	)
+	client := NewMrokiClient(apiURL, "gate-123")
 
 	// Send request
 	req := &CapturedRequest{
@@ -226,7 +96,7 @@ func TestSendRequest_NetworkError(t *testing.T) {
 	err := client.SendRequest(context.Background(), req)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed after 2 attempts")
+	assert.Contains(t, err.Error(), "HTTP request failed")
 }
 
 func TestSendRequest_InvalidJSON(t *testing.T) {
@@ -257,14 +127,8 @@ func TestSendRequest_Non2xxStatusCode(t *testing.T) {
 			}))
 			defer server.Close()
 
-			// Create client with no retries for faster test
 			apiURL, _ := url.Parse(server.URL)
-			client := NewMrokiClient(
-				apiURL,
-				"gate-123",
-				"test-api-key",
-				WithMaxRetries(0), // No retries
-			)
+			client := NewMrokiClient(apiURL, "gate-123")
 
 			// Send request
 			req := &CapturedRequest{
@@ -280,65 +144,7 @@ func TestSendRequest_Non2xxStatusCode(t *testing.T) {
 	}
 }
 
-func TestSendRequest_ExponentialBackoffTiming(t *testing.T) {
-	// Create test server that fails 3 times then succeeds
-	var requestCount atomic.Int32
-	var timestamps []time.Time
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		timestamps = append(timestamps, time.Now())
-		count := requestCount.Add(1)
 
-		if count <= 3 {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	// Create client with measurable delays
-	apiURL, _ := url.Parse(server.URL)
-	initialDelay := 50 * time.Millisecond
-	client := NewMrokiClient(
-		apiURL,
-		"gate-123",
-		"test-api-key",
-		WithInitialDelay(initialDelay),
-	)
-
-	// Send request
-	req := &CapturedRequest{
-		Method: "GET",
-		Path:   "/test",
-	}
-
-	err := client.SendRequest(context.Background(), req)
-
-	assert.NoError(t, err)
-	assert.Equal(t, int32(4), requestCount.Load())
-	assert.Len(t, timestamps, 4)
-
-	// Verify delays between attempts
-	// Attempt 0: immediate
-	// Attempt 1: after ~50ms
-	// Attempt 2: after ~100ms
-	// Attempt 3: after ~200ms
-
-	delay1 := timestamps[1].Sub(timestamps[0])
-	delay2 := timestamps[2].Sub(timestamps[1])
-	delay3 := timestamps[3].Sub(timestamps[2])
-
-	// Allow 20ms tolerance for timing variance
-	tolerance := 20 * time.Millisecond
-
-	assert.InDelta(t, initialDelay, delay1, float64(tolerance),
-		"first retry should wait ~50ms")
-	assert.InDelta(t, initialDelay*2, delay2, float64(tolerance),
-		"second retry should wait ~100ms")
-	assert.InDelta(t, initialDelay*4, delay3, float64(tolerance),
-		"third retry should wait ~200ms")
-}
 
 func TestGetGate_Success(t *testing.T) {
 	// Create test server
@@ -346,7 +152,6 @@ func TestGetGate_Success(t *testing.T) {
 		// Verify request
 		assert.Equal(t, "/gates/550e8400-e29b-41d4-a716-446655440000", r.URL.Path)
 		assert.Equal(t, http.MethodGet, r.Method)
-		assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
 
 		// Send successful response
 		w.Header().Set("Content-Type", "application/json")
@@ -364,11 +169,7 @@ func TestGetGate_Success(t *testing.T) {
 
 	// Create client
 	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(
-		apiURL,
-		"550e8400-e29b-41d4-a716-446655440000",
-		"test-api-key",
-	)
+	client := NewMrokiClient(apiURL, "550e8400-e29b-41d4-a716-446655440000")
 
 	// Call GetGate
 	gate, err := client.GetGate(context.Background())
@@ -397,11 +198,7 @@ func TestGetGate_NotFound(t *testing.T) {
 
 	// Create client
 	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(
-		apiURL,
-		"non-existent-gate",
-		"test-api-key",
-	)
+	client := NewMrokiClient(apiURL, "non-existent-gate")
 
 	// Call GetGate
 	gate, err := client.GetGate(context.Background())
@@ -440,7 +237,7 @@ func TestGetGate_APIError(t *testing.T) {
 
 			// Create client
 			apiURL, _ := url.Parse(server.URL)
-			client := NewMrokiClient(apiURL, "gate-123", "test-api-key")
+			client := NewMrokiClient(apiURL, "gate-123")
 
 			// Call GetGate
 			gate, err := client.GetGate(context.Background())
@@ -467,7 +264,6 @@ func TestGetGate_Timeout(t *testing.T) {
 	client := NewMrokiClient(
 		apiURL,
 		"gate-123",
-		"test-api-key",
 		WithHTTPClient(&http.Client{Timeout: 50 * time.Millisecond}),
 	)
 
@@ -492,7 +288,7 @@ func TestGetGate_MalformedJSON(t *testing.T) {
 
 	// Create client
 	apiURL, _ := url.Parse(server.URL)
-	client := NewMrokiClient(apiURL, "gate-123", "test-api-key")
+	client := NewMrokiClient(apiURL, "gate-123")
 
 	// Call GetGate
 	gate, err := client.GetGate(context.Background())
@@ -506,7 +302,7 @@ func TestGetGate_MalformedJSON(t *testing.T) {
 func TestGetGate_NetworkError(t *testing.T) {
 	// Create client pointing to non-existent server
 	apiURL, _ := url.Parse("http://localhost:1")
-	client := NewMrokiClient(apiURL, "gate-123", "test-api-key")
+	client := NewMrokiClient(apiURL, "gate-123")
 
 	// Call GetGate
 	gate, err := client.GetGate(context.Background())

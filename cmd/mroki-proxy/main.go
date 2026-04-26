@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,8 +14,8 @@ import (
 	"github.com/pedrobarco/mroki/cmd/mroki-proxy/config"
 	"github.com/pedrobarco/mroki/cmd/mroki-proxy/handlers"
 	"github.com/pedrobarco/mroki/pkg/client"
+	"github.com/pedrobarco/mroki/pkg/client/transport"
 	"github.com/pedrobarco/mroki/pkg/diff"
-	"github.com/pedrobarco/mroki/pkg/dto"
 	"github.com/pedrobarco/mroki/pkg/logger"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 )
@@ -38,25 +37,30 @@ func main() {
 			"gate_id", cfg.App.GateID,
 		)
 
-		// Create API client
-		httpClient := &http.Client{
-			Timeout: cfg.App.APITimeout,
-		}
+		// Create resilient HTTP client with retry + circuit breaker
+		httpClient := transport.NewHTTPClient(transport.Config{
+			APIKey:             cfg.App.APIKey,
+			MaxRetries:         cfg.App.MaxRetries,
+			InitialDelay:       cfg.App.RetryDelay,
+			CBFailureThreshold: cfg.App.CBFailureThreshold,
+			CBDelay:            cfg.App.CBDelay,
+			CBSuccessThreshold: cfg.App.CBSuccessThreshold,
+			Logger:             log,
+		})
 
 		apiClient = client.NewMrokiClient(
 			cfg.App.APIURL,
 			cfg.App.GateID,
-			cfg.App.APIKey,
 			client.WithHTTPClient(httpClient),
-			client.WithMaxRetries(cfg.App.MaxRetries),
-			client.WithInitialDelay(cfg.App.RetryDelay),
 			client.WithLogger(log),
 		)
 
-		// Fetch gate configuration with retry
-		gate, err := fetchGateWithRetry(apiClient, cfg.App.MaxRetries, cfg.App.RetryDelay, log)
+		// Fetch gate configuration (retries handled by the resilient HTTP client)
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.App.APITimeout)
+		gate, err := apiClient.GetGate(ctx)
+		cancel()
 		if err != nil {
-			log.Error("Failed to fetch gate configuration after retries", "error", err)
+			log.Error("Failed to fetch gate configuration", "error", err)
 			return
 		}
 
@@ -129,7 +133,8 @@ func main() {
 		MaxBodySize:   cfg.App.MaxBodySize,
 		SamplingRate:  samplingRate,
 		Logger:        log,
-		APIClient:     apiClient, // nil if standalone mode
+		APIClient:     apiClient,          // nil if standalone mode
+		APITimeout:    cfg.App.APITimeout, // overall deadline for API calls
 		DiffOptions:   diffOpts,  // Only used in standalone mode
 	}
 
@@ -177,44 +182,6 @@ func main() {
 	} else {
 		log.Info("Server stopped")
 	}
-}
-
-// fetchGateWithRetry fetches gate config with exponential backoff retry
-func fetchGateWithRetry(client *client.MrokiClient, maxRetries int, initialDelay time.Duration, log *slog.Logger) (*dto.Gate, error) {
-	var lastErr error
-
-	for attempt := 0; attempt <= maxRetries; attempt++ {
-		if attempt > 0 {
-			// Exponential backoff: 1s, 2s, 4s
-			delay := initialDelay * time.Duration(math.Pow(2, float64(attempt-1)))
-			log.Warn("Retrying gate fetch after failure",
-				"attempt", attempt+1,
-				"max_attempts", maxRetries+1,
-				"delay", delay,
-			)
-			time.Sleep(delay)
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		gate, err := client.GetGate(ctx)
-		cancel()
-
-		if err == nil {
-			if attempt > 0 {
-				log.Info("Gate fetch succeeded after retry", "attempts", attempt+1)
-			}
-			return gate, nil
-		}
-
-		lastErr = err
-		log.Debug("Gate fetch attempt failed",
-			"attempt", attempt+1,
-			"max_attempts", maxRetries+1,
-			"error", err,
-		)
-	}
-
-	return nil, fmt.Errorf("failed to fetch gate after %d attempts: %w", maxRetries+1, lastErr)
 }
 
 func getModeString(apiClient *client.MrokiClient) string {

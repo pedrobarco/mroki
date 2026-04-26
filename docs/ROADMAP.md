@@ -69,13 +69,16 @@ Pending infrastructure tasks for production readiness.
 ### Observability & Resilience
 
 - [x] **P1** Request ID middleware — `X-Request-ID` header generation + propagation through logs and proxy.
-- [ ] **P1** Circuit breaker in proxy — Stop retrying when API is down. Use `gobreaker` with 5-failure threshold.
+- [x] **P1** Circuit breaker in proxy — Resilient HTTP client with `failsafe-go` retry + circuit breaker RoundTripper stack.
 - [x] **P1** HTTP connection pooling — Configure `MaxIdleConns`, `IdleConnTimeout` in proxy client.
 - [ ] **P2** Structured error logging — Add request context (method, path, request ID) to all error logs.
 - [ ] **P2** Update API_CONTRACTS.md — Document auth, rate limiting, pagination (currently marked "Planned v2").
 
 ### Production Hardening
 
+- [ ] **P2** Configurable server timeouts — Expose `ReadTimeout`, `WriteTimeout`, `IdleTimeout` via env vars (currently hardcoded 30s/60s/120s in `main.go`).
+- [ ] **P2** Align transport TLS timeout with context — `TLSHandshakeTimeout` (10s) exceeds `LIVE_TIMEOUT` (5s default), making it unreachable for live requests.
+- [ ] **P2** Validate API timeout budget — Warn at startup if retry config (retries × backoff) could exceed `API_TIMEOUT`.
 - [ ] **P2** TLS/HTTPS support — Optional `ListenAndServeTLS` with cert/key config.
 - [ ] **P2** Request deduplication — Return 200 for duplicate request IDs instead of error.
 - [ ] **P3** Compression middleware — Gzip responses > 1KB.

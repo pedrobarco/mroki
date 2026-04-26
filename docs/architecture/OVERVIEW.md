@@ -131,7 +131,7 @@ sequenceDiagram
     P-->>C: Return Live Response (X-Request-ID header)
     S-->>P: Shadow Response
     Note over P: Background (non-blocking)
-    P->>API: Send raw responses (X-Request-ID header, with retry)
+    P->>API: Send raw responses (X-Request-ID header, retry + circuit breaker)
     API->>API: Compute Diff server-side
     API->>DB: Store request + responses + diff (Request.ID = X-Request-ID)
 ```
@@ -234,15 +234,15 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 - Reduces storage and processing costs
 - Future: Can add support for other types
 
-### 4. Exponential Backoff Retry
+### 4. Resilient HTTP Client (Retry + Circuit Breaker)
 
-**Decision:** Retry API requests with exponential backoff (1s, 2s, 4s)
+**Decision:** API requests use a composable `http.RoundTripper` stack (via failsafe-go) with exponential backoff retry and circuit breaker. Auth and logging are also handled as RoundTrippers.
 
 **Rationale:**
-- Handle temporary API unavailability
-- Avoid thundering herd during outages
-- Balance delivery reliability with resource usage
-- 3 retries = ~8s total before giving up
+- Handle temporary API unavailability with automatic retries
+- Circuit breaker stops all requests when API is persistently down, avoiding wasted resources
+- Composable transport layers keep `MrokiClient` simple (no retry/auth/logging awareness)
+- Context-based timeout controls the overall deadline for all retries combined
 
 ### 5. Stateless API
 

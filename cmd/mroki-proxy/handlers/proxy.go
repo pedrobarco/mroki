@@ -2,11 +2,14 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/failsafe-go/failsafe-go/circuitbreaker"
 
 	"github.com/pedrobarco/mroki/pkg/client"
 	"github.com/pedrobarco/mroki/pkg/diff"
@@ -22,8 +25,9 @@ type ProxyConfig struct {
 	SamplingRate  *proxy.SamplingRate // always set, default 1.0
 
 	// API integration (optional)
-	APIClient *client.MrokiClient
-	Logger    *slog.Logger
+	APIClient  *client.MrokiClient
+	APITimeout time.Duration // overall deadline for API calls (incl. retries)
+	Logger     *slog.Logger
 
 	// Diff options for standalone mode
 	DiffOptions []diff.Option
@@ -33,6 +37,10 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 	opts := []proxy.Option{
 		proxy.WithLiveTimeout(cfg.LiveTimeout),
 		proxy.WithShadowTimeout(cfg.ShadowTimeout),
+	}
+
+	if cfg.Logger != nil {
+		opts = append(opts, proxy.WithLogger(cfg.Logger))
 	}
 
 	// Add shadow proxy checks
@@ -74,10 +82,21 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
 		captured := client.ConvertProxyToCapture(req, live, shadow)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		timeout := cfg.APITimeout
+		if timeout == 0 {
+			timeout = 30 * time.Second
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
 		if err := cfg.APIClient.SendRequest(ctx, captured); err != nil {
+			if errors.Is(err, circuitbreaker.ErrOpen) {
+				logger.Warn("circuit breaker open, skipping API request",
+					"method", req.Method,
+					"path", req.Path,
+				)
+				return nil
+			}
 			logger.Warn("failed to send request to API",
 				"error", err,
 				"method", req.Method,

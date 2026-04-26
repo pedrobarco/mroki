@@ -14,7 +14,8 @@ mroki-proxy is a lightweight proxy that intercepts HTTP traffic, forwards it to 
 - **Parallel Forwarding**: Live and shadow requests execute concurrently
 - **Server-Side Diffing** (API mode): Sends raw responses to mroki-api — diff computation happens server-side
 - **Local Diffing** (standalone mode): Computes JSON diffs and prints them to stdout
-- **Retry Logic**: Exponential backoff for API failures (1s, 2s, 4s)
+- **Resilient HTTP Transport**: Composable RoundTripper stack with retry (exponential backoff via failsafe-go), circuit breaker, auth, and logging
+- **Circuit Breaker**: Stops retrying when API is down; opens after configurable failure threshold, auto-recovers after delay
 - **Request ID Propagation**: Generates `X-Request-ID` (UUID v4) per request or reuses incoming header; propagated to live/shadow services and mroki-api
 - **Best-Effort Delivery**: API failures never affect live traffic
 - **Structured Logging**: All events logged with context
@@ -29,7 +30,7 @@ graph TD
         Handler[HTTP Proxy Handler] --> LiveFwd[Live Fwd]
         Handler --> ShadowFwd[Shadow Fwd]
         LiveFwd & ShadowFwd --> Callback{Callback}
-        Callback -->|API mode| APIClient[API Client<br><i>Retry Logic</i>]
+        Callback -->|API mode| APIClient[API Client<br><i>Retry + Circuit Breaker</i>]
         Callback -->|Standalone mode| Differ[pkg/diff<br><i>Compute diff locally</i>]
     end
 
@@ -91,8 +92,17 @@ MROKI_APP_MAX_RETRIES=3
 # Initial delay between retries, doubles each attempt (default: 1s)
 MROKI_APP_RETRY_DELAY=1s
 
-# Timeout for each API request attempt (default: 30s)
+# Overall deadline for API calls including all retries (default: 30s)
 MROKI_APP_API_TIMEOUT=30s
+
+# Circuit breaker: consecutive failures before opening (default: 5)
+MROKI_APP_CB_FAILURE_THRESHOLD=5
+
+# Circuit breaker: delay before transitioning from open to half-open (default: 1m)
+MROKI_APP_CB_DELAY=1m
+
+# Circuit breaker: successes in half-open state before closing (default: 2)
+MROKI_APP_CB_SUCCESS_THRESHOLD=2
 ```
 
 #### Standalone Mode
@@ -339,28 +349,31 @@ curl -X POST http://localhost:8080/test \
 ]
 ```
 
-### Retry Logic
+### Resilient HTTP Client
 
-If API requests fail, proxy retries with exponential backoff:
+API requests are handled by a composable `http.RoundTripper` stack powered by [failsafe-go](https://failsafe-go.dev/):
 
-- **Attempt 1:** Immediate
-- **Attempt 2:** Wait 1s
-- **Attempt 3:** Wait 2s
-- **Attempt 4:** Wait 4s
-- **Give up:** After 4 attempts (~8s total)
-
-**Logged output:**
 ```
-WARN API request failed attempt=1 error="connection refused"
-INFO retrying API request attempt=1 delay=1s
-WARN API request failed attempt=2 error="connection refused"
-INFO retrying API request attempt=2 delay=2s
-WARN API request failed attempt=3 error="connection refused"
-INFO retrying API request attempt=3 delay=4s
-ERROR all retries exhausted attempts=4
+http.Client
+  └─ failsafehttp.RoundTripper  ← retry (exponential backoff) + circuit breaker
+       └─ loggingRoundTripper    ← log method/URL/status/latency per attempt
+            └─ authRoundTripper  ← Bearer token, Content-Type
+                 └─ http.DefaultTransport
 ```
 
-**Note:** Client request completes successfully regardless of API failures.
+**Retry Policy:**
+- Exponential backoff (default: 1s → 8s)
+- Retries on 5xx responses, 429 (Too Many Requests), and network errors
+- Respects `Retry-After` headers
+- Configurable via `MAX_RETRIES` and `RETRY_DELAY`
+
+**Circuit Breaker:**
+- **Closed** (normal): all requests pass through
+- **Open** (after N consecutive failures): requests fail immediately with `ErrOpen`, logged as warning and skipped
+- **Half-Open** (after delay): allows test requests; closes on success, re-opens on failure
+- Configurable via `CB_FAILURE_THRESHOLD`, `CB_DELAY`, `CB_SUCCESS_THRESHOLD`
+
+**Note:** Client request completes successfully regardless of API failures — the circuit breaker only affects background API requests.
 
 ## Configuration Examples
 
@@ -645,7 +658,7 @@ MROKI_APP_SHADOW_TIMEOUT=30s
 
 **What's secure:**
 - ✅ Best-effort delivery: API failures never affect live traffic
-- ✅ Retry logic with exponential backoff
+- ✅ Retry with exponential backoff + circuit breaker
 - ✅ Configurable timeouts
 - ✅ No secrets in logs
 
