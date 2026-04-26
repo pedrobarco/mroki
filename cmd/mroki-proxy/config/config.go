@@ -19,6 +19,9 @@ type Config config.Config[struct {
 	SamplingRate  float64       `env:"SAMPLING_RATE, default=1.0"`       // 0.0-1.0, default=1.0 (100%)
 	LiveTimeout   time.Duration `env:"LIVE_TIMEOUT, default=5s"`
 	ShadowTimeout time.Duration `env:"SHADOW_TIMEOUT, default=10s"`
+	ReadTimeout   time.Duration `env:"READ_TIMEOUT, default=30s"`
+	WriteTimeout  time.Duration `env:"WRITE_TIMEOUT, default=60s"`
+	IdleTimeout   time.Duration `env:"IDLE_TIMEOUT, default=120s"`
 
 	// API integration (optional - if not set, proxy runs in standalone mode)
 	APIURL     *url.URL      `env:"API_URL"`
@@ -115,6 +118,17 @@ func (c Config) Validate() error {
 	}
 	if c.App.ShadowTimeout <= 0 {
 		verr.Add(fmt.Errorf("shadow_timeout must be positive, got %s", c.App.ShadowTimeout))
+	}
+
+	// Validate server timeouts
+	if c.App.ReadTimeout <= 0 {
+		verr.Add(fmt.Errorf("read_timeout must be positive, got %s", c.App.ReadTimeout))
+	}
+	if c.App.WriteTimeout <= 0 {
+		verr.Add(fmt.Errorf("write_timeout must be positive, got %s", c.App.WriteTimeout))
+	}
+	if c.App.IdleTimeout <= 0 {
+		verr.Add(fmt.Errorf("idle_timeout must be positive, got %s", c.App.IdleTimeout))
 	}
 
 	// Validate max body size

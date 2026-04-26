@@ -17,6 +17,9 @@ type Config config.Config[struct {
 	CORSOrigins     string        `env:"CORS_ORIGINS"`         // comma-separated allowed origins, empty = disabled
 	Retention       time.Duration `env:"RETENTION, default=0"` // 0 = keep forever, e.g. 168h = 7 days
 	CleanupInterval time.Duration `env:"CLEANUP_INTERVAL, default=1h"`
+	ReadTimeout     time.Duration `env:"READ_TIMEOUT, default=15s"`
+	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT, default=30s"`
+	IdleTimeout     time.Duration `env:"IDLE_TIMEOUT, default=60s"`
 	Database        struct {
 		URL         *url.URL `env:"URL, default=postgres://postgres:postgres@localhost:5432/postgres"`
 		MaxConns    int32    `env:"MAX_CONNS, default=25"`
@@ -69,6 +72,17 @@ func (c Config) Validate() error {
 	// Validate cleanup interval
 	if c.App.CleanupInterval <= 0 {
 		verr.Add(fmt.Errorf("cleanup_interval must be positive, got %s", c.App.CleanupInterval))
+	}
+
+	// Validate server timeouts
+	if c.App.ReadTimeout <= 0 {
+		verr.Add(fmt.Errorf("read_timeout must be positive, got %s", c.App.ReadTimeout))
+	}
+	if c.App.WriteTimeout <= 0 {
+		verr.Add(fmt.Errorf("write_timeout must be positive, got %s", c.App.WriteTimeout))
+	}
+	if c.App.IdleTimeout <= 0 {
+		verr.Add(fmt.Errorf("idle_timeout must be positive, got %s", c.App.IdleTimeout))
 	}
 
 	// Validate database URL scheme

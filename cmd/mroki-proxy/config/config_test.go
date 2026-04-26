@@ -26,6 +26,9 @@ func validStandaloneConfig() Config {
 	cfg.App.LiveTimeout = 5 * time.Second
 	cfg.App.ShadowTimeout = 10 * time.Second
 	cfg.App.MaxBodySize = 10485760
+	cfg.App.ReadTimeout = 30 * time.Second
+	cfg.App.WriteTimeout = 60 * time.Second
+	cfg.App.IdleTimeout = 120 * time.Second
 	return cfg
 }
 
@@ -41,7 +44,13 @@ func validAPIConfig() Config {
 	cfg.App.MaxRetries = 3
 	cfg.App.RetryDelay = 1 * time.Second
 	cfg.App.APITimeout = 30 * time.Second
+	cfg.App.CBFailureThreshold = 5
+	cfg.App.CBDelay = 1 * time.Minute
+	cfg.App.CBSuccessThreshold = 2
 	cfg.App.MaxBodySize = 10485760
+	cfg.App.ReadTimeout = 30 * time.Second
+	cfg.App.WriteTimeout = 60 * time.Second
+	cfg.App.IdleTimeout = 120 * time.Second
 	return cfg
 }
 
@@ -206,6 +215,26 @@ func TestValidate_diff_float_tolerance(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 }
 
+func TestValidate_invalid_server_timeouts(t *testing.T) {
+	cfg := validStandaloneConfig()
+	cfg.App.ReadTimeout = 0
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read_timeout must be positive")
+
+	cfg = validStandaloneConfig()
+	cfg.App.WriteTimeout = -1 * time.Second
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write_timeout must be positive")
+
+	cfg = validStandaloneConfig()
+	cfg.App.IdleTimeout = 0
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "idle_timeout must be positive")
+}
+
 func TestValidate_multiple_errors(t *testing.T) {
 	var cfg Config
 	cfg.App.Port = 0
@@ -219,4 +248,7 @@ func TestValidate_multiple_errors(t *testing.T) {
 	assert.Contains(t, err.Error(), "live_timeout must be positive")
 	assert.Contains(t, err.Error(), "shadow_timeout must be positive")
 	assert.Contains(t, err.Error(), "max_body_size must be non-negative")
+	assert.Contains(t, err.Error(), "read_timeout must be positive")
+	assert.Contains(t, err.Error(), "write_timeout must be positive")
+	assert.Contains(t, err.Error(), "idle_timeout must be positive")
 }

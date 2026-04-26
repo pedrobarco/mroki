@@ -79,8 +79,8 @@ Pending infrastructure tasks for production readiness.
 
 ### Production Hardening
 
-- [ ] **P2** Configurable server timeouts — Expose `ReadTimeout`, `WriteTimeout`, `IdleTimeout` via env vars (currently hardcoded 30s/60s/120s in `main.go`).
-- [ ] **P2** Align transport TLS timeout with context — `TLSHandshakeTimeout` (10s) exceeds `LIVE_TIMEOUT` (5s default), making it unreachable for live requests.
+- [x] **P2** Configurable server timeouts — `ReadTimeout`, `WriteTimeout`, `IdleTimeout` exposed via env vars with previous hardcoded values as defaults.
+- [x] **P2** Align transport TLS timeout with context — Reduced `TLSHandshakeTimeout` from 10s to 5s to match default `LIVE_TIMEOUT`.
 - [ ] **P2** Validate API timeout budget — Warn at startup if retry config (retries × backoff) could exceed `API_TIMEOUT`.
 - [ ] **P2** TLS/HTTPS support — Optional `ListenAndServeTLS` with cert/key config.
 - [ ] **P2** Request deduplication — Return 200 for duplicate request IDs instead of error.

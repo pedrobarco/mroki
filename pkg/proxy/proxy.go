@@ -104,7 +104,10 @@ func newDefaultHTTPClient() *http.Client {
 			IdleConnTimeout:     90 * time.Second,
 
 			// Timeout settings
-			TLSHandshakeTimeout:   10 * time.Second,
+			// TLSHandshakeTimeout should not exceed the default live request
+			// timeout (LIVE_TIMEOUT=5s). Context cancellation handles the
+			// actual deadline; this is a safety net for the TLS phase.
+			TLSHandshakeTimeout:   5 * time.Second,
 			ResponseHeaderTimeout: 0, // Use context timeout
 			ExpectContinueTimeout: 1 * time.Second,
 
