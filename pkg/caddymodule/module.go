@@ -17,6 +17,7 @@ import (
 	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 	"go.uber.org/zap"
+	"go.uber.org/zap/exp/zapslog"
 )
 
 var (
@@ -137,8 +138,17 @@ func (m *MrokiGate) Validate() error {
 		opts = append(opts, proxy.WithShadowTimeout(timeout))
 	}
 
+	// Bridge Caddy's zap logger to slog for the proxy
+	var logger *slog.Logger
+	if m.logger != nil {
+		logger = slog.New(zapslog.NewHandler(m.logger.Core(), nil))
+	} else {
+		logger = slog.Default()
+	}
+	opts = append(opts, proxy.WithLogger(logger))
+
 	// Standalone mode: compute and print diffs locally
-	callback, err := m.createDiffCallback()
+	callback, err := m.createDiffCallback(logger)
 	if err != nil {
 		return err
 	}
@@ -149,7 +159,7 @@ func (m *MrokiGate) Validate() error {
 }
 
 // createDiffCallback builds a callback that computes and prints diffs locally.
-func (m *MrokiGate) createDiffCallback() (proxy.CallbackFunc, error) {
+func (m *MrokiGate) createDiffCallback(logger *slog.Logger) (proxy.CallbackFunc, error) {
 	// Build diff options
 	var diffOpts []diff.Option
 
@@ -178,7 +188,6 @@ func (m *MrokiGate) createDiffCallback() (proxy.CallbackFunc, error) {
 	}
 
 	differ := proxy.NewProxyResponseDiffer(diffOpts...)
-	logger := slog.Default()
 
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
 		ops, err := differ.Diff(live, shadow)
@@ -214,9 +223,11 @@ func (m *MrokiGate) createDiffCallback() (proxy.CallbackFunc, error) {
 	}, nil
 }
 
-func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+// ServeHTTP is a terminating handler — it writes the full live response via
+// proxy.ServeHTTP, then fires shadow async. next is intentionally not called
+// because the response is already written.
+func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.Handler) error {
 	m.proxy.ServeHTTP(w, r)
-	// return next.ServeHTTP(w, r)
 	return nil
 }
 

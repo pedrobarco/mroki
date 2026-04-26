@@ -96,8 +96,7 @@ Pending infrastructure tasks for production readiness.
 
 ### Technical Debt
 
-- [ ] **P2** Caddy module stale — `pkg/caddymodule` only supports standalone mode (no API integration), doesn't call `next` handler in Caddy middleware chain, and `cmd/caddy-mroki` fails to build. Either update for API mode or document as standalone-only.
-- [ ] **P2** Unused ratelimit package in proxy — `pkg/ratelimit` is implemented and tested but not wired into the proxy. Either integrate or remove.
+- [x] **P2** Caddy module stale — Documented as standalone-only, bridged Caddy zap logger to slog, fixed ServeHTTP as terminating handler, fixed Dockerfile build.
 - [ ] **P3** Proxy HTTP client not configurable — Live/shadow `http.Client` connection pool settings (`MaxIdleConns`, `MaxIdleConnsPerHost`, `IdleConnTimeout`) are hardcoded in `newDefaultHTTPClient()`. Could be exposed via env vars for production tuning.
 
 ---
