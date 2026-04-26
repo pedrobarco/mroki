@@ -61,6 +61,11 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
+    // Handle empty responses (e.g. 204 No Content)
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return undefined as T
+    }
+
     // Parse successful response
     return (await response.json()) as T
   } catch (error) {

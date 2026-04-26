@@ -231,4 +231,40 @@ test.describe('Gate Detail Page', () => {
     // Should show error (dialog stays open)
     await expect(page.getByRole('alert')).toBeVisible()
   })
+
+  test('delete button removes gate and navigates to gates list', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `delete-gate-${suffix}`,
+      `https://delete-live-${suffix}.example.com`,
+      `https://delete-shadow-${suffix}.example.com`
+    )
+
+    await page.goto(`/gates/${gate.id}`)
+    await expect(page.getByText(gate.name)).toBeVisible()
+
+    // Click delete button (exact match to avoid "DELETE" method filter)
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+
+    // Confirmation dialog should appear with gate name in description
+    const dialog = page.getByRole('alertdialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('Delete gate')).toBeVisible()
+    await expect(dialog.getByText(gate.name)).toBeVisible()
+
+    // Cancel first — gate should remain
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByText('Delete gate')).not.toBeVisible()
+    await expect(page.getByText(gate.name)).toBeVisible()
+
+    // Now delete for real
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete' })
+      .click()
+
+    // Should navigate back to gates list
+    await expect(page).toHaveURL('/gates')
+  })
 })

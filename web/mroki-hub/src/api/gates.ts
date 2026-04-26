@@ -108,6 +108,15 @@ export async function updateGate(
 }
 
 /**
+ * Delete a gate and all its associated requests
+ *
+ * @param id - Gate UUID
+ */
+export async function deleteGate(id: string): Promise<void> {
+  await request(`/gates/${id}`, { method: 'DELETE' })
+}
+
+/**
  * Get global statistics across all gates
  *
  * @returns Global stats (total gates, requests 24h, diff rate)

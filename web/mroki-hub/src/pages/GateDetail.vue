@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getGate } from '@/api'
+import { getGate, deleteGate } from '@/api'
 import type { Gate } from '@/api'
 import { useGateCache } from '@/composables/use-gate-cache'
 import RequestList from '@/components/requests/RequestList.vue'
@@ -9,8 +9,19 @@ import RequestFilters from '@/components/requests/RequestFilters.vue'
 import type { FilterState } from '@/components/requests/RequestFilters.vue'
 import GateConfigDialog from '@/components/gates/GateConfigDialog.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, Settings } from 'lucide-vue-next'
+import { ChevronLeft, Settings, Trash2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,10 +33,22 @@ const error = ref<string | null>(null)
 const requestTotal = ref<number | null>(null)
 const requestShowing = ref<number | null>(null)
 const configDialogOpen = ref(false)
+const deleting = ref(false)
 
 function handleConfigSuccess(updatedGate: Gate) {
   gate.value = updatedGate
   cacheGate(updatedGate)
+}
+
+async function handleDelete() {
+  deleting.value = true
+  try {
+    await deleteGate(gateId.value)
+    router.push('/gates')
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to delete gate'
+    deleting.value = false
+  }
 }
 
 const gateId = computed(() => route.params.id as string)
@@ -116,6 +139,35 @@ onMounted(() => {
               <Settings class="h-3.5 w-3.5" />
               Configure
             </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger as-child>
+                <Button variant="outline" size="sm" class="gap-1.5 text-xs text-destructive">
+                  <Trash2 class="h-3.5 w-3.5" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete gate</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete
+                    <strong>{{ gate.name }}</strong>
+                    and all its captured requests. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    :disabled="deleting"
+                    @click="handleDelete"
+                  >
+                    {{ deleting ? 'Deleting...' : 'Delete' }}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
 
           <!-- Configure Dialog -->

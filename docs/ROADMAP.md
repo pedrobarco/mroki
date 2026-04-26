@@ -49,7 +49,7 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 - [x] **P2** "Copy cURL" button — Dropdown menu with Live/Shadow endpoint options. Generates cURL with method, URL, request headers, and body. Copies to clipboard with visual feedback. Added request `headers` and `body` to `RequestDetail` DTO.
 - [x] **P2** "Export JSON" button — Downloads full request detail (method, path, headers, body, responses, diff) as `request-{id}.json`.
 - [x] **P2** "Showing N of M requests" label — Wired to pagination. `RequestList` emits both `update:total` and `update:showing`. Label shows "Showing 20 of 142 requests".
-- [ ] **P2** Gate delete button — Backend `DELETE /gates/{id}` exists but no UI button or confirmation dialog.
+- [x] **P2** Gate delete button — AlertDialog confirmation with cancel/delete flow. Navigates to gates list on success.
 
 ### Hardcoded UI State
 
