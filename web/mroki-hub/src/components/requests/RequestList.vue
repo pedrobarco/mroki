@@ -16,6 +16,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:total', total: number): void
+  (e: 'update:showing', showing: number): void
 }>()
 const router = useRouter()
 
@@ -60,6 +61,7 @@ async function loadRequests() {
     total.value = response.pagination.total
     hasMore.value = response.pagination.has_more
     emit('update:total', total.value)
+    emit('update:showing', requests.value.length)
   } catch (err) {
     if (err instanceof Error) {
       error.value = err.message

@@ -20,6 +20,7 @@ const gate = ref<Gate | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const requestTotal = ref<number | null>(null)
+const requestShowing = ref<number | null>(null)
 const configDialogOpen = ref(false)
 
 function handleConfigSuccess(updatedGate: Gate) {
@@ -179,9 +180,11 @@ onMounted(() => {
       <!-- Captured Requests Section -->
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-semibold tracking-tight">Captured Requests</h2>
-        <span v-if="requestTotal !== null" class="text-xs text-dim"
-          >{{ requestTotal }} request{{ requestTotal !== 1 ? 's' : '' }}</span
-        >
+        <span v-if="requestTotal !== null" class="text-xs text-dim">
+          Showing {{ requestShowing ?? 0 }} of {{ requestTotal }} request{{
+            requestTotal !== 1 ? 's' : ''
+          }}
+        </span>
       </div>
 
       <!-- Filters -->
@@ -189,7 +192,12 @@ onMounted(() => {
         <RequestFilters :model-value="filters" @update:model-value="onFiltersUpdate" />
       </div>
 
-      <RequestList :gate-id="gateId" :filters="filters" @update:total="requestTotal = $event" />
+      <RequestList
+        :gate-id="gateId"
+        :filters="filters"
+        @update:total="requestTotal = $event"
+        @update:showing="requestShowing = $event"
+      />
     </div>
   </div>
 </template>

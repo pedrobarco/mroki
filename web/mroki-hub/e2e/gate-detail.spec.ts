@@ -40,8 +40,8 @@ test.describe('Gate Detail Page', () => {
     await expect(page.getByText('/api/users')).toBeVisible()
     await expect(page.getByText('/api/orders')).toBeVisible()
 
-    // Request total
-    await expect(page.getByText('2 requests')).toBeVisible()
+    // Request label: showing all on single page
+    await expect(page.getByText('Showing 2 of 2 requests')).toBeVisible()
   })
 
   test('filter by HTTP method', async ({ page, api }) => {
@@ -107,12 +107,13 @@ test.describe('Gate Detail Page', () => {
 
     await page.goto(`/gates/${gate.id}`)
 
-    // Should show request total and pagination info
-    await expect(page.getByText('25 requests')).toBeVisible()
+    // Page 1: showing 20 of 25
+    await expect(page.getByText('Showing 20 of 25 requests')).toBeVisible()
     await expect(page.getByText('Page 1 of 2')).toBeVisible()
 
-    // Next page
+    // Next page: showing 5 of 25
     await page.getByRole('button', { name: 'Next' }).click()
+    await expect(page.getByText('Showing 5 of 25 requests')).toBeVisible()
     await expect(page.getByText('Page 2 of 2')).toBeVisible()
 
     // Previous page
