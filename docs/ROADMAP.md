@@ -1,6 +1,6 @@
 # mroki Roadmap
 
-**Last Updated:** 2026-04-25
+**Last Updated:** 2026-04-26
 
 All completed, pending, and planned work for mroki. Items use a consistent format:
 - `[x]` Complete · `[ ]` Not started
@@ -45,10 +45,14 @@ Concrete items where the **UI already exists** but shows hardcoded/dummy data or
 
 ### Dead UI Elements
 
-- [x] **P1** "Configure" button — `PATCH /gates/{id}` endpoint implemented. Supports updating `name` and `diff_config` (ignored fields, included fields, float tolerance). Frontend form not yet wired.
+- [x] **P1** "Configure" button (backend) — `PATCH /gates/{id}` endpoint implemented. Supports updating `name` and `diff_config` (ignored fields, included fields, float tolerance).
+- [ ] **P2** "Configure" button (frontend) — Wire the configure button in `GateDetail.vue` to the existing `PATCH /gates/{id}` endpoint. Add edit form for name and diff config.
 - [ ] **P2** "Copy cURL" button — No click handler (`RequestDetail.vue`). Client-side: generate cURL from request data.
 - [ ] **P2** "Export JSON" button — No click handler (`RequestDetail.vue`). Client-side: serialize + download.
 - [ ] **P2** "Showing N of M requests" label — Hardcoded count (`GateDetail.vue`). Wire to pagination `total`.
+- [ ] **P2** Gate delete button — Backend `DELETE /gates/{id}` exists but no UI button or confirmation dialog.
+- [ ] **P2** Response headers viewer — Response headers are captured but not displayed in `RequestDetail.vue`.
+- [ ] **P2** Request body viewer — Request body is captured but not viewable in `RequestDetail.vue`.
 
 ### Dead Navigation Links
 
@@ -72,7 +76,6 @@ Pending infrastructure tasks for production readiness.
 - [x] **P1** Circuit breaker in proxy — Resilient HTTP client with `failsafe-go` retry + circuit breaker RoundTripper stack.
 - [x] **P1** HTTP connection pooling — Configure `MaxIdleConns`, `IdleConnTimeout` in proxy client.
 - [ ] **P2** Structured error logging — Add request context (method, path, request ID) to all error logs.
-- [ ] **P2** Update API_CONTRACTS.md — Document auth, rate limiting, pagination (currently marked "Planned v2").
 
 ### Production Hardening
 
@@ -88,7 +91,14 @@ Pending infrastructure tasks for production readiness.
 
 - [ ] **P2** Create PRODUCTION_READINESS.md — Pre-deployment checklist, monitoring requirements, runbook.
 - [ ] **P2** Update MROKI_API.md — Production deployment, security config, performance tuning.
-- [ ] **P2** Update MROKI_PROXY.md — Circuit breaker behavior, connection pooling, auth setup.
+- [x] **P2** Update MROKI_PROXY.md — Circuit breaker behavior, connection pooling, auth setup.
+- [ ] **P2** Update API_CONTRACTS.md — Document auth, rate limiting, pagination (currently marked "Planned v2").
+
+### Technical Debt
+
+- [ ] **P2** Caddy module stale — `pkg/caddymodule` only supports standalone mode (no API integration), doesn't call `next` handler in Caddy middleware chain, and `cmd/caddy-mroki` fails to build. Either update for API mode or document as standalone-only.
+- [ ] **P2** Unused ratelimit package in proxy — `pkg/ratelimit` is implemented and tested but not wired into the proxy. Either integrate or remove.
+- [ ] **P3** Proxy HTTP client not configurable — Live/shadow `http.Client` connection pool settings (`MaxIdleConns`, `MaxIdleConnsPerHost`, `IdleConnTimeout`) are hardcoded in `newDefaultHTTPClient()`. Could be exposed via env vars for production tuning.
 
 ---
 
