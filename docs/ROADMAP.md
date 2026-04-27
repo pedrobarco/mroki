@@ -72,9 +72,19 @@ Everything below shipped as part of the v1 milestone.
 
 ## v2 Roadmap
 
-The next development phase, organized into four prioritized tracks.
+The next development phase, organized into five prioritized tracks.
 
-### Phase 1: Production Readiness
+### Phase 1: Release & Deployment Infrastructure
+
+Ship v1 to users — CI/CD, container images, release pipeline, and Helm charts.
+
+- [ ] **P1** CI pipeline — GitHub Actions: lint, test, build on push/PR for all components
+- [ ] **P1** Docker image builds — Multi-arch builds + push to GHCR for mroki-api, mroki-proxy, caddy-mroki
+- [ ] **P1** mroki-hub Dockerfile — Production container (nginx) serving the Vue SPA
+- [ ] **P1** Release pipeline — Semantic versioning, goreleaser for Go binaries, GitHub Releases with changelog
+- [ ] **P1** Helm charts — Per-component charts (mroki-api, mroki-proxy, mroki-hub) with configurable values, published to GHCR OCI registry
+
+### Phase 2: Production Hardening
 
 Low-effort, high-value items for real-world deployments.
 
@@ -84,7 +94,7 @@ Low-effort, high-value items for real-world deployments.
 - [ ] **P2** Proxy HTTP client configurability — Expose `MaxIdleConns`, `MaxIdleConnsPerHost`, `IdleConnTimeout` via env vars in `newDefaultHTTPClient()`
 - [ ] **P3** Config hot-reload — Reload safe settings on SIGHUP without restart
 
-### Phase 2: Observability & Analytics
+### Phase 3: Observability & Analytics
 
 Make mroki more useful for ongoing monitoring and performance analysis.
 
@@ -93,7 +103,7 @@ Make mroki more useful for ongoing monitoring and performance analysis.
 - [ ] **P2** Diff alerts — Configurable thresholds for diff rate alerts
 - [ ] **P3** Webhook notifications — Notify external systems on diffs or error spikes
 
-### Phase 3: Export & Tooling
+### Phase 4: Export & Tooling
 
 Power-user features for debugging workflows.
 
@@ -101,7 +111,7 @@ Power-user features for debugging workflows.
 - [ ] **P2** HAR export — Export in HTTP Archive format
 - [ ] **P3** Request replay — Resend captured requests to live or shadow endpoints
 
-### Phase 4: Auth & Multi-tenancy
+### Phase 5: Auth & Multi-tenancy
 
 Required if mroki becomes a shared or hosted tool.
 
