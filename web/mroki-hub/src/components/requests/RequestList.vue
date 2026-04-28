@@ -199,7 +199,7 @@ onMounted(() => {
               >
             </span>
             <!-- Latency -->
-            <span class="text-xs font-mono text-dim w-24 text-right">
+            <span class="text-xs font-mono text-dim w-36 text-right whitespace-nowrap">
               {{ request.live_response?.latency_ms ?? '—' }}ms /
               {{ request.shadow_response?.latency_ms ?? '—' }}ms
             </span>
