@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       targets:
-        description: 'JSON array of image names'
+        description: 'JSON array of paths to Dockerfile directories'
         required: true
         type: string
 
@@ -14,16 +14,20 @@ env:
 
 jobs:
   push:
-    name: ${{ matrix.image }}
+    name: ${{ matrix.target }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
-        image: ${{ fromJSON(inputs.targets) }}
+        target: ${{ fromJSON(inputs.targets) }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Derive image name
+        id: name
+        run: echo "value=$(basename '${{ matrix.target }}')" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -42,7 +46,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}
+          images: ${{ env.IMAGE_PREFIX }}-${{ steps.name.outputs.value }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern=v{{version}}
@@ -52,10 +56,10 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: build/package/${{ matrix.image }}/Dockerfile
+          file: ${{ matrix.target }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ steps.name.outputs.value }}
+          cache-to: type=gha,mode=max,scope=${{ steps.name.outputs.value }}

@@ -19,3 +19,7 @@ runs:
     - name: Download modules
       shell: bash
       run: go mod download
+
+    - name: Install gotestsum
+      shell: bash
+      run: go install gotest.tools/gotestsum@latest
