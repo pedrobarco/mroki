@@ -1,7 +1,12 @@
-name: go
+name: lint-build-test-go
 
 on:
   workflow_call:
+    inputs:
+      targets:
+        description: 'JSON array of Go packages to build'
+        required: true
+        type: string
 
 jobs:
   lint-build-test:
@@ -17,17 +22,9 @@ jobs:
           version: v2.11.4
 
       - name: Test
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./cmd/mroki-api/... ./internal/... ./pkg/...
+        run: gotestsum --format github-actions ./...
 
-      - name: Build mroki-api
-        run: CGO_ENABLED=0 go build -o bin/mroki-api ./cmd/mroki-api
-
-      - name: Build mroki-proxy
-        run: CGO_ENABLED=0 go build -o bin/mroki-proxy ./cmd/mroki-proxy
-
-      - name: Upload coverage
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage
-          path: coverage.out
+      - name: Build
+        run: |
+          targets=$(echo '${{ inputs.targets }}' | jq -r '.[] | "./\(.)/..."')
+          CGO_ENABLED=0 go build $targets
