@@ -98,7 +98,7 @@ const diffLines = computed(() => {
   // Expand in reverse order so indices stay valid
   for (let i = result.length - 1; i >= 0; i--) {
     const line = result[i]
-    if (line.type === 'collapsed' && expandedPaths.value.has(line.path)) {
+    if (line && line.type === 'collapsed' && expandedPaths.value.has(line.path)) {
       expandCollapsed(result, i)
     }
   }

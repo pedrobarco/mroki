@@ -1,24 +1,6 @@
+import { config } from '@/config'
 import type { ApiError } from './types'
 import { ApiErrorException } from './types'
-
-/**
- * Base API client configuration
- */
-const getBaseURL = (): string => {
-  const baseURL = import.meta.env.VITE_API_BASE_URL
-  if (!baseURL) {
-    throw new Error('VITE_API_BASE_URL environment variable is not set')
-  }
-  return baseURL
-}
-
-const getApiKey = (): string => {
-  const apiKey = import.meta.env.VITE_API_KEY
-  if (!apiKey) {
-    throw new Error('VITE_API_KEY environment variable is not set')
-  }
-  return apiKey
-}
 
 /**
  * Generic HTTP request wrapper with authentication and error handling
@@ -30,24 +12,21 @@ const getApiKey = (): string => {
  * @throws Error for network or other errors
  */
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const baseURL = getBaseURL()
-  const apiKey = getApiKey()
-
-  const url = `${baseURL}${endpoint}`
+  const url = `${config.apiBaseUrl}${endpoint}`
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${apiKey}`,
+    Authorization: `Bearer ${config.apiKey}`,
     ...options.headers,
   }
 
-  const config: RequestInit = {
+  const fetchConfig: RequestInit = {
     ...options,
     headers,
   }
 
   try {
-    const response = await fetch(url, config)
+    const response = await fetch(url, fetchConfig)
 
     // Handle error responses (RFC 7807)
     if (!response.ok) {
