@@ -35,5 +35,16 @@ services:
     depends_on:
       - mroki-api
 
+  mroki-hub:
+    extends:
+      file: ../../build/package/mroki-hub/compose.yaml
+      service: mroki-hub
+    image: mroki-hub:latest
+    environment:
+      MROKI_API_BASE_URL: ${MROKI_API_BASE_URL:-}
+      MROKI_API_KEY: ${MROKI_APP_API_KEY:-}
+    depends_on:
+      - mroki-api
+
 volumes:
   mroki-db-data:

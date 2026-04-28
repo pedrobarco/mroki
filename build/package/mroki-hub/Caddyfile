@@ -1,0 +1,17 @@
+:80 {
+	# Health endpoint for container healthchecks
+	handle /health {
+		respond 200
+	}
+
+	handle {
+		root * /srv
+
+		# Cache hashed assets (Vite generates fingerprinted filenames)
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+
+		# SPA fallback — serve index.html for all non-file routes
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -5,7 +5,7 @@ DEV_COMPOSE := build/dev/compose.yaml
 	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-migrate api-clean \
 	agent-build agent-test agent-clean \
 	hub-build hub-test hub-test-unit hub-test-ui hub-test-setup hub-screenshots hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
-	dev-up dev-down dev-reset
+	dev-up dev-up-backend dev-up-frontend dev-down dev-reset
 
 # ─── Global ──────────────────────────────────────────────────────────
 
@@ -54,7 +54,9 @@ help:
 	@echo ""
 	@echo "  Dev Stack"
 	@echo "  ────────────────────────────────────────"
-	@echo "  dev-up             Start dev stack (db + api + agent)"
+	@echo "  dev-up             Start full dev stack (db + api + proxy + hub)"
+	@echo "  dev-up-backend     Start backend stack (db + api + proxy)"
+	@echo "  dev-up-frontend    Start frontend stack (db + api + hub)"
 	@echo "  dev-down           Stop dev stack"
 	@echo "  dev-reset          Reset dev stack (destroy + recreate)"
 
@@ -190,14 +192,22 @@ hub-clean:
 # ─── Dev Stack ───────────────────────────────────────────────────────
 
 dev-up:
-	@echo "Starting dev stack..."
-	docker compose -f $(DEV_COMPOSE) up -d --build --wait
+	@echo "Starting full dev stack..."
+	docker compose -f $(DEV_COMPOSE) --profile backend --profile frontend up -d --build --wait
+
+dev-up-backend:
+	@echo "Starting backend stack..."
+	docker compose -f $(DEV_COMPOSE) --profile backend up -d --build --wait
+
+dev-up-frontend:
+	@echo "Starting frontend stack..."
+	docker compose -f $(DEV_COMPOSE) --profile frontend up -d --build --wait
 
 dev-down:
 	@echo "Stopping dev stack..."
-	docker compose -f $(DEV_COMPOSE) down
+	docker compose -f $(DEV_COMPOSE) --profile backend --profile frontend down
 
 dev-reset:
 	@echo "Resetting dev stack..."
-	docker compose -f $(DEV_COMPOSE) down -v
-	docker compose -f $(DEV_COMPOSE) up -d --build --wait
+	docker compose -f $(DEV_COMPOSE) --profile backend --profile frontend down -v
+	docker compose -f $(DEV_COMPOSE) --profile backend --profile frontend up -d --build --wait

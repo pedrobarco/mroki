@@ -1,0 +1,18 @@
+.git
+.github
+.vscode
+*.md
+LICENSE
+
+# Go
+bin/
+coverage.out
+
+# Node
+web/mroki-hub/node_modules
+web/mroki-hub/dist
+web/mroki-hub/playwright-report
+web/mroki-hub/e2e/test-results
+
+# Dev
+build/dev

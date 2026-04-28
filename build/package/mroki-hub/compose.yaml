@@ -1,0 +1,16 @@
+services:
+  mroki-hub:
+    build:
+      context: ../../..
+      dockerfile: build/package/mroki-hub/Dockerfile
+    environment:
+      MROKI_API_BASE_URL: ${MROKI_API_BASE_URL:-}
+      MROKI_API_KEY: ${MROKI_API_KEY:-}
+    ports:
+      - "${MROKI_HUB_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped

@@ -14,11 +14,12 @@ services:
     extends:
       file: ../package/mroki-api/compose.yaml
       service: mroki-api
+    profiles: [backend, frontend]
     environment:
       MROKI_APP_PORT: 8090
       MROKI_APP_DATABASE_URL: postgres://postgres:postgres@mroki-db:5432/postgres
       MROKI_APP_API_KEY: mroki-dev-api-key-16
-      MROKI_APP_CORS_ORIGINS: http://localhost:5173
+      MROKI_APP_CORS_ORIGINS: http://localhost:5173,http://localhost:3000
     depends_on:
       mroki-db:
         condition: service_healthy
@@ -27,6 +28,7 @@ services:
     extends:
       file: ../package/mroki-proxy/compose.yaml
       service: mroki-proxy
+    profiles: [backend]
     environment:
       MROKI_APP_API_URL: http://mroki-api:8090
       MROKI_APP_API_KEY: mroki-dev-api-key-16
@@ -35,6 +37,17 @@ services:
       mroki-api:
         condition: service_healthy
 
+  mroki-hub:
+    extends:
+      file: ../package/mroki-hub/compose.yaml
+      service: mroki-hub
+    profiles: [frontend]
+    environment:
+      MROKI_API_BASE_URL: http://localhost:8090
+      MROKI_API_KEY: mroki-dev-api-key-16
+    depends_on:
+      mroki-api:
+        condition: service_healthy
 
 volumes:
   mroki-db-data:
