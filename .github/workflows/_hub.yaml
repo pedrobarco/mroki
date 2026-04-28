@@ -1,0 +1,28 @@
+name: hub
+
+on:
+  workflow_call:
+
+jobs:
+  lint-build-test:
+    name: lint-build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node
+
+      - name: Lint
+        working-directory: web/mroki-hub
+        run: pnpm lint
+
+      - name: Check formatting
+        working-directory: web/mroki-hub
+        run: pnpm format --check
+
+      - name: Test
+        working-directory: web/mroki-hub
+        run: pnpm test:unit
+
+      - name: Build
+        working-directory: web/mroki-hub
+        run: pnpm build

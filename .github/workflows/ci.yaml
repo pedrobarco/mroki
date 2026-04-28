@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ── Lint · Build · Test ──────────────────────────────────────────────
+
+  go:
+    name: go
+    uses: ./.github/workflows/_go.yaml
+
+  hub:
+    name: hub
+    uses: ./.github/workflows/_hub.yaml
+
+  # ── Push Docker images ────────────────────────────────────────────────
+
+  push:
+    name: push
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    needs: [go, hub]
+    uses: ./.github/workflows/_push.yaml
+    with:
+      targets: >-
+        ["mroki-api", "mroki-proxy", "mroki-hub"]
+    secrets: inherit
+
+  # ── Release ───────────────────────────────────────────────────────────
+
+  release:
+    name: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [push]
+    uses: ./.github/workflows/_release.yaml
+    secrets: inherit
