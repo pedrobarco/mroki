@@ -286,12 +286,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	select {
 	case liveResp = <-liveCh:
 	case <-liveCtx.Done():
+		shadowCancel()
 		reqLogger.Error("timeout waiting for live response", slog.Duration("timeout", p.liveTimeout))
 		http.Error(w, "timeout waiting for live response", http.StatusGatewayTimeout)
 		return
 	}
 
 	if liveResp.err != nil {
+		shadowCancel()
 		reqLogger.Error("live backend error", slog.String("error", liveResp.err.Error()))
 		http.Error(w, "live backend error: "+liveResp.err.Error(), http.StatusBadGateway)
 		return
@@ -302,6 +304,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Request-ID", requestID)
 	w.WriteHeader(liveResp.resp.StatusCode)
 	if _, err = w.Write(liveResp.body); err != nil {
+		shadowCancel()
 		// Can't call http.Error after writing response body
 		reqLogger.Error("failed to write response body", slog.String("error", err.Error()))
 		return
