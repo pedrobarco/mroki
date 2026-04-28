@@ -1,0 +1,64 @@
+# -- Number of replicas
+replicaCount: 3
+
+image:
+  # -- Image registry
+  registry: ghcr.io
+  # -- Image repository
+  repository: pedrobarco/mroki/mroki-api
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag (default is the chart appVersion)
+  tag: ""
+
+# -- Name of an existing Secret containing MROKI_APP_API_KEY and MROKI_APP_DATABASE_URL
+existingSecret: ""
+
+# -- Additional environment variables
+extraEnv: []
+
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Annotations for the ServiceAccount
+  annotations: {}
+  # -- Override ServiceAccount name
+  name: ""
+
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 80
+
+containerPort: 8090
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+autoscaling:
+  # -- Enable HPA
+  enabled: false
+  # -- Minimum replicas
+  minReplicas: 2
+  # -- Maximum replicas
+  maxReplicas: 10
+  # -- Target CPU utilization
+  targetCPUUtilizationPercentage: 80
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Node selector
+nodeSelector: {}
+
+# -- Tolerations
+tolerations: []
+
+# -- Affinity
+affinity: {}

@@ -1,6 +1,6 @@
 # mroki Roadmap
 
-**Last Updated:** 2026-04-27
+**Last Updated:** 2026-04-28
 
 All completed, pending, and planned work for mroki. Items use a consistent format:
 - `[x]` Complete · `[ ]` Not started
@@ -78,11 +78,11 @@ The next development phase, organized into five prioritized tracks.
 
 Ship v1 to users — CI/CD, container images, release pipeline, and Helm charts.
 
-- [ ] **P1** CI pipeline — GitHub Actions: lint, test, build on push/PR for all components
-- [ ] **P1** Docker image builds — Multi-arch builds + push to GHCR for mroki-api, mroki-proxy, caddy-mroki
-- [ ] **P1** mroki-hub Dockerfile — Production container (nginx) serving the Vue SPA
-- [ ] **P1** Release pipeline — Semantic versioning, goreleaser for Go binaries, GitHub Releases with changelog
-- [ ] **P1** Helm charts — Per-component charts (mroki-api, mroki-proxy, mroki-hub) with configurable values, published to GHCR OCI registry
+- [x] **P1** CI pipeline — GitHub Actions: lint, test, build on push/PR for all components
+- [x] **P1** Docker image builds — Multi-arch builds + push to GHCR for mroki-api, mroki-proxy, mroki-hub
+- [x] **P1** mroki-hub Dockerfile — Production container (nginx) serving the Vue SPA
+- [x] **P1** Release pipeline — Semantic versioning, git-cliff changelog, GitHub Releases
+- [x] **P1** Helm charts — Umbrella chart with subcharts (api, proxy, hub), conditional enablement, published to GHCR OCI registry
 
 ### Phase 2: Production Hardening
 
@@ -90,6 +90,7 @@ Low-effort, high-value items for real-world deployments.
 
 - [ ] **P2** Create PRODUCTION_READINESS.md — Pre-deployment checklist, monitoring requirements, runbook
 - [ ] **P2** Update MROKI_API.md — Production deployment, security config, performance tuning
+- [ ] **P2** Proxy health endpoints — Add `/health/live` and `/health/ready` endpoints to mroki-proxy for Kubernetes probes
 - [ ] **P2** Compression middleware — Gzip responses > 1KB
 - [ ] **P2** Proxy HTTP client configurability — Expose `MaxIdleConns`, `MaxIdleConnsPerHost`, `IdleConnTimeout` via env vars in `newDefaultHTTPClient()`
 - [ ] **P3** Config hot-reload — Reload safe settings on SIGHUP without restart

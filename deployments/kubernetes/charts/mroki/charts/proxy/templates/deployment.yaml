@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "proxy.fullname" . }}
+  labels:
+    {{- include "proxy.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "proxy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "proxy.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "proxy.serviceAccountName" . }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ include "proxy.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          env:
+            - name: APP_ENV
+              value: "production"
+            - name: MROKI_APP_PORT
+              value: {{ .Values.containerPort | quote }}
+            {{- if eq .Values.mode "api" }}
+            - name: MROKI_APP_API_URL
+              value: {{ include "proxy.apiUrl" . | quote }}
+            - name: MROKI_APP_GATE_ID
+              value: {{ .Values.apiMode.gateId | quote }}
+            {{- if .Values.existingSecret }}
+            - name: MROKI_APP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: api-key
+            {{- end }}
+            {{- else }}
+            - name: MROKI_APP_LIVE_URL
+              value: {{ .Values.standaloneMode.liveUrl | quote }}
+            - name: MROKI_APP_SHADOW_URL
+              value: {{ .Values.standaloneMode.shadowUrl | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

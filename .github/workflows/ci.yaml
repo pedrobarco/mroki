@@ -49,11 +49,25 @@ jobs:
         ]
     secrets: inherit
 
+  # ── Helm ──────────────────────────────────────────────────────────────
+
+  helm:
+    name: helm
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    needs: [docker]
+    uses: ./.github/workflows/_helm.yaml
+    with:
+      targets: >-
+        [
+          "deployments/kubernetes/charts/mroki"
+        ]
+    secrets: inherit
+
   # ── Release ───────────────────────────────────────────────────────────
 
   release:
     name: release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [docker]
+    needs: [helm]
     uses: ./.github/workflows/_release.yaml
     secrets: inherit

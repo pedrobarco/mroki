@@ -1,0 +1,17 @@
+apiVersion: v2
+name: mroki
+description: A Helm chart for deploying the mroki stack (API, Proxy, Hub)
+type: application
+version: 0.0.0
+appVersion: "0.0.0"
+
+dependencies:
+  - name: api
+    version: 0.0.0
+    condition: api.enabled
+  - name: proxy
+    version: 0.0.0
+    condition: proxy.enabled
+  - name: hub
+    version: 0.0.0
+    condition: hub.enabled

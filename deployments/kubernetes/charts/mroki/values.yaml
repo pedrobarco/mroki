@@ -1,0 +1,16 @@
+# -- Global overrides
+global:
+  # -- Override the image registry for all subcharts
+  imageRegistry: ""
+
+# -- API subchart
+api:
+  enabled: true
+
+# -- Proxy subchart
+proxy:
+  enabled: true
+
+# -- Hub subchart
+hub:
+  enabled: true
