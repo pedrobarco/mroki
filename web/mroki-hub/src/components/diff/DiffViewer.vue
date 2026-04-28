@@ -23,7 +23,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize))
 interface Props {
   liveResponse: Response
   shadowResponse: Response
-  diffContent: PatchOp[]
+  diffContent: PatchOp[] | null
 }
 
 const props = defineProps<Props>()
@@ -58,31 +58,82 @@ const liveJson = computed(() => (liveDecoded.value ? tryParseJson(liveDecoded.va
 const shadowJson = computed(() => (shadowDecoded.value ? tryParseJson(shadowDecoded.value) : null))
 const isJson = computed(() => liveJson.value !== null && shadowJson.value !== null)
 
-const bodyOps = computed(() => stripPathPrefix(props.diffContent, '/body'))
-const diffLines = shallowRef<DiffLine[]>([])
+const liveCombined = computed(() =>
+  isJson.value ? { headers: props.liveResponse.headers, body: liveJson.value } : null
+)
+const shadowCombined = computed(() =>
+  isJson.value ? { headers: props.shadowResponse.headers, body: shadowJson.value } : null
+)
+
+const combinedOps = computed(() => {
+  const ops = props.diffContent ?? []
+  const bodyOps = stripPathPrefix(ops, '/body').map((op) => ({
+    ...op,
+    path: '/body' + (op.path === '/' ? '' : op.path),
+  }))
+  const headerOps = stripPathPrefix(ops, '/headers').map((op) => ({
+    ...op,
+    path: '/headers' + (op.path === '/' ? '' : op.path),
+  }))
+  return [...headerOps, ...bodyOps]
+})
+
+const expandedPaths = ref(new Set<string>())
+const baseDiffLines = shallowRef<DiffLine[]>([])
 watch(
-  [isJson, liveJson, shadowJson, bodyOps],
+  [isJson, liveCombined, shadowCombined, combinedOps],
   () => {
-    diffLines.value = isJson.value
-      ? buildDiffLines(liveJson.value, shadowJson.value, bodyOps.value)
-      : []
+    baseDiffLines.value =
+      isJson.value && liveCombined.value && shadowCombined.value
+        ? buildDiffLines(liveCombined.value, shadowCombined.value, combinedOps.value)
+        : []
+    expandedPaths.value = new Set()
   },
   { immediate: true }
 )
+
+const diffLines = computed(() => {
+  if (expandedPaths.value.size === 0) return baseDiffLines.value
+  const result = [...baseDiffLines.value]
+  // Expand in reverse order so indices stay valid
+  for (let i = result.length - 1; i >= 0; i--) {
+    const line = result[i]
+    if (line.type === 'collapsed' && expandedPaths.value.has(line.path)) {
+      expandCollapsed(result, i)
+    }
+  }
+  return result
+})
+
 const splitRows = computed(() => buildSplitRows(diffLines.value))
 
+function toggleCollapsed(path: string) {
+  const next = new Set(expandedPaths.value)
+  if (next.has(path)) {
+    next.delete(path)
+  } else {
+    next.add(path)
+  }
+  expandedPaths.value = next
+}
+
 function handleExpand(index: number) {
-  expandCollapsed(diffLines.value, index)
-  // Trigger reactivity on shallowRef by replacing the array reference
-  diffLines.value = [...diffLines.value]
+  const line = diffLines.value[index]
+  if (line?.type === 'collapsed') toggleCollapsed(line.path)
 }
 function handleExpandLine(line: DiffLine) {
-  const idx = diffLines.value.indexOf(line)
-  if (idx >= 0) handleExpand(idx)
+  if (line?.type === 'collapsed') toggleCollapsed(line.path)
+}
+
+function isExpandedRoot(line: DiffLine): boolean {
+  return line.type === 'normal' && expandedPaths.value.has(line.path)
+}
+function handleCollapse(line: DiffLine) {
+  if (expandedPaths.value.has(line.path)) toggleCollapsed(line.path)
 }
 const livePlain = computed(() => liveDecoded.value ?? props.liveResponse.body)
 const shadowPlain = computed(() => shadowDecoded.value ?? props.shadowResponse.body)
-const diffCount = computed(() => props.diffContent.length)
+const diffCount = computed(() => props.diffContent?.length ?? 0)
 
 // --- Line styling (background strip) ---
 function lineBg(line: DiffLine): string {
@@ -221,6 +272,13 @@ function tokenClass(token: Token): string {
                 v-for="(tok, ti) in line.tokens"
                 :key="ti"
               ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
+              v-else-if="isExpandedRoot(line)"
+              class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+              @click="handleCollapse(line)"
+            ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(line.indent) }}</span><template
+                v-for="(tok, ti) in line.tokens"
+                :key="ti"
+              ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▾ collapse</span></div><div
               v-else
               :class="lineBg(line)"
               class="px-4 min-w-fit"
@@ -258,6 +316,13 @@ function tokenClass(token: Token): string {
                     v-for="(tok, ti) in row.left.tokens"
                     :key="ti"
                   ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
+                  v-else-if="row.left && isExpandedRoot(row.left)"
+                  class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+                  @click="handleCollapse(row.left)"
+                ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.left.indent) }}</span><template
+                    v-for="(tok, ti) in row.left.tokens"
+                    :key="ti"
+                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▾ collapse</span></div><div
                   v-else-if="row.left"
                   :class="lineBg(row.left)"
                   class="px-4 min-w-fit"
@@ -282,6 +347,13 @@ function tokenClass(token: Token): string {
                     v-for="(tok, ti) in row.right.tokens"
                     :key="ti"
                   ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
+                  v-else-if="row.right && isExpandedRoot(row.right)"
+                  class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+                  @click="handleCollapse(row.right)"
+                ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.right.indent) }}</span><template
+                    v-for="(tok, ti) in row.right.tokens"
+                    :key="ti"
+                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▾ collapse</span></div><div
                   v-else-if="row.right"
                   :class="lineBg(row.right)"
                   class="px-4 min-w-fit"
