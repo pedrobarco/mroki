@@ -1,0 +1,69 @@
+# -- Number of replicas
+replicaCount: 2
+
+image:
+  # -- Image registry
+  registry: ghcr.io
+  # -- Image repository
+  repository: pedrobarco/mroki/mroki-proxy
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag (default is the chart appVersion)
+  tag: ""
+
+# -- Name of an existing Secret containing MROKI_APP_API_KEY
+existingSecret: ""
+
+# -- Proxy mode: "api" (fetch gate config from API) or "standalone" (use env vars)
+mode: api
+
+apiMode:
+  # -- API URL (empty = auto-discover via release-name-api service)
+  apiUrl: ""
+  # -- Gate ID (required in api mode)
+  gateId: ""
+
+standaloneMode:
+  # -- Live upstream URL
+  liveUrl: ""
+  # -- Shadow upstream URL
+  shadowUrl: ""
+
+# -- Additional environment variables
+extraEnv: []
+
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Annotations for the ServiceAccount
+  annotations: {}
+  # -- Override ServiceAccount name
+  name: ""
+
+service:
+  # -- Service type
+  type: LoadBalancer
+  # -- Service port
+  port: 80
+
+containerPort: 8080
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Node selector
+nodeSelector: {}
+
+# -- Tolerations
+tolerations: []
+
+# -- Affinity
+affinity: {}

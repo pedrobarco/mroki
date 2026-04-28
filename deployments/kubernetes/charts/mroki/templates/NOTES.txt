@@ -1,0 +1,34 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named: {{ .Release.Name }}
+Installed in namespace: {{ .Release.Namespace }}
+
+{{- if .Values.api.enabled }}
+
+==> mroki-api
+  Service: {{ .Release.Name }}-api:{{ .Values.api.service.port }}
+  To port-forward:
+    kubectl port-forward svc/{{ .Release.Name }}-api {{ .Values.api.service.port }}:{{ .Values.api.service.port }} -n {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.proxy.enabled }}
+
+==> mroki-proxy
+  Service: {{ .Release.Name }}-proxy:{{ .Values.proxy.service.port }}
+  To port-forward:
+    kubectl port-forward svc/{{ .Release.Name }}-proxy {{ .Values.proxy.service.port }}:{{ .Values.proxy.service.port }} -n {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.hub.enabled }}
+
+==> mroki-hub
+  Service: {{ .Release.Name }}-hub:{{ .Values.hub.service.port }}
+  To port-forward:
+    kubectl port-forward svc/{{ .Release.Name }}-hub {{ .Values.hub.service.port }}:{{ .Values.hub.service.port }} -n {{ .Release.Namespace }}
+{{- if .Values.hub.ingress.enabled }}
+  Ingress:
+  {{- range .Values.hub.ingress.hosts }}
+    http{{ if $.Values.hub.ingress.tls }}s{{ end }}://{{ .host }}
+  {{- end }}
+{{- end }}
+{{- end }}

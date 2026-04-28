@@ -18,6 +18,7 @@ repos:
     hooks:
       - id: check-yaml
         args: [--allow-multiple-documents]
+        exclude: deployments/kubernetes/charts/.*/templates/
         stages: [pre-commit]
       - id: check-json
         exclude: tsconfig.*\.json$

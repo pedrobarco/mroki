@@ -1,0 +1,57 @@
+name: helm
+
+on:
+  workflow_call:
+    inputs:
+      targets:
+        description: 'JSON array of paths to Helm chart directories'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  push:
+    name: push / ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.targets) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Derive chart name
+        id: name
+        run: echo "value=$(basename '${{ matrix.target }}')" >> "$GITHUB_OUTPUT"
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          tags: |
+            type=sha,prefix=0.0.0-sha.
+            type=semver,pattern={{version}}
+
+      - name: Update Chart.yaml versions
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          find "${{ matrix.target }}" -name Chart.yaml -exec sed -i \
+            -e "s/^version:.*/version: ${VERSION}/" \
+            -e "s/^appVersion:.*/appVersion: \"${VERSION}\"/" \
+            -e "s/^\(  *version:\).*/\1 ${VERSION}/" {} +
+
+      - name: Package and push chart
+        uses: appany/helm-oci-chart-releaser@v0.5.0
+        with:
+          name: ${{ steps.name.outputs.value }}
+          repository: ${{ github.repository }}/charts
+          tag: ${{ steps.meta.outputs.version }}
+          path: ${{ matrix.target }}
+          registry: ${{ env.REGISTRY }}
+          registry_username: ${{ github.actor }}
+          registry_password: ${{ secrets.GITHUB_TOKEN }}
+          update_dependencies: 'false'
