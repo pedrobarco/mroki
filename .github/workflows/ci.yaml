@@ -17,21 +17,36 @@ jobs:
   go:
     name: go
     uses: ./.github/workflows/_go.yaml
+    with:
+      targets: >-
+        [
+          "cmd/mroki-api",
+          "cmd/mroki-proxy"
+        ]
 
-  hub:
-    name: hub
-    uses: ./.github/workflows/_hub.yaml
+  pnpm:
+    name: pnpm
+    uses: ./.github/workflows/_pnpm.yaml
+    with:
+      targets: >-
+        [
+          "web/mroki-hub"
+        ]
 
   # ── Push Docker images ────────────────────────────────────────────────
 
-  push:
-    name: push
+  docker:
+    name: docker
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-    needs: [go, hub]
-    uses: ./.github/workflows/_push.yaml
+    needs: [go, pnpm]
+    uses: ./.github/workflows/_docker.yaml
     with:
       targets: >-
-        ["mroki-api", "mroki-proxy", "mroki-hub"]
+        [
+          "build/package/mroki-api",
+          "build/package/mroki-proxy",
+          "build/package/mroki-hub"
+        ]
     secrets: inherit
 
   # ── Release ───────────────────────────────────────────────────────────
@@ -39,6 +54,6 @@ jobs:
   release:
     name: release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [push]
+    needs: [docker]
     uses: ./.github/workflows/_release.yaml
     secrets: inherit

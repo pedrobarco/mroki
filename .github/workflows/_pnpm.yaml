@@ -1,0 +1,34 @@
+name: lint-build-test-pnpm
+
+on:
+  workflow_call:
+    inputs:
+      targets:
+        description: 'JSON array of paths to directories containing package.json'
+        required: true
+        type: string
+
+jobs:
+  lint-build-test:
+    name: lint-build-test / ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: ${{ fromJSON(inputs.targets) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node
+        with:
+          working-directory: ${{ matrix.target }}
+
+      - name: Lint
+        working-directory: ${{ matrix.target }}
+        run: pnpm run lint
+
+      - name: Test
+        working-directory: ${{ matrix.target }}
+        run: pnpm run test
+
+      - name: Build
+        working-directory: ${{ matrix.target }}
+        run: pnpm run build
