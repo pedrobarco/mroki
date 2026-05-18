@@ -27,6 +27,23 @@ test.describe('@screenshots', () => {
     await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-gates.png'), fullPage: true })
   })
 
+  test('hub-create-gate', async ({ page }) => {
+    await page.goto('/gates')
+    await expect(page.getByRole('heading', { name: 'Gates' })).toBeVisible()
+
+    // Open the Create Gate dialog
+    await page.getByRole('button', { name: /new gate/i }).click()
+    await expect(page.getByRole('heading', { name: 'Create New Gate' })).toBeVisible()
+    await page.waitForTimeout(300)
+
+    // Fill in realistic values so the screenshot looks complete
+    await page.getByLabel('Name').fill('checkout-api')
+    await page.getByLabel('Live URL').fill('https://api.acme.io/v1/checkout')
+    await page.getByLabel('Shadow URL').fill('https://api-canary.acme.io/v1/checkout')
+
+    await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-create-gate.png'), fullPage: true })
+  })
+
   test('hub-gate-detail', async ({ page }) => {
     expect(seed).not.toBeNull()
     const { gate } = seed!.ordersGate
@@ -35,6 +52,25 @@ test.describe('@screenshots', () => {
     await expect(page.getByText(gate.id)).toBeVisible()
     await page.waitForTimeout(500)
     await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-gate-detail.png'), fullPage: true })
+  })
+
+  test('hub-gate-config', async ({ page }) => {
+    expect(seed).not.toBeNull()
+    const { gate } = seed!.ordersGate
+
+    await page.goto(`/gates/${gate.id}`)
+    await expect(page.getByText(gate.id)).toBeVisible()
+
+    // Open the Configure dialog
+    await page.getByRole('button', { name: /configure/i }).click()
+    await expect(page.getByRole('heading', { name: 'Configure Gate' })).toBeVisible()
+    await page.waitForTimeout(300)
+
+    // Fill in diff config fields so the screenshot shows them populated
+    await page.getByLabel('Ignored Fields').fill('timestamp, request_id, trace_id')
+    await page.getByLabel('Float Tolerance').fill('0.001')
+
+    await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-gate-config.png'), fullPage: true })
   })
 
   test('hub-request-detail-unified', async ({ page }) => {
