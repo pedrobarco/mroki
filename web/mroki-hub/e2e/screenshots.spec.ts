@@ -41,7 +41,10 @@ test.describe('@screenshots', () => {
     await page.getByLabel('Live URL').fill('https://api.acme.io/v1/checkout')
     await page.getByLabel('Shadow URL').fill('https://api-canary.acme.io/v1/checkout')
 
-    await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-create-gate.png') })
+    await page.screenshot({
+      path: path.join(ASSETS_DIR, 'hub-create-gate.png'),
+      clip: { x: 0, y: 0, width: VIEWPORT.width, height: VIEWPORT.height },
+    })
   })
 
   test('hub-gate-detail', async ({ page }) => {
