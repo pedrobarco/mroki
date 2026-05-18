@@ -83,7 +83,7 @@ var (
 		Type:   ErrorTypeRateLimitExceeded,
 		Title:  "Rate Limit Exceeded",
 		Status: http.StatusTooManyRequests,
-		Detail: "Too many requests. Please slow down and try again later.",
+		Detail: "Rate limit exceeded. Please retry after 60 seconds (Retry-After: 60).",
 		Err:    errors.New("rate limit exceeded"),
 	}
 )
@@ -370,9 +370,9 @@ func InvalidRequestFilters(err error) *APIError {
 }
 
 // InvalidRequestSort returns an RFC 7807 error for invalid sort parameters.
-// Used when sort_by or sort_order query parameters are invalid.
+// Used when sort or order query parameters are invalid.
 func InvalidRequestSort(err error) *APIError {
-	detail := "sort_by must be 'created_at', 'method', or 'path'; sort_order must be 'asc' or 'desc'"
+	detail := "sort must be 'created_at', 'method', or 'path'; order must be 'asc' or 'desc'"
 	if err != nil {
 		detail = fmt.Sprintf("%s: %v", detail, err)
 	}
