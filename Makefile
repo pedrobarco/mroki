@@ -3,7 +3,7 @@ DEV_COMPOSE := build/dev/compose.yaml
 
 .PHONY: help build test lint clean \
 	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-migrate api-clean \
-	agent-build agent-test agent-clean \
+	proxy-build proxy-test proxy-clean \
 	hub-build hub-test hub-test-unit hub-test-ui hub-test-setup hub-screenshots hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
 	dev-up dev-up-backend dev-up-frontend dev-down dev-reset
 
@@ -60,13 +60,13 @@ help:
 	@echo "  dev-down           Stop dev stack"
 	@echo "  dev-reset          Reset dev stack (destroy + recreate)"
 
-build: api-build agent-build hub-build
+build: api-build proxy-build hub-build
 
-test: api-test agent-test hub-test-unit hub-test
+test: api-test proxy-test hub-test-unit hub-test
 
 lint: api-lint hub-lint
 
-clean: api-clean agent-clean hub-clean
+clean: api-clean proxy-clean hub-clean
 
 # ─── API ─────────────────────────────────────────────────────────────
 
