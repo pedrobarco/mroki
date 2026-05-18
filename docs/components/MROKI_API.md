@@ -82,8 +82,8 @@ MROKI_APP_MAX_BODY_SIZE=10485760
 # CORS allowed origins (comma-separated, empty = disabled)
 MROKI_APP_CORS_ORIGINS=http://localhost:5173
 
-# Request retention duration (Go duration format, default: 168h = 7 days)
-MROKI_APP_RETENTION=168h
+# Request retention duration (Go duration format, default: 0 (keep forever))
+MROKI_APP_RETENTION=0
 
 # Cleanup job interval (Go duration format, default: 1h)
 MROKI_APP_CLEANUP_INTERVAL=1h

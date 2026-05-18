@@ -1036,7 +1036,7 @@ Per-IP rate limiting using token bucket algorithm.
   "type": "/errors/rate-limit-exceeded",
   "title": "Rate Limit Exceeded",
   "status": 429,
-  "detail": "Rate limit exceeded. Try again in 3 seconds.",
+  "detail": "Rate limit exceeded. Please retry after 60 seconds (Retry-After: 60).",
   "instance": "/gates"
 }
 ```

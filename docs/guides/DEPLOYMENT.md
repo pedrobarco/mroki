@@ -16,6 +16,7 @@ See [`/deployments/compose/`](../../deployments/compose/) for complete manifests
 cat > .env <<EOF
 DB_PASSWORD=your_secure_password
 API_KEY=your-api-key-min-16-chars
+MROKI_APP_API_KEY=your-secret-key-min-16-chars
 GATE_ID=550e8400-e29b-41d4-a716-446655440000
 EOF
 
@@ -55,7 +56,7 @@ kubectl get services -n mroki
 - `secrets.yaml` - Secrets and ConfigMaps for credentials
 - `postgres.yaml` - PostgreSQL StatefulSet with persistent storage
 - `api.yaml` - mroki-api Deployment (3 replicas) and Service
-- `agent.yaml` - mroki-proxy Deployment (2 replicas) and Service
+- `proxy.yaml` - mroki-proxy Deployment (2 replicas) and Service
 
 **Health checks:**
 - API includes liveness probe on `/health/live`

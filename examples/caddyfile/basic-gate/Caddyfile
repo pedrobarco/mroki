@@ -7,19 +7,13 @@
 :8080 {
 	# Define routes that should be shadowed
 	route /api/* {
-		# Configure mroki for this route
-		mroki {
+		# Configure mroki_gate for this route
+		mroki_gate {
 			# Live backend (production)
-			live_url https://api.production.example.com
-			
+			live https://api.production.example.com
+
 			# Shadow backend (canary/staging)
-			shadow_url https://api.shadow.example.com
-			
-			# mroki API server
-			api_url http://localhost:8081
-			
-			# Gate ID from mroki API
-			gate_id 550e8400-e29b-41d4-a716-446655440000
+			shadow https://api.shadow.example.com
 		}
 	}
 

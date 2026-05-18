@@ -26,7 +26,7 @@ cd mroki
 go mod download
 
 # For hub development
-cd cmd/mroki-hub
+cd web/mroki-hub
 npm install
 ```
 
@@ -37,8 +37,9 @@ mroki/
 ├── cmd/                    # Executables
 │   ├── mroki-proxy/       # Agent binary
 │   ├── mroki-api/         # API binary
-│   ├── mroki-hub/         # Web UI (Vue.js)
 │   └── caddy-mroki/       # Caddy module main
+├── web/                   # Web frontends
+│   └── mroki-hub/         # Web UI (Vue.js)
 ├── internal/              # Private application code
 │   ├── application/       # CQRS commands and queries
 │   ├── domain/            # Business logic and domain models
@@ -98,7 +99,7 @@ go run .
 
 **Terminal 4: Hub** (when implemented)
 ```bash
-cd cmd/mroki-hub
+cd web/mroki-hub
 npm run dev
 ```
 
@@ -112,8 +113,7 @@ go build -o mroki-proxy ./cmd/mroki-proxy
 go build -o mroki-api ./cmd/mroki-api
 
 # Build Caddy with mroki module
-cd cmd/caddy-mroki
-go build -o caddy-mroki .
+xcaddy build --with github.com/pedrobarco/mroki/pkg/caddymodule=./pkg/caddymodule
 
 # Build all
 go build ./...

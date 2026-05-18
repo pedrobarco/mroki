@@ -83,7 +83,7 @@ graph TD
 - Framework: Vue 3 + TypeScript + Composition API + `<script setup>`
 - Build Tool: Vite
 - HTTP Client: Native `fetch()`
-- Diff Visualization: `vue-diff`
+- Diff Visualization: Custom JSON diff renderer (RFC 6902 patch operations)
 - Styling: TailwindCSS v4
 
 **Deployment:** Static SPA served via CDN or web server

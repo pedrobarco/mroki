@@ -25,8 +25,11 @@ Thanks for your interest in contributing to mroki! This guide will help you get 
    # Go
    go test -race ./...
 
-   # Hub (Vue)
-   cd web/mroki-hub && pnpm test
+   # Hub unit tests (Vue)
+   cd web/mroki-hub && pnpm run test:unit
+
+   # Hub e2e tests (Playwright)
+   cd web/mroki-hub && pnpm run test:e2e
    ```
 5. Commit using [Conventional Commits](#commit-messages)
 6. Push to your fork and open a Pull Request

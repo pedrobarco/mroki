@@ -20,15 +20,15 @@ The schema is defined via the **ent** ORM framework in `ent/schema/diff.go`.
 |---|---|---|
 | `id` | UUID | PK, immutable, auto-generated |
 | `request_id` | UUID | Unique, FK → `requests.id` |
-| `from_response_id` | UUID | Not null (no FK constraint) |
-| `to_response_id` | UUID | Not null (no FK constraint) |
+| `from_response_id` | UUID | FK → `responses.id`, Unique, Required |
+| `to_response_id` | UUID | FK → `responses.id`, Unique, Required |
 | `content` | JSON ([]diff.PatchOp) | Not null |
 | `created_at` | TIMESTAMP | Not null, auto-generated |
 
 **Key observations:**
 
 - **1:1 relationship with Request**: Enforced by the `Unique()` constraint on `request_id` and the ent edge definition. Each request has at most one diff.
-- **No formal FK on response IDs**: `from_response_id` and `to_response_id` reference the `responses` table by UUID, but are **not** declared as ent edges — they are plain UUID fields. No referential integrity enforcement or cascade behavior at the database level.
+- **FK on response IDs**: `from_response_id` and `to_response_id` are declared as proper ent edges (`from_response` and `to_response`) with `Required()` and `Unique()` constraints, providing FK constraints, eager-loading, and cascade behavior at the database level.
 - **Content is structured RFC 6902 JSON Patch**: The diff content is stored as a JSON array of `diff.PatchOp` objects, each containing `op`, `path`, and `value` fields following the RFC 6902 JSON Patch standard. This format is machine-parseable, queryable, and interoperable.
 
 ## 3. Domain Model Representation
@@ -82,9 +82,9 @@ graph LR
 
 ## 5. Recommendations
 
-### 5.1 Improve Relational Integrity (High Priority)
+### ~~5.1 Improve Relational Integrity~~ ✅ Completed
 
-`from_response_id` and `to_response_id` are plain UUID fields with no ent edges — no FK constraints, no cascade deletes, and no eager-loading. Define proper ent edges from `Diff` to `Response` to add FK constraints, enable eager-loading, and ensure cascade behavior.
+`from_response_id` and `to_response_id` now have proper ent edges (`from_response` and `to_response`) with `Required()` and `Unique()` constraints, providing FK constraints, eager-loading, and cascade behavior.
 
 ### ~~5.2 Adopt a Structured, Standard Diff Format~~ ✅ Completed
 
@@ -123,7 +123,7 @@ Diff computation now happens server-side in mroki-api during request ingest (syn
 
 | Area | Current State | Recommendation | Priority |
 |---|---|---|---|
-| Referential integrity | `from/to_response_id` are plain UUIDs | Add ent edges with FK constraints | High |
+| Referential integrity | ~~`from/to_response_id` are plain UUIDs~~ Proper ent edges with `Required()` and `Unique()` constraints | ✅ Completed | — |
 | Content format | ~~Proprietary text via `cleanReporter`~~ RFC 6902 JSON Patch (`[]diff.PatchOp`) | ✅ Completed | — |
 | Domain model | Anemic value object, no validation | Structured `DiffOp` list, domain behavior | Medium |
 | Storage bounds | Unbounded TEXT, no size limit | Cap content size, add `change_count` column | Medium |
