@@ -1,6 +1,6 @@
 # mroki Roadmap
 
-**Last Updated:** 2026-04-28
+**Last Updated:** 2026-05-18
 
 All completed, pending, and planned work for mroki. Items use a consistent format:
 - `[x]` Complete · `[ ]` Not started
@@ -83,36 +83,64 @@ Ship v1 to users — CI/CD, container images, release pipeline, and Helm charts.
 - [x] **P1** mroki-hub Dockerfile — Production container (nginx) serving the Vue SPA
 - [x] **P1** Release pipeline — Semantic versioning, git-cliff changelog, GitHub Releases
 - [x] **P1** Helm charts — Umbrella chart with subcharts (api, proxy, hub), conditional enablement, published to GHCR OCI registry
+- [ ] **P1** API versioning — Add `/v1/` prefix to all API routes (`/v1/gates`, `/v1/stats`, etc.). Must happen before wider adoption — adding versioning later is a breaking change. Proxy client updated to use versioned paths. Old unversioned routes can redirect or coexist temporarily
 
-### Phase 2: Production Hardening
+### Phase 2: Security & Data Safety
 
-Low-effort, high-value items for real-world deployments.
+Fixes and hardening required before any production deployment with real traffic.
 
-- [ ] **P2** Create PRODUCTION_READINESS.md — Pre-deployment checklist, monitoring requirements, runbook
-- [ ] **P2** Update MROKI_API.md — Production deployment, security config, performance tuning
+- [ ] **P0** Constant-time API key comparison — Replace `token != cfg.validKey` with `subtle.ConstantTimeCompare()` in `apikey.go` (timing side-channel vector, one-line fix)
+- [ ] **P0** Header scrubbing — Default scrub list (`Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`) applied to stored request/response data automatically. Per-gate config to add additional headers to scrub. Scrubbed headers also excluded from diff computation
+- [ ] **P1** Body field redaction — Two separate mechanisms: (a) per-gate `redacted_fields` config — fields removed from stored request/response data before persist (destructive); (b) existing per-gate `ignored_fields` remains diff-only (non-destructive). Distinct configs because redaction is irreversible
+- [ ] **P1** Per-gate retention — Optional `retention` field on gate schema. Cleanup job uses gate-specific value if set, falls back to global `MROKI_APP_RETENTION` default
+
+### Phase 3: Diff Engine & Accuracy
+
+Fix bugs and close gaps in what the diff engine compares and how results are surfaced.
+
+- [ ] **P0** Remove statusCode from diff wrapper — Remove `statusCode` from the synthetic JSON used for diffing (`{"headers": {...}, "body": ...}` only). Status code is already displayed as standalone metadata in the UI; including it in the diff tree is redundant
+- [ ] **P1** Non-JSON body handling — When response body isn't valid JSON, embed it as a raw string in the diff wrapper (`{"headers": {...}, "body": "<raw text>"}`). Diff engine compares it as a single string value, producing a `replace` at `/body` if different. No second diff algorithm needed — stays JSON-only throughout
+- [ ] **P1** Content-type auto-detection — Detect JSON vs non-JSON from `Content-Type` header to decide how to embed body in diff wrapper (parsed JSON object vs raw string). Binary content types skipped with metadata note
+- [ ] **P2** Regex field matching — Extend `FieldNormalizer` to accept regex patterns alongside gjson paths for `ignored_fields`/`included_fields` (e.g., `"regex:.*_at$"`, `"regex:.*timestamp.*"`). Walk JSON field paths and match against patterns, then delete/keep using existing sjson infrastructure
+
+### Phase 4: Observability
+
+Instrument mroki itself so operators can monitor, trend, and alert using standard tooling (Prometheus + Grafana + AlertManager).
+
+- [ ] **P1** Prometheus metrics — Expose `/metrics` endpoint on both proxy and API. Key metrics: `mroki_requests_total` (counter, labels: gate_id), `mroki_diffs_total` (counter, labels: gate_id), `mroki_response_latency_seconds` (histogram, labels: gate_id, response_type=live|shadow), `mroki_diff_computation_seconds` (histogram), proxy active goroutines, circuit breaker state. Enables diff rate trends, latency percentile comparison (P50/P95/P99), and alerting — all handled by external monitoring stack rather than built into mroki
+- [ ] **P2** Top changed paths — Aggregate most-diffed JSON paths across requests for a gate (e.g., "`/body/user/email` changed in 847 requests"). Application-layer aggregation parsing `Diff.Content`
+
+### Phase 5: Diff Workflow & Collaboration
+
+Enable teams to review, triage, and collaborate on diffs.
+
+- [ ] **P1** Diff review status — Add `status` enum field to Request entity (initial values: `new`, `reviewed`; enum for future extensibility). Schema change + API update (`PATCH /gates/{id}/requests/{id}`) + hub UI toggle + filter by status
+- [ ] **P2** Batch status update — Bulk update review status by filter (e.g., "mark all unreviewed requests as reviewed"). New API endpoint for bulk update
+- [ ] **P2** Diff comments — Per-operation comments tied to `diff_path` + `diff_op` (matches RFC 6902 PatchOp). New `diff_comments` table (request_id, diff_path, diff_op, comment, created_at). Hub: comment icon on each diff line in DiffViewer, click to add/view. Enables team context (e.g., "this timestamp diff is expected")
+
+### Phase 6: Production Hardening
+
+Operational items for real-world deployments at scale.
+
 - [ ] **P2** Proxy health endpoints — Add `/health/live` and `/health/ready` endpoints to mroki-proxy for Kubernetes probes
+- [ ] **P2** Bounded callback concurrency — Semaphore in proxy to limit concurrent callback goroutines (`MAX_CONCURRENT_CALLBACKS`, default 200). Drop shadow comparison with warning when full
 - [ ] **P2** Compression middleware — Gzip responses > 1KB
 - [ ] **P2** Proxy HTTP client configurability — Expose `MaxIdleConns`, `MaxIdleConnsPerHost`, `IdleConnTimeout` via env vars in `newDefaultHTTPClient()`
+- [ ] **P2** Create PRODUCTION_READINESS.md — Pre-deployment checklist, monitoring requirements, runbook
+- [ ] **P2** Update MROKI_API.md — Production deployment, security config, performance tuning
+- [ ] **P2** Non-root containers — Run all Docker images as non-root user. Small Dockerfile change, standard security practice for production
+- [ ] **P2** Container image scanning — Integrate Trivy in CI Docker workflow to fail builds on critical/high CVEs in base images
+- [ ] **P2** Full-stack integration test in CI — Docker Compose-based test in GitHub Actions that spins up proxy + API + DB, sends traffic, and validates the end-to-end diff flow works. Current CI only runs unit tests
 - [ ] **P3** Config hot-reload — Reload safe settings on SIGHUP without restart
 
-### Phase 3: Observability & Analytics
+### Phase 7: Export & Replay
 
-Make mroki more useful for ongoing monitoring and performance analysis.
+Debugging and replay workflows.
 
-- [ ] **P1** Latency analysis — P50/P95/P99 comparison between live and shadow (API endpoint + hub visualization)
-- [ ] **P2** WebSocket live feed — Real-time request stream per gate
-- [ ] **P2** Diff alerts — Configurable thresholds for diff rate alerts
-- [ ] **P3** Webhook notifications — Notify external systems on diffs or error spikes
+- [ ] **P2** HAR export — Export individual request as `.har` file (HTTP Archive format) from hub. New API endpoint + hub button alongside existing "Export JSON". Portable to Chrome DevTools, Postman, Charles Proxy
+- [ ] **P2** Request replay — Hub "Replay" button prompts user for proxy URL, then sends stored request (method, path, headers, body) to that URL. Creates a new captured request through the normal proxy flow. No schema change needed — proxy URL provided at replay time
 
-### Phase 4: Export & Tooling
-
-Power-user features for debugging workflows.
-
-- [ ] **P2** Bulk export — `GET /gates/{id}/requests/export?format=json`
-- [ ] **P2** HAR export — Export in HTTP Archive format
-- [ ] **P3** Request replay — Resend captured requests to live or shadow endpoints
-
-### Phase 5: Auth & Multi-tenancy
+### Phase 8: Auth & Multi-tenancy
 
 Required if mroki becomes a shared or hosted tool.
 
