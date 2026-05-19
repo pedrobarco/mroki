@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -82,13 +83,31 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		return nil, err
 	}
 
-	// Parse and create live response
+	// Fetch gate for scrub config and diff config
+	gate, gateErr := h.gateRepo.GetByID(ctx, gateID)
+	if gateErr != nil && !errors.Is(gateErr, traffictesting.ErrGateNotFound) {
+		return nil, fmt.Errorf("failed to fetch gate: %w", gateErr)
+	}
+
+	// Scrub sensitive headers before building domain objects
+	var scrubConfig traffictesting.ScrubConfig
+	if gateErr == nil {
+		scrubConfig = gate.ScrubConfig
+	} else {
+		scrubConfig = traffictesting.DefaultScrubConfig()
+	}
+	headerNames := scrubConfig.HeaderNames()
+	cmd.Headers = traffictesting.NewHeaders(cmd.Headers).Scrub(headerNames).HTTPHeader()
+	cmd.LiveResponse.Headers = traffictesting.NewHeaders(cmd.LiveResponse.Headers).Scrub(headerNames).HTTPHeader()
+	cmd.ShadowResponse.Headers = traffictesting.NewHeaders(cmd.ShadowResponse.Headers).Scrub(headerNames).HTTPHeader()
+
+	// Parse and create live response (with already-scrubbed headers)
 	live, err := buildResponse(cmd.LiveResponse)
 	if err != nil {
 		return nil, fmt.Errorf("live response: %w", err)
 	}
 
-	// Parse and create shadow response
+	// Parse and create shadow response (with already-scrubbed headers)
 	shadow, err := buildResponse(cmd.ShadowResponse)
 	if err != nil {
 		return nil, fmt.Errorf("shadow response: %w", err)
@@ -99,10 +118,8 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	if cmd.Diff != nil {
 		diffContent = cmd.Diff.Content
 	} else {
-		// Fetch gate's diff config for server-side computation
 		var diffOpts []diff.Option
-		gate, err := h.gateRepo.GetByID(ctx, gateID)
-		if err == nil {
+		if gateErr == nil {
 			diffOpts = gate.DiffConfig.ToDiffOptions()
 		}
 

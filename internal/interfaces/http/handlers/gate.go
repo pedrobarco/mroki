@@ -228,8 +228,9 @@ func UpdateGate(handler *commands.UpdateGateHandler) AppHandler {
 		}
 
 		var req struct {
-			Name       *string         `json:"name"`
-			DiffConfig *dto.DiffConfig `json:"diff_config"`
+			Name        *string          `json:"name"`
+			DiffConfig  *dto.DiffConfig  `json:"diff_config"`
+			ScrubConfig *dto.ScrubConfig `json:"scrub_config"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -249,6 +250,12 @@ func UpdateGate(handler *commands.UpdateGateHandler) AppHandler {
 			}
 		}
 
+		if req.ScrubConfig != nil {
+			cmd.ScrubConfig = &commands.UpdateScrubConfigProps{
+				AdditionalFields: req.ScrubConfig.AdditionalFields,
+			}
+		}
+
 		gate, err := handler.Handle(r.Context(), cmd)
 		if err != nil {
 			switch {
@@ -260,6 +267,8 @@ func UpdateGate(handler *commands.UpdateGateHandler) AppHandler {
 				return dto.InvalidGateName(err)
 			case errors.Is(err, traffictesting.ErrInvalidDiffConfig):
 				return dto.InvalidDiffConfig(err)
+			case errors.Is(err, traffictesting.ErrInvalidScrubConfig):
+				return dto.InvalidScrubConfig(err)
 			case errors.Is(err, traffictesting.ErrDuplicateGateName):
 				return dto.DuplicateGateName(err)
 			default:
@@ -302,6 +311,9 @@ func mapGateToDTO(gws *queries.GateWithStats) dto.Gate {
 			IgnoredFields:  gws.Gate.DiffConfig.IgnoredFields,
 			IncludedFields: gws.Gate.DiffConfig.IncludedFields,
 			FloatTolerance: gws.Gate.DiffConfig.FloatTolerance,
+		},
+		ScrubConfig: dto.ScrubConfig{
+			AdditionalFields: gws.Gate.ScrubConfig.AdditionalFields,
 		},
 		CreatedAt: gws.Gate.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Stats: dto.GateStats{

@@ -14,6 +14,7 @@ import (
 
 	"github.com/pedrobarco/mroki/cmd/mroki-proxy/config"
 	"github.com/pedrobarco/mroki/cmd/mroki-proxy/handlers"
+	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/client"
 	"github.com/pedrobarco/mroki/pkg/client/transport"
 	"github.com/pedrobarco/mroki/pkg/diff"
@@ -125,6 +126,12 @@ func main() {
 
 	if cfg.App.DiffFloatTolerance > 0 {
 		diffOpts = append(diffOpts, diff.WithFloatTolerance(cfg.App.DiffFloatTolerance))
+	}
+
+	// Add scrub fields as ignored diff fields (prevents diff noise from scrubbed headers)
+	scrubCfg, _ := traffictesting.NewScrubConfig(cfg.App.ScrubFields)
+	for _, f := range scrubCfg.AllFields() {
+		diffOpts = append(diffOpts, diff.WithIgnoredFields(f))
 	}
 
 	log.Debug("Diff options configured",

@@ -10,9 +10,10 @@ import (
 // UpdateGateCommand represents the intent to update an existing gate.
 // All fields are optional — only non-nil fields are applied.
 type UpdateGateCommand struct {
-	ID             string
-	Name           *string
-	DiffConfig     *UpdateDiffConfigProps
+	ID          string
+	Name        *string
+	DiffConfig  *UpdateDiffConfigProps
+	ScrubConfig *UpdateScrubConfigProps
 }
 
 // UpdateDiffConfigProps holds the diff configuration fields for update.
@@ -20,6 +21,11 @@ type UpdateDiffConfigProps struct {
 	IgnoredFields  []string
 	IncludedFields []string
 	FloatTolerance float64
+}
+
+// UpdateScrubConfigProps holds the scrub configuration fields for update.
+type UpdateScrubConfigProps struct {
+	AdditionalFields []string
 }
 
 // UpdateGateHandler handles the UpdateGate command
@@ -66,6 +72,15 @@ func (h *UpdateGateHandler) Handle(ctx context.Context, cmd UpdateGateCommand) (
 			return nil, err
 		}
 		gate.DiffConfig = diffConfig
+	}
+
+	// Apply scrub config if provided
+	if cmd.ScrubConfig != nil {
+		scrubConfig, err := traffictesting.NewScrubConfig(cmd.ScrubConfig.AdditionalFields)
+		if err != nil {
+			return nil, err
+		}
+		gate.ScrubConfig = scrubConfig
 	}
 
 	// Persist

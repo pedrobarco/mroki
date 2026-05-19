@@ -29,6 +29,8 @@ const (
 	FieldDiffIncludedFields = "diff_included_fields"
 	// FieldDiffFloatTolerance holds the string denoting the diff_float_tolerance field in the database.
 	FieldDiffFloatTolerance = "diff_float_tolerance"
+	// FieldScrubFields holds the string denoting the scrub_fields field in the database.
+	FieldScrubFields = "scrub_fields"
 	// EdgeRequests holds the string denoting the requests edge name in mutations.
 	EdgeRequests = "requests"
 	// Table holds the table name of the gate in the database.
@@ -52,6 +54,7 @@ var Columns = []string{
 	FieldDiffIgnoredFields,
 	FieldDiffIncludedFields,
 	FieldDiffFloatTolerance,
+	FieldScrubFields,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).

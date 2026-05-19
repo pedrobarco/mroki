@@ -44,10 +44,20 @@ func mapGateToDomain(raw *ent.Gate) (*traffictesting.Gate, error) {
 		return nil, fmt.Errorf("invalid diff config in database: %w", err)
 	}
 
+	scrubFields := raw.ScrubFields
+	if scrubFields == nil {
+		scrubFields = []string{}
+	}
+	scrubConfig, err := traffictesting.NewScrubConfig(scrubFields)
+	if err != nil {
+		return nil, fmt.Errorf("invalid scrub config in database: %w", err)
+	}
+
 	return traffictesting.NewGate(name, live, shadow,
 		traffictesting.WithGateID(id),
 		traffictesting.WithGateCreatedAt(raw.CreatedAt),
 		traffictesting.WithGateDiffConfig(diffConfig),
+		traffictesting.WithGateScrubConfig(scrubConfig),
 	)
 }
 

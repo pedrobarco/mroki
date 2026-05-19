@@ -761,6 +761,8 @@ type GateMutation struct {
 	appenddiff_included_fields []string
 	diff_float_tolerance       *float64
 	adddiff_float_tolerance    *float64
+	scrub_fields               *[]string
+	appendscrub_fields         []string
 	clearedFields              map[string]struct{}
 	requests                   map[uuid.UUID]struct{}
 	removedrequests            map[uuid.UUID]struct{}
@@ -1218,6 +1220,71 @@ func (m *GateMutation) ResetDiffFloatTolerance() {
 	delete(m.clearedFields, gate.FieldDiffFloatTolerance)
 }
 
+// SetScrubFields sets the "scrub_fields" field.
+func (m *GateMutation) SetScrubFields(s []string) {
+	m.scrub_fields = &s
+	m.appendscrub_fields = nil
+}
+
+// ScrubFields returns the value of the "scrub_fields" field in the mutation.
+func (m *GateMutation) ScrubFields() (r []string, exists bool) {
+	v := m.scrub_fields
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScrubFields returns the old "scrub_fields" field's value of the Gate entity.
+// If the Gate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GateMutation) OldScrubFields(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScrubFields is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScrubFields requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScrubFields: %w", err)
+	}
+	return oldValue.ScrubFields, nil
+}
+
+// AppendScrubFields adds s to the "scrub_fields" field.
+func (m *GateMutation) AppendScrubFields(s []string) {
+	m.appendscrub_fields = append(m.appendscrub_fields, s...)
+}
+
+// AppendedScrubFields returns the list of values that were appended to the "scrub_fields" field in this mutation.
+func (m *GateMutation) AppendedScrubFields() ([]string, bool) {
+	if len(m.appendscrub_fields) == 0 {
+		return nil, false
+	}
+	return m.appendscrub_fields, true
+}
+
+// ClearScrubFields clears the value of the "scrub_fields" field.
+func (m *GateMutation) ClearScrubFields() {
+	m.scrub_fields = nil
+	m.appendscrub_fields = nil
+	m.clearedFields[gate.FieldScrubFields] = struct{}{}
+}
+
+// ScrubFieldsCleared returns if the "scrub_fields" field was cleared in this mutation.
+func (m *GateMutation) ScrubFieldsCleared() bool {
+	_, ok := m.clearedFields[gate.FieldScrubFields]
+	return ok
+}
+
+// ResetScrubFields resets all changes to the "scrub_fields" field.
+func (m *GateMutation) ResetScrubFields() {
+	m.scrub_fields = nil
+	m.appendscrub_fields = nil
+	delete(m.clearedFields, gate.FieldScrubFields)
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by ids.
 func (m *GateMutation) AddRequestIDs(ids ...uuid.UUID) {
 	if m.requests == nil {
@@ -1306,7 +1373,7 @@ func (m *GateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GateMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.name != nil {
 		fields = append(fields, gate.FieldName)
 	}
@@ -1327,6 +1394,9 @@ func (m *GateMutation) Fields() []string {
 	}
 	if m.diff_float_tolerance != nil {
 		fields = append(fields, gate.FieldDiffFloatTolerance)
+	}
+	if m.scrub_fields != nil {
+		fields = append(fields, gate.FieldScrubFields)
 	}
 	return fields
 }
@@ -1350,6 +1420,8 @@ func (m *GateMutation) Field(name string) (ent.Value, bool) {
 		return m.DiffIncludedFields()
 	case gate.FieldDiffFloatTolerance:
 		return m.DiffFloatTolerance()
+	case gate.FieldScrubFields:
+		return m.ScrubFields()
 	}
 	return nil, false
 }
@@ -1373,6 +1445,8 @@ func (m *GateMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldDiffIncludedFields(ctx)
 	case gate.FieldDiffFloatTolerance:
 		return m.OldDiffFloatTolerance(ctx)
+	case gate.FieldScrubFields:
+		return m.OldScrubFields(ctx)
 	}
 	return nil, fmt.Errorf("unknown Gate field %s", name)
 }
@@ -1431,6 +1505,13 @@ func (m *GateMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDiffFloatTolerance(v)
 		return nil
+	case gate.FieldScrubFields:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScrubFields(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Gate field %s", name)
 }
@@ -1485,6 +1566,9 @@ func (m *GateMutation) ClearedFields() []string {
 	if m.FieldCleared(gate.FieldDiffFloatTolerance) {
 		fields = append(fields, gate.FieldDiffFloatTolerance)
 	}
+	if m.FieldCleared(gate.FieldScrubFields) {
+		fields = append(fields, gate.FieldScrubFields)
+	}
 	return fields
 }
 
@@ -1507,6 +1591,9 @@ func (m *GateMutation) ClearField(name string) error {
 		return nil
 	case gate.FieldDiffFloatTolerance:
 		m.ClearDiffFloatTolerance()
+		return nil
+	case gate.FieldScrubFields:
+		m.ClearScrubFields()
 		return nil
 	}
 	return fmt.Errorf("unknown Gate nullable field %s", name)
@@ -1536,6 +1623,9 @@ func (m *GateMutation) ResetField(name string) error {
 		return nil
 	case gate.FieldDiffFloatTolerance:
 		m.ResetDiffFloatTolerance()
+		return nil
+	case gate.FieldScrubFields:
+		m.ResetScrubFields()
 		return nil
 	}
 	return fmt.Errorf("unknown Gate field %s", name)

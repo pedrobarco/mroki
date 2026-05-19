@@ -263,6 +263,22 @@ func InvalidDiffConfig(err error) *APIError {
 	)
 }
 
+// InvalidScrubConfig returns an RFC 7807 error for invalid scrub configuration.
+// Used when scrub_config fields are invalid (e.g., empty field paths).
+func InvalidScrubConfig(err error) *APIError {
+	detail := "scrub_config is invalid"
+	if err != nil {
+		detail = fmt.Sprintf("%s: %v", detail, err)
+	}
+	return NewError(
+		http.StatusBadRequest,
+		ErrorTypeInvalidRequestBody,
+		"Invalid Scrub Config",
+		detail,
+		err,
+	)
+}
+
 // DuplicateGateURLs returns an RFC 7807 error for duplicate gate URL pairs.
 // Used when a gate with the same live_url + shadow_url combination already exists.
 func DuplicateGateURLs(err error) *APIError {

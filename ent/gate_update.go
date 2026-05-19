@@ -107,6 +107,24 @@ func (_u *GateUpdate) ClearDiffFloatTolerance() *GateUpdate {
 	return _u
 }
 
+// SetScrubFields sets the "scrub_fields" field.
+func (_u *GateUpdate) SetScrubFields(v []string) *GateUpdate {
+	_u.mutation.SetScrubFields(v)
+	return _u
+}
+
+// AppendScrubFields appends value to the "scrub_fields" field.
+func (_u *GateUpdate) AppendScrubFields(v []string) *GateUpdate {
+	_u.mutation.AppendScrubFields(v)
+	return _u
+}
+
+// ClearScrubFields clears the value of the "scrub_fields" field.
+func (_u *GateUpdate) ClearScrubFields() *GateUpdate {
+	_u.mutation.ClearScrubFields()
+	return _u
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by IDs.
 func (_u *GateUpdate) AddRequestIDs(ids ...uuid.UUID) *GateUpdate {
 	_u.mutation.AddRequestIDs(ids...)
@@ -230,6 +248,17 @@ func (_u *GateUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DiffFloatToleranceCleared() {
 		_spec.ClearField(gate.FieldDiffFloatTolerance, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.ScrubFields(); ok {
+		_spec.SetField(gate.FieldScrubFields, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedScrubFields(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, gate.FieldScrubFields, value)
+		})
+	}
+	if _u.mutation.ScrubFieldsCleared() {
+		_spec.ClearField(gate.FieldScrubFields, field.TypeJSON)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -370,6 +399,24 @@ func (_u *GateUpdateOne) AddDiffFloatTolerance(v float64) *GateUpdateOne {
 // ClearDiffFloatTolerance clears the value of the "diff_float_tolerance" field.
 func (_u *GateUpdateOne) ClearDiffFloatTolerance() *GateUpdateOne {
 	_u.mutation.ClearDiffFloatTolerance()
+	return _u
+}
+
+// SetScrubFields sets the "scrub_fields" field.
+func (_u *GateUpdateOne) SetScrubFields(v []string) *GateUpdateOne {
+	_u.mutation.SetScrubFields(v)
+	return _u
+}
+
+// AppendScrubFields appends value to the "scrub_fields" field.
+func (_u *GateUpdateOne) AppendScrubFields(v []string) *GateUpdateOne {
+	_u.mutation.AppendScrubFields(v)
+	return _u
+}
+
+// ClearScrubFields clears the value of the "scrub_fields" field.
+func (_u *GateUpdateOne) ClearScrubFields() *GateUpdateOne {
+	_u.mutation.ClearScrubFields()
 	return _u
 }
 
@@ -526,6 +573,17 @@ func (_u *GateUpdateOne) sqlSave(ctx context.Context) (_node *Gate, err error) {
 	}
 	if _u.mutation.DiffFloatToleranceCleared() {
 		_spec.ClearField(gate.FieldDiffFloatTolerance, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.ScrubFields(); ok {
+		_spec.SetField(gate.FieldScrubFields, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedScrubFields(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, gate.FieldScrubFields, value)
+		})
+	}
+	if _u.mutation.ScrubFieldsCleared() {
+		_spec.ClearField(gate.FieldScrubFields, field.TypeJSON)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{
