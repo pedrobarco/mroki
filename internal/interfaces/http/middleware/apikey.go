@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"errors"
 	"net/http"
 	"strings"
@@ -69,7 +70,7 @@ func APIKeyAuth(validKey string, opts ...APIKeyAuthOption) Middleware {
 				return
 			}
 
-			if token != cfg.validKey {
+			if subtle.ConstantTimeCompare([]byte(token), []byte(cfg.validKey)) != 1 {
 				cfg.onAuthError(w, r, ErrInvalidAPIKey)
 				return
 			}
