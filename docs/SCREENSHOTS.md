@@ -20,11 +20,11 @@ Browse captured requests for a gate. Filter by HTTP method or path, and see at a
 
 ![Gate Detail](assets/screenshots/hub-gate-detail.png)
 
-## Gate Configuration
+## Gate Settings
 
-Configure diff behavior per gate — set ignored fields (JSON paths excluded from diffs), included fields (restrict diffs to specific paths), and float tolerance for numeric comparisons.
+Configure security and diff behavior per gate. Header scrubbing replaces sensitive values with `[REDACTED]` before storage — default fields are always active, and you can add per-gate fields using gjson path notation. Diff configuration controls ignored fields, included fields, and float tolerance for numeric comparisons.
 
-![Gate Configuration](assets/screenshots/hub-gate-config.png)
+![Gate Settings](assets/screenshots/hub-gate-settings.png)
 
 ## Request Detail — Unified Diff
 

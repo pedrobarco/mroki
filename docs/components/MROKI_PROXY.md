@@ -146,6 +146,27 @@ MROKI_APP_WRITE_TIMEOUT=60s   # default: 60s — must be >= LIVE_TIMEOUT
 MROKI_APP_IDLE_TIMEOUT=120s   # default: 120s
 ```
 
+### Header Scrubbing (Optional)
+
+Sensitive header values are replaced with `[REDACTED]` before storage or diff computation. A default set of headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) is always scrubbed. Use this option to add extra headers to the scrub list.
+
+In **API mode**, scrub configuration is loaded from the gate's `scrub_config` in mroki-api. In **Standalone mode**, use the environment variable below.
+
+#### `MROKI_APP_SCRUB_FIELDS`
+
+Comma-separated list of additional fields to scrub, using gjson path notation.
+
+**Examples:**
+```bash
+# Add internal auth headers
+MROKI_APP_SCRUB_FIELDS="headers.X-Internal-Token,headers.X-Session-Id"
+
+# Add body fields
+MROKI_APP_SCRUB_FIELDS="headers.X-Internal-Token,body.user.password"
+```
+
+> **Note:** Scrubbed fields are also automatically excluded from diff computation to avoid false positives.
+
 ### Diff Configuration (Optional)
 
 Configure how responses are compared. These options only apply in **Standalone mode** — in API mode, diff computation is handled server-side by mroki-api.
@@ -666,7 +687,7 @@ MROKI_APP_SHADOW_TIMEOUT=30s
 - Use TLS for proxy→API communication
 - Deploy in isolated network (Kubernetes sidecar pattern)
 - Review data retention and PII policies
-- Consider sensitive header redaction
+- Header scrubbing is enabled by default for `Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key` — configure additional fields per gate or via `MROKI_APP_SCRUB_FIELDS`
 
 ## Related Documentation
 

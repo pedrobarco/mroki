@@ -1,39 +1,41 @@
 import { ref } from 'vue'
-import { getGate } from '@/api'
 import type { Gate } from '@/api'
 
 const cachedGate = ref<Gate | null>(null)
 
 /**
- * Simple gate cache composable.
+ * Pure in-memory gate cache composable.
  *
- * GateDetail sets the cache on load. RequestDetail reads it — if the
- * gate ID matches, no extra API call is made. On a direct deep-link
- * to a request, it falls back to fetching.
+ * Pages that always need fresh stats (GateDetail) should fetch from
+ * the API and call `setGate` to populate the cache. Pages that only
+ * need config data (GateSettings, RequestDetail) can use
+ * `getCachedGate` for an instant synchronous lookup and fall back to
+ * a fetch only on a cache miss.
+ *
+ * The composable never makes API calls — callers own the fetch logic.
  */
 export function useGateCache() {
+  /** Write a gate into the cache, replacing any previously cached gate. */
   function setGate(gate: Gate) {
     cachedGate.value = gate
   }
 
-  async function getGateById(id: string): Promise<Gate> {
-    if (cachedGate.value?.id === id) {
-      return cachedGate.value
-    }
-
-    const response = await getGate(id)
-    cachedGate.value = response.data
-    return response.data
+  /**
+   * Synchronous cache lookup. Returns the cached gate if its ID matches,
+   * or null if the cache is empty / holds a different gate.
+   */
+  function getCachedGate(id: string): Gate | null {
+    return cachedGate.value?.id === id ? cachedGate.value : null
   }
 
+  /** Clear the cache (e.g. on gate deletion). */
   function clearCache() {
     cachedGate.value = null
   }
 
   return {
-    cachedGate,
     setGate,
-    getGateById,
+    getCachedGate,
     clearCache,
   }
 }

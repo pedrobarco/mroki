@@ -213,6 +213,9 @@ curl -H "Authorization: Bearer your-api-key" \
       "included_fields": [],
       "float_tolerance": 0
     },
+    "scrub_config": {
+      "additional_fields": []
+    },
     "created_at": "2026-03-29T09:00:00Z",
     "stats": {
       "request_count_24h": 0,
@@ -224,7 +227,7 @@ curl -H "Authorization: Bearer your-api-key" \
 }
 ```
 
-> **Note:** Newly created gates have zero stats and default diff config. Stats are populated as requests are captured.
+> **Note:** Newly created gates have zero stats, default diff config, and empty scrub config. Stats are populated as requests are captured. Default scrub fields (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are always applied — `scrub_config.additional_fields` adds per-gate fields on top.
 
 **Error Response Examples:**
 ```json
@@ -295,6 +298,9 @@ curl -X POST http://localhost:8090/gates \
       "ignored_fields": ["timestamp", "request_id"],
       "included_fields": [],
       "float_tolerance": 0.001
+    },
+    "scrub_config": {
+      "additional_fields": ["headers.X-Internal-Token"]
     },
     "created_at": "2026-03-29T09:00:00Z",
     "stats": {
@@ -367,6 +373,9 @@ curl -H "Authorization: Bearer your-api-key" \
         "included_fields": [],
         "float_tolerance": 0.001
       },
+      "scrub_config": {
+        "additional_fields": ["headers.X-Internal-Token"]
+      },
       "created_at": "2026-03-29T09:00:00Z",
       "stats": {
         "request_count_24h": 5241,
@@ -384,6 +393,9 @@ curl -H "Authorization: Bearer your-api-key" \
         "ignored_fields": [],
         "included_fields": [],
         "float_tolerance": 0
+      },
+      "scrub_config": {
+        "additional_fields": []
       },
       "created_at": "2026-03-28T14:30:00Z",
       "stats": {
@@ -430,7 +442,7 @@ curl -H "Authorization: Bearer your-api-key" \
 
 #### PATCH /gates/:gate_id
 
-**Purpose:** Update a gate's name and/or diff configuration
+**Purpose:** Update a gate's name, diff configuration, and/or scrub configuration
 
 **Path Parameters:**
 - `gate_id` (UUID) - Gate identifier
@@ -443,6 +455,9 @@ curl -H "Authorization: Bearer your-api-key" \
     "ignored_fields": ["timestamp", "request_id"],
     "included_fields": [],
     "float_tolerance": 0.001
+  },
+  "scrub_config": {
+    "additional_fields": ["headers.X-Internal-Token", "headers.X-Session-Id"]
   }
 }
 ```
@@ -452,6 +467,7 @@ curl -H "Authorization: Bearer your-api-key" \
 - `diff_config.ignored_fields` entries must be non-empty strings (supports wildcards)
 - `diff_config.included_fields` entries must be non-empty strings (supports wildcards)
 - `diff_config.float_tolerance` must be non-negative
+- `scrub_config.additional_fields` entries must be non-empty strings (gjson path notation)
 
 **Response:**
 - `200 OK` on success
@@ -471,6 +487,9 @@ curl -H "Authorization: Bearer your-api-key" \
       "ignored_fields": ["timestamp", "request_id"],
       "included_fields": [],
       "float_tolerance": 0.001
+    },
+    "scrub_config": {
+      "additional_fields": ["headers.X-Internal-Token", "headers.X-Session-Id"]
     },
     "created_at": "2026-03-29T09:00:00Z",
     "stats": {

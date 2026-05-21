@@ -1,14 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { useGateCache } from './use-gate-cache'
 import type { Gate } from '@/api'
-
-vi.mock('@/api', () => ({
-  getGate: vi.fn(),
-}))
-
-import { getGate } from '@/api'
-
-const mockedGetGate = vi.mocked(getGate)
 
 function makeGate(overrides: Partial<Gate> = {}): Gate {
   return {
@@ -20,6 +12,9 @@ function makeGate(overrides: Partial<Gate> = {}): Gate {
       ignored_fields: [],
       included_fields: [],
       float_tolerance: 0,
+    },
+    scrub_config: {
+      additional_fields: [],
     },
     created_at: '2026-03-29T09:00:00Z',
     stats: {
@@ -36,81 +31,81 @@ describe('useGateCache', () => {
   beforeEach(() => {
     const { clearCache } = useGateCache()
     clearCache()
-    vi.clearAllMocks()
   })
 
-  it('setGate caches the gate', () => {
-    const { setGate, cachedGate } = useGateCache()
-    const gate = makeGate()
-
-    setGate(gate)
-
-    expect(cachedGate.value).toEqual(gate)
+  it('getCachedGate returns null when cache is empty', () => {
+    const { getCachedGate } = useGateCache()
+    expect(getCachedGate('gate-1')).toBeNull()
   })
 
-  it('getGateById returns cached gate without API call when ID matches', async () => {
-    const { setGate, getGateById } = useGateCache()
+  it('getCachedGate returns the gate when ID matches', () => {
+    const { setGate, getCachedGate } = useGateCache()
     const gate = makeGate({ id: 'gate-1' })
+
     setGate(gate)
 
-    const result = await getGateById('gate-1')
-
-    expect(result).toEqual(gate)
-    expect(mockedGetGate).not.toHaveBeenCalled()
+    expect(getCachedGate('gate-1')).toEqual(gate)
   })
 
-  it('getGateById fetches from API when cache is empty', async () => {
-    const { getGateById } = useGateCache()
-    const gate = makeGate({ id: 'gate-2' })
-    mockedGetGate.mockResolvedValue({ data: gate })
+  it('getCachedGate returns null when cached ID does not match', () => {
+    const { setGate, getCachedGate } = useGateCache()
+    setGate(makeGate({ id: 'gate-1' }))
 
-    const result = await getGateById('gate-2')
-
-    expect(result).toEqual(gate)
-    expect(mockedGetGate).toHaveBeenCalledWith('gate-2')
-    expect(mockedGetGate).toHaveBeenCalledTimes(1)
+    expect(getCachedGate('gate-2')).toBeNull()
   })
 
-  it('getGateById fetches from API when cached ID does not match', async () => {
-    const { setGate, getGateById } = useGateCache()
-    const cachedGate = makeGate({ id: 'gate-1' })
-    setGate(cachedGate)
+  it('setGate replaces previously cached gate', () => {
+    const { setGate, getCachedGate } = useGateCache()
+    setGate(makeGate({ id: 'gate-1', name: 'first' }))
+    setGate(makeGate({ id: 'gate-2', name: 'second' }))
 
-    const newGate = makeGate({ id: 'gate-3', name: 'other-gate' })
-    mockedGetGate.mockResolvedValue({ data: newGate })
-
-    const result = await getGateById('gate-3')
-
-    expect(result).toEqual(newGate)
-    expect(mockedGetGate).toHaveBeenCalledWith('gate-3')
+    expect(getCachedGate('gate-1')).toBeNull()
+    expect(getCachedGate('gate-2')?.name).toBe('second')
   })
 
-  it('getGateById updates cache after fetching', async () => {
-    const { getGateById, cachedGate } = useGateCache()
-    const gate = makeGate({ id: 'gate-4', name: 'fetched-gate' })
-    mockedGetGate.mockResolvedValue({ data: gate })
-
-    await getGateById('gate-4')
-
-    expect(cachedGate.value).toEqual(gate)
-  })
-
-  it('clearCache resets the cached gate to null', () => {
-    const { setGate, clearCache, cachedGate } = useGateCache()
-    setGate(makeGate())
+  it('clearCache resets the cache', () => {
+    const { setGate, getCachedGate, clearCache } = useGateCache()
+    setGate(makeGate({ id: 'gate-1' }))
 
     clearCache()
 
-    expect(cachedGate.value).toBeNull()
+    expect(getCachedGate('gate-1')).toBeNull()
   })
 
-  it('cache is shared across multiple useGateCache calls', () => {
+  it('cache is shared across multiple useGateCache calls (module-level singleton)', () => {
     const instance1 = useGateCache()
     const instance2 = useGateCache()
     const gate = makeGate()
 
     instance1.setGate(gate)
 
-    expect(instance2.cachedGate.value).toEqual(gate)
+    expect(instance2.getCachedGate(gate.id)).toEqual(gate)
+  })
+
+  it('getCachedGate returns the cached data (not a copy)', () => {
+    const { setGate, getCachedGate } = useGateCache()
+    const gate = makeGate({ id: 'gate-1' })
+
+    setGate(gate)
+
+    const cached = getCachedGate('gate-1')
+    expect(cached).toStrictEqual(gate)
+    // Mutating the cache result should be reflected in subsequent lookups
+    // (proves it's the same underlying reactive data, not a deep clone)
+    if (cached) {
+      cached.name = 'mutated'
+      expect(getCachedGate('gate-1')?.name).toBe('mutated')
+    }
+  })
+
+  it('does not expose cachedGate ref directly', () => {
+    const cache = useGateCache()
+    // The refactored API should not leak the internal ref
+    expect(cache).not.toHaveProperty('cachedGate')
+  })
+
+  it('does not expose getGateById (no async fetch)', () => {
+    const cache = useGateCache()
+    expect(cache).not.toHaveProperty('getGateById')
   })
 })

@@ -57,23 +57,19 @@ test.describe('@screenshots', () => {
     await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-gate-detail.png'), fullPage: true })
   })
 
-  test('hub-gate-config', async ({ page }) => {
+  test('hub-gate-settings', async ({ page }) => {
     expect(seed).not.toBeNull()
     const { gate } = seed!.ordersGate
 
-    await page.goto(`/gates/${gate.id}`)
-    await expect(page.getByText(gate.id)).toBeVisible()
-
-    // Open the Configure dialog
-    await page.getByRole('button', { name: /configure/i }).click()
-    await expect(page.getByRole('heading', { name: 'Configure Gate' })).toBeVisible()
-    await page.waitForTimeout(300)
-
-    // Fill in diff config fields so the screenshot shows them populated
-    await page.getByLabel('Ignored Fields').fill('timestamp, request_id, trace_id')
-    await page.getByLabel('Float Tolerance').fill('0.001')
-
-    await page.screenshot({ path: path.join(ASSETS_DIR, 'hub-gate-config.png'), fullPage: true })
+    // Navigate directly to the settings page — seed already configured
+    // scrub and diff fields on the orders gate
+    await page.goto(`/gates/${gate.id}/settings`)
+    await expect(page.getByText('Gate Settings')).toBeVisible()
+    await page.waitForTimeout(500)
+    await page.screenshot({
+      path: path.join(ASSETS_DIR, 'hub-gate-settings.png'),
+      fullPage: true,
+    })
   })
 
   test('hub-request-detail-unified', async ({ page }) => {
