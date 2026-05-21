@@ -90,7 +90,7 @@ Ship v1 to users — CI/CD, container images, release pipeline, and Helm charts.
 Fixes and hardening required before any production deployment with real traffic.
 
 - [x] **P0** Constant-time API key comparison — Replace `token != cfg.validKey` with `subtle.ConstantTimeCompare()` in `apikey.go` (timing side-channel vector, one-line fix)
-- [ ] **P0** Header scrubbing — Default scrub list (`Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`) applied to stored request/response data automatically. Per-gate config to add additional headers to scrub. Scrubbed headers also excluded from diff computation
+- [x] **P0** Header scrubbing — Default scrub list (`Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`) applied to stored request/response data automatically. Per-gate config to add additional headers to scrub. Scrubbed headers also excluded from diff computation
 - [ ] **P1** Body field redaction — Two separate mechanisms: (a) per-gate `redacted_fields` config — fields removed from stored request/response data before persist (destructive); (b) existing per-gate `ignored_fields` remains diff-only (non-destructive). Distinct configs because redaction is irreversible
 - [ ] **P1** Per-gate retention — Optional `retention` field on gate schema. Cleanup job uses gate-specific value if set, falls back to global `MROKI_APP_RETENTION` default
 

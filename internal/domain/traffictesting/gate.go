@@ -3,12 +3,13 @@ package traffictesting
 import "time"
 
 type Gate struct {
-	ID         GateID
-	Name       GateName
-	LiveURL    GateURL
-	ShadowURL  GateURL
-	DiffConfig DiffConfig
-	CreatedAt  time.Time
+	ID          GateID
+	Name        GateName
+	LiveURL     GateURL
+	ShadowURL   GateURL
+	DiffConfig  DiffConfig
+	ScrubConfig ScrubConfig
+	CreatedAt   time.Time
 }
 
 type gateOption func(*Gate)
@@ -31,12 +32,19 @@ func WithGateDiffConfig(dc DiffConfig) gateOption {
 	}
 }
 
+func WithGateScrubConfig(sc ScrubConfig) gateOption {
+	return func(g *Gate) {
+		g.ScrubConfig = sc
+	}
+}
+
 func NewGate(name GateName, live, shadow GateURL, opts ...gateOption) (*Gate, error) {
 	gate := &Gate{
-		Name:       name,
-		LiveURL:    live,
-		ShadowURL:  shadow,
-		DiffConfig: DefaultDiffConfig(),
+		Name:        name,
+		LiveURL:     live,
+		ShadowURL:   shadow,
+		DiffConfig:  DefaultDiffConfig(),
+		ScrubConfig: DefaultScrubConfig(),
 	}
 
 	for _, o := range opts {

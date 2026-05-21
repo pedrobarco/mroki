@@ -15,6 +15,7 @@ import (
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/dto"
+	"github.com/stretchr/testify/assert"
 )
 
 // mockGateRepository implements traffictesting.GateRepository for testing
@@ -906,6 +907,57 @@ func TestUpdateGate_Success_DiffConfig(t *testing.T) {
 	if response.Data.DiffConfig.FloatTolerance != 0.001 {
 		t.Errorf("expected float tolerance 0.001, got %f", response.Data.DiffConfig.FloatTolerance)
 	}
+}
+
+func TestUpdateGate_Success_ScrubConfig(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+	name, _ := traffictesting.ParseGateName("scrub-gate")
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	existingGate, _ := traffictesting.NewGate(name, liveURL, shadowURL, traffictesting.WithGateID(gateID))
+
+	var updatedGate *traffictesting.Gate
+	repo := &mockGateRepository{
+		getByIDFunc: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			return existingGate, nil
+		},
+		updateFunc: func(ctx context.Context, gate *traffictesting.Gate) error {
+			updatedGate = gate
+			return nil
+		},
+	}
+	handler := commands.NewUpdateGateHandler(repo)
+
+	body := `{"scrub_config":{"additional_fields":["headers.X-Internal-Token","headers.X-Secret"]}}`
+	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := UpdateGate(handler)
+	err := appHandler(rec, req)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+
+	if updatedGate == nil {
+		t.Fatal("expected gate to be updated")
+	}
+
+	var response dto.Response[dto.Gate]
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(response.Data.ScrubConfig.AdditionalFields) != 2 {
+		t.Errorf("expected 2 additional fields, got %d", len(response.Data.ScrubConfig.AdditionalFields))
+	}
+	assert.Equal(t, "headers.X-Internal-Token", response.Data.ScrubConfig.AdditionalFields[0])
+	assert.Equal(t, "headers.X-Secret", response.Data.ScrubConfig.AdditionalFields[1])
 }
 
 func TestUpdateGate_NotFound(t *testing.T) {

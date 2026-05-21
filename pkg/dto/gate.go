@@ -15,13 +15,19 @@ type DiffConfig struct {
 	FloatTolerance float64  `json:"float_tolerance"`
 }
 
+// ScrubConfig holds per-gate header scrubbing settings.
+type ScrubConfig struct {
+	AdditionalFields []string `json:"additional_fields"`
+}
+
 // Gate represents a traffic testing gate with live and shadow URLs.
 type Gate struct {
-	ID         string     `json:"id"`
-	Name       string     `json:"name"`
-	LiveURL    string     `json:"live_url"`
-	ShadowURL  string     `json:"shadow_url"`
-	DiffConfig DiffConfig `json:"diff_config"`
-	CreatedAt  string     `json:"created_at"`
-	Stats      GateStats  `json:"stats"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	LiveURL     string      `json:"live_url"`
+	ShadowURL   string      `json:"shadow_url"`
+	DiffConfig  DiffConfig  `json:"diff_config"`
+	ScrubConfig ScrubConfig `json:"scrub_config"`
+	CreatedAt   string      `json:"created_at"`
+	Stats       GateStats   `json:"stats"`
 }

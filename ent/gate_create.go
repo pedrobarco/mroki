@@ -80,6 +80,12 @@ func (_c *GateCreate) SetNillableDiffFloatTolerance(v *float64) *GateCreate {
 	return _c
 }
 
+// SetScrubFields sets the "scrub_fields" field.
+func (_c *GateCreate) SetScrubFields(v []string) *GateCreate {
+	_c.mutation.SetScrubFields(v)
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *GateCreate) SetID(v uuid.UUID) *GateCreate {
 	_c.mutation.SetID(v)
@@ -245,6 +251,10 @@ func (_c *GateCreate) createSpec() (*Gate, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DiffFloatTolerance(); ok {
 		_spec.SetField(gate.FieldDiffFloatTolerance, field.TypeFloat64, value)
 		_node.DiffFloatTolerance = value
+	}
+	if value, ok := _c.mutation.ScrubFields(); ok {
+		_spec.SetField(gate.FieldScrubFields, field.TypeJSON, value)
+		_node.ScrubFields = value
 	}
 	if nodes := _c.mutation.RequestsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

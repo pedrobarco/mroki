@@ -15,30 +15,33 @@ type DiffConfig struct {
 }
 
 // NewDiffConfig creates a validated DiffConfig.
+// Input slices are copied — the caller's slices are never mutated.
 func NewDiffConfig(ignoredFields, includedFields []string, floatTolerance float64) (DiffConfig, error) {
 	if floatTolerance < 0 {
 		return DiffConfig{}, fmt.Errorf("%w: float_tolerance must be non-negative", ErrInvalidDiffConfig)
 	}
 
+	cleanedIgnored := make([]string, len(ignoredFields))
 	for i, f := range ignoredFields {
 		trimmed := strings.TrimSpace(f)
 		if trimmed == "" {
 			return DiffConfig{}, fmt.Errorf("%w: ignored_fields[%d] must not be empty", ErrInvalidDiffConfig, i)
 		}
-		ignoredFields[i] = trimmed
+		cleanedIgnored[i] = trimmed
 	}
 
+	cleanedIncluded := make([]string, len(includedFields))
 	for i, f := range includedFields {
 		trimmed := strings.TrimSpace(f)
 		if trimmed == "" {
 			return DiffConfig{}, fmt.Errorf("%w: included_fields[%d] must not be empty", ErrInvalidDiffConfig, i)
 		}
-		includedFields[i] = trimmed
+		cleanedIncluded[i] = trimmed
 	}
 
 	return DiffConfig{
-		IgnoredFields:  ignoredFields,
-		IncludedFields: includedFields,
+		IgnoredFields:  cleanedIgnored,
+		IncludedFields: cleanedIncluded,
 		FloatTolerance: floatTolerance,
 	}, nil
 }

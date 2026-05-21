@@ -14,6 +14,7 @@ import (
 
 	"github.com/pedrobarco/mroki/cmd/mroki-proxy/config"
 	"github.com/pedrobarco/mroki/cmd/mroki-proxy/handlers"
+	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/client"
 	"github.com/pedrobarco/mroki/pkg/client/transport"
 	"github.com/pedrobarco/mroki/pkg/diff"
@@ -127,6 +128,16 @@ func main() {
 		diffOpts = append(diffOpts, diff.WithFloatTolerance(cfg.App.DiffFloatTolerance))
 	}
 
+	// Add scrub fields as ignored diff fields (prevents diff noise from scrubbed headers)
+	scrubCfg, err := traffictesting.NewScrubConfig(cfg.App.ScrubFields)
+	if err != nil {
+		log.Error("Invalid SCRUB_FIELDS configuration", "error", err)
+		os.Exit(1)
+	}
+	for _, f := range scrubCfg.AllFields() {
+		diffOpts = append(diffOpts, diff.WithIgnoredFields(f))
+	}
+
 	log.Debug("Diff options configured",
 		"ignored_fields", cfg.App.DiffIgnoredFields,
 		"included_fields", cfg.App.DiffIncludedFields,
@@ -151,7 +162,8 @@ func main() {
 		Logger:        log,
 		APIClient:     apiClient,          // nil if standalone mode
 		APITimeout:    cfg.App.APITimeout, // overall deadline for API calls
-		DiffOptions:   diffOpts,  // Only used in standalone mode
+		DiffOptions:   diffOpts,           // Only used in standalone mode
+		ScrubNames:    scrubCfg.HeaderNames(), // Only used in standalone mode
 	}
 
 	mux := http.NewServeMux()

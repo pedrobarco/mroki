@@ -35,7 +35,9 @@ func (m *mockRequestRepository) GetAllByGateID(ctx context.Context, gateID traff
 }
 
 // mockGateRepoForRequest is a minimal mock of GateRepository for create_request tests
-type mockGateRepoForRequest struct{}
+type mockGateRepoForRequest struct {
+	getByIDFn func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error)
+}
 
 func (m *mockGateRepoForRequest) Save(ctx context.Context, gate *traffictesting.Gate) error {
 	return nil
@@ -50,6 +52,9 @@ func (m *mockGateRepoForRequest) Delete(ctx context.Context, id traffictesting.G
 }
 
 func (m *mockGateRepoForRequest) GetByID(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, id)
+	}
 	name, _ := traffictesting.ParseGateName("test")
 	live, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadow, _ := traffictesting.ParseGateURL("http://shadow.example.com")
@@ -456,4 +461,222 @@ func TestComputeDiff_invalid_base64_body(t *testing.T) {
 	_, err := computeDiff(live, shadow)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to decode live response body")
+}
+
+// --- Scrubbing integration tests ---
+
+func TestCreateRequestHandler_Handle_scrubs_default_headers(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID: gateID.String(),
+		Method: "GET",
+		Path:   "/api/test",
+		Headers: map[string][]string{
+			"Authorization": {"Bearer super-secret"},
+			"Content-Type":  {"application/json"},
+		},
+		Body:      []byte(`{}`),
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers: http.Header{
+				"Set-Cookie": {"session=abc123"},
+				"X-Req-Id":   {"req-1"},
+			},
+			Body:      []byte(`{}`),
+			CreatedAt: time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers: http.Header{
+				"Cookie": {"session=abc123"},
+				"X-Req-Id": {"req-1"},
+			},
+			Body:      []byte(`{}`),
+			CreatedAt: time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	// Request headers: Authorization should be redacted, Content-Type preserved
+	assert.Equal(t, traffictesting.RedactedValue, savedReq.Headers.HTTPHeader().Get("Authorization"))
+	assert.Equal(t, "application/json", savedReq.Headers.HTTPHeader().Get("Content-Type"))
+
+	// Live response: Set-Cookie redacted, X-Req-Id preserved
+	assert.Equal(t, traffictesting.RedactedValue, savedReq.LiveResponse.Headers.HTTPHeader().Get("Set-Cookie"))
+	assert.Equal(t, "req-1", savedReq.LiveResponse.Headers.HTTPHeader().Get("X-Req-Id"))
+
+	// Shadow response: Cookie redacted, X-Req-Id preserved
+	assert.Equal(t, traffictesting.RedactedValue, savedReq.ShadowResponse.Headers.HTTPHeader().Get("Cookie"))
+	assert.Equal(t, "req-1", savedReq.ShadowResponse.Headers.HTTPHeader().Get("X-Req-Id"))
+}
+
+func TestCreateRequestHandler_Handle_scrubs_additional_gate_fields(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+
+	scrubCfg, _ := traffictesting.NewScrubConfig([]string{"headers.X-Internal-Token"})
+	gateRepo := &mockGateRepoForRequest{
+		getByIDFn: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			name, _ := traffictesting.ParseGateName("test")
+			live, _ := traffictesting.ParseGateURL("http://live.example.com")
+			shadow, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+			gate, _ := traffictesting.NewGate(name, live, shadow,
+				traffictesting.WithGateID(id),
+				traffictesting.WithGateScrubConfig(scrubCfg),
+			)
+			return gate, nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, gateRepo)
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID: gateID.String(),
+		Method: "GET",
+		Path:   "/api/test",
+		Headers: map[string][]string{
+			"X-Internal-Token": {"secret-internal"},
+			"Content-Type":     {"application/json"},
+		},
+		Body:      []byte(`{}`),
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       []byte(`{}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       []byte(`{}`),
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	// Custom gate field should be scrubbed
+	assert.Equal(t, traffictesting.RedactedValue, savedReq.Headers.HTTPHeader().Get("X-Internal-Token"))
+	assert.Equal(t, "application/json", savedReq.Headers.HTTPHeader().Get("Content-Type"))
+}
+
+func TestCreateRequestHandler_Handle_gate_not_found_uses_defaults(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+
+	gateRepo := &mockGateRepoForRequest{
+		getByIDFn: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			return nil, traffictesting.ErrGateNotFound
+		},
+	}
+	handler := NewCreateRequestHandler(repo, gateRepo)
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID: gateID.String(),
+		Method: "GET",
+		Path:   "/api/test",
+		Headers: map[string][]string{
+			"Authorization": {"Bearer secret"},
+			"Content-Type":  {"text/plain"},
+		},
+		Body:      []byte(`{}`),
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       []byte(`{}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       []byte(`{}`),
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	// Default scrubbing should still apply
+	assert.Equal(t, traffictesting.RedactedValue, savedReq.Headers.HTTPHeader().Get("Authorization"))
+	assert.Equal(t, "text/plain", savedReq.Headers.HTTPHeader().Get("Content-Type"))
+}
+
+func TestCreateRequestHandler_Handle_gate_fetch_infra_error_returns_error(t *testing.T) {
+	repo := &mockRequestRepository{}
+	infraErr := errors.New("database connection failed")
+	gateRepo := &mockGateRepoForRequest{
+		getByIDFn: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			return nil, infraErr
+		},
+	}
+	handler := NewCreateRequestHandler(repo, gateRepo)
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID:    gateID.String(),
+		Method:    "GET",
+		Path:      "/api/test",
+		Headers:   map[string][]string{},
+		Body:      []byte(`{}`),
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       []byte(`{}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       []byte(`{}`),
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.Error(t, err)
+	assert.Nil(t, req)
+	assert.Contains(t, err.Error(), "failed to fetch gate")
+	assert.ErrorIs(t, err, infraErr)
 }

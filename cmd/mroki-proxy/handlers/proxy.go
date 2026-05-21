@@ -11,6 +11,7 @@ import (
 
 	"github.com/failsafe-go/failsafe-go/circuitbreaker"
 
+	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/client"
 	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/proxy"
@@ -31,6 +32,9 @@ type ProxyConfig struct {
 
 	// Diff options for standalone mode
 	DiffOptions []diff.Option
+
+	// Header names to scrub in standalone mode (e.g. "Authorization", "Cookie")
+	ScrubNames []string
 }
 
 func Proxy(cfg ProxyConfig) http.HandlerFunc {
@@ -125,12 +129,21 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 
 	differ := proxy.NewProxyResponseDiffer(cfg.DiffOptions...)
 
+	scrubNames := cfg.ScrubNames
+
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
 		reqLogger := logger.With(
 			slog.String("request.id", req.Headers.Get("X-Request-ID")),
 			slog.String("request.method", req.Method),
 			slog.String("request.path", req.Path),
 		)
+
+		// Scrub sensitive headers before diffing/logging
+		if len(scrubNames) > 0 {
+			req.Headers = traffictesting.NewHeaders(req.Headers).Scrub(scrubNames).HTTPHeader()
+			live.Response.Header = traffictesting.NewHeaders(live.Response.Header).Scrub(scrubNames).HTTPHeader()
+			shadow.Response.Header = traffictesting.NewHeaders(shadow.Response.Header).Scrub(scrubNames).HTTPHeader()
+		}
 
 		ops, err := differ.Diff(live, shadow)
 		if err != nil {
