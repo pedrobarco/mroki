@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Gates from '../pages/Gates.vue'
 import GateDetail from '../pages/GateDetail.vue'
+import GateSettings from '../pages/GateSettings.vue'
 import RequestDetail from '../pages/RequestDetail.vue'
 import NotFound from '../pages/NotFound.vue'
 
@@ -20,6 +21,11 @@ const router = createRouter({
       path: '/gates/:id',
       name: 'gate-detail',
       component: GateDetail,
+    },
+    {
+      path: '/gates/:id/settings',
+      name: 'gate-settings',
+      component: GateSettings,
     },
     {
       path: '/gates/:id/requests/:rid',

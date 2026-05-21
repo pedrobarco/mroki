@@ -9,18 +9,24 @@ interface DiffConfig {
   float_tolerance: number
 }
 
+interface ScrubConfig {
+  additional_fields: string[]
+}
+
 interface Gate {
   id: string
   name: string
   live_url: string
   shadow_url: string
   diff_config: DiffConfig
+  scrub_config: ScrubConfig
   created_at: string
 }
 
 interface UpdateGatePayload {
   name?: string
   diff_config?: DiffConfig
+  scrub_config?: ScrubConfig
 }
 
 interface RequestSummary {

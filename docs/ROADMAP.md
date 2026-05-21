@@ -56,7 +56,7 @@ Everything below shipped as part of the v1 milestone.
 - [x] Vue 3 + TypeScript SPA — gates (list, create, detail), request browser (filtering, sorting, pagination), diff viewer (side-by-side + unified), e2e test suite
 - [x] Gate statistics wired — total gates count, requests 24h, diff count, diff rate, last active
 - [x] Request list metadata — status codes, diff indicator, latency (all via eager-loaded edges)
-- [x] "Configure" dialog — update name and diff config (ignored/included fields, float tolerance)
+- [x] Gate Settings page — dedicated `/gates/:id/settings` page for name, header scrubbing, diff config (ignored/included fields, float tolerance), and gate deletion
 - [x] "Copy cURL" button — dropdown with Live/Shadow options, generates cURL with method/URL/headers/body
 - [x] "Export JSON" button — downloads full request detail as `request-{id}.json`
 - [x] "Showing N of M requests" label — wired to pagination

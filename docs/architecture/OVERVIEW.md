@@ -153,12 +153,13 @@ sequenceDiagram
 ```go
 // Gate represents a live/shadow service pair (command-side aggregate)
 type Gate struct {
-    ID         GateID     // UUID
-    Name       GateName   // Unique, mutable name
-    LiveURL    GateURL    // Production service URL (immutable)
-    ShadowURL  GateURL    // Shadow service URL (immutable)
-    DiffConfig DiffConfig // Per-gate diff computation settings
-    CreatedAt  time.Time
+    ID          GateID      // UUID
+    Name        GateName    // Unique, mutable name
+    LiveURL     GateURL     // Production service URL (immutable)
+    ShadowURL   GateURL     // Shadow service URL (immutable)
+    DiffConfig  DiffConfig  // Per-gate diff computation settings
+    ScrubConfig ScrubConfig // Per-gate header scrubbing (additional fields on top of defaults)
+    CreatedAt   time.Time
 }
 
 // GateStats is a read-side projection (not part of Gate aggregate)
@@ -272,7 +273,9 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 ### Implemented
 
 - [x] API key authentication (`Authorization: Bearer <key>`)
+- [x] Constant-time API key comparison (timing side-channel hardened)
 - [x] Rate limiting (token bucket, 1000 req/min/IP default)
+- [x] Header scrubbing — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are replaced with `[REDACTED]` before storage. Per-gate additional fields configurable via `scrub_config`
 - [x] Request body size limits (10MB default)
 - [x] Input validation via domain value objects
 - [x] SQL injection prevention (parameterized queries via sqlc)
@@ -289,7 +292,7 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 ### Planned
 
 - [ ] RBAC for multi-tenant usage
-- [ ] PII redaction in captured requests
+- [ ] Body field redaction for non-header PII
 - [ ] Proxy-to-API mutual TLS
 
 ---

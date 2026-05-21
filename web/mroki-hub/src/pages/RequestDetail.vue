@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getRequest } from '@/api'
+import { getGate, getRequest } from '@/api'
 import type { Gate, RequestDetail } from '@/api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,7 @@ import { useGateCache } from '@/composables/use-gate-cache'
 
 const route = useRoute()
 const router = useRouter()
-const { getGateById } = useGateCache()
+const { getCachedGate, setGate: cacheGate } = useGateCache()
 
 const gate = ref<Gate | null>(null)
 const gateName = computed(() => gate.value?.name ?? null)
@@ -52,12 +52,22 @@ async function loadRequest() {
   error.value = null
 
   try {
-    const [gateData, requestResponse] = await Promise.all([
-      getGateById(gateId.value),
-      getRequest(gateId.value, requestId.value),
-    ])
-    gate.value = gateData
-    request.value = requestResponse.data
+    // RequestDetail only needs the gate name/URLs — use cache if available
+    const cached = getCachedGate(gateId.value)
+    if (cached) {
+      gate.value = cached
+      const requestResponse = await getRequest(gateId.value, requestId.value)
+      request.value = requestResponse.data
+    } else {
+      // Cache miss (e.g. direct link) — fetch both in parallel
+      const [gateResponse, requestResponse] = await Promise.all([
+        getGate(gateId.value),
+        getRequest(gateId.value, requestId.value),
+      ])
+      gate.value = gateResponse.data
+      cacheGate(gateResponse.data)
+      request.value = requestResponse.data
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load request'
   } finally {
