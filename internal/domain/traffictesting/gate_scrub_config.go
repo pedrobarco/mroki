@@ -45,11 +45,22 @@ func DefaultScrubConfig() ScrubConfig {
 	return ScrubConfig{AdditionalFields: []string{}}
 }
 
-// AllFields returns the merged list of default + additional fields.
+// AllFields returns the merged list of default + additional fields (deduplicated).
 func (c ScrubConfig) AllFields() []string {
+	seen := make(map[string]struct{}, len(defaultScrubFields)+len(c.AdditionalFields))
 	all := make([]string, 0, len(defaultScrubFields)+len(c.AdditionalFields))
-	all = append(all, defaultScrubFields...)
-	all = append(all, c.AdditionalFields...)
+	for _, f := range defaultScrubFields {
+		if _, ok := seen[f]; !ok {
+			seen[f] = struct{}{}
+			all = append(all, f)
+		}
+	}
+	for _, f := range c.AdditionalFields {
+		if _, ok := seen[f]; !ok {
+			seen[f] = struct{}{}
+			all = append(all, f)
+		}
+	}
 	return all
 }
 

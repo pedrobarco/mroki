@@ -129,7 +129,11 @@ func main() {
 	}
 
 	// Add scrub fields as ignored diff fields (prevents diff noise from scrubbed headers)
-	scrubCfg, _ := traffictesting.NewScrubConfig(cfg.App.ScrubFields)
+	scrubCfg, err := traffictesting.NewScrubConfig(cfg.App.ScrubFields)
+	if err != nil {
+		log.Error("Invalid SCRUB_FIELDS configuration", "error", err)
+		os.Exit(1)
+	}
 	for _, f := range scrubCfg.AllFields() {
 		diffOpts = append(diffOpts, diff.WithIgnoredFields(f))
 	}
@@ -158,7 +162,8 @@ func main() {
 		Logger:        log,
 		APIClient:     apiClient,          // nil if standalone mode
 		APITimeout:    cfg.App.APITimeout, // overall deadline for API calls
-		DiffOptions:   diffOpts,  // Only used in standalone mode
+		DiffOptions:   diffOpts,           // Only used in standalone mode
+		ScrubNames:    scrubCfg.HeaderNames(), // Only used in standalone mode
 	}
 
 	mux := http.NewServeMux()

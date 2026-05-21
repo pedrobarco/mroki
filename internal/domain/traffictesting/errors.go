@@ -8,9 +8,9 @@ var (
 	ErrGateNotFound    = errors.New("gate not found")
 	ErrInvalidGateID   = errors.New("invalid gate ID")
 	ErrInvalidGateName = errors.New("invalid gate name")
-	ErrDuplicateGateName = errors.New("gate name already exists")
-	ErrDuplicateGateURLs = errors.New("gate URL pair already exists")
-	ErrInvalidGateURL    = errors.New("invalid gate URL")
+	ErrDuplicateGateName  = errors.New("gate name already exists")
+	ErrDuplicateGateURLs  = errors.New("gate URL pair already exists")
+	ErrInvalidGateURL     = errors.New("invalid gate URL")
 	ErrInvalidDiffConfig  = errors.New("invalid diff config")
 	ErrInvalidScrubConfig = errors.New("invalid scrub config")
 
