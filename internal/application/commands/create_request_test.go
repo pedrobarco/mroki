@@ -402,6 +402,299 @@ func parseBody(t *testing.T, s string) any {
 	return v
 }
 
+// ---------------------------------------------------------------------------
+// Unit tests for bodyToRawMessage and rawBytesToJSONString
+// ---------------------------------------------------------------------------
+
+func TestBodyToRawMessage_json_body(t *testing.T) {
+	parsed := map[string]any{"user": "Alice", "age": float64(30)}
+	raw := []byte(`{"user":"Alice","age":30}`)
+
+	result, err := bodyToRawMessage(raw, parsed)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	// Should be valid JSON that matches the parsed tree
+	assert.JSONEq(t, `{"user":"Alice","age":30}`, string(result))
+}
+
+func TestBodyToRawMessage_empty_body(t *testing.T) {
+	result, err := bodyToRawMessage(nil, nil)
+	require.NoError(t, err)
+	assert.Nil(t, result)
+
+	result, err = bodyToRawMessage([]byte{}, nil)
+	require.NoError(t, err)
+	assert.Nil(t, result)
+}
+
+func TestBodyToRawMessage_non_json_body(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  []byte
+	}{
+		{
+			name: "plain text",
+			raw:  []byte("hello world"),
+		},
+		{
+			name: "HTML",
+			raw:  []byte("<html><body><h1>Hello</h1></body></html>"),
+		},
+		{
+			name: "XML",
+			raw:  []byte(`<?xml version="1.0"?><root><item>test</item></root>`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// bodyParsed is nil for non-JSON content
+			result, err := bodyToRawMessage(tt.raw, nil)
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			// Must be valid JSON (a JSON string value)
+			assert.True(t, json.Valid(result), "result should be valid JSON")
+			// Unmarshaling should recover the original string
+			var stored string
+			require.NoError(t, json.Unmarshal(result, &stored))
+			assert.Equal(t, string(tt.raw), stored)
+		})
+	}
+}
+
+func TestRawBytesToJSONString(t *testing.T) {
+	tests := []struct {
+		name     string
+		raw      []byte
+		expected string
+	}{
+		{
+			name:     "plain text",
+			raw:      []byte("hello"),
+			expected: `"hello"`,
+		},
+		{
+			name:     "text with quotes",
+			raw:      []byte(`say "hi"`),
+			expected: `"say \"hi\""`,
+		},
+		{
+			name:     "text with newlines",
+			raw:      []byte("line1\nline2"),
+			expected: `"line1\nline2"`,
+		},
+		{
+			name:     "binary-like content",
+			raw:      []byte{0x00, 0x01, 0x02, 0xFF},
+			expected: `"\u0000\u0001\u0002\u00ff"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := rawBytesToJSONString(tt.raw)
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.True(t, json.Valid(result), "result should be valid JSON")
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Handler-level tests for non-JSON body types
+// ---------------------------------------------------------------------------
+
+func TestCreateRequestHandler_Handle_html_body(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
+
+	htmlBody := "<html><body><h1>Hello</h1></body></html>"
+	cmd := CreateRequestCommand{
+		GateID:    traffictesting.NewGateID().String(),
+		Method:    "GET",
+		Path:      "/page",
+		Headers:   map[string][]string{"Content-Type": {"text/html"}},
+		Body:      b64(htmlBody),
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{"Content-Type": []string{"text/html"}},
+			Body:       b64(htmlBody),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{"Content-Type": []string{"text/html"}},
+			Body:       b64(htmlBody),
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	// Non-JSON body should be stored as a JSON string value
+	assert.True(t, json.Valid(savedReq.Body), "request body should be valid JSON")
+	assert.True(t, json.Valid(savedReq.LiveResponse.Body), "live body should be valid JSON")
+
+	// Unwrap the JSON string to get the original HTML back
+	var stored string
+	require.NoError(t, json.Unmarshal(savedReq.LiveResponse.Body, &stored))
+	assert.Equal(t, htmlBody, stored)
+}
+
+func TestCreateRequestHandler_Handle_plain_text_body(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
+
+	textBody := "Just some plain text response"
+	cmd := CreateRequestCommand{
+		GateID:    traffictesting.NewGateID().String(),
+		Method:    "GET",
+		Path:      "/text",
+		Headers:   map[string][]string{"Content-Type": {"text/plain"}},
+		Body:      b64(textBody),
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{"Content-Type": []string{"text/plain"}},
+			Body:       b64(textBody),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{"Content-Type": []string{"text/plain"}},
+			Body:       b64(textBody),
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	assert.True(t, json.Valid(savedReq.LiveResponse.Body), "body should be valid JSON")
+
+	var stored string
+	require.NoError(t, json.Unmarshal(savedReq.LiveResponse.Body, &stored))
+	assert.Equal(t, textBody, stored)
+}
+
+func TestCreateRequestHandler_Handle_empty_body(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
+
+	cmd := CreateRequestCommand{
+		GateID:    traffictesting.NewGateID().String(),
+		Method:    "GET",
+		Path:      "/empty",
+		Headers:   map[string][]string{},
+		Body:      []byte{},
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 204,
+			Headers:    http.Header{},
+			Body:       []byte{},
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 204,
+			Headers:    http.Header{},
+			Body:       []byte{},
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	// Empty bodies should be nil (→ NULL in DB)
+	assert.Nil(t, savedReq.Body)
+	assert.Nil(t, savedReq.LiveResponse.Body)
+	assert.Nil(t, savedReq.ShadowResponse.Body)
+}
+
+func TestCreateRequestHandler_Handle_invalid_base64_body(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{})
+
+	// Not valid base64 — the handler should fallback to wrapping as JSON string
+	invalidB64 := []byte("this-is-not-valid-base64!!!")
+	cmd := CreateRequestCommand{
+		GateID:    traffictesting.NewGateID().String(),
+		Method:    "POST",
+		Path:      "/bad-encoding",
+		Headers:   map[string][]string{},
+		Body:      invalidB64,
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       invalidB64,
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       invalidB64,
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	// Body should be stored as a JSON string wrapping the raw input
+	assert.True(t, json.Valid(savedReq.LiveResponse.Body), "body should be valid JSON")
+	assert.NotNil(t, savedReq.LiveResponse.Body)
+
+	var stored string
+	require.NoError(t, json.Unmarshal(savedReq.LiveResponse.Body, &stored))
+	assert.Equal(t, string(invalidB64), stored)
+}
+
 func TestBuildEnvelopeParsed_identical_responses(t *testing.T) {
 	body := parseBody(t, `{"ok":true}`)
 
