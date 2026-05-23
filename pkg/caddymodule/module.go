@@ -14,6 +14,8 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/pedrobarco/mroki/internal/application/services"
+	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 	"go.uber.org/zap"
@@ -46,8 +48,12 @@ type MrokiGate struct {
 	DiffIncludedFields *string `json:"diff_included_fields,omitempty"`
 	DiffFloatTolerance *string `json:"diff_float_tolerance,omitempty"`
 
-	proxy  *proxy.Proxy
-	logger *zap.Logger
+	// Redaction options
+	RedactedFields *string `json:"redacted_fields,omitempty"`
+
+	proxy    *proxy.Proxy
+	redactor *traffictesting.Redactor
+	logger   *zap.Logger
 }
 
 var (
@@ -147,19 +153,6 @@ func (m *MrokiGate) Validate() error {
 	}
 	opts = append(opts, proxy.WithLogger(logger))
 
-	// Standalone mode: compute and print diffs locally
-	callback, err := m.createDiffCallback(logger)
-	if err != nil {
-		return err
-	}
-	opts = append(opts, proxy.WithCallbackFn(callback))
-
-	m.proxy = proxy.NewProxy(live, shadow, opts...)
-	return nil
-}
-
-// createDiffCallback builds a callback that computes and prints diffs locally.
-func (m *MrokiGate) createDiffCallback(logger *slog.Logger) (proxy.CallbackFunc, error) {
 	// Build diff options
 	var diffOpts []diff.Option
 
@@ -182,45 +175,115 @@ func (m *MrokiGate) createDiffCallback(logger *slog.Logger) (proxy.CallbackFunc,
 	if m.DiffFloatTolerance != nil {
 		tolerance, err := strconv.ParseFloat(*m.DiffFloatTolerance, 64)
 		if err != nil {
-			return nil, fmt.Errorf("invalid diff_float_tolerance: %w", err)
+			return fmt.Errorf("invalid diff_float_tolerance: %w", err)
 		}
 		diffOpts = append(diffOpts, diff.WithFloatTolerance(tolerance))
 	}
 
+	// Build redactor from config (adds to default redacted list)
+	var additionalFields []string
+	if m.RedactedFields != nil {
+		fields := strings.Split(*m.RedactedFields, ",")
+		for i := range fields {
+			fields[i] = strings.TrimSpace(fields[i])
+		}
+		additionalFields = fields
+	}
+
+	redactedFieldsCfg, err := traffictesting.NewRedactedFields(additionalFields)
+	if err != nil {
+		return fmt.Errorf("invalid redacted_fields: %w", err)
+	}
+
+	allFields := redactedFieldsCfg.AllFields()
+	m.redactor = traffictesting.NewRedactor(allFields)
+
+	// Auto-add redacted fields as diff ignored fields (prevents diff noise)
+	for _, f := range allFields {
+		diffOpts = append(diffOpts, diff.WithIgnoredFields(f))
+	}
+
+	// Standalone mode: compute and print diffs locally
+	callback, err := m.createDiffCallback(logger, diffOpts)
+	if err != nil {
+		return err
+	}
+	opts = append(opts, proxy.WithCallbackFn(callback))
+
+	m.proxy = proxy.NewProxy(live, shadow, opts...)
+	return nil
+}
+
+// createDiffCallback builds a callback that computes and prints diffs locally.
+func (m *MrokiGate) createDiffCallback(logger *slog.Logger, diffOpts []diff.Option) (proxy.CallbackFunc, error) {
 	differ := proxy.NewProxyResponseDiffer(diffOpts...)
+	redactor := m.redactor
 
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+		reqLogger := logger.With(
+			slog.String("request.id", req.Headers.Get("X-Request-ID")),
+			slog.String("request.method", req.Method),
+			slog.String("request.path", req.Path),
+		)
+
+		// Optimized path: redact + diff via ResponseComparer
+		if redactor != nil {
+			comparer := services.NewResponseComparer(redactor, diffOpts)
+			result, err := comparer.Compare(
+				services.ResponseData{Headers: req.Headers, Body: req.Body},
+				services.ResponseData{StatusCode: live.StatusCode, Headers: live.Response.Header, Body: live.Body},
+				services.ResponseData{StatusCode: shadow.StatusCode, Headers: shadow.Response.Header, Body: shadow.Body},
+			)
+			if err != nil {
+				reqLogger.Error("failed to redact, skipping diff", slog.String("error", err.Error()))
+				return nil
+			}
+
+			// Apply redacted data back for logging
+			req.Headers = result.Request.Headers
+			req.Body = result.Request.Body
+			live.Response.Header = result.Live.Headers
+			live.Body = result.Live.Body
+			shadow.Response.Header = result.Shadow.Headers
+			shadow.Body = result.Shadow.Body
+
+			m.logDiffResult(reqLogger, live, shadow, result.Ops)
+			return nil
+		}
+
+		// Fallback: byte-level diff (no redactor). Unreachable in practice since
+		// Validate() always initialises m.redactor; retained for structural
+		// symmetry with createStandaloneCallback in handlers/proxy.go.
 		ops, err := differ.Diff(live, shadow)
 		if err != nil {
-			logger.Warn("failed to diff responses",
+			reqLogger.Warn("failed to diff responses",
 				slog.String("error", err.Error()),
 				slog.Int("live_status", live.StatusCode),
 				slog.Int("shadow_status", shadow.StatusCode),
 			)
 			return nil
 		}
-
-		if len(ops) > 0 {
-			logger.Info("response diff detected",
-				slog.String("method", req.Method),
-				slog.String("path", req.Path),
-				slog.Int("live_status", live.StatusCode),
-				slog.Int("shadow_status", shadow.StatusCode),
-				slog.Int("changes", len(ops)),
-			)
-			fmt.Println("Diff:")
-			fmt.Print(diff.FormatOps(ops))
-		} else {
-			logger.Debug("responses match",
-				slog.String("method", req.Method),
-				slog.String("path", req.Path),
-				slog.Int("live_status", live.StatusCode),
-				slog.Int("shadow_status", shadow.StatusCode),
-			)
-		}
-
+		m.logDiffResult(reqLogger, live, shadow, ops)
 		return nil
 	}, nil
+}
+
+// logDiffResult logs the diff outcome and prints the ops if any.
+func (m *MrokiGate) logDiffResult(logger *slog.Logger, live, shadow proxy.ProxyResponse, ops []diff.PatchOp) {
+	if len(ops) > 0 {
+		logger.Info("response diff detected",
+			slog.Int("live_status", live.StatusCode),
+			slog.Int("shadow_status", shadow.StatusCode),
+			slog.Int("changes", len(ops)),
+		)
+		fmt.Println("Diff:")
+		fmt.Print(diff.FormatOps(ops))
+	} else {
+		logger.Debug("responses match",
+			slog.Int("live_status", live.StatusCode),
+			slog.Int("shadow_status", shadow.StatusCode),
+		)
+	}
 }
 
 // ServeHTTP is a terminating handler — it writes the full live response via
@@ -244,6 +307,7 @@ func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp
 //	    [diff_ignored_fields  <comma-separated>]
 //	    [diff_included_fields <comma-separated>]
 //	    [diff_float_tolerance <float>]
+//	    [redacted_fields      <comma-separated>]
 //	}
 func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	d.Next()
@@ -302,6 +366,12 @@ func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			}
 			val := d.Val()
 			m.DiffFloatTolerance = &val
+		case "redacted_fields":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.RedactedFields = &val
 		default:
 			return d.Errf("unknown property '%s'", d.Val())
 		}
