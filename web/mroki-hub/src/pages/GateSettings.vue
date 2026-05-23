@@ -49,13 +49,13 @@ const deleting = ref(false)
 
 // Form state
 const name = ref('')
-const scrubAdditionalFields = ref<string[]>([])
+const redactedAdditionalFields = ref<string[]>([])
 const diffIgnoredFields = ref<string[]>([])
 const diffIncludedFields = ref<string[]>([])
 const floatTolerance = ref('')
 
-// Default scrub fields (mirrors domain DefaultScrubFields)
-const defaultScrubFields = [
+// Default redacted fields (mirrors domain DefaultRedactedFields)
+const defaultRedactedFields = [
   'headers.Authorization',
   'headers.Cookie',
   'headers.Set-Cookie',
@@ -64,7 +64,7 @@ const defaultScrubFields = [
 
 function populateForm(g: Gate) {
   name.value = g.name
-  scrubAdditionalFields.value = [...(g.scrub_config?.additional_fields ?? [])]
+  redactedAdditionalFields.value = [...(g.redacted_fields ?? [])]
   diffIgnoredFields.value = [...(g.diff_config?.ignored_fields ?? [])]
   diffIncludedFields.value = [...(g.diff_config?.included_fields ?? [])]
   floatTolerance.value = g.diff_config?.float_tolerance
@@ -111,9 +111,7 @@ async function handleSave() {
         included_fields: diffIncludedFields.value,
         float_tolerance: floatTolerance.value ? parseFloat(floatTolerance.value) : 0,
       },
-      scrub_config: {
-        additional_fields: scrubAdditionalFields.value,
-      },
+      redacted_fields: redactedAdditionalFields.value,
     })
 
     gate.value = response.data
@@ -216,20 +214,21 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Section: Header Scrubbing -->
+        <!-- Section: Field Redaction -->
         <div class="bg-card border border-border rounded-xl overflow-hidden">
           <div class="px-5 py-4 border-b border-border/50">
             <div class="flex items-center gap-2 mb-1">
               <Lock class="h-4 w-4 text-warning" />
-              <h2 class="text-sm font-semibold tracking-tight">Header Scrubbing</h2>
+              <h2 class="text-sm font-semibold tracking-tight">Field Redaction</h2>
             </div>
             <p class="text-xs text-dim leading-relaxed">
-              Sensitive header values are replaced with
+              Sensitive header and body field values are replaced with
               <code class="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-warning"
                 >[REDACTED]</code
               >
-              before data is stored or compared. Fields use
-              <span class="text-info">gjson path notation</span>.
+              before data is stored or compared. Use
+              <code class="text-xs font-mono bg-muted px-1 py-0.5 rounded">headers.</code> or
+              <code class="text-xs font-mono bg-muted px-1 py-0.5 rounded">body.</code> prefixes.
             </p>
           </div>
 
@@ -243,11 +242,11 @@ onMounted(() => {
                 </Badge>
               </div>
               <p class="text-xs text-dim mb-3">
-                These fields are always scrubbed and cannot be removed.
+                These fields are always redacted and cannot be removed.
               </p>
               <div class="flex flex-wrap gap-2">
                 <span
-                  v-for="field in defaultScrubFields"
+                  v-for="field in defaultRedactedFields"
                   :key="field"
                   class="inline-flex items-center gap-1.5 text-xs font-mono bg-background/60 border border-border/50 text-muted-foreground px-3 py-1.5 rounded-lg"
                 >
@@ -268,14 +267,15 @@ onMounted(() => {
                 </Badge>
               </div>
               <p class="text-xs text-dim mb-3">
-                Add extra fields to scrub for this gate. Merged with defaults at runtime.
+                Add extra header or body fields to redact for this gate. Merged with defaults at
+                runtime.
               </p>
               <FieldListEditor
-                :fields="scrubAdditionalFields"
-                placeholder="e.g. headers.X-Internal-Token"
+                :fields="redactedAdditionalFields"
+                placeholder="e.g. headers.X-Internal-Token, body.user.password"
                 :disabled="saving"
-                @add="scrubAdditionalFields.push($event)"
-                @remove="scrubAdditionalFields.splice($event, 1)"
+                @add="redactedAdditionalFields.push($event)"
+                @remove="redactedAdditionalFields.splice($event, 1)"
               />
             </div>
           </div>

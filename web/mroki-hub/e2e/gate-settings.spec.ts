@@ -12,17 +12,17 @@ test.describe('Gate Settings Page', () => {
     await page.goto(`/gates/${gate.id}/settings`)
     await expect(page.getByText('Gate Settings')).toBeVisible()
     await expect(page.getByText('General')).toBeVisible()
-    await expect(page.getByText('Header Scrubbing')).toBeVisible()
+    await expect(page.getByText('Field Redaction')).toBeVisible()
     await expect(page.getByText('Diff Configuration')).toBeVisible()
     await expect(page.getByText('Danger Zone')).toBeVisible()
   })
 
-  test('shows default scrub fields as read-only', async ({ page, api }) => {
+  test('shows default redacted fields as read-only', async ({ page, api }) => {
     const suffix = Date.now()
     const gate = await api.createGate(
-      `scrub-defaults-gate-${suffix}`,
-      `https://scrub-live-${suffix}.example.com`,
-      `https://scrub-shadow-${suffix}.example.com`
+      `redact-defaults-gate-${suffix}`,
+      `https://redact-live-${suffix}.example.com`,
+      `https://redact-shadow-${suffix}.example.com`
     )
 
     await page.goto(`/gates/${gate.id}/settings`)
@@ -55,20 +55,20 @@ test.describe('Gate Settings Page', () => {
     expect(updated.name).toBe(`renamed-gate-${suffix}`)
   })
 
-  test('adds and removes scrub additional fields', async ({ page, api }) => {
+  test('adds and removes redacted additional fields', async ({ page, api }) => {
     const suffix = Date.now()
     const gate = await api.createGate(
-      `scrub-edit-gate-${suffix}`,
-      `https://scrub-live-${suffix}.example.com`,
-      `https://scrub-shadow-${suffix}.example.com`
+      `redact-edit-gate-${suffix}`,
+      `https://redact-live-${suffix}.example.com`,
+      `https://redact-shadow-${suffix}.example.com`
     )
 
     await page.goto(`/gates/${gate.id}/settings`)
 
-    // Add a scrub field using placeholder to target the correct input
-    const scrubInput = page.getByPlaceholder('e.g. headers.X-Internal-Token')
-    await scrubInput.fill('headers.X-Internal-Token')
-    await scrubInput.press('Enter')
+    // Add a redacted field using placeholder to target the correct input
+    const fieldInput = page.getByPlaceholder('e.g. headers.X-Internal-Token, body.user.password')
+    await fieldInput.fill('headers.X-Internal-Token')
+    await fieldInput.press('Enter')
 
     // Field should appear
     await expect(page.getByText('headers.X-Internal-Token')).toBeVisible()
@@ -79,7 +79,7 @@ test.describe('Gate Settings Page', () => {
 
     // Verify via API
     const updated = await api.updateGate(gate.id, {})
-    expect(updated.scrub_config.additional_fields).toContain('headers.X-Internal-Token')
+    expect(updated.redacted_fields).toContain('headers.X-Internal-Token')
   })
 
   test('updates diff configuration', async ({ page, api }) => {

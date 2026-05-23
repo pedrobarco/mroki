@@ -83,31 +83,65 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		return nil, err
 	}
 
-	// Fetch gate for scrub config and diff config
+	// Fetch gate for redacted fields and diff config
 	gate, gateErr := h.gateRepo.GetByID(ctx, gateID)
 	if gateErr != nil && !errors.Is(gateErr, traffictesting.ErrGateNotFound) {
 		return nil, fmt.Errorf("failed to fetch gate: %w", gateErr)
 	}
 
-	// Scrub sensitive headers before building domain objects
-	var scrubConfig traffictesting.ScrubConfig
+	// Build redactor from gate config (or defaults)
+	var redactedFields traffictesting.RedactedFields
 	if gateErr == nil {
-		scrubConfig = gate.ScrubConfig
+		redactedFields = gate.RedactedFields
 	} else {
-		scrubConfig = traffictesting.DefaultScrubConfig()
+		redactedFields = traffictesting.DefaultRedactedFields()
 	}
-	headerNames := scrubConfig.HeaderNames()
-	cmd.Headers = traffictesting.NewHeaders(cmd.Headers).Scrub(headerNames).HTTPHeader()
-	cmd.LiveResponse.Headers = traffictesting.NewHeaders(cmd.LiveResponse.Headers).Scrub(headerNames).HTTPHeader()
-	cmd.ShadowResponse.Headers = traffictesting.NewHeaders(cmd.ShadowResponse.Headers).Scrub(headerNames).HTTPHeader()
+	redactor := traffictesting.NewRedactor(redactedFields.AllFields())
 
-	// Parse and create live response (with already-scrubbed headers)
+	// Decode and redact request headers + body
+	reqBodyDecoded, reqDecodeErr := decodeBase64Body(cmd.Body)
+	reqResult, err := redactor.Redact(cmd.Headers, reqBodyDecoded)
+	if err != nil {
+		return nil, fmt.Errorf("failed to redact request: %w", err)
+	}
+	cmd.Headers = reqResult.Headers
+	if reqDecodeErr == nil {
+		cmd.Body = encodeBase64Body(reqResult.Body)
+	}
+
+	// Decode base64 response bodies once, redact headers + body, re-encode
+	liveBodyDecoded, liveDecodeErr := decodeBase64Body(cmd.LiveResponse.Body)
+	shadowBodyDecoded, shadowDecodeErr := decodeBase64Body(cmd.ShadowResponse.Body)
+
+	liveResult, err := redactor.Redact(cmd.LiveResponse.Headers, liveBodyDecoded)
+	if err != nil {
+		return nil, fmt.Errorf("failed to redact live response: %w", err)
+	}
+	cmd.LiveResponse.Headers = liveResult.Headers
+	liveBodyDecoded = liveResult.Body
+
+	shadowResult, err := redactor.Redact(cmd.ShadowResponse.Headers, shadowBodyDecoded)
+	if err != nil {
+		return nil, fmt.Errorf("failed to redact shadow response: %w", err)
+	}
+	cmd.ShadowResponse.Headers = shadowResult.Headers
+	shadowBodyDecoded = shadowResult.Body
+
+	// Re-encode redacted bodies back to base64 for storage
+	if liveDecodeErr == nil {
+		cmd.LiveResponse.Body = encodeBase64Body(liveBodyDecoded)
+	}
+	if shadowDecodeErr == nil {
+		cmd.ShadowResponse.Body = encodeBase64Body(shadowBodyDecoded)
+	}
+
+	// Parse and create live response (with already-redacted headers + body)
 	live, err := buildResponse(cmd.LiveResponse)
 	if err != nil {
 		return nil, fmt.Errorf("live response: %w", err)
 	}
 
-	// Parse and create shadow response (with already-scrubbed headers)
+	// Parse and create shadow response (with already-redacted headers + body)
 	shadow, err := buildResponse(cmd.ShadowResponse)
 	if err != nil {
 		return nil, fmt.Errorf("shadow response: %w", err)
@@ -123,7 +157,12 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 			diffOpts = gate.DiffConfig.ToDiffOptions()
 		}
 
-		computed, err := computeDiff(cmd.LiveResponse, cmd.ShadowResponse, diffOpts...)
+		// Use already-decoded bodies to avoid double base64 decode
+		computed, err := computeDiffFromDecoded(
+			cmd.LiveResponse, liveBodyDecoded,
+			cmd.ShadowResponse, shadowBodyDecoded,
+			diffOpts...,
+		)
 		if err != nil {
 			// Diff computation errors are non-fatal — store empty diff
 			diffContent = []diff.PatchOp{}
@@ -166,7 +205,6 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	return request, nil
 }
 
-
 // buildResponse creates a domain Response from command props.
 func buildResponse(props CreateRequestResponseProps) (*traffictesting.Response, error) {
 	statusCode, err := traffictesting.ParseStatusCode(props.StatusCode)
@@ -193,21 +231,26 @@ func buildResponse(props CreateRequestResponseProps) (*traffictesting.Response, 
 	)
 }
 
-// computeDiff computes a JSON diff between live and shadow response bodies.
-// Response bodies are expected to be base64-encoded JSON strings.
-// Returns RFC 6902 JSON Patch operations describing the differences.
-func computeDiff(live, shadow CreateRequestResponseProps, opts ...diff.Option) ([]diff.PatchOp, error) {
-	// Decode base64 bodies
-	liveBody, err := base64.StdEncoding.DecodeString(string(live.Body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode live response body: %w", err)
+// decodeBase64Body decodes a base64-encoded body. Returns the raw bytes or an error.
+func decodeBase64Body(body []byte) ([]byte, error) {
+	if len(body) == 0 {
+		return body, nil
 	}
+	return base64.StdEncoding.DecodeString(string(body))
+}
 
-	shadowBody, err := base64.StdEncoding.DecodeString(string(shadow.Body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode shadow response body: %w", err)
-	}
+// encodeBase64Body re-encodes raw bytes to base64 for storage.
+func encodeBase64Body(body []byte) []byte {
+	return []byte(base64.StdEncoding.EncodeToString(body))
+}
 
+// computeDiffFromDecoded computes a JSON diff using already-decoded body bytes.
+// This avoids double base64 decoding when bodies have been pre-decoded for redaction.
+func computeDiffFromDecoded(
+	live CreateRequestResponseProps, liveBody []byte,
+	shadow CreateRequestResponseProps, shadowBody []byte,
+	opts ...diff.Option,
+) ([]diff.PatchOp, error) {
 	// Marshal headers to JSON (same format as proxy-side diffing)
 	liveHeaders, err := json.Marshal(live.Headers)
 	if err != nil {
@@ -221,10 +264,23 @@ func computeDiff(live, shadow CreateRequestResponseProps, opts ...diff.Option) (
 
 	// Construct synthetic JSON documents matching proxy-side format:
 	// {"statusCode": N, "headers": {...}, "body": ...}
+	liveBodyJSON := jsonBodyOrNull(liveBody)
+	shadowBodyJSON := jsonBodyOrNull(shadowBody)
+
 	liveJSON := fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`,
-		live.StatusCode, liveHeaders, liveBody)
+		live.StatusCode, liveHeaders, liveBodyJSON)
 	shadowJSON := fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`,
-		shadow.StatusCode, shadowHeaders, shadowBody)
+		shadow.StatusCode, shadowHeaders, shadowBodyJSON)
 
 	return diff.JSON(liveJSON, shadowJSON, opts...)
+}
+
+// jsonBodyOrNull returns the body bytes as a string for JSON embedding,
+// or "null" if the body is empty/nil. This prevents producing invalid JSON
+// like `"body": ` when body decoding failed or body was empty.
+func jsonBodyOrNull(body []byte) string {
+	if len(body) == 0 {
+		return "null"
+	}
+	return string(body)
 }

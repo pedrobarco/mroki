@@ -107,21 +107,21 @@ func (_u *GateUpdate) ClearDiffFloatTolerance() *GateUpdate {
 	return _u
 }
 
-// SetScrubFields sets the "scrub_fields" field.
-func (_u *GateUpdate) SetScrubFields(v []string) *GateUpdate {
-	_u.mutation.SetScrubFields(v)
+// SetRedactedFields sets the "redacted_fields" field.
+func (_u *GateUpdate) SetRedactedFields(v []string) *GateUpdate {
+	_u.mutation.SetRedactedFields(v)
 	return _u
 }
 
-// AppendScrubFields appends value to the "scrub_fields" field.
-func (_u *GateUpdate) AppendScrubFields(v []string) *GateUpdate {
-	_u.mutation.AppendScrubFields(v)
+// AppendRedactedFields appends value to the "redacted_fields" field.
+func (_u *GateUpdate) AppendRedactedFields(v []string) *GateUpdate {
+	_u.mutation.AppendRedactedFields(v)
 	return _u
 }
 
-// ClearScrubFields clears the value of the "scrub_fields" field.
-func (_u *GateUpdate) ClearScrubFields() *GateUpdate {
-	_u.mutation.ClearScrubFields()
+// ClearRedactedFields clears the value of the "redacted_fields" field.
+func (_u *GateUpdate) ClearRedactedFields() *GateUpdate {
+	_u.mutation.ClearRedactedFields()
 	return _u
 }
 
@@ -249,16 +249,16 @@ func (_u *GateUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DiffFloatToleranceCleared() {
 		_spec.ClearField(gate.FieldDiffFloatTolerance, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.ScrubFields(); ok {
-		_spec.SetField(gate.FieldScrubFields, field.TypeJSON, value)
+	if value, ok := _u.mutation.RedactedFields(); ok {
+		_spec.SetField(gate.FieldRedactedFields, field.TypeJSON, value)
 	}
-	if value, ok := _u.mutation.AppendedScrubFields(); ok {
+	if value, ok := _u.mutation.AppendedRedactedFields(); ok {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
-			sqljson.Append(u, gate.FieldScrubFields, value)
+			sqljson.Append(u, gate.FieldRedactedFields, value)
 		})
 	}
-	if _u.mutation.ScrubFieldsCleared() {
-		_spec.ClearField(gate.FieldScrubFields, field.TypeJSON)
+	if _u.mutation.RedactedFieldsCleared() {
+		_spec.ClearField(gate.FieldRedactedFields, field.TypeJSON)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -402,21 +402,21 @@ func (_u *GateUpdateOne) ClearDiffFloatTolerance() *GateUpdateOne {
 	return _u
 }
 
-// SetScrubFields sets the "scrub_fields" field.
-func (_u *GateUpdateOne) SetScrubFields(v []string) *GateUpdateOne {
-	_u.mutation.SetScrubFields(v)
+// SetRedactedFields sets the "redacted_fields" field.
+func (_u *GateUpdateOne) SetRedactedFields(v []string) *GateUpdateOne {
+	_u.mutation.SetRedactedFields(v)
 	return _u
 }
 
-// AppendScrubFields appends value to the "scrub_fields" field.
-func (_u *GateUpdateOne) AppendScrubFields(v []string) *GateUpdateOne {
-	_u.mutation.AppendScrubFields(v)
+// AppendRedactedFields appends value to the "redacted_fields" field.
+func (_u *GateUpdateOne) AppendRedactedFields(v []string) *GateUpdateOne {
+	_u.mutation.AppendRedactedFields(v)
 	return _u
 }
 
-// ClearScrubFields clears the value of the "scrub_fields" field.
-func (_u *GateUpdateOne) ClearScrubFields() *GateUpdateOne {
-	_u.mutation.ClearScrubFields()
+// ClearRedactedFields clears the value of the "redacted_fields" field.
+func (_u *GateUpdateOne) ClearRedactedFields() *GateUpdateOne {
+	_u.mutation.ClearRedactedFields()
 	return _u
 }
 
@@ -574,16 +574,16 @@ func (_u *GateUpdateOne) sqlSave(ctx context.Context) (_node *Gate, err error) {
 	if _u.mutation.DiffFloatToleranceCleared() {
 		_spec.ClearField(gate.FieldDiffFloatTolerance, field.TypeFloat64)
 	}
-	if value, ok := _u.mutation.ScrubFields(); ok {
-		_spec.SetField(gate.FieldScrubFields, field.TypeJSON, value)
+	if value, ok := _u.mutation.RedactedFields(); ok {
+		_spec.SetField(gate.FieldRedactedFields, field.TypeJSON, value)
 	}
-	if value, ok := _u.mutation.AppendedScrubFields(); ok {
+	if value, ok := _u.mutation.AppendedRedactedFields(); ok {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
-			sqljson.Append(u, gate.FieldScrubFields, value)
+			sqljson.Append(u, gate.FieldRedactedFields, value)
 		})
 	}
-	if _u.mutation.ScrubFieldsCleared() {
-		_spec.ClearField(gate.FieldScrubFields, field.TypeJSON)
+	if _u.mutation.RedactedFieldsCleared() {
+		_spec.ClearField(gate.FieldRedactedFields, field.TypeJSON)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{

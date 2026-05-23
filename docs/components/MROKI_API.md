@@ -7,7 +7,7 @@ mroki-api is a stateless REST API that manages gates (live/shadow service pairs)
 ## Features
 
 - **Gate Management**: Create and manage live/shadow service pairs with filtering and sorting
-- **Header Scrubbing**: Sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) replaced with `[REDACTED]` before storage. Per-gate additional scrub fields configurable via `scrub_config`
+- **Field Redaction**: Sensitive fields (`headers.Authorization`, `headers.Cookie`, `headers.Set-Cookie`, `headers.X-Api-Key`) replaced with `[REDACTED]` before storage. Per-gate additional fields configurable via `redacted_fields`
 - **Server-Side Diff Computation**: Computes JSON diffs from raw live/shadow responses on ingest
 - **Traffic Storage**: Persist captured requests, responses, and computed diffs
 - **Backward Compatibility**: Accepts pre-computed diffs from proxies (if provided)
@@ -602,7 +602,7 @@ SELECT COUNT(*) FROM requests WHERE gate_id = '550e8400-e29b-41d4-a716-446655440
 - Constant-time API key comparison (timing side-channel hardened)
 - Rate limiting (token bucket, configurable via `MROKI_APP_RATE_LIMIT`, default 1000 req/min/IP)
 - Request body size limits (configurable via `MROKI_APP_MAX_BODY_SIZE`, default 10MB)
-- Header scrubbing — sensitive headers replaced with `[REDACTED]` on ingest (default list + per-gate `scrub_config.additional_fields`)
+- Field redaction — sensitive fields replaced with `[REDACTED]` on ingest (default list + per-gate `redacted_fields`)
 - Input validation via domain value objects
 - SQL injection prevention via parameterized queries (sqlc)
 - CORS with configurable allowed origins (`MROKI_APP_CORS_ORIGINS`)
@@ -612,7 +612,6 @@ SELECT COUNT(*) FROM requests WHERE gate_id = '550e8400-e29b-41d4-a716-446655440
 **Not yet implemented:**
 - TLS/HTTPS — use a reverse proxy (nginx, Caddy, cloud LB) to terminate TLS
 - RBAC / multi-tenant authorization
-- Body field redaction for non-header PII
 - Proxy-to-API mutual TLS
 
 **Production recommendations:**

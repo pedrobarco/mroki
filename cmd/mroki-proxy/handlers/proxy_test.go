@@ -10,9 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateStandaloneCallback_scrubs_sensitive_headers(t *testing.T) {
+func TestCreateStandaloneCallback_redacts_headers_and_body(t *testing.T) {
+	redactor := traffictesting.NewRedactor([]string{
+		"headers.Authorization",
+		"headers.Cookie",
+		"headers.Set-Cookie",
+		"body.secret",
+	})
 	cfg := ProxyConfig{
-		ScrubNames: []string{"Authorization", "Cookie", "Set-Cookie", "X-Api-Key"},
+		Redactor: redactor,
 	}
 
 	callback := createStandaloneCallback(cfg)
@@ -37,7 +43,7 @@ func TestCreateStandaloneCallback_scrubs_sensitive_headers(t *testing.T) {
 				"Content-Type": {"application/json"},
 			},
 		},
-		Body: []byte(`{"status":"ok"}`),
+		Body: []byte(`{"status":"ok","secret":"s3cret"}`),
 	}
 
 	shadow := proxy.ProxyResponse{
@@ -49,14 +55,13 @@ func TestCreateStandaloneCallback_scrubs_sensitive_headers(t *testing.T) {
 				"Content-Type": {"application/json"},
 			},
 		},
-		Body: []byte(`{"status":"ok"}`),
+		Body: []byte(`{"status":"ok","secret":"s3cret"}`),
 	}
 
 	err := callback(req, live, shadow)
 	require.NoError(t, err)
 
-	// Verify the response headers were scrubbed (ProxyResponse is passed by value,
-	// but the Response pointer's Header map is mutated via reassignment in the callback).
+	// Verify headers were redacted (Response pointer's Header is reassigned in callback)
 	assert.Equal(t, []string{traffictesting.RedactedValue}, live.Response.Header["Set-Cookie"])
 	assert.Equal(t, []string{"application/json"}, live.Response.Header["Content-Type"])
 
@@ -64,9 +69,9 @@ func TestCreateStandaloneCallback_scrubs_sensitive_headers(t *testing.T) {
 	assert.Equal(t, []string{"application/json"}, shadow.Response.Header["Content-Type"])
 }
 
-func TestCreateStandaloneCallback_no_scrub_names_preserves_headers(t *testing.T) {
+func TestCreateStandaloneCallback_nil_redactor_preserves_all(t *testing.T) {
 	cfg := ProxyConfig{
-		ScrubNames: nil,
+		Redactor: nil,
 	}
 
 	callback := createStandaloneCallback(cfg)
@@ -106,7 +111,7 @@ func TestCreateStandaloneCallback_no_scrub_names_preserves_headers(t *testing.T)
 	err := callback(req, live, shadow)
 	require.NoError(t, err)
 
-	// Headers should remain untouched when no scrub names configured
+	// Headers should remain untouched when no redactor configured
 	assert.Equal(t, []string{"session=xyz"}, live.Response.Header["Set-Cookie"])
 	assert.Equal(t, []string{"session=xyz"}, shadow.Response.Header["Set-Cookie"])
 }

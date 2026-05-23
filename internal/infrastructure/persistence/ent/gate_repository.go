@@ -33,7 +33,7 @@ func (r *gateRepository) Save(ctx context.Context, g *traffictesting.Gate) error
 		SetDiffIgnoredFields(g.DiffConfig.IgnoredFields).
 		SetDiffIncludedFields(g.DiffConfig.IncludedFields).
 		SetDiffFloatTolerance(g.DiffConfig.FloatTolerance).
-		SetScrubFields(g.ScrubConfig.AdditionalFields).
+		SetRedactedFields(g.RedactedFields.AdditionalFields).
 		Save(ctx); err != nil {
 		if isUniqueConstraintError(err) {
 			return classifyGateUniqueViolation(err, g)
@@ -49,7 +49,7 @@ func (r *gateRepository) Update(ctx context.Context, g *traffictesting.Gate) err
 		SetDiffIgnoredFields(g.DiffConfig.IgnoredFields).
 		SetDiffIncludedFields(g.DiffConfig.IncludedFields).
 		SetDiffFloatTolerance(g.DiffConfig.FloatTolerance).
-		SetScrubFields(g.ScrubConfig.AdditionalFields).
+		SetRedactedFields(g.RedactedFields.AdditionalFields).
 		Save(ctx); err != nil {
 		if ent.IsNotFound(err) {
 			return fmt.Errorf("%w: %s", traffictesting.ErrGateNotFound, g.ID)

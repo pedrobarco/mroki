@@ -33,8 +33,8 @@ type Gate struct {
 	DiffIncludedFields []string `json:"diff_included_fields,omitempty"`
 	// DiffFloatTolerance holds the value of the "diff_float_tolerance" field.
 	DiffFloatTolerance float64 `json:"diff_float_tolerance,omitempty"`
-	// ScrubFields holds the value of the "scrub_fields" field.
-	ScrubFields []string `json:"scrub_fields,omitempty"`
+	// RedactedFields holds the value of the "redacted_fields" field.
+	RedactedFields []string `json:"redacted_fields,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GateQuery when eager-loading is set.
 	Edges        GateEdges `json:"edges"`
@@ -64,7 +64,7 @@ func (*Gate) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case gate.FieldDiffIgnoredFields, gate.FieldDiffIncludedFields, gate.FieldScrubFields:
+		case gate.FieldDiffIgnoredFields, gate.FieldDiffIncludedFields, gate.FieldRedactedFields:
 			values[i] = new([]byte)
 		case gate.FieldDiffFloatTolerance:
 			values[i] = new(sql.NullFloat64)
@@ -141,12 +141,12 @@ func (_m *Gate) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.DiffFloatTolerance = value.Float64
 			}
-		case gate.FieldScrubFields:
+		case gate.FieldRedactedFields:
 			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field scrub_fields", values[i])
+				return fmt.Errorf("unexpected type %T for field redacted_fields", values[i])
 			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &_m.ScrubFields); err != nil {
-					return fmt.Errorf("unmarshal field scrub_fields: %w", err)
+				if err := json.Unmarshal(*value, &_m.RedactedFields); err != nil {
+					return fmt.Errorf("unmarshal field redacted_fields: %w", err)
 				}
 			}
 		default:
@@ -211,8 +211,8 @@ func (_m *Gate) String() string {
 	builder.WriteString("diff_float_tolerance=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DiffFloatTolerance))
 	builder.WriteString(", ")
-	builder.WriteString("scrub_fields=")
-	builder.WriteString(fmt.Sprintf("%v", _m.ScrubFields))
+	builder.WriteString("redacted_fields=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RedactedFields))
 	builder.WriteByte(')')
 	return builder.String()
 }

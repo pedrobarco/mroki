@@ -56,7 +56,7 @@ Everything below shipped as part of the v1 milestone.
 - [x] Vue 3 + TypeScript SPA — gates (list, create, detail), request browser (filtering, sorting, pagination), diff viewer (side-by-side + unified), e2e test suite
 - [x] Gate statistics wired — total gates count, requests 24h, diff count, diff rate, last active
 - [x] Request list metadata — status codes, diff indicator, latency (all via eager-loaded edges)
-- [x] Gate Settings page — dedicated `/gates/:id/settings` page for name, header scrubbing, diff config (ignored/included fields, float tolerance), and gate deletion
+- [x] Gate Settings page — dedicated `/gates/:id/settings` page for name, field redaction, diff config (ignored/included fields, float tolerance), and gate deletion
 - [x] "Copy cURL" button — dropdown with Live/Shadow options, generates cURL with method/URL/headers/body
 - [x] "Export JSON" button — downloads full request detail as `request-{id}.json`
 - [x] "Showing N of M requests" label — wired to pagination
@@ -90,8 +90,7 @@ Ship v1 to users — CI/CD, container images, release pipeline, and Helm charts.
 Fixes and hardening required before any production deployment with real traffic.
 
 - [x] **P0** Constant-time API key comparison — Replace `token != cfg.validKey` with `subtle.ConstantTimeCompare()` in `apikey.go` (timing side-channel vector, one-line fix)
-- [x] **P0** Header scrubbing — Default scrub list (`Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`) applied to stored request/response data automatically. Per-gate config to add additional headers to scrub. Scrubbed headers also excluded from diff computation
-- [ ] **P1** Body field redaction — Two separate mechanisms: (a) per-gate `redacted_fields` config — fields removed from stored request/response data before persist (destructive); (b) existing per-gate `ignored_fields` remains diff-only (non-destructive). Distinct configs because redaction is irreversible
+- [x] **P0** Field redaction — Default redacted fields (`headers.Authorization`, `headers.Cookie`, `headers.Set-Cookie`, `headers.X-Api-Key`) applied to stored request/response data automatically. Per-gate `redacted_fields` config to add additional fields (headers and body) to redact. Redacted fields also excluded from diff computation
 - [ ] **P1** Per-gate retention — Optional `retention` field on gate schema. Cleanup job uses gate-specific value if set, falls back to global `MROKI_APP_RETENTION` default
 
 ### Phase 3: Diff Engine & Accuracy

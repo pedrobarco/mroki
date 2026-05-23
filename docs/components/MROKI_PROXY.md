@@ -146,26 +146,26 @@ MROKI_APP_WRITE_TIMEOUT=60s   # default: 60s — must be >= LIVE_TIMEOUT
 MROKI_APP_IDLE_TIMEOUT=120s   # default: 120s
 ```
 
-### Header Scrubbing (Optional)
+### Field Redaction (Optional)
 
-Sensitive header values are replaced with `[REDACTED]` before storage or diff computation. A default set of headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) is always scrubbed. Use this option to add extra headers to the scrub list.
+Sensitive field values (headers and JSON body) are replaced with `[REDACTED]` before storage or diff computation. A default set of fields (`headers.Authorization`, `headers.Cookie`, `headers.Set-Cookie`, `headers.X-Api-Key`) is always redacted. Use this option to add extra fields to the redacted list.
 
-In **API mode**, scrub configuration is loaded from the gate's `scrub_config` in mroki-api. In **Standalone mode**, use the environment variable below.
+In **API mode**, redacted fields are loaded from the gate's `redacted_fields` in mroki-api. In **Standalone mode**, use the environment variable below.
 
-#### `MROKI_APP_SCRUB_FIELDS`
+#### `MROKI_APP_REDACTED_FIELDS`
 
-Comma-separated list of additional fields to scrub, using gjson path notation.
+Comma-separated list of additional fields to redact, using gjson path notation.
 
 **Examples:**
 ```bash
 # Add internal auth headers
-MROKI_APP_SCRUB_FIELDS="headers.X-Internal-Token,headers.X-Session-Id"
+MROKI_APP_REDACTED_FIELDS="headers.X-Internal-Token,headers.X-Session-Id"
 
 # Add body fields
-MROKI_APP_SCRUB_FIELDS="headers.X-Internal-Token,body.user.password"
+MROKI_APP_REDACTED_FIELDS="headers.X-Internal-Token,body.user.password"
 ```
 
-> **Note:** Scrubbed fields are also automatically excluded from diff computation to avoid false positives.
+> **Note:** Redacted fields are also automatically excluded from diff computation to avoid false positives.
 
 ### Diff Configuration (Optional)
 
@@ -687,7 +687,7 @@ MROKI_APP_SHADOW_TIMEOUT=30s
 - Use TLS for proxy→API communication
 - Deploy in isolated network (Kubernetes sidecar pattern)
 - Review data retention and PII policies
-- Header scrubbing is enabled by default for `Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key` — configure additional fields per gate or via `MROKI_APP_SCRUB_FIELDS`
+- Field redaction is enabled by default for `headers.Authorization`, `headers.Cookie`, `headers.Set-Cookie`, `headers.X-Api-Key` — configure additional fields per gate or via `MROKI_APP_REDACTED_FIELDS`
 
 ## Related Documentation
 

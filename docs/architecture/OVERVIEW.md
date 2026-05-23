@@ -158,7 +158,7 @@ type Gate struct {
     LiveURL     GateURL     // Production service URL (immutable)
     ShadowURL   GateURL     // Shadow service URL (immutable)
     DiffConfig  DiffConfig  // Per-gate diff computation settings
-    ScrubConfig ScrubConfig // Per-gate header scrubbing (additional fields on top of defaults)
+    RedactedFields RedactedFields // Per-gate field redaction (additional fields on top of defaults)
     CreatedAt   time.Time
 }
 
@@ -275,7 +275,7 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 - [x] API key authentication (`Authorization: Bearer <key>`)
 - [x] Constant-time API key comparison (timing side-channel hardened)
 - [x] Rate limiting (token bucket, 1000 req/min/IP default)
-- [x] Header scrubbing — sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`) are replaced with `[REDACTED]` before storage. Per-gate additional fields configurable via `scrub_config`
+- [x] Field redaction — sensitive fields (`headers.Authorization`, `headers.Cookie`, `headers.Set-Cookie`, `headers.X-Api-Key`) are replaced with `[REDACTED]` before storage. Per-gate additional fields configurable via `redacted_fields`
 - [x] Request body size limits (10MB default)
 - [x] Input validation via domain value objects
 - [x] SQL injection prevention (parameterized queries via sqlc)
@@ -291,8 +291,8 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 ### Planned
 
+- [x] Body field redaction for non-header PII
 - [ ] RBAC for multi-tenant usage
-- [ ] Body field redaction for non-header PII
 - [ ] Proxy-to-API mutual TLS
 
 ---

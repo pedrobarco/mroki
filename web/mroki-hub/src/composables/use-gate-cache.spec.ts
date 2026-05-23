@@ -13,9 +13,7 @@ function makeGate(overrides: Partial<Gate> = {}): Gate {
       included_fields: [],
       float_tolerance: 0,
     },
-    scrub_config: {
-      additional_fields: [],
-    },
+    redacted_fields: [],
     created_at: '2026-03-29T09:00:00Z',
     stats: {
       request_count_24h: 0,

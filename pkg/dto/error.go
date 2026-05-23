@@ -263,17 +263,17 @@ func InvalidDiffConfig(err error) *APIError {
 	)
 }
 
-// InvalidScrubConfig returns an RFC 7807 error for invalid scrub configuration.
-// Used when scrub_config fields are invalid (e.g., empty field paths).
-func InvalidScrubConfig(err error) *APIError {
-	detail := "scrub_config is invalid"
+// InvalidRedactedFields returns an RFC 7807 error for invalid redacted fields configuration.
+// Used when redacted_fields are invalid (e.g., empty field paths).
+func InvalidRedactedFields(err error) *APIError {
+	detail := "redacted_fields is invalid"
 	if err != nil {
 		detail = fmt.Sprintf("%s: %v", detail, err)
 	}
 	return NewError(
 		http.StatusBadRequest,
 		ErrorTypeInvalidRequestBody,
-		"Invalid Scrub Config",
+		"Invalid Redacted Fields",
 		detail,
 		err,
 	)

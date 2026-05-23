@@ -909,9 +909,9 @@ func TestUpdateGate_Success_DiffConfig(t *testing.T) {
 	}
 }
 
-func TestUpdateGate_Success_ScrubConfig(t *testing.T) {
+func TestUpdateGate_Success_RedactedFields(t *testing.T) {
 	gateID := traffictesting.NewGateID()
-	name, _ := traffictesting.ParseGateName("scrub-gate")
+	name, _ := traffictesting.ParseGateName("redaction-gate")
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
 	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
 	existingGate, _ := traffictesting.NewGate(name, liveURL, shadowURL, traffictesting.WithGateID(gateID))
@@ -928,7 +928,7 @@ func TestUpdateGate_Success_ScrubConfig(t *testing.T) {
 	}
 	handler := commands.NewUpdateGateHandler(repo)
 
-	body := `{"scrub_config":{"additional_fields":["headers.X-Internal-Token","headers.X-Secret"]}}`
+	body := `{"redacted_fields":["headers.X-Internal-Token","headers.X-Secret"]}`
 	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
 	req.SetPathValue("gate_id", gateID.String())
 	rec := httptest.NewRecorder()
@@ -953,11 +953,11 @@ func TestUpdateGate_Success_ScrubConfig(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(response.Data.ScrubConfig.AdditionalFields) != 2 {
-		t.Errorf("expected 2 additional fields, got %d", len(response.Data.ScrubConfig.AdditionalFields))
+	if len(response.Data.RedactedFields) != 2 {
+		t.Errorf("expected 2 redacted fields, got %d", len(response.Data.RedactedFields))
 	}
-	assert.Equal(t, "headers.X-Internal-Token", response.Data.ScrubConfig.AdditionalFields[0])
-	assert.Equal(t, "headers.X-Secret", response.Data.ScrubConfig.AdditionalFields[1])
+	assert.Equal(t, "headers.X-Internal-Token", response.Data.RedactedFields[0])
+	assert.Equal(t, "headers.X-Secret", response.Data.RedactedFields[1])
 }
 
 func TestUpdateGate_NotFound(t *testing.T) {
