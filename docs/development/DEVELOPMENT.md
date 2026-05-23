@@ -78,29 +78,18 @@ go test ./internal/domain/...
 go test ./pkg/proxy/...
 ```
 
-### Running Components Locally
+### Running Locally
 
-**Terminal 1: PostgreSQL**
-```bash
-docker compose -f build/dev/compose.yaml up
-```
+See the [Getting Started: Full Stack](../getting-started/FULL_STACK.md) guide for running all components with Docker Compose, or run individual components with `go run`:
 
-**Terminal 2: API**
 ```bash
-cd cmd/mroki-api
-go run .
-```
+# Start dev dependencies (PostgreSQL)
+docker compose -f build/dev/compose.yaml up -d
 
-**Terminal 3: Agent**
-```bash
-cd cmd/mroki-proxy
-go run .
-```
-
-**Terminal 4: Hub** (when implemented)
-```bash
-cd web/mroki-hub
-npm run dev
+# Run each component in separate terminals
+go run ./cmd/mroki-api
+go run ./cmd/mroki-proxy
+cd web/mroki-hub && npm run dev
 ```
 
 ### Building Binaries
@@ -292,55 +281,9 @@ Currently applied automatically on startup. Future versions will use migration t
 
 ## Debugging
 
-### Enable Debug Logging
+For troubleshooting runtime issues, see the [Troubleshooting](../TROUBLESHOOTING.md) guide.
 
-```bash
-# Agent
-MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-proxy
-
-# API
-MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-api
-```
-
-### Delve Debugger
-
-```bash
-# Install delve
-go install github.com/go-delve/delve/cmd/dlv@latest
-
-# Debug proxy
-cd cmd/mroki-proxy
-dlv debug
-
-# Set breakpoints
-(dlv) break main.main
-(dlv) continue
-```
-
-### VS Code Configuration
-
-**`.vscode/launch.json`:**
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Debug Agent",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/cmd/mroki-proxy"
-    },
-    {
-      "name": "Debug API",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/cmd/mroki-api"
-    }
-  ]
-}
-```
+For debug logging configuration, see [Monitoring](../production/MONITORING.md).
 
 ## Contributing
 
@@ -418,6 +361,8 @@ go mod tidy
 
 ## Related Documentation
 
-- [Quick Start Guide](QUICK_START.md)
+- [Getting Started](../getting-started/FULL_STACK.md)
 - [Architecture Overview](../architecture/OVERVIEW.md)
-- [Deployment Guide](DEPLOYMENT.md)
+- [Production Deployment](../production/DOCKER_COMPOSE.md)
+- [Configuration](../production/CONFIGURATION.md)
+- [Troubleshooting](../TROUBLESHOOTING.md)

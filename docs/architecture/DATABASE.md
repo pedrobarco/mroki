@@ -465,5 +465,5 @@ The definitive schema is maintained in:
 ## Related Documentation
 
 - [Architecture Overview](OVERVIEW.md)
-- [API Contracts](API_CONTRACTS.md)
-- [mroki-api Component](../components/MROKI_API.md)
+- [API Reference](../api/REFERENCE.md)
+- [Configuration](../production/CONFIGURATION.md)
