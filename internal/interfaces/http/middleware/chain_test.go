@@ -1,9 +1,11 @@
-package middleware
+package middleware_test
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/pedrobarco/mroki/internal/interfaces/http/middleware"
 )
 
 func TestChain_Then(t *testing.T) {
@@ -30,7 +32,7 @@ func TestChain_Then(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	chain := Chain{mw1, mw2}
+	chain := middleware.Chain{mw1, mw2}
 	wrapped := chain.Then(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -65,7 +67,7 @@ func TestChain_ThenFunc(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	chain := Chain{mw}
+	chain := middleware.Chain{mw}
 	wrapped := chain.ThenFunc(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)

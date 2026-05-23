@@ -1,10 +1,11 @@
-package config
+package config_test
 
 import (
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/pedrobarco/mroki/cmd/mroki-proxy/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,8 +18,8 @@ func mustURL(raw string) *url.URL {
 	return u
 }
 
-func validStandaloneConfig() Config {
-	var cfg Config
+func validStandaloneConfig() config.Config {
+	var cfg config.Config
 	cfg.App.LiveURL = mustURL("http://live:8080")
 	cfg.App.ShadowURL = mustURL("http://shadow:8080")
 	cfg.App.Port = 8080
@@ -32,8 +33,8 @@ func validStandaloneConfig() Config {
 	return cfg
 }
 
-func validAPIConfig() Config {
-	var cfg Config
+func validAPIConfig() config.Config {
+	var cfg config.Config
 	cfg.App.APIURL = mustURL("http://api:8081")
 	cfg.App.GateID = "550e8400-e29b-41d4-a716-446655440000"
 	cfg.App.APIKey = "test-api-key-min-16-chars"
@@ -65,7 +66,7 @@ func TestValidate_valid_api_mode(t *testing.T) {
 }
 
 func TestValidate_no_mode_configured(t *testing.T) {
-	var cfg Config
+	var cfg config.Config
 	cfg.App.Port = 8080
 	cfg.App.LiveTimeout = 5 * time.Second
 	cfg.App.ShadowTimeout = 10 * time.Second
@@ -274,10 +275,10 @@ func TestValidate_server_timeout_ordering(t *testing.T) {
 	assert.Contains(t, err.Error(), "read_timeout (30s) must be less than write_timeout (30s)")
 }
 
-func asValidationError(t *testing.T, err error) *ValidationError {
+func asValidationError(t *testing.T, err error) *config.ValidationError {
 	t.Helper()
-	verr, ok := err.(*ValidationError)
-	require.True(t, ok, "expected *ValidationError, got %T", err)
+	verr, ok := err.(*config.ValidationError)
+	require.True(t, ok, "expected *config.ValidationError, got %T", err)
 	return verr
 }
 
@@ -330,7 +331,7 @@ func TestValidate_no_warnings_standalone(t *testing.T) {
 }
 
 func TestValidate_multiple_errors(t *testing.T) {
-	var cfg Config
+	var cfg config.Config
 	cfg.App.Port = 0
 	cfg.App.LiveTimeout = 0
 	cfg.App.ShadowTimeout = 0

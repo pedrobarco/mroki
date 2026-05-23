@@ -1,10 +1,11 @@
-package config
+package config_test
 
 import (
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,8 +18,8 @@ func mustURL(raw string) *url.URL {
 	return u
 }
 
-func validConfig() Config {
-	var cfg Config
+func validConfig() config.Config {
+	var cfg config.Config
 	cfg.App.Port = 8090
 	cfg.App.MaxBodySize = 10485760
 	cfg.App.RateLimit = 1000
@@ -181,7 +182,7 @@ func TestValidate_invalid_database_url(t *testing.T) {
 }
 
 func TestValidate_multiple_errors(t *testing.T) {
-	var cfg Config
+	var cfg config.Config
 	cfg.App.Port = 0
 	cfg.App.APIKey = ""
 	cfg.App.Database.MaxConnIdle = "5m"

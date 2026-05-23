@@ -1,10 +1,11 @@
-package diff
+package diff_test
 
 import (
 	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/tidwall/gjson"
 )
 
@@ -62,7 +63,7 @@ func TestFieldNormalizer_Whitelist(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			normalizer := NewFieldNormalizer(tt.includedFields, nil)
+			normalizer := diff.NewFieldNormalizer(tt.includedFields, nil)
 			result, err := normalizer.NormalizeBytes([]byte(tt.input))
 			if err != nil {
 				t.Fatalf("NormalizeBytes() error = %v", err)
@@ -141,7 +142,7 @@ func TestFieldNormalizer_Blacklist(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			normalizer := NewFieldNormalizer(nil, tt.ignoredFields)
+			normalizer := diff.NewFieldNormalizer(nil, tt.ignoredFields)
 			result, err := normalizer.NormalizeBytes([]byte(tt.input))
 			if err != nil {
 				t.Fatalf("NormalizeBytes() error = %v", err)
@@ -172,7 +173,7 @@ func TestFieldNormalizer_HybridStrategy(t *testing.T) {
 	// 2. Then exclude from the included fields (blacklist on top)
 	input := `{"name":"John","age":30,"email":"john@example.com"}`
 
-	normalizer := NewFieldNormalizer(
+	normalizer := diff.NewFieldNormalizer(
 		[]string{"name", "email"}, // whitelist: include name and email
 		[]string{"email"},         // blacklist: then exclude email
 	)
@@ -205,7 +206,7 @@ func TestFieldNormalizer_HybridStrategy_NestedObjects(t *testing.T) {
 	// Hybrid: include entire "user" object, but exclude sensitive field
 	input := `{"user":{"name":"John","email":"john@example.com","ssn":"123-45-6789"},"timestamp":"2024-01-01"}`
 
-	normalizer := NewFieldNormalizer(
+	normalizer := diff.NewFieldNormalizer(
 		[]string{"user"},     // include entire user object
 		[]string{"user.ssn"}, // but exclude sensitive SSN
 	)
@@ -238,7 +239,7 @@ func TestFieldNormalizer_HybridStrategy_ArrayWildcard(t *testing.T) {
 	// Hybrid: include users array, but exclude timestamps from each user
 	input := `{"users":[{"name":"John","email":"john@example.com","created_at":"2024-01-01"},{"name":"Jane","email":"jane@example.com","created_at":"2024-01-02"}],"metadata":{"version":"v1"}}`
 
-	normalizer := NewFieldNormalizer(
+	normalizer := diff.NewFieldNormalizer(
 		[]string{"users"},              // include entire users array
 		[]string{"users.#.created_at"}, // but exclude created_at from each user
 	)
@@ -273,7 +274,7 @@ func TestFieldNormalizer_HybridStrategy_ArrayWildcard(t *testing.T) {
 func TestFieldNormalizer_NoFiltering(t *testing.T) {
 	input := `{"name":"John","age":30,"email":"john@example.com"}`
 
-	normalizer := NewFieldNormalizer(nil, nil)
+	normalizer := diff.NewFieldNormalizer(nil, nil)
 	result, err := normalizer.NormalizeBytes([]byte(input))
 	if err != nil {
 		t.Fatalf("NormalizeBytes() error = %v", err)
@@ -297,7 +298,7 @@ func TestFieldNormalizer_ComplexNesting(t *testing.T) {
 		"timestamp": "2024-01-01"
 	}`
 
-	normalizer := NewFieldNormalizer(
+	normalizer := diff.NewFieldNormalizer(
 		[]string{"user.profile.email", "user.name"},
 		nil,
 	)
@@ -327,7 +328,7 @@ func TestFieldNormalizer_ComplexNesting(t *testing.T) {
 // Benchmark tests
 func BenchmarkFieldNormalizer_Whitelist(b *testing.B) {
 	input := []byte(`{"name":"John","age":30,"email":"john@example.com","address":"123 Main St","phone":"555-1234","country":"USA","timestamp":"2024-01-01","request_id":"abc123"}`)
-	normalizer := NewFieldNormalizer([]string{"name", "email"}, nil)
+	normalizer := diff.NewFieldNormalizer([]string{"name", "email"}, nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -337,7 +338,7 @@ func BenchmarkFieldNormalizer_Whitelist(b *testing.B) {
 
 func BenchmarkFieldNormalizer_Blacklist(b *testing.B) {
 	input := []byte(`{"name":"John","age":30,"email":"john@example.com","address":"123 Main St","phone":"555-1234","country":"USA","timestamp":"2024-01-01","request_id":"abc123"}`)
-	normalizer := NewFieldNormalizer(nil, []string{"timestamp", "request_id"})
+	normalizer := diff.NewFieldNormalizer(nil, []string{"timestamp", "request_id"})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -347,7 +348,7 @@ func BenchmarkFieldNormalizer_Blacklist(b *testing.B) {
 
 func BenchmarkFieldNormalizer_NoFiltering(b *testing.B) {
 	input := []byte(`{"name":"John","age":30,"email":"john@example.com","address":"123 Main St","phone":"555-1234","country":"USA","timestamp":"2024-01-01","request_id":"abc123"}`)
-	normalizer := NewFieldNormalizer(nil, nil)
+	normalizer := diff.NewFieldNormalizer(nil, nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -420,7 +421,7 @@ func TestNormalizeTree_Whitelist(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := parseJSON(t, tt.input)
-			normalizer := NewFieldNormalizer(tt.includedFields, nil)
+			normalizer := diff.NewFieldNormalizer(tt.includedFields, nil)
 			result := normalizer.NormalizeTree(tree)
 
 			// Marshal result to JSON for gjson assertions
@@ -481,7 +482,7 @@ func TestNormalizeTree_Blacklist(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := parseJSON(t, tt.input)
-			normalizer := NewFieldNormalizer(nil, tt.ignoredFields)
+			normalizer := diff.NewFieldNormalizer(nil, tt.ignoredFields)
 			result := normalizer.NormalizeTree(tree)
 
 			resultBytes, err := json.Marshal(result)
@@ -507,7 +508,7 @@ func TestNormalizeTree_Hybrid(t *testing.T) {
 	input := `{"name":"John","age":30,"email":"john@example.com"}`
 	tree := parseJSON(t, input)
 
-	normalizer := NewFieldNormalizer(
+	normalizer := diff.NewFieldNormalizer(
 		[]string{"name", "email"},
 		[]string{"email"},
 	)
@@ -572,7 +573,7 @@ func TestNormalizeTree_EquivalenceWithBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			normalizer := NewFieldNormalizer(tt.includedFields, tt.ignoredFields)
+			normalizer := diff.NewFieldNormalizer(tt.includedFields, tt.ignoredFields)
 
 			// NormalizeBytes path
 			bytesResult, err := normalizer.NormalizeBytes([]byte(tt.input))

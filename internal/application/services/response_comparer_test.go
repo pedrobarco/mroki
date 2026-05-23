@@ -1,9 +1,10 @@
-package services
+package services_test
 
 import (
 	"net/http"
 	"testing"
 
+	"github.com/pedrobarco/mroki/internal/application/services"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/stretchr/testify/assert"
@@ -12,12 +13,12 @@ import (
 
 func TestCompare_identical_json_responses(t *testing.T) {
 	redactor := traffictesting.NewRedactor(nil)
-	comparer := NewResponseComparer(redactor, nil)
+	comparer := services.NewResponseComparer(redactor, nil)
 
 	body := []byte(`{"name":"Alice","age":30}`)
-	req := ResponseData{StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}}, Body: body}
-	live := ResponseData{StatusCode: 200, Headers: http.Header{"X-Live": {"true"}}, Body: body}
-	shadow := ResponseData{StatusCode: 200, Headers: http.Header{"X-Live": {"true"}}, Body: body}
+	req := services.ResponseData{StatusCode: 200, Headers: http.Header{"Content-Type": {"application/json"}}, Body: body}
+	live := services.ResponseData{StatusCode: 200, Headers: http.Header{"X-Live": {"true"}}, Body: body}
+	shadow := services.ResponseData{StatusCode: 200, Headers: http.Header{"X-Live": {"true"}}, Body: body}
 
 	result, err := comparer.Compare(req, live, shadow)
 
@@ -33,11 +34,11 @@ func TestCompare_identical_json_responses(t *testing.T) {
 
 func TestCompare_different_json_responses(t *testing.T) {
 	redactor := traffictesting.NewRedactor(nil)
-	comparer := NewResponseComparer(redactor, nil)
+	comparer := services.NewResponseComparer(redactor, nil)
 
-	req := ResponseData{StatusCode: 200, Body: []byte(`{}`)}
-	live := ResponseData{StatusCode: 200, Body: []byte(`{"user":"Alice"}`)}
-	shadow := ResponseData{StatusCode: 200, Body: []byte(`{"user":"Bob"}`)}
+	req := services.ResponseData{StatusCode: 200, Body: []byte(`{}`)}
+	live := services.ResponseData{StatusCode: 200, Body: []byte(`{"user":"Alice"}`)}
+	shadow := services.ResponseData{StatusCode: 200, Body: []byte(`{"user":"Bob"}`)}
 
 	result, err := comparer.Compare(req, live, shadow)
 
@@ -54,15 +55,15 @@ func TestCompare_different_json_responses(t *testing.T) {
 
 func TestCompare_redacts_headers(t *testing.T) {
 	redactor := traffictesting.NewRedactor([]string{"headers.Cookie"})
-	comparer := NewResponseComparer(redactor, nil)
+	comparer := services.NewResponseComparer(redactor, nil)
 
-	req := ResponseData{
+	req := services.ResponseData{
 		StatusCode: 200,
 		Headers:    http.Header{"Cookie": {"secret"}},
 		Body:       []byte(`{}`),
 	}
-	live := ResponseData{StatusCode: 200, Body: []byte(`{}`)}
-	shadow := ResponseData{StatusCode: 200, Body: []byte(`{}`)}
+	live := services.ResponseData{StatusCode: 200, Body: []byte(`{}`)}
+	shadow := services.ResponseData{StatusCode: 200, Body: []byte(`{}`)}
 
 	result, err := comparer.Compare(req, live, shadow)
 
@@ -72,14 +73,14 @@ func TestCompare_redacts_headers(t *testing.T) {
 
 func TestCompare_redacts_body_fields(t *testing.T) {
 	redactor := traffictesting.NewRedactor([]string{"body.password"})
-	comparer := NewResponseComparer(redactor, nil)
+	comparer := services.NewResponseComparer(redactor, nil)
 
-	req := ResponseData{StatusCode: 200, Body: []byte(`{}`)}
-	live := ResponseData{
+	req := services.ResponseData{StatusCode: 200, Body: []byte(`{}`)}
+	live := services.ResponseData{
 		StatusCode: 200,
 		Body:       []byte(`{"password":"secret","name":"Alice"}`),
 	}
-	shadow := ResponseData{StatusCode: 200, Body: []byte(`{"password":"secret","name":"Alice"}`)}
+	shadow := services.ResponseData{StatusCode: 200, Body: []byte(`{"password":"secret","name":"Alice"}`)}
 
 	result, err := comparer.Compare(req, live, shadow)
 
@@ -94,11 +95,11 @@ func TestCompare_redacts_body_fields(t *testing.T) {
 
 func TestCompare_empty_bodies(t *testing.T) {
 	redactor := traffictesting.NewRedactor(nil)
-	comparer := NewResponseComparer(redactor, nil)
+	comparer := services.NewResponseComparer(redactor, nil)
 
-	req := ResponseData{StatusCode: 200}
-	live := ResponseData{StatusCode: 200}
-	shadow := ResponseData{StatusCode: 200}
+	req := services.ResponseData{StatusCode: 200}
+	live := services.ResponseData{StatusCode: 200}
+	shadow := services.ResponseData{StatusCode: 200}
 
 	result, err := comparer.Compare(req, live, shadow)
 
@@ -111,11 +112,11 @@ func TestCompare_empty_bodies(t *testing.T) {
 
 func TestCompare_non_json_bodies(t *testing.T) {
 	redactor := traffictesting.NewRedactor(nil)
-	comparer := NewResponseComparer(redactor, nil)
+	comparer := services.NewResponseComparer(redactor, nil)
 
-	req := ResponseData{StatusCode: 200, Body: []byte(`{}`)}
-	live := ResponseData{StatusCode: 200, Body: []byte(`<html>hello</html>`)}
-	shadow := ResponseData{StatusCode: 200, Body: []byte(`<html>world</html>`)}
+	req := services.ResponseData{StatusCode: 200, Body: []byte(`{}`)}
+	live := services.ResponseData{StatusCode: 200, Body: []byte(`<html>hello</html>`)}
+	shadow := services.ResponseData{StatusCode: 200, Body: []byte(`<html>world</html>`)}
 
 	result, err := comparer.Compare(req, live, shadow)
 
@@ -129,13 +130,13 @@ func TestCompare_non_json_bodies(t *testing.T) {
 
 func TestCompare_with_diff_options(t *testing.T) {
 	redactor := traffictesting.NewRedactor(nil)
-	comparer := NewResponseComparer(redactor, []diff.Option{
+	comparer := services.NewResponseComparer(redactor, []diff.Option{
 		diff.WithIgnoredFields("body.timestamp"),
 	})
 
-	req := ResponseData{StatusCode: 200, Body: []byte(`{}`)}
-	live := ResponseData{StatusCode: 200, Body: []byte(`{"timestamp":"2024-01-01T10:00:00Z"}`)}
-	shadow := ResponseData{StatusCode: 200, Body: []byte(`{"timestamp":"2024-01-01T11:00:00Z"}`)}
+	req := services.ResponseData{StatusCode: 200, Body: []byte(`{}`)}
+	live := services.ResponseData{StatusCode: 200, Body: []byte(`{"timestamp":"2024-01-01T10:00:00Z"}`)}
+	shadow := services.ResponseData{StatusCode: 200, Body: []byte(`{"timestamp":"2024-01-01T11:00:00Z"}`)}
 
 	result, err := comparer.Compare(req, live, shadow)
 
@@ -145,12 +146,12 @@ func TestCompare_with_diff_options(t *testing.T) {
 
 func TestCompare_different_status_codes(t *testing.T) {
 	redactor := traffictesting.NewRedactor(nil)
-	comparer := NewResponseComparer(redactor, nil)
+	comparer := services.NewResponseComparer(redactor, nil)
 
 	body := []byte(`{"ok":true}`)
-	req := ResponseData{StatusCode: 200, Body: body}
-	live := ResponseData{StatusCode: 200, Body: body}
-	shadow := ResponseData{StatusCode: 500, Body: body}
+	req := services.ResponseData{StatusCode: 200, Body: body}
+	live := services.ResponseData{StatusCode: 200, Body: body}
+	shadow := services.ResponseData{StatusCode: 500, Body: body}
 
 	result, err := comparer.Compare(req, live, shadow)
 
@@ -167,13 +168,13 @@ func TestCompare_different_status_codes(t *testing.T) {
 
 
 func TestCompare_nil_redactor(t *testing.T) {
-	comparer := NewResponseComparer(nil, nil)
+	comparer := services.NewResponseComparer(nil, nil)
 	_, err := comparer.Compare(
-		ResponseData{},
-		ResponseData{StatusCode: 200},
-		ResponseData{StatusCode: 200},
+		services.ResponseData{},
+		services.ResponseData{StatusCode: 200},
+		services.ResponseData{StatusCode: 200},
 	)
-	require.ErrorIs(t, err, ErrNilRedactor)
+	require.ErrorIs(t, err, services.ErrNilRedactor)
 }
 
 func TestCompare_redaction_error_includes_context(t *testing.T) {
@@ -182,13 +183,13 @@ func TestCompare_redaction_error_includes_context(t *testing.T) {
 	// So we just verify that error messages from Compare include context about
 	// which step failed (request/live/shadow).
 	redactor := traffictesting.NewRedactor(nil)
-	comparer := NewResponseComparer(redactor, nil)
+	comparer := services.NewResponseComparer(redactor, nil)
 
 	// With a valid redactor and normal input, no errors expected.
 	result, err := comparer.Compare(
-		ResponseData{Headers: http.Header{"X": {"1"}}, Body: []byte(`{"a":1}`)},
-		ResponseData{StatusCode: 200, Headers: http.Header{"X": {"1"}}, Body: []byte(`{"a":1}`)},
-		ResponseData{StatusCode: 200, Headers: http.Header{"X": {"1"}}, Body: []byte(`{"a":1}`)},
+		services.ResponseData{Headers: http.Header{"X": {"1"}}, Body: []byte(`{"a":1}`)},
+		services.ResponseData{StatusCode: 200, Headers: http.Header{"X": {"1"}}, Body: []byte(`{"a":1}`)},
+		services.ResponseData{StatusCode: 200, Headers: http.Header{"X": {"1"}}, Body: []byte(`{"a":1}`)},
 	)
 	require.NoError(t, err)
 	require.NotNil(t, result)

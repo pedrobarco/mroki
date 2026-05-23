@@ -1,10 +1,11 @@
-package client
+package client_test
 
 import (
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/pedrobarco/mroki/pkg/client"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 	"github.com/stretchr/testify/assert"
 )
@@ -48,7 +49,7 @@ func TestConvertProxyToCapture(t *testing.T) {
 	}
 
 	// Convert
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
+	captured := client.ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
 
 	// Verify request fields
 	assert.Equal(t, "POST", captured.Method)
@@ -106,7 +107,7 @@ func TestConvertProxyToCapture_EmptyBody(t *testing.T) {
 		Body: []byte{},
 	}
 
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
+	captured := client.ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
 
 	// Base64 encoding of empty byte array is empty string
 	assert.Equal(t, "", captured.Body)
@@ -148,7 +149,7 @@ func TestConvertProxyToCapture_MultipleHeaders(t *testing.T) {
 		Body: []byte(`{}`),
 	}
 
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
+	captured := client.ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
 
 	// Verify request headers preserved
 	assert.Equal(t, []string{"application/json", "text/plain"}, captured.Headers["Accept"])
@@ -180,7 +181,7 @@ func TestConvertProxyToCapture_TimestampConsistency(t *testing.T) {
 	}
 
 	before := time.Now()
-	captured := ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
+	captured := client.ConvertProxyToCapture(proxyReq, liveResp, shadowResp)
 	after := time.Now()
 
 	// Verify timestamp is within reasonable range
