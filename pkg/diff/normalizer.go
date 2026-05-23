@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pedrobarco/mroki/pkg/jsontree"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -181,3 +182,44 @@ func (fn *FieldNormalizer) extractArrayField(data, result []byte, path string) [
 
 	return result
 }
+
+// NormalizeTree filters fields on an in-memory JSON tree (map[string]any / []any).
+// Same semantics as NormalizeBytes but operates on Go values directly,
+// avoiding gjson/sjson byte-level operations.
+//
+// Whitelist: builds a new tree keeping only the included paths.
+// Blacklist: deletes keys in-place from the tree.
+//
+// The returned tree is always a fresh copy and safe to mutate by callers.
+func (fn *FieldNormalizer) NormalizeTree(tree jsontree.Tree) jsontree.Tree {
+	if tree == nil {
+		return nil
+	}
+
+	result := tree
+
+	// Step 1: Apply whitelist if specified.
+	// PickPaths builds a new tree, so no copy needed.
+	if len(fn.includedFields) > 0 {
+		result = jsontree.PickPaths(result, fn.includedFields)
+	}
+
+	// Step 2: Apply blacklist if specified.
+	// DeletePaths mutates in-place, so deep copy first to avoid mutating the caller's tree.
+	// When whitelist was applied, the result is already a fresh tree — skip the copy.
+	if len(fn.ignoredFields) > 0 {
+		if len(fn.includedFields) == 0 {
+			result = jsontree.DeepCopy(result)
+		}
+		jsontree.DeletePaths(result, fn.ignoredFields)
+	}
+
+	// When no filtering is configured, deep copy to avoid callers mutating the original tree.
+	// This matches NormalizeBytes which always produces a fresh copy.
+	if len(fn.includedFields) == 0 && len(fn.ignoredFields) == 0 {
+		result = jsontree.DeepCopy(result)
+	}
+
+	return result
+}
+

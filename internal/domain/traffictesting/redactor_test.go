@@ -163,6 +163,65 @@ func TestRedactor_NonCanonicalHeaderKeys(t *testing.T) {
 	assert.Equal(t, []string{"application/json"}, res.Headers["Content-Type"])
 }
 
+func TestRedactor_BodyParsed_JSON(t *testing.T) {
+	r := traffictesting.NewRedactor([]string{"body.password"})
+	body := []byte(`{"name":"Alice","password":"s3cret"}`)
+
+	res, err := r.Redact(nil, body)
+
+	require.NoError(t, err)
+	require.NotNil(t, res.BodyParsed, "BodyParsed should be non-nil for JSON bodies")
+
+	// BodyParsed should reflect the redacted values
+	m, ok := res.BodyParsed.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Alice", m["name"])
+	assert.Equal(t, traffictesting.RedactedValue, m["password"])
+
+	// Body bytes should match json.Marshal(BodyParsed)
+	remarshaled, err := json.Marshal(res.BodyParsed)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(res.Body), string(remarshaled))
+}
+
+func TestRedactor_BodyParsed_NoFields(t *testing.T) {
+	// No redacted fields, but body is valid JSON — BodyParsed should still be set
+	r := traffictesting.NewRedactor(nil)
+	body := []byte(`{"name":"Alice"}`)
+
+	res, err := r.Redact(nil, body)
+
+	require.NoError(t, err)
+	require.NotNil(t, res.BodyParsed, "BodyParsed should be non-nil for valid JSON even with no fields")
+	m, ok := res.BodyParsed.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Alice", m["name"])
+}
+
+func TestRedactor_BodyParsed_NonJSON(t *testing.T) {
+	r := traffictesting.NewRedactor([]string{"body.password"})
+	body := []byte(`not json`)
+
+	res, err := r.Redact(nil, body)
+
+	require.NoError(t, err)
+	assert.Nil(t, res.BodyParsed, "BodyParsed should be nil for non-JSON bodies")
+	assert.Equal(t, body, res.Body, "non-JSON body should pass through")
+}
+
+func TestRedactor_BodyParsed_Empty(t *testing.T) {
+	r := traffictesting.NewRedactor([]string{"body.password"})
+
+	res, err := r.Redact(nil, nil)
+
+	require.NoError(t, err)
+	assert.Nil(t, res.BodyParsed, "BodyParsed should be nil for nil body")
+
+	res, err = r.Redact(nil, []byte{})
+	require.NoError(t, err)
+	assert.Nil(t, res.BodyParsed, "BodyParsed should be nil for empty body")
+}
+
 func BenchmarkRedactor_10MB_20fields(b *testing.B) {
 	fields := make([]string, 20)
 	for i := range fields {

@@ -1,10 +1,14 @@
 package diff_test
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJSON_identical_json_returns_empty_diff(t *testing.T) {
@@ -326,5 +330,313 @@ func BenchmarkJSON_ComplexNested(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = diff.JSON(a, c)
+	}
+}
+
+// --- diff.Parsed tests ---
+
+func TestParsed_identical_returns_empty_diff(t *testing.T) {
+	a := map[string]any{"key": "value", "nested": map[string]any{"foo": "bar"}}
+	b := map[string]any{"key": "value", "nested": map[string]any{"foo": "bar"}}
+
+	ops, err := diff.Parsed(a, b)
+
+	require.NoError(t, err)
+	assert.Empty(t, ops)
+}
+
+func TestParsed_different_returns_diff(t *testing.T) {
+	a := map[string]any{"key": "value1", "count": float64(1)}
+	b := map[string]any{"key": "value2", "count": float64(2)}
+
+	ops, err := diff.Parsed(a, b)
+
+	require.NoError(t, err)
+	assert.Len(t, ops, 2)
+	for _, op := range ops {
+		assert.Equal(t, "replace", op.Op)
+	}
+}
+
+func TestParsed_nil_input_returns_error(t *testing.T) {
+	_, err := diff.Parsed(nil, map[string]any{})
+	assert.Error(t, err)
+
+	_, err = diff.Parsed(map[string]any{}, nil)
+	assert.Error(t, err)
+}
+
+func TestParsed_with_ignored_fields(t *testing.T) {
+	a := map[string]any{"name": "John", "timestamp": "2024-01-01"}
+	b := map[string]any{"name": "John", "timestamp": "2024-01-02"}
+
+	ops, err := diff.Parsed(a, b, diff.WithIgnoredFields("timestamp"))
+
+	require.NoError(t, err)
+	assert.Empty(t, ops, "should have no diff when differing field is ignored")
+}
+
+func TestParsed_with_included_fields(t *testing.T) {
+	a := map[string]any{"name": "John", "age": float64(30)}
+	b := map[string]any{"name": "John", "age": float64(31)}
+
+	ops, err := diff.Parsed(a, b, diff.WithIncludedFields("name"))
+
+	require.NoError(t, err)
+	assert.Empty(t, ops, "should have no diff when only matching fields are included")
+}
+
+// TestBuildEnvelope_MatchesJsonPath verifies that BuildEnvelope produces the
+// same Go value tree as the current json.Marshal → gjson.ParseBytes path.
+func TestBuildEnvelope_MatchesJsonPath(t *testing.T) {
+	headers := http.Header{
+		"Content-Type": {"application/json"},
+		"X-Multi":      {"val1", "val2"},
+	}
+	bodyJSON := `{"user": {"name": "Alice"}, "count": 42}`
+	var bodyParsed any
+	require.NoError(t, json.Unmarshal([]byte(bodyJSON), &bodyParsed))
+
+	envelope := diff.BuildEnvelope(200, headers, bodyParsed)
+
+	// Verify structure
+	assert.Equal(t, float64(200), envelope["statusCode"])
+	assert.NotNil(t, envelope["headers"])
+	assert.NotNil(t, envelope["body"])
+
+	// Verify header values are []any (matching json.Marshal → parse shape)
+	h := envelope["headers"].(map[string]any)
+	ct := h["Content-Type"].([]any)
+	assert.Equal(t, []any{"application/json"}, ct)
+	multi := h["X-Multi"].([]any)
+	assert.Equal(t, []any{"val1", "val2"}, multi)
+
+	// Verify body is the parsed tree
+	body := envelope["body"].(map[string]any)
+	user := body["user"].(map[string]any)
+	assert.Equal(t, "Alice", user["name"])
+}
+
+func TestBuildEnvelope_NilBody(t *testing.T) {
+	envelope := diff.BuildEnvelope(204, http.Header{}, nil)
+
+	assert.Equal(t, float64(204), envelope["statusCode"])
+	assert.Nil(t, envelope["body"])
+}
+
+// TestParsed_EquivalenceWithJSON verifies that diff.Parsed produces the same
+// PatchOps as diff.JSON for the same logical input.
+func TestParsed_EquivalenceWithJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		a, b string
+		opts []diff.Option
+	}{
+		{
+			name: "simple replace",
+			a:    `{"name":"Alice","age":30}`,
+			b:    `{"name":"Bob","age":30}`,
+		},
+		{
+			name: "add field",
+			a:    `{"name":"Alice"}`,
+			b:    `{"name":"Alice","age":30}`,
+		},
+		{
+			name: "remove field",
+			a:    `{"name":"Alice","age":30}`,
+			b:    `{"name":"Alice"}`,
+		},
+		{
+			name: "nested change",
+			a:    `{"user":{"name":"Alice","profile":{"age":30}}}`,
+			b:    `{"user":{"name":"Alice","profile":{"age":31}}}`,
+		},
+		{
+			name: "with ignored fields",
+			a:    `{"name":"Alice","ts":"2024-01-01","age":30}`,
+			b:    `{"name":"Bob","ts":"2024-01-02","age":31}`,
+			opts: []diff.Option{diff.WithIgnoredFields("ts")},
+		},
+		{
+			name: "identical",
+			a:    `{"x":1,"y":2}`,
+			b:    `{"x":1,"y":2}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// diff.JSON path
+			jsonOps, err := diff.JSON(tt.a, tt.b, tt.opts...)
+			require.NoError(t, err)
+
+			// diff.Parsed path
+			var aTree, bTree any
+			require.NoError(t, json.Unmarshal([]byte(tt.a), &aTree))
+			require.NoError(t, json.Unmarshal([]byte(tt.b), &bTree))
+			parsedOps, err := diff.Parsed(aTree, bTree, tt.opts...)
+			require.NoError(t, err)
+
+			// Same number of ops
+			assert.Equal(t, len(jsonOps), len(parsedOps), "op count mismatch")
+
+			// Same ops (order may vary, so compare sets)
+			jsonSet := opsToSet(jsonOps)
+			parsedSet := opsToSet(parsedOps)
+			assert.Equal(t, jsonSet, parsedSet)
+		})
+	}
+}
+
+func opsToSet(ops []diff.PatchOp) map[string]string {
+	s := make(map[string]string, len(ops))
+	for _, op := range ops {
+		s[op.Path] = op.Op
+	}
+	return s
+}
+
+// --- Pipeline benchmarks: diff.JSON (bytes) vs BuildEnvelope + diff.Parsed (trees) ---
+//
+// These benchmarks compare the full diff pipeline for both approaches.
+// diff.JSON path:  json.Marshal(headers) → fmt.Sprintf envelope → diff.JSON
+// diff.Parsed path: json.Unmarshal body (simulating redactor) → BuildEnvelope → diff.Parsed
+//
+// Run with: go test ./pkg/diff/... -bench=BenchmarkPipeline -benchmem
+
+// makeBody generates a JSON body with n top-level keys for benchmarking.
+func makeBody(n int) (string, map[string]any) {
+	m := make(map[string]any, n)
+	for i := 0; i < n; i++ {
+		m[fmt.Sprintf("field_%d", i)] = fmt.Sprintf("value_%d", i)
+	}
+	b, _ := json.Marshal(m)
+	return string(b), m
+}
+
+// makeHeaders generates an http.Header with n entries.
+func makeHeaders(n int) http.Header {
+	h := make(http.Header, n)
+	for i := 0; i < n; i++ {
+		h.Set(fmt.Sprintf("X-Header-%d", i), fmt.Sprintf("val-%d", i))
+	}
+	return h
+}
+
+func jsonEnvelope(status int, headers http.Header, body string) string {
+	h, _ := json.Marshal(headers)
+	return fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`, status, h, body)
+}
+
+func benchmarkPipelineJSON(b *testing.B, bodyStr string, headers http.Header, opts ...diff.Option) {
+	a := jsonEnvelope(200, headers, bodyStr)
+	c := jsonEnvelope(500, headers, bodyStr)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = diff.JSON(a, c, opts...)
+	}
+}
+
+func benchmarkPipelineParsed(b *testing.B, bodyTree map[string]any, headers http.Header, opts ...diff.Option) {
+	a := diff.BuildEnvelope(200, headers, bodyTree)
+	c := diff.BuildEnvelope(500, headers, bodyTree)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = diff.Parsed(a, c, opts...)
+	}
+}
+
+// Small body: 10 fields
+func BenchmarkPipeline_JSON_Small(b *testing.B) {
+	bodyStr, _ := makeBody(10)
+	benchmarkPipelineJSON(b, bodyStr, makeHeaders(5))
+}
+
+func BenchmarkPipeline_Parsed_Small(b *testing.B) {
+	_, bodyTree := makeBody(10)
+	benchmarkPipelineParsed(b, bodyTree, makeHeaders(5))
+}
+
+// Medium body: 100 fields
+func BenchmarkPipeline_JSON_Medium(b *testing.B) {
+	bodyStr, _ := makeBody(100)
+	benchmarkPipelineJSON(b, bodyStr, makeHeaders(10))
+}
+
+func BenchmarkPipeline_Parsed_Medium(b *testing.B) {
+	_, bodyTree := makeBody(100)
+	benchmarkPipelineParsed(b, bodyTree, makeHeaders(10))
+}
+
+// Large body: 1000 fields
+func BenchmarkPipeline_JSON_Large(b *testing.B) {
+	bodyStr, _ := makeBody(1000)
+	benchmarkPipelineJSON(b, bodyStr, makeHeaders(20))
+}
+
+func BenchmarkPipeline_Parsed_Large(b *testing.B) {
+	_, bodyTree := makeBody(1000)
+	benchmarkPipelineParsed(b, bodyTree, makeHeaders(20))
+}
+
+// With ignored fields (5 fields ignored)
+func BenchmarkPipeline_JSON_Medium_IgnoredFields(b *testing.B) {
+	bodyStr, _ := makeBody(100)
+	opts := []diff.Option{diff.WithIgnoredFields("field_0", "field_10", "field_20", "field_30", "field_40")}
+	benchmarkPipelineJSON(b, bodyStr, makeHeaders(10), opts...)
+}
+
+func BenchmarkPipeline_Parsed_Medium_IgnoredFields(b *testing.B) {
+	_, bodyTree := makeBody(100)
+	opts := []diff.Option{diff.WithIgnoredFields("field_0", "field_10", "field_20", "field_30", "field_40")}
+	benchmarkPipelineParsed(b, bodyTree, makeHeaders(10), opts...)
+}
+
+// With included fields (5 fields included)
+func BenchmarkPipeline_JSON_Medium_IncludedFields(b *testing.B) {
+	bodyStr, _ := makeBody(100)
+	opts := []diff.Option{diff.WithIncludedFields("field_0", "field_10", "field_20", "field_30", "field_40")}
+	benchmarkPipelineJSON(b, bodyStr, makeHeaders(10), opts...)
+}
+
+func BenchmarkPipeline_Parsed_Medium_IncludedFields(b *testing.B) {
+	_, bodyTree := makeBody(100)
+	opts := []diff.Option{diff.WithIncludedFields("field_0", "field_10", "field_20", "field_30", "field_40")}
+	benchmarkPipelineParsed(b, bodyTree, makeHeaders(10), opts...)
+}
+
+// With differences in body content
+func BenchmarkPipeline_JSON_Medium_WithDiffs(b *testing.B) {
+	bodyStrA, _ := makeBody(100)
+	// Build a different body
+	m := make(map[string]any, 100)
+	for i := 0; i < 100; i++ {
+		m[fmt.Sprintf("field_%d", i)] = fmt.Sprintf("different_%d", i)
+	}
+	bodyB, _ := json.Marshal(m)
+	headers := makeHeaders(10)
+
+	a := jsonEnvelope(200, headers, bodyStrA)
+	c := jsonEnvelope(200, headers, string(bodyB))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = diff.JSON(a, c)
+	}
+}
+
+func BenchmarkPipeline_Parsed_Medium_WithDiffs(b *testing.B) {
+	_, bodyTreeA := makeBody(100)
+	bodyTreeB := make(map[string]any, 100)
+	for i := 0; i < 100; i++ {
+		bodyTreeB[fmt.Sprintf("field_%d", i)] = fmt.Sprintf("different_%d", i)
+	}
+	headers := makeHeaders(10)
+
+	a := diff.BuildEnvelope(200, headers, bodyTreeA)
+	c := diff.BuildEnvelope(200, headers, bodyTreeB)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = diff.Parsed(a, c)
 	}
 }

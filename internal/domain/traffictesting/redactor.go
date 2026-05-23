@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/pedrobarco/mroki/pkg/jsontree"
 )
 
 // Redactor redacts sensitive fields from headers and JSON bodies.
@@ -41,8 +43,9 @@ func NewRedactor(fields []string) *Redactor {
 
 // RedactResult holds the redacted headers and body.
 type RedactResult struct {
-	Headers http.Header
-	Body    []byte
+	Headers    http.Header
+	Body       []byte        // marshaled redacted body (for storage)
+	BodyParsed jsontree.Tree // in-memory JSON tree post-redaction (for diff optimization); nil if body is not JSON
 }
 
 // Redact replaces sensitive values in headers and body with [REDACTED].
@@ -69,79 +72,52 @@ func (r *Redactor) Redact(headers http.Header, body []byte) (RedactResult, error
 	}
 
 	// Redact body
-	redactedBody, err := r.redactBody(body)
+	redactedBody, bodyParsed, err := r.redactBody(body)
 	if err != nil {
 		if errors.Is(err, errNotJSON) {
-			return RedactResult{Headers: headers, Body: body}, nil
+			return RedactResult{Headers: headers, Body: body, BodyParsed: nil}, nil
 		}
 		return RedactResult{}, err
 	}
 
-	return RedactResult{Headers: headers, Body: redactedBody}, nil
+	return RedactResult{Headers: headers, Body: redactedBody, BodyParsed: bodyParsed}, nil
 }
 
 // errNotJSON is a sentinel indicating the body is not valid JSON (passthrough).
 var errNotJSON = errors.New("body is not valid JSON")
 
 // redactBody unmarshals, walks, redacts, and re-marshals the JSON body.
-func (r *Redactor) redactBody(body []byte) ([]byte, error) {
-	if len(body) == 0 || len(r.bodyFields) == 0 {
-		return body, nil
+// Returns (marshaledBytes, parsedTree, error).
+//   - Empty body: returns (body, nil, nil)
+//   - Non-JSON body: returns (nil, nil, errNotJSON)
+//   - Valid JSON, no fields to redact: returns (original bytes, parsed tree, nil)
+//   - Valid JSON, fields redacted: returns (re-marshaled bytes, mutated tree, nil)
+func (r *Redactor) redactBody(body []byte) ([]byte, jsontree.Tree, error) {
+	if len(body) == 0 {
+		return body, nil, nil
 	}
 
-	var root interface{}
+	var root jsontree.Tree
 	if err := json.Unmarshal(body, &root); err != nil {
-		return nil, errNotJSON
+		return nil, nil, errNotJSON
+	}
+
+	if len(r.bodyFields) == 0 {
+		// No fields to redact, but body is valid JSON — retain the parsed tree.
+		return body, root, nil
 	}
 
 	for _, path := range r.bodyFields {
-		segments := strings.Split(path, ".")
-		setRedacted(root, segments)
+		jsontree.WalkPath(root, path, func(parent map[string]any, key string) {
+			parent[key] = RedactedValue
+		})
 	}
 
 	out, err := json.Marshal(root)
 	if err != nil {
 		// Marshal of an unmarshal-produced tree should never fail, but if it
 		// does we must not fall back to returning the original un-redacted body.
-		return nil, fmt.Errorf("redact body: marshal failed: %w", err)
+		return nil, nil, fmt.Errorf("redact body: marshal failed: %w", err)
 	}
-	return out, nil
-}
-
-// setRedacted walks the in-memory JSON tree and replaces the target value.
-// Supports nested objects and arrays (via "#" wildcard segment).
-func setRedacted(node interface{}, segments []string) {
-	if len(segments) == 0 || node == nil {
-		return
-	}
-
-	key := segments[0]
-	rest := segments[1:]
-
-	switch v := node.(type) {
-	case map[string]interface{}:
-		if len(rest) == 0 {
-			// Leaf: redact if key exists
-			if _, ok := v[key]; ok {
-				v[key] = RedactedValue
-			}
-			return
-		}
-		// Recurse into child
-		if child, ok := v[key]; ok {
-			setRedacted(child, rest)
-		}
-
-	case []interface{}:
-		// "#" wildcard: apply remaining path to each array element
-		if key == "#" {
-			for _, elem := range v {
-				if len(rest) == 0 {
-					// Can't redact array elements directly (no parent key)
-					continue
-				}
-				setRedacted(elem, rest)
-			}
-		}
-	}
+	return out, root, nil
 }

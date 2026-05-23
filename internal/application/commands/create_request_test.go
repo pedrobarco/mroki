@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
+	"github.com/pedrobarco/mroki/pkg/diff"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -384,28 +386,40 @@ func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
 	assert.ErrorIs(t, err, expectedErr)
 }
 
-// --- computeDiffFromDecoded tests ---
+// --- BuildEnvelope + diff.Parsed tests ---
 
 func b64(s string) []byte {
 	return []byte(base64.StdEncoding.EncodeToString([]byte(s)))
 }
 
-func TestComputeDiffFromDecoded_identical_responses(t *testing.T) {
-	body := []byte(`{"ok":true}`)
-	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
-	shadow := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
+// parseBody is a test helper that unmarshals JSON into a Go value tree.
+func parseBody(t *testing.T, s string) any {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		t.Fatalf("parseBody: %v", err)
+	}
+	return v
+}
 
-	ops, err := computeDiffFromDecoded(live, body, shadow, body)
+func TestBuildEnvelopeParsed_identical_responses(t *testing.T) {
+	body := parseBody(t, `{"ok":true}`)
+
+	liveEnvelope := diff.BuildEnvelope(200, http.Header{}, body)
+	shadowEnvelope := diff.BuildEnvelope(200, http.Header{}, body)
+	ops, err := diff.Parsed(liveEnvelope, shadowEnvelope)
 
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 }
 
-func TestComputeDiffFromDecoded_different_bodies(t *testing.T) {
-	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"alice"}`)}
-	shadow := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"bob"}`)}
+func TestBuildEnvelopeParsed_different_bodies(t *testing.T) {
+	liveBody := parseBody(t, `{"user":"alice"}`)
+	shadowBody := parseBody(t, `{"user":"bob"}`)
 
-	ops, err := computeDiffFromDecoded(live, []byte(`{"user":"alice"}`), shadow, []byte(`{"user":"bob"}`))
+	liveEnvelope := diff.BuildEnvelope(200, http.Header{}, liveBody)
+	shadowEnvelope := diff.BuildEnvelope(200, http.Header{}, shadowBody)
+	ops, err := diff.Parsed(liveEnvelope, shadowEnvelope)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, ops)
@@ -421,11 +435,13 @@ func TestComputeDiffFromDecoded_different_bodies(t *testing.T) {
 	assert.True(t, found, "expected replace op on /body/user, got: %v", ops)
 }
 
-func TestComputeDiffFromDecoded_different_status_codes(t *testing.T) {
-	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
-	shadow := CreateRequestResponseProps{StatusCode: 500, Headers: http.Header{}, Body: b64(`{"ok":false}`)}
+func TestBuildEnvelopeParsed_different_status_codes(t *testing.T) {
+	liveBody := parseBody(t, `{"ok":true}`)
+	shadowBody := parseBody(t, `{"ok":false}`)
 
-	ops, err := computeDiffFromDecoded(live, []byte(`{"ok":true}`), shadow, []byte(`{"ok":false}`))
+	liveEnvelope := diff.BuildEnvelope(200, http.Header{}, liveBody)
+	shadowEnvelope := diff.BuildEnvelope(500, http.Header{}, shadowBody)
+	ops, err := diff.Parsed(liveEnvelope, shadowEnvelope)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, ops)
@@ -437,19 +453,12 @@ func TestComputeDiffFromDecoded_different_status_codes(t *testing.T) {
 	assert.True(t, paths["/statusCode"], "expected diff on /statusCode")
 }
 
-func TestComputeDiffFromDecoded_different_headers(t *testing.T) {
-	live := CreateRequestResponseProps{
-		StatusCode: 200,
-		Headers:    http.Header{"X-Req-Id": []string{"abc"}},
-		Body:       b64(`{"ok":true}`),
-	}
-	shadow := CreateRequestResponseProps{
-		StatusCode: 200,
-		Headers:    http.Header{"X-Req-Id": []string{"def"}},
-		Body:       b64(`{"ok":true}`),
-	}
+func TestBuildEnvelopeParsed_different_headers(t *testing.T) {
+	body := parseBody(t, `{"ok":true}`)
 
-	ops, err := computeDiffFromDecoded(live, []byte(`{"ok":true}`), shadow, []byte(`{"ok":true}`))
+	liveEnvelope := diff.BuildEnvelope(200, http.Header{"X-Req-Id": []string{"abc"}}, body)
+	shadowEnvelope := diff.BuildEnvelope(200, http.Header{"X-Req-Id": []string{"def"}}, body)
+	ops, err := diff.Parsed(liveEnvelope, shadowEnvelope)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, ops, "expected diff on headers")

@@ -1,8 +1,10 @@
 package diff
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/tidwall/gjson"
 )
 
@@ -350,5 +352,254 @@ func BenchmarkFieldNormalizer_NoFiltering(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = normalizer.NormalizeBytes(input)
+	}
+}
+
+// --- NormalizeTree tests ---
+// These mirror the NormalizeBytes tests to verify identical behavior.
+
+// parseJSON is a test helper that unmarshals JSON into a Go value tree.
+func parseJSON(t *testing.T, s string) any {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		t.Fatalf("parseJSON: %v", err)
+	}
+	return v
+}
+
+func TestNormalizeTree_Whitelist(t *testing.T) {
+	tests := []struct {
+		name           string
+		includedFields []string
+		input          string
+		wantFields     []string
+		dontWantFields []string
+	}{
+		{
+			name:           "include single top-level field",
+			includedFields: []string{"name"},
+			input:          `{"name":"John","age":30,"email":"john@example.com"}`,
+			wantFields:     []string{"name"},
+			dontWantFields: []string{"age", "email"},
+		},
+		{
+			name:           "include multiple top-level fields",
+			includedFields: []string{"name", "email"},
+			input:          `{"name":"John","age":30,"email":"john@example.com"}`,
+			wantFields:     []string{"name", "email"},
+			dontWantFields: []string{"age"},
+		},
+		{
+			name:           "include nested field",
+			includedFields: []string{"user.name"},
+			input:          `{"user":{"name":"John","age":30},"timestamp":"2024-01-01"}`,
+			wantFields:     []string{"user.name"},
+			dontWantFields: []string{"user.age", "timestamp"},
+		},
+		{
+			name:           "include array wildcard field",
+			includedFields: []string{"users.#.email"},
+			input:          `{"users":[{"name":"John","email":"john@example.com"},{"name":"Jane","email":"jane@example.com"}]}`,
+		},
+		{
+			name:           "non-existent field",
+			includedFields: []string{"nonexistent"},
+			input:          `{"name":"John","age":30}`,
+			wantFields:     []string{},
+			dontWantFields: []string{"name", "age"},
+		},
+		{
+			name:           "empty included fields (no filtering)",
+			includedFields: []string{},
+			input:          `{"name":"John","age":30}`,
+			wantFields:     []string{"name", "age"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := parseJSON(t, tt.input)
+			normalizer := NewFieldNormalizer(tt.includedFields, nil)
+			result := normalizer.NormalizeTree(tree)
+
+			// Marshal result to JSON for gjson assertions
+			resultBytes, err := json.Marshal(result)
+			if err != nil {
+				t.Fatalf("failed to marshal result: %v", err)
+			}
+
+			for _, field := range tt.wantFields {
+				if !gjson.GetBytes(resultBytes, field).Exists() {
+					t.Errorf("expected field %s to exist", field)
+				}
+			}
+			for _, field := range tt.dontWantFields {
+				if gjson.GetBytes(resultBytes, field).Exists() {
+					t.Errorf("expected field %s to NOT exist", field)
+				}
+			}
+		})
+	}
+}
+
+func TestNormalizeTree_Blacklist(t *testing.T) {
+	tests := []struct {
+		name           string
+		ignoredFields  []string
+		input          string
+		wantFields     []string
+		dontWantFields []string
+	}{
+		{
+			name:           "ignore single top-level field",
+			ignoredFields:  []string{"timestamp"},
+			input:          `{"name":"John","age":30,"timestamp":"2024-01-01"}`,
+			wantFields:     []string{"name", "age"},
+			dontWantFields: []string{"timestamp"},
+		},
+		{
+			name:           "ignore nested field",
+			ignoredFields:  []string{"metadata.timestamp"},
+			input:          `{"name":"John","metadata":{"timestamp":"2024-01-01","version":"v1"}}`,
+			wantFields:     []string{"name", "metadata.version"},
+			dontWantFields: []string{"metadata.timestamp"},
+		},
+		{
+			name:           "ignore array wildcard field",
+			ignoredFields:  []string{"users.#.created_at"},
+			input:          `{"users":[{"name":"John","created_at":"2024-01-01"},{"name":"Jane","created_at":"2024-01-02"}]}`,
+		},
+		{
+			name:          "ignore non-existent field",
+			ignoredFields: []string{"nonexistent"},
+			input:         `{"name":"John","age":30}`,
+			wantFields:    []string{"name", "age"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := parseJSON(t, tt.input)
+			normalizer := NewFieldNormalizer(nil, tt.ignoredFields)
+			result := normalizer.NormalizeTree(tree)
+
+			resultBytes, err := json.Marshal(result)
+			if err != nil {
+				t.Fatalf("failed to marshal result: %v", err)
+			}
+
+			for _, field := range tt.wantFields {
+				if !gjson.GetBytes(resultBytes, field).Exists() {
+					t.Errorf("expected field %s to exist", field)
+				}
+			}
+			for _, field := range tt.dontWantFields {
+				if gjson.GetBytes(resultBytes, field).Exists() {
+					t.Errorf("expected field %s to NOT exist", field)
+				}
+			}
+		})
+	}
+}
+
+func TestNormalizeTree_Hybrid(t *testing.T) {
+	input := `{"name":"John","age":30,"email":"john@example.com"}`
+	tree := parseJSON(t, input)
+
+	normalizer := NewFieldNormalizer(
+		[]string{"name", "email"},
+		[]string{"email"},
+	)
+
+	result := normalizer.NormalizeTree(tree)
+	resultBytes, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("failed to marshal result: %v", err)
+	}
+
+	if !gjson.GetBytes(resultBytes, "name").Exists() {
+		t.Error("name should exist")
+	}
+	if gjson.GetBytes(resultBytes, "email").Exists() {
+		t.Error("email should NOT exist (included but then excluded)")
+	}
+	if gjson.GetBytes(resultBytes, "age").Exists() {
+		t.Error("age should NOT exist (not in whitelist)")
+	}
+}
+
+// TestNormalizeTree_EquivalenceWithBytes verifies that NormalizeTree produces
+// the same result as NormalizeBytes for various inputs.
+func TestNormalizeTree_EquivalenceWithBytes(t *testing.T) {
+	tests := []struct {
+		name           string
+		includedFields []string
+		ignoredFields  []string
+		input          string
+	}{
+		{
+			name:          "blacklist simple",
+			ignoredFields: []string{"timestamp", "request_id"},
+			input:         `{"name":"John","timestamp":"2024-01-01","request_id":"abc123","age":30}`,
+		},
+		{
+			name:           "whitelist simple",
+			includedFields: []string{"name", "email"},
+			input:          `{"name":"John","age":30,"email":"john@example.com"}`,
+		},
+		{
+			name:           "whitelist nested",
+			includedFields: []string{"user.profile.email", "user.name"},
+			input:          `{"user":{"name":"John","profile":{"age":30,"email":"john@example.com"}},"timestamp":"2024-01-01"}`,
+		},
+		{
+			name:           "hybrid",
+			includedFields: []string{"user"},
+			ignoredFields:  []string{"user.ssn"},
+			input:          `{"user":{"name":"John","email":"john@example.com","ssn":"123-45-6789"},"timestamp":"2024-01-01"}`,
+		},
+		{
+			name:  "no filtering",
+			input: `{"name":"John","age":30,"email":"john@example.com"}`,
+		},
+		{
+			name:           "blacklist array wildcard",
+			ignoredFields:  []string{"users.#.created_at"},
+			input:          `{"users":[{"name":"John","created_at":"2024-01-01"},{"name":"Jane","created_at":"2024-01-02"}]}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			normalizer := NewFieldNormalizer(tt.includedFields, tt.ignoredFields)
+
+			// NormalizeBytes path
+			bytesResult, err := normalizer.NormalizeBytes([]byte(tt.input))
+			if err != nil {
+				t.Fatalf("NormalizeBytes failed: %v", err)
+			}
+
+			// NormalizeTree path
+			tree := parseJSON(t, tt.input)
+			treeResult := normalizer.NormalizeTree(tree)
+			treeBytes, err := json.Marshal(treeResult)
+			if err != nil {
+				t.Fatalf("failed to marshal tree result: %v", err)
+			}
+
+			// Compare: parse both back to Go values and use cmp.Equal
+			var bytesVal, treeVal any
+			if err := json.Unmarshal(bytesResult, &bytesVal); err != nil {
+				t.Fatalf("failed to unmarshal bytes result: %v", err)
+			}
+			if err := json.Unmarshal(treeBytes, &treeVal); err != nil {
+				t.Fatalf("failed to unmarshal tree result: %v", err)
+			}
+
+			if !cmp.Equal(bytesVal, treeVal) {
+				t.Errorf("NormalizeTree and NormalizeBytes produced different results:\n%s", cmp.Diff(bytesVal, treeVal))
+			}
+		})
 	}
 }

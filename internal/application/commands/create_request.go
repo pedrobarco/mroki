@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -157,12 +156,11 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 			diffOpts = gate.DiffConfig.ToDiffOptions()
 		}
 
-		// Use already-decoded bodies to avoid double base64 decode
-		computed, err := computeDiffFromDecoded(
-			cmd.LiveResponse, liveBodyDecoded,
-			cmd.ShadowResponse, shadowBodyDecoded,
-			diffOpts...,
-		)
+		// Use pre-parsed trees from redaction to avoid re-parsing.
+		// BuildEnvelope wraps statusCode + headers + body into the diff-ready structure.
+		liveEnvelope := diff.BuildEnvelope(cmd.LiveResponse.StatusCode, cmd.LiveResponse.Headers, liveResult.BodyParsed)
+		shadowEnvelope := diff.BuildEnvelope(cmd.ShadowResponse.StatusCode, cmd.ShadowResponse.Headers, shadowResult.BodyParsed)
+		computed, err := diff.Parsed(liveEnvelope, shadowEnvelope, diffOpts...)
 		if err != nil {
 			// Diff computation errors are non-fatal — store empty diff
 			diffContent = []diff.PatchOp{}
@@ -244,43 +242,3 @@ func encodeBase64Body(body []byte) []byte {
 	return []byte(base64.StdEncoding.EncodeToString(body))
 }
 
-// computeDiffFromDecoded computes a JSON diff using already-decoded body bytes.
-// This avoids double base64 decoding when bodies have been pre-decoded for redaction.
-func computeDiffFromDecoded(
-	live CreateRequestResponseProps, liveBody []byte,
-	shadow CreateRequestResponseProps, shadowBody []byte,
-	opts ...diff.Option,
-) ([]diff.PatchOp, error) {
-	// Marshal headers to JSON (same format as proxy-side diffing)
-	liveHeaders, err := json.Marshal(live.Headers)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal live headers: %w", err)
-	}
-
-	shadowHeaders, err := json.Marshal(shadow.Headers)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal shadow headers: %w", err)
-	}
-
-	// Construct synthetic JSON documents matching proxy-side format:
-	// {"statusCode": N, "headers": {...}, "body": ...}
-	liveBodyJSON := jsonBodyOrNull(liveBody)
-	shadowBodyJSON := jsonBodyOrNull(shadowBody)
-
-	liveJSON := fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`,
-		live.StatusCode, liveHeaders, liveBodyJSON)
-	shadowJSON := fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`,
-		shadow.StatusCode, shadowHeaders, shadowBodyJSON)
-
-	return diff.JSON(liveJSON, shadowJSON, opts...)
-}
-
-// jsonBodyOrNull returns the body bytes as a string for JSON embedding,
-// or "null" if the body is empty/nil. This prevents producing invalid JSON
-// like `"body": ` when body decoding failed or body was empty.
-func jsonBodyOrNull(body []byte) string {
-	if len(body) == 0 {
-		return "null"
-	}
-	return string(body)
-}

@@ -18,7 +18,12 @@ func NewProxyResponseDiffer(opts ...diff.Option) *proxyResponseDiffer {
 	return &proxyResponseDiffer{opts: opts}
 }
 
-// Diff compares two proxy responses using configured diff options
+// Diff compares two proxy responses using the byte-level diff path.
+// Builds a synthetic JSON envelope from status code, headers, and body bytes,
+// then delegates to diff.JSON.
+//
+// When pre-parsed trees are available (e.g., after redaction), callers should
+// use diff.BuildEnvelope + diff.Parsed directly for better performance.
 func (p *proxyResponseDiffer) Diff(a, b ProxyResponse) ([]diff.PatchOp, error) {
 	ah, err := json.Marshal(a.Response.Header)
 	if err != nil {
@@ -33,7 +38,6 @@ func (p *proxyResponseDiffer) Diff(a, b ProxyResponse) ([]diff.PatchOp, error) {
 	live := jsonString(a.StatusCode, ah, a.Body)
 	shadow := jsonString(b.StatusCode, bh, b.Body)
 
-	// Use configured options from struct
 	return diff.JSON(live, shadow, p.opts...)
 }
 
