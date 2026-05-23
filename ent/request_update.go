@@ -4,12 +4,14 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	entdiff "github.com/pedrobarco/mroki/ent/diff"
@@ -87,8 +89,14 @@ func (_u *RequestUpdate) ClearHeaders() *RequestUpdate {
 }
 
 // SetBody sets the "body" field.
-func (_u *RequestUpdate) SetBody(v []byte) *RequestUpdate {
+func (_u *RequestUpdate) SetBody(v json.RawMessage) *RequestUpdate {
 	_u.mutation.SetBody(v)
+	return _u
+}
+
+// AppendBody appends value to the "body" field.
+func (_u *RequestUpdate) AppendBody(v json.RawMessage) *RequestUpdate {
+	_u.mutation.AppendBody(v)
 	return _u
 }
 
@@ -259,10 +267,15 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		_spec.ClearField(request.FieldHeaders, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Body(); ok {
-		_spec.SetField(request.FieldBody, field.TypeBytes, value)
+		_spec.SetField(request.FieldBody, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedBody(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, request.FieldBody, value)
+		})
 	}
 	if _u.mutation.BodyCleared() {
-		_spec.ClearField(request.FieldBody, field.TypeBytes)
+		_spec.ClearField(request.FieldBody, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(request.FieldCreatedAt, field.TypeTime, value)
@@ -445,8 +458,14 @@ func (_u *RequestUpdateOne) ClearHeaders() *RequestUpdateOne {
 }
 
 // SetBody sets the "body" field.
-func (_u *RequestUpdateOne) SetBody(v []byte) *RequestUpdateOne {
+func (_u *RequestUpdateOne) SetBody(v json.RawMessage) *RequestUpdateOne {
 	_u.mutation.SetBody(v)
+	return _u
+}
+
+// AppendBody appends value to the "body" field.
+func (_u *RequestUpdateOne) AppendBody(v json.RawMessage) *RequestUpdateOne {
+	_u.mutation.AppendBody(v)
 	return _u
 }
 
@@ -647,10 +666,15 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 		_spec.ClearField(request.FieldHeaders, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Body(); ok {
-		_spec.SetField(request.FieldBody, field.TypeBytes, value)
+		_spec.SetField(request.FieldBody, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedBody(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, request.FieldBody, value)
+		})
 	}
 	if _u.mutation.BodyCleared() {
-		_spec.ClearField(request.FieldBody, field.TypeBytes)
+		_spec.ClearField(request.FieldBody, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(request.FieldCreatedAt, field.TypeTime, value)

@@ -1,6 +1,7 @@
 package traffictesting_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ func TestNewRequest_creates_request_with_auto_generated_id(t *testing.T) {
 	method, _ := traffictesting.NewHTTPMethod("POST")
 	path, _ := traffictesting.ParsePath("/api/test")
 	headers := traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}})
-	body := []byte(`{"test":"data"}`)
+	body := json.RawMessage(`{"test":"data"}`)
 	createdAt := time.Now()
 	liveResp := traffictesting.Response{}
 	shadowResp := traffictesting.Response{}

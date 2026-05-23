@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -48,7 +49,7 @@ func (_c *ResponseCreate) SetHeaders(v map[string][]string) *ResponseCreate {
 }
 
 // SetBody sets the "body" field.
-func (_c *ResponseCreate) SetBody(v []byte) *ResponseCreate {
+func (_c *ResponseCreate) SetBody(v json.RawMessage) *ResponseCreate {
 	_c.mutation.SetBody(v)
 	return _c
 }
@@ -228,7 +229,7 @@ func (_c *ResponseCreate) createSpec() (*Response, *sqlgraph.CreateSpec) {
 		_node.Headers = value
 	}
 	if value, ok := _c.mutation.Body(); ok {
-		_spec.SetField(response.FieldBody, field.TypeBytes, value)
+		_spec.SetField(response.FieldBody, field.TypeJSON, value)
 		_node.Body = value
 	}
 	if value, ok := _c.mutation.LatencyMs(); ok {

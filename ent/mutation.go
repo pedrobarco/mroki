@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -1724,7 +1725,8 @@ type RequestMutation struct {
 	method           *string
 	_path            *string
 	headers          *map[string][]string
-	body             *[]byte
+	body             *json.RawMessage
+	appendbody       json.RawMessage
 	created_at       *time.Time
 	clearedFields    map[string]struct{}
 	gate             *uuid.UUID
@@ -2001,12 +2003,13 @@ func (m *RequestMutation) ResetHeaders() {
 }
 
 // SetBody sets the "body" field.
-func (m *RequestMutation) SetBody(b []byte) {
-	m.body = &b
+func (m *RequestMutation) SetBody(jm json.RawMessage) {
+	m.body = &jm
+	m.appendbody = nil
 }
 
 // Body returns the value of the "body" field in the mutation.
-func (m *RequestMutation) Body() (r []byte, exists bool) {
+func (m *RequestMutation) Body() (r json.RawMessage, exists bool) {
 	v := m.body
 	if v == nil {
 		return
@@ -2017,7 +2020,7 @@ func (m *RequestMutation) Body() (r []byte, exists bool) {
 // OldBody returns the old "body" field's value of the Request entity.
 // If the Request object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *RequestMutation) OldBody(ctx context.Context) (v []byte, err error) {
+func (m *RequestMutation) OldBody(ctx context.Context) (v json.RawMessage, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldBody is only allowed on UpdateOne operations")
 	}
@@ -2031,9 +2034,23 @@ func (m *RequestMutation) OldBody(ctx context.Context) (v []byte, err error) {
 	return oldValue.Body, nil
 }
 
+// AppendBody adds jm to the "body" field.
+func (m *RequestMutation) AppendBody(jm json.RawMessage) {
+	m.appendbody = append(m.appendbody, jm...)
+}
+
+// AppendedBody returns the list of values that were appended to the "body" field in this mutation.
+func (m *RequestMutation) AppendedBody() (json.RawMessage, bool) {
+	if len(m.appendbody) == 0 {
+		return nil, false
+	}
+	return m.appendbody, true
+}
+
 // ClearBody clears the value of the "body" field.
 func (m *RequestMutation) ClearBody() {
 	m.body = nil
+	m.appendbody = nil
 	m.clearedFields[request.FieldBody] = struct{}{}
 }
 
@@ -2046,6 +2063,7 @@ func (m *RequestMutation) BodyCleared() bool {
 // ResetBody resets all changes to the "body" field.
 func (m *RequestMutation) ResetBody() {
 	m.body = nil
+	m.appendbody = nil
 	delete(m.clearedFields, request.FieldBody)
 }
 
@@ -2337,7 +2355,7 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 		m.SetHeaders(v)
 		return nil
 	case request.FieldBody:
-		v, ok := value.([]byte)
+		v, ok := value.(json.RawMessage)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -2566,7 +2584,8 @@ type ResponseMutation struct {
 	status_code       *int32
 	addstatus_code    *int32
 	headers           *map[string][]string
-	body              *[]byte
+	body              *json.RawMessage
+	appendbody        json.RawMessage
 	latency_ms        *int64
 	addlatency_ms     *int64
 	created_at        *time.Time
@@ -2866,12 +2885,13 @@ func (m *ResponseMutation) ResetHeaders() {
 }
 
 // SetBody sets the "body" field.
-func (m *ResponseMutation) SetBody(b []byte) {
-	m.body = &b
+func (m *ResponseMutation) SetBody(jm json.RawMessage) {
+	m.body = &jm
+	m.appendbody = nil
 }
 
 // Body returns the value of the "body" field in the mutation.
-func (m *ResponseMutation) Body() (r []byte, exists bool) {
+func (m *ResponseMutation) Body() (r json.RawMessage, exists bool) {
 	v := m.body
 	if v == nil {
 		return
@@ -2882,7 +2902,7 @@ func (m *ResponseMutation) Body() (r []byte, exists bool) {
 // OldBody returns the old "body" field's value of the Response entity.
 // If the Response object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *ResponseMutation) OldBody(ctx context.Context) (v []byte, err error) {
+func (m *ResponseMutation) OldBody(ctx context.Context) (v json.RawMessage, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldBody is only allowed on UpdateOne operations")
 	}
@@ -2896,9 +2916,23 @@ func (m *ResponseMutation) OldBody(ctx context.Context) (v []byte, err error) {
 	return oldValue.Body, nil
 }
 
+// AppendBody adds jm to the "body" field.
+func (m *ResponseMutation) AppendBody(jm json.RawMessage) {
+	m.appendbody = append(m.appendbody, jm...)
+}
+
+// AppendedBody returns the list of values that were appended to the "body" field in this mutation.
+func (m *ResponseMutation) AppendedBody() (json.RawMessage, bool) {
+	if len(m.appendbody) == 0 {
+		return nil, false
+	}
+	return m.appendbody, true
+}
+
 // ClearBody clears the value of the "body" field.
 func (m *ResponseMutation) ClearBody() {
 	m.body = nil
+	m.appendbody = nil
 	m.clearedFields[response.FieldBody] = struct{}{}
 }
 
@@ -2911,6 +2945,7 @@ func (m *ResponseMutation) BodyCleared() bool {
 // ResetBody resets all changes to the "body" field.
 func (m *ResponseMutation) ResetBody() {
 	m.body = nil
+	m.appendbody = nil
 	delete(m.clearedFields, response.FieldBody)
 }
 
@@ -3280,7 +3315,7 @@ func (m *ResponseMutation) SetField(name string, value ent.Value) error {
 		m.SetHeaders(v)
 		return nil
 	case response.FieldBody:
-		v, ok := value.([]byte)
+		v, ok := value.(json.RawMessage)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}

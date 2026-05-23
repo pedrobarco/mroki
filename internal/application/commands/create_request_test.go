@@ -735,19 +735,19 @@ func TestCreateRequestHandler_Handle_redacts_body_fields(t *testing.T) {
 	require.NotNil(t, req)
 	require.NotNil(t, savedReq)
 
-	// Decode stored response body to verify redaction
-	liveBody, _ := base64.StdEncoding.DecodeString(string(savedReq.LiveResponse.Body))
-	assert.Contains(t, string(liveBody), `"[REDACTED]"`)
-	assert.NotContains(t, string(liveBody), "s3cret")
-	assert.NotContains(t, string(liveBody), "123-45-6789")
-	assert.Contains(t, string(liveBody), "Alice") // non-redacted field preserved
+	// Stored body is now json.RawMessage (no base64 decoding needed)
+	liveBody := string(savedReq.LiveResponse.Body)
+	assert.Contains(t, liveBody, `"[REDACTED]"`)
+	assert.NotContains(t, liveBody, "s3cret")
+	assert.NotContains(t, liveBody, "123-45-6789")
+	assert.Contains(t, liveBody, "Alice") // non-redacted field preserved
 
-	// Decode stored request body to verify redaction
-	reqBody, _ := base64.StdEncoding.DecodeString(string(savedReq.Body))
-	assert.Contains(t, string(reqBody), `"[REDACTED]"`)
-	assert.NotContains(t, string(reqBody), "req-s3cret")
-	assert.NotContains(t, string(reqBody), "111-22-3333")
-	assert.Contains(t, string(reqBody), "Bob") // non-redacted field preserved
+	// Stored request body is now json.RawMessage
+	reqBody := string(savedReq.Body)
+	assert.Contains(t, reqBody, `"[REDACTED]"`)
+	assert.NotContains(t, reqBody, "req-s3cret")
+	assert.NotContains(t, reqBody, "111-22-3333")
+	assert.Contains(t, reqBody, "Bob") // non-redacted field preserved
 }
 
 func TestCreateRequestHandler_Handle_redacts_mixed_header_and_body(t *testing.T) {
@@ -807,10 +807,10 @@ func TestCreateRequestHandler_Handle_redacts_mixed_header_and_body(t *testing.T)
 	assert.Equal(t, traffictesting.RedactedValue, savedReq.Headers.HTTPHeader().Get("X-Secret"))
 	assert.Equal(t, traffictesting.RedactedValue, savedReq.LiveResponse.Headers.HTTPHeader().Get("X-Secret"))
 
-	// Body field redacted
-	liveBody, _ := base64.StdEncoding.DecodeString(string(savedReq.LiveResponse.Body))
-	assert.NotContains(t, string(liveBody), "abc123")
-	assert.Contains(t, string(liveBody), "ok") // non-redacted field preserved
+	// Body field redacted (stored as json.RawMessage, no base64)
+	liveBody := string(savedReq.LiveResponse.Body)
+	assert.NotContains(t, liveBody, "abc123")
+	assert.Contains(t, liveBody, "ok") // non-redacted field preserved
 }
 
 func TestCreateRequestHandler_Handle_missing_body_path_silently_skipped(t *testing.T) {
@@ -865,7 +865,6 @@ func TestCreateRequestHandler_Handle_missing_body_path_silently_skipped(t *testi
 	require.NoError(t, err)
 	require.NotNil(t, req)
 
-	// Body should be unchanged
-	liveBody, _ := base64.StdEncoding.DecodeString(string(savedReq.LiveResponse.Body))
-	assert.JSONEq(t, `{"kept":"yes"}`, string(liveBody))
+	// Body should be unchanged (stored as json.RawMessage, no base64)
+	assert.JSONEq(t, `{"kept":"yes"}`, string(savedReq.LiveResponse.Body))
 }

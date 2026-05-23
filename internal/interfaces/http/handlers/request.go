@@ -252,12 +252,22 @@ func toRequestResponseDTO(req *traffictesting.Request) dto.Request {
 	}
 }
 
+// rawMessageToStringPtr converts a json.RawMessage to *string.
+// Returns nil for nil/empty messages (serializes as JSON null).
+func rawMessageToStringPtr(raw json.RawMessage) *string {
+	if len(raw) == 0 {
+		return nil
+	}
+	s := string(raw)
+	return &s
+}
+
 func mapResponseDetail(resp traffictesting.Response) dto.ResponseDetail {
 	return dto.ResponseDetail{
 		ID:         resp.ID.String(),
 		StatusCode: resp.StatusCode.Int(),
 		Headers:    resp.Headers.HTTPHeader(),
-		Body:       string(resp.Body),
+		Body:       rawMessageToStringPtr(resp.Body),
 		LatencyMs:  resp.LatencyMs,
 		CreatedAt:  resp.CreatedAt,
 	}
@@ -269,7 +279,7 @@ func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
 		Method:         req.Method.String(),
 		Path:           req.Path.String(),
 		Headers:        req.Headers.HTTPHeader(),
-		Body:           string(req.Body),
+		Body:           rawMessageToStringPtr(req.Body),
 		CreatedAt:      req.CreatedAt,
 		LiveResponse:   mapResponseDetail(req.LiveResponse),
 		ShadowResponse: mapResponseDetail(req.ShadowResponse),

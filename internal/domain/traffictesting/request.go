@@ -1,6 +1,7 @@
 package traffictesting
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -12,7 +13,7 @@ type Request struct {
 	Method    HTTPMethod
 	Path      Path
 	Headers   Headers
-	Body      []byte
+	Body      json.RawMessage
 	CreatedAt time.Time
 
 	LiveResponse   Response
@@ -33,7 +34,7 @@ func NewRequest(
 	method HTTPMethod,
 	path Path,
 	headers Headers,
-	body []byte,
+	body json.RawMessage,
 	createdAt time.Time,
 	liveResponse Response,
 	shadowResponse Response,

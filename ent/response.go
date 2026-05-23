@@ -29,7 +29,7 @@ type Response struct {
 	// Headers holds the value of the "headers" field.
 	Headers map[string][]string `json:"headers,omitempty"`
 	// Body holds the value of the "body" field.
-	Body []byte `json:"body,omitempty"`
+	Body json.RawMessage `json:"body,omitempty"`
 	// LatencyMs holds the value of the "latency_ms" field.
 	LatencyMs int64 `json:"latency_ms,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -147,8 +147,10 @@ func (_m *Response) assignValues(columns []string, values []any) error {
 		case response.FieldBody:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field body", values[i])
-			} else if value != nil {
-				_m.Body = *value
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Body); err != nil {
+					return fmt.Errorf("unmarshal field body: %w", err)
+				}
 			}
 		case response.FieldLatencyMs:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

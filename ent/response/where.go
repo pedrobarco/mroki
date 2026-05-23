@@ -71,11 +71,6 @@ func StatusCode(v int32) predicate.Response {
 	return predicate.Response(sql.FieldEQ(FieldStatusCode, v))
 }
 
-// Body applies equality check predicate on the "body" field. It's identical to BodyEQ.
-func Body(v []byte) predicate.Response {
-	return predicate.Response(sql.FieldEQ(FieldBody, v))
-}
-
 // LatencyMs applies equality check predicate on the "latency_ms" field. It's identical to LatencyMsEQ.
 func LatencyMs(v int64) predicate.Response {
 	return predicate.Response(sql.FieldEQ(FieldLatencyMs, v))
@@ -219,46 +214,6 @@ func HeadersIsNil() predicate.Response {
 // HeadersNotNil applies the NotNil predicate on the "headers" field.
 func HeadersNotNil() predicate.Response {
 	return predicate.Response(sql.FieldNotNull(FieldHeaders))
-}
-
-// BodyEQ applies the EQ predicate on the "body" field.
-func BodyEQ(v []byte) predicate.Response {
-	return predicate.Response(sql.FieldEQ(FieldBody, v))
-}
-
-// BodyNEQ applies the NEQ predicate on the "body" field.
-func BodyNEQ(v []byte) predicate.Response {
-	return predicate.Response(sql.FieldNEQ(FieldBody, v))
-}
-
-// BodyIn applies the In predicate on the "body" field.
-func BodyIn(vs ...[]byte) predicate.Response {
-	return predicate.Response(sql.FieldIn(FieldBody, vs...))
-}
-
-// BodyNotIn applies the NotIn predicate on the "body" field.
-func BodyNotIn(vs ...[]byte) predicate.Response {
-	return predicate.Response(sql.FieldNotIn(FieldBody, vs...))
-}
-
-// BodyGT applies the GT predicate on the "body" field.
-func BodyGT(v []byte) predicate.Response {
-	return predicate.Response(sql.FieldGT(FieldBody, v))
-}
-
-// BodyGTE applies the GTE predicate on the "body" field.
-func BodyGTE(v []byte) predicate.Response {
-	return predicate.Response(sql.FieldGTE(FieldBody, v))
-}
-
-// BodyLT applies the LT predicate on the "body" field.
-func BodyLT(v []byte) predicate.Response {
-	return predicate.Response(sql.FieldLT(FieldBody, v))
-}
-
-// BodyLTE applies the LTE predicate on the "body" field.
-func BodyLTE(v []byte) predicate.Response {
-	return predicate.Response(sql.FieldLTE(FieldBody, v))
 }
 
 // BodyIsNil applies the IsNil predicate on the "body" field.

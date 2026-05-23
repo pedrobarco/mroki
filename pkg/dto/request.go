@@ -64,7 +64,7 @@ type RequestDetail struct {
 	Method    string              `json:"method"`
 	Path      string              `json:"path"`
 	Headers   map[string][]string `json:"headers"`
-	Body      string              `json:"body"`
+	Body      *string             `json:"body"`
 	CreatedAt time.Time           `json:"created_at"`
 
 	LiveResponse   ResponseDetail `json:"live_response"`
@@ -77,7 +77,7 @@ type ResponseDetail struct {
 	ID         string      `json:"id"`
 	StatusCode int         `json:"status_code"`
 	Headers    http.Header `json:"headers"`
-	Body       string      `json:"body"`
+	Body       *string     `json:"body"`
 	LatencyMs  int64       `json:"latency_ms"`
 	CreatedAt  time.Time   `json:"created_at"`
 }

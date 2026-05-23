@@ -363,14 +363,14 @@ func TestGetRequestByID_Success(t *testing.T) {
 	liveResp, _ := traffictesting.NewResponse(
 		statusCode,
 		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
-		[]byte("live body"),
+		json.RawMessage(`{"status":"ok"}`),
 		int64(142),
 		time.Now(),
 	)
 	shadowResp, _ := traffictesting.NewResponse(
 		statusCode,
 		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
-		[]byte("shadow body"),
+		json.RawMessage(`{"status":"error"}`),
 		int64(187),
 		time.Now(),
 	)
@@ -383,7 +383,7 @@ func TestGetRequestByID_Success(t *testing.T) {
 		method,
 		path,
 		traffictesting.NewHeaders(http.Header{}),
-		[]byte("request body"),
+		json.RawMessage(`{"key":"value"}`),
 		time.Now(),
 		*liveResp,
 		*shadowResp,
@@ -430,9 +430,9 @@ func TestGetRequestByID_Success(t *testing.T) {
 	}
 
 	// Verify request headers and body are included in detail response
-	if response.Data.Body != "request body" {
-		t.Errorf("expected body 'request body', got %q", response.Data.Body)
-	}
+	// Body is returned as *string (nil for empty, stringified JSON otherwise)
+	require.NotNil(t, response.Data.Body)
+	assert.JSONEq(t, `{"key":"value"}`, *response.Data.Body)
 	if response.Data.Headers == nil {
 		t.Error("expected headers to be non-nil")
 	}

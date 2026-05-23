@@ -30,7 +30,7 @@ type Request struct {
 	// Headers holds the value of the "headers" field.
 	Headers map[string][]string `json:"headers,omitempty"`
 	// Body holds the value of the "body" field.
-	Body []byte `json:"body,omitempty"`
+	Body json.RawMessage `json:"body,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -146,8 +146,10 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 		case request.FieldBody:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field body", values[i])
-			} else if value != nil {
-				_m.Body = *value
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Body); err != nil {
+					return fmt.Errorf("unmarshal field body: %w", err)
+				}
 			}
 		case request.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
