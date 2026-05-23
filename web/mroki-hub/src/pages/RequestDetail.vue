@@ -98,14 +98,9 @@ function buildCurl(targetUrl: string): string {
     }
   }
 
-  // Add request body (base64-decoded)
+  // Add request body
   if (req.body) {
-    try {
-      const decoded = atob(req.body)
-      parts.push(`  -d '${decoded.replace(/'/g, "'\\''")}'`)
-    } catch {
-      parts.push(`  --data-binary '${req.body}'`)
-    }
+    parts.push(`  -d '${req.body.replace(/'/g, "'\\''")}'`)
   }
 
   return parts.join(' \\\n')

@@ -1,6 +1,7 @@
 package traffictesting_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -12,7 +13,7 @@ import (
 
 func TestNewResponse_creates_response_with_auto_generated_id(t *testing.T) {
 	headers := traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}})
-	body := []byte(`{"status":"ok"}`)
+	body := json.RawMessage(`{"status":"ok"}`)
 	createdAt := time.Now()
 	statusCode, _ := traffictesting.ParseStatusCode(200)
 

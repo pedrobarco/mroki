@@ -70,7 +70,7 @@ export interface Response {
   id: string
   status_code: number
   headers: Record<string, string[]>
-  body: string
+  body: string | null
   latency_ms: number
   created_at: string
 }
@@ -99,7 +99,7 @@ export interface RequestDetail {
   method: string
   path: string
   headers: Record<string, string[]>
-  body: string
+  body: string | null
   created_at: string
   live_response: Response
   shadow_response: Response

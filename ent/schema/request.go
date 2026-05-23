@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"encoding/json"
+
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
@@ -27,7 +29,7 @@ func (Request) Fields() []ent.Field {
 			NotEmpty(),
 		field.JSON("headers", map[string][]string{}).
 			Optional(),
-		field.Bytes("body").
+		field.JSON("body", json.RawMessage{}).
 			Optional(),
 		field.Time("created_at"),
 	}

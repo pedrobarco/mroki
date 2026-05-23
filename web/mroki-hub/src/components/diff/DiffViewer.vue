@@ -28,13 +28,6 @@ interface Props {
 
 const props = defineProps<Props>()
 
-function decodeBody(body: string): string | null {
-  try {
-    return atob(body)
-  } catch {
-    return null
-  }
-}
 function tryParseJson(str: string): unknown | null {
   try {
     return JSON.parse(str)
@@ -42,20 +35,20 @@ function tryParseJson(str: string): unknown | null {
     return null
   }
 }
-function isBinaryContent(decoded: string): boolean {
-  const printableRatio = (decoded.match(/[\x20-\x7E\n\r\t]/g) || []).length / decoded.length
+function isBinaryContent(str: string): boolean {
+  const printableRatio = (str.match(/[\x20-\x7E\n\r\t]/g) || []).length / str.length
   return printableRatio < 0.95
 }
 
-const liveDecoded = computed(() => decodeBody(props.liveResponse.body))
-const shadowDecoded = computed(() => decodeBody(props.shadowResponse.body))
+const liveBody = computed(() => props.liveResponse.body)
+const shadowBody = computed(() => props.shadowResponse.body)
 const isBinary = computed(
   () =>
-    (liveDecoded.value !== null && isBinaryContent(liveDecoded.value)) ||
-    (shadowDecoded.value !== null && isBinaryContent(shadowDecoded.value))
+    (liveBody.value !== null && isBinaryContent(liveBody.value)) ||
+    (shadowBody.value !== null && isBinaryContent(shadowBody.value))
 )
-const liveJson = computed(() => (liveDecoded.value ? tryParseJson(liveDecoded.value) : null))
-const shadowJson = computed(() => (shadowDecoded.value ? tryParseJson(shadowDecoded.value) : null))
+const liveJson = computed(() => (liveBody.value ? tryParseJson(liveBody.value) : null))
+const shadowJson = computed(() => (shadowBody.value ? tryParseJson(shadowBody.value) : null))
 const isJson = computed(() => liveJson.value !== null && shadowJson.value !== null)
 
 const liveCombined = computed(() =>
@@ -131,8 +124,8 @@ function isExpandedRoot(line: DiffLine): boolean {
 function handleCollapse(line: DiffLine) {
   if (expandedPaths.value.has(line.path)) toggleCollapsed(line.path)
 }
-const livePlain = computed(() => liveDecoded.value ?? props.liveResponse.body)
-const shadowPlain = computed(() => shadowDecoded.value ?? props.shadowResponse.body)
+const livePlain = computed(() => liveBody.value ?? '')
+const shadowPlain = computed(() => shadowBody.value ?? '')
 const diffCount = computed(() => props.diffContent?.length ?? 0)
 
 // --- Line styling (background strip) ---

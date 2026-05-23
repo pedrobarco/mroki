@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"encoding/json"
+
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
@@ -25,7 +27,7 @@ func (Response) Fields() []ent.Field {
 		field.Int32("status_code"),
 		field.JSON("headers", map[string][]string{}).
 			Optional(),
-		field.Bytes("body").
+		field.JSON("body", json.RawMessage{}).
 			Optional(),
 		field.Int64("latency_ms"),
 		field.Time("created_at"),

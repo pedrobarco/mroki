@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -104,11 +105,24 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		return nil, fmt.Errorf("failed to redact request: %w", err)
 	}
 	cmd.Headers = reqResult.Headers
+
+	// Convert redacted bodies to json.RawMessage for JSONB storage.
+	// If base64 decode succeeded, use the redacted body/parsed tree.
+	// If decode failed, preserve the original bytes as a JSON string.
+	var reqBodyJSON json.RawMessage
 	if reqDecodeErr == nil {
-		cmd.Body = encodeBase64Body(reqResult.Body)
+		reqBodyJSON, err = bodyToRawMessage(reqResult.Body, reqResult.BodyParsed)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal request body: %w", err)
+		}
+	} else if len(cmd.Body) > 0 {
+		reqBodyJSON, err = rawBytesToJSONString(cmd.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal raw request body: %w", err)
+		}
 	}
 
-	// Decode base64 response bodies once, redact headers + body, re-encode
+	// Decode base64 response bodies once, redact headers + body
 	liveBodyDecoded, liveDecodeErr := decodeBase64Body(cmd.LiveResponse.Body)
 	shadowBodyDecoded, shadowDecodeErr := decodeBase64Body(cmd.ShadowResponse.Body)
 
@@ -117,31 +131,45 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		return nil, fmt.Errorf("failed to redact live response: %w", err)
 	}
 	cmd.LiveResponse.Headers = liveResult.Headers
-	liveBodyDecoded = liveResult.Body
 
 	shadowResult, err := redactor.Redact(cmd.ShadowResponse.Headers, shadowBodyDecoded)
 	if err != nil {
 		return nil, fmt.Errorf("failed to redact shadow response: %w", err)
 	}
 	cmd.ShadowResponse.Headers = shadowResult.Headers
-	shadowBodyDecoded = shadowResult.Body
 
-	// Re-encode redacted bodies back to base64 for storage
+	var liveBodyJSON, shadowBodyJSON json.RawMessage
 	if liveDecodeErr == nil {
-		cmd.LiveResponse.Body = encodeBase64Body(liveBodyDecoded)
+		liveBodyJSON, err = bodyToRawMessage(liveResult.Body, liveResult.BodyParsed)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal live response body: %w", err)
+		}
+	} else if len(cmd.LiveResponse.Body) > 0 {
+		liveBodyJSON, err = rawBytesToJSONString(cmd.LiveResponse.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal raw live response body: %w", err)
+		}
 	}
 	if shadowDecodeErr == nil {
-		cmd.ShadowResponse.Body = encodeBase64Body(shadowBodyDecoded)
+		shadowBodyJSON, err = bodyToRawMessage(shadowResult.Body, shadowResult.BodyParsed)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal shadow response body: %w", err)
+		}
+	} else if len(cmd.ShadowResponse.Body) > 0 {
+		shadowBodyJSON, err = rawBytesToJSONString(cmd.ShadowResponse.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal raw shadow response body: %w", err)
+		}
 	}
 
 	// Parse and create live response (with already-redacted headers + body)
-	live, err := buildResponse(cmd.LiveResponse)
+	live, err := buildResponse(cmd.LiveResponse, liveBodyJSON)
 	if err != nil {
 		return nil, fmt.Errorf("live response: %w", err)
 	}
 
 	// Parse and create shadow response (with already-redacted headers + body)
-	shadow, err := buildResponse(cmd.ShadowResponse)
+	shadow, err := buildResponse(cmd.ShadowResponse, shadowBodyJSON)
 	if err != nil {
 		return nil, fmt.Errorf("shadow response: %w", err)
 	}
@@ -180,7 +208,7 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		method,
 		path,
 		traffictesting.NewHeaders(cmd.Headers),
-		cmd.Body,
+		reqBodyJSON,
 		cmd.CreatedAt,
 		*live,
 		*shadow,
@@ -204,7 +232,8 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 }
 
 // buildResponse creates a domain Response from command props.
-func buildResponse(props CreateRequestResponseProps) (*traffictesting.Response, error) {
+// bodyJSON is the redacted body as json.RawMessage for JSONB storage.
+func buildResponse(props CreateRequestResponseProps, bodyJSON json.RawMessage) (*traffictesting.Response, error) {
 	statusCode, err := traffictesting.ParseStatusCode(props.StatusCode)
 	if err != nil {
 		return nil, err
@@ -222,7 +251,7 @@ func buildResponse(props CreateRequestResponseProps) (*traffictesting.Response, 
 	return traffictesting.NewResponse(
 		statusCode,
 		traffictesting.NewHeaders(props.Headers),
-		props.Body,
+		bodyJSON,
 		props.LatencyMs,
 		props.CreatedAt,
 		opts...,
@@ -237,8 +266,31 @@ func decodeBase64Body(body []byte) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(string(body))
 }
 
-// encodeBase64Body re-encodes raw bytes to base64 for storage.
-func encodeBase64Body(body []byte) []byte {
-	return []byte(base64.StdEncoding.EncodeToString(body))
+// bodyToRawMessage converts a redacted body to json.RawMessage for JSONB storage.
+//   - JSON bodies: marshal the parsed tree (BodyParsed) to json.RawMessage
+//   - Non-JSON bodies: wrap raw bytes as a JSON string value
+//   - Empty bodies: return nil (→ NULL in DB)
+func bodyToRawMessage(rawBody []byte, bodyParsed any) (json.RawMessage, error) {
+	if len(rawBody) == 0 {
+		return nil, nil
+	}
+	if bodyParsed != nil {
+		b, err := json.Marshal(bodyParsed)
+		if err != nil {
+			return nil, fmt.Errorf("marshal parsed body: %w", err)
+		}
+		return json.RawMessage(b), nil
+	}
+	// Non-JSON body: store as a JSON string
+	return rawBytesToJSONString(rawBody)
 }
 
+// rawBytesToJSONString wraps arbitrary bytes as a JSON string value.
+// Used for non-JSON bodies and for bodies where base64 decoding failed.
+func rawBytesToJSONString(raw []byte) (json.RawMessage, error) {
+	b, err := json.Marshal(string(raw))
+	if err != nil {
+		return nil, fmt.Errorf("marshal raw bytes as string: %w", err)
+	}
+	return json.RawMessage(b), nil
+}

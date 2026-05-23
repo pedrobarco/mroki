@@ -74,7 +74,7 @@ var (
 		{Name: "method", Type: field.TypeString},
 		{Name: "path", Type: field.TypeString},
 		{Name: "headers", Type: field.TypeJSON, Nullable: true},
-		{Name: "body", Type: field.TypeBytes, Nullable: true},
+		{Name: "body", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "gate_id", Type: field.TypeUUID},
 	}
@@ -120,7 +120,7 @@ var (
 		{Name: "type", Type: field.TypeString},
 		{Name: "status_code", Type: field.TypeInt32},
 		{Name: "headers", Type: field.TypeJSON, Nullable: true},
-		{Name: "body", Type: field.TypeBytes, Nullable: true},
+		{Name: "body", Type: field.TypeJSON, Nullable: true},
 		{Name: "latency_ms", Type: field.TypeInt64},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "request_id", Type: field.TypeUUID},

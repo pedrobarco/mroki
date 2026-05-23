@@ -1,6 +1,7 @@
 package traffictesting
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,7 +11,7 @@ type Response struct {
 	ID         uuid.UUID
 	StatusCode StatusCode
 	Headers    Headers
-	Body       []byte
+	Body       json.RawMessage
 	LatencyMs  int64
 	CreatedAt  time.Time
 }
@@ -26,7 +27,7 @@ func WithResponseID(id uuid.UUID) ResponseOption {
 func NewResponse(
 	statusCode StatusCode,
 	headers Headers,
-	body []byte,
+	body json.RawMessage,
 	latencyMs int64,
 	createdAt time.Time,
 	opts ...ResponseOption,

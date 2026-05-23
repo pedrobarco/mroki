@@ -2,6 +2,7 @@ package ent_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -29,13 +30,13 @@ func newTestRequestWithoutDiff(t *testing.T, gateID traffictesting.GateID) *traf
 		Method:    method,
 		Path:      path,
 		Headers:   traffictesting.NewHeaders(http.Header{}),
-		Body:      []byte{},
+		Body:      nil,
 		CreatedAt: time.Now(),
 		LiveResponse: traffictesting.Response{
 			ID:         uuid.New(),
 			StatusCode: statusCode,
 			Headers:    traffictesting.NewHeaders(http.Header{}),
-			Body:       []byte(`{}`),
+			Body:       json.RawMessage(`{}`),
 			LatencyMs:  10,
 			CreatedAt:  time.Now(),
 		},
@@ -43,7 +44,7 @@ func newTestRequestWithoutDiff(t *testing.T, gateID traffictesting.GateID) *traf
 			ID:         uuid.New(),
 			StatusCode: statusCode,
 			Headers:    traffictesting.NewHeaders(http.Header{}),
-			Body:       []byte(`{}`),
+			Body:       json.RawMessage(`{}`),
 			LatencyMs:  15,
 			CreatedAt:  time.Now(),
 		},
@@ -64,13 +65,13 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 		Method:    method,
 		Path:      path,
 		Headers:   traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
-		Body:      []byte(`{"test":"data"}`),
+		Body:      json.RawMessage(`{"test":"data"}`),
 		CreatedAt: time.Now(),
 		LiveResponse: traffictesting.Response{
 			ID:         liveRespID,
 			StatusCode: statusCode,
 			Headers:    traffictesting.NewHeaders(http.Header{}),
-			Body:       []byte(`{"status":"ok"}`),
+			Body:       json.RawMessage(`{"status":"ok"}`),
 			LatencyMs:  142,
 			CreatedAt:  time.Now(),
 		},
@@ -78,7 +79,7 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 			ID:         shadowRespID,
 			StatusCode: statusCode,
 			Headers:    traffictesting.NewHeaders(http.Header{}),
-			Body:       []byte(`{"status":"ok"}`),
+			Body:       json.RawMessage(`{"status":"ok"}`),
 			LatencyMs:  187,
 			CreatedAt:  time.Now(),
 		},
