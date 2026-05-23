@@ -128,13 +128,16 @@ func main() {
 		diffOpts = append(diffOpts, diff.WithFloatTolerance(cfg.App.DiffFloatTolerance))
 	}
 
-	// Add scrub fields as ignored diff fields (prevents diff noise from scrubbed headers)
-	scrubCfg, err := traffictesting.NewScrubConfig(cfg.App.ScrubFields)
+	// Build redactor from config (adds to default redacted list)
+	redactedFieldsCfg, err := traffictesting.NewRedactedFields(cfg.App.RedactedFields)
 	if err != nil {
-		log.Error("Invalid SCRUB_FIELDS configuration", "error", err)
+		log.Error("Invalid REDACTED_FIELDS configuration", "error", err)
 		os.Exit(1)
 	}
-	for _, f := range scrubCfg.AllFields() {
+	redactor := traffictesting.NewRedactor(redactedFieldsCfg.AllFields())
+
+	// Add redacted fields as ignored diff fields (prevents diff noise from redacted values)
+	for _, f := range redactedFieldsCfg.AllFields() {
 		diffOpts = append(diffOpts, diff.WithIgnoredFields(f))
 	}
 
@@ -162,8 +165,8 @@ func main() {
 		Logger:        log,
 		APIClient:     apiClient,          // nil if standalone mode
 		APITimeout:    cfg.App.APITimeout, // overall deadline for API calls
-		DiffOptions:   diffOpts,           // Only used in standalone mode
-		ScrubNames:    scrubCfg.HeaderNames(), // Only used in standalone mode
+		DiffOptions:   diffOpts,    // Only used in standalone mode
+		Redactor:      redactor,    // Only used in standalone mode
 	}
 
 	mux := http.NewServeMux()

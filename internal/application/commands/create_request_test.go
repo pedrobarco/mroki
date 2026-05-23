@@ -384,27 +384,28 @@ func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
 	assert.ErrorIs(t, err, expectedErr)
 }
 
-// --- computeDiff tests ---
+// --- computeDiffFromDecoded tests ---
 
 func b64(s string) []byte {
 	return []byte(base64.StdEncoding.EncodeToString([]byte(s)))
 }
 
-func TestComputeDiff_identical_responses(t *testing.T) {
+func TestComputeDiffFromDecoded_identical_responses(t *testing.T) {
+	body := []byte(`{"ok":true}`)
 	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
 	shadow := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
 
-	ops, err := computeDiff(live, shadow)
+	ops, err := computeDiffFromDecoded(live, body, shadow, body)
 
 	require.NoError(t, err)
 	assert.Empty(t, ops)
 }
 
-func TestComputeDiff_different_bodies(t *testing.T) {
+func TestComputeDiffFromDecoded_different_bodies(t *testing.T) {
 	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"alice"}`)}
 	shadow := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"user":"bob"}`)}
 
-	ops, err := computeDiff(live, shadow)
+	ops, err := computeDiffFromDecoded(live, []byte(`{"user":"alice"}`), shadow, []byte(`{"user":"bob"}`))
 
 	require.NoError(t, err)
 	require.NotEmpty(t, ops)
@@ -420,11 +421,11 @@ func TestComputeDiff_different_bodies(t *testing.T) {
 	assert.True(t, found, "expected replace op on /body/user, got: %v", ops)
 }
 
-func TestComputeDiff_different_status_codes(t *testing.T) {
+func TestComputeDiffFromDecoded_different_status_codes(t *testing.T) {
 	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
 	shadow := CreateRequestResponseProps{StatusCode: 500, Headers: http.Header{}, Body: b64(`{"ok":false}`)}
 
-	ops, err := computeDiff(live, shadow)
+	ops, err := computeDiffFromDecoded(live, []byte(`{"ok":true}`), shadow, []byte(`{"ok":false}`))
 
 	require.NoError(t, err)
 	require.NotEmpty(t, ops)
@@ -436,7 +437,7 @@ func TestComputeDiff_different_status_codes(t *testing.T) {
 	assert.True(t, paths["/statusCode"], "expected diff on /statusCode")
 }
 
-func TestComputeDiff_different_headers(t *testing.T) {
+func TestComputeDiffFromDecoded_different_headers(t *testing.T) {
 	live := CreateRequestResponseProps{
 		StatusCode: 200,
 		Headers:    http.Header{"X-Req-Id": []string{"abc"}},
@@ -448,24 +449,15 @@ func TestComputeDiff_different_headers(t *testing.T) {
 		Body:       b64(`{"ok":true}`),
 	}
 
-	ops, err := computeDiff(live, shadow)
+	ops, err := computeDiffFromDecoded(live, []byte(`{"ok":true}`), shadow, []byte(`{"ok":true}`))
 
 	require.NoError(t, err)
 	require.NotEmpty(t, ops, "expected diff on headers")
 }
 
-func TestComputeDiff_invalid_base64_body(t *testing.T) {
-	live := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: []byte("not-valid-base64!!!")}
-	shadow := CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, Body: b64(`{"ok":true}`)}
+// --- Redaction integration tests ---
 
-	_, err := computeDiff(live, shadow)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to decode live response body")
-}
-
-// --- Scrubbing integration tests ---
-
-func TestCreateRequestHandler_Handle_scrubs_default_headers(t *testing.T) {
+func TestCreateRequestHandler_Handle_redacts_default_headers(t *testing.T) {
 	var savedReq *traffictesting.Request
 	repo := &mockRequestRepository{
 		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
@@ -526,7 +518,7 @@ func TestCreateRequestHandler_Handle_scrubs_default_headers(t *testing.T) {
 	assert.Equal(t, "req-1", savedReq.ShadowResponse.Headers.HTTPHeader().Get("X-Req-Id"))
 }
 
-func TestCreateRequestHandler_Handle_scrubs_additional_gate_fields(t *testing.T) {
+func TestCreateRequestHandler_Handle_redacts_additional_gate_fields(t *testing.T) {
 	var savedReq *traffictesting.Request
 	repo := &mockRequestRepository{
 		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
@@ -535,7 +527,7 @@ func TestCreateRequestHandler_Handle_scrubs_additional_gate_fields(t *testing.T)
 		},
 	}
 
-	scrubCfg, _ := traffictesting.NewScrubConfig([]string{"headers.X-Internal-Token"})
+	redactedFields, _ := traffictesting.NewRedactedFields([]string{"headers.X-Internal-Token"})
 	gateRepo := &mockGateRepoForRequest{
 		getByIDFn: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
 			name, _ := traffictesting.ParseGateName("test")
@@ -543,7 +535,7 @@ func TestCreateRequestHandler_Handle_scrubs_additional_gate_fields(t *testing.T)
 			shadow, _ := traffictesting.ParseGateURL("http://shadow.example.com")
 			gate, _ := traffictesting.NewGate(name, live, shadow,
 				traffictesting.WithGateID(id),
-				traffictesting.WithGateScrubConfig(scrubCfg),
+				traffictesting.WithGateRedactedFields(redactedFields),
 			)
 			return gate, nil
 		},
@@ -582,7 +574,7 @@ func TestCreateRequestHandler_Handle_scrubs_additional_gate_fields(t *testing.T)
 	require.NotNil(t, req)
 	require.NotNil(t, savedReq)
 
-	// Custom gate field should be scrubbed
+	// Custom gate field should be redacted
 	assert.Equal(t, traffictesting.RedactedValue, savedReq.Headers.HTTPHeader().Get("X-Internal-Token"))
 	assert.Equal(t, "application/json", savedReq.Headers.HTTPHeader().Get("Content-Type"))
 }
@@ -635,7 +627,7 @@ func TestCreateRequestHandler_Handle_gate_not_found_uses_defaults(t *testing.T) 
 	require.NotNil(t, req)
 	require.NotNil(t, savedReq)
 
-	// Default scrubbing should still apply
+	// Default redaction should still apply
 	assert.Equal(t, traffictesting.RedactedValue, savedReq.Headers.HTTPHeader().Get("Authorization"))
 	assert.Equal(t, "text/plain", savedReq.Headers.HTTPHeader().Get("Content-Type"))
 }
@@ -679,4 +671,192 @@ func TestCreateRequestHandler_Handle_gate_fetch_infra_error_returns_error(t *tes
 	assert.Nil(t, req)
 	assert.Contains(t, err.Error(), "failed to fetch gate")
 	assert.ErrorIs(t, err, infraErr)
+}
+
+func TestCreateRequestHandler_Handle_redacts_body_fields(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+
+	redactedFields, _ := traffictesting.NewRedactedFields([]string{"body.password", "body.user.ssn"})
+	gateRepo := &mockGateRepoForRequest{
+		getByIDFn: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			name, _ := traffictesting.ParseGateName("test")
+			live, _ := traffictesting.ParseGateURL("http://live.example.com")
+			shadow, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+			gate, _ := traffictesting.NewGate(name, live, shadow,
+				traffictesting.WithGateID(id),
+				traffictesting.WithGateRedactedFields(redactedFields),
+			)
+			return gate, nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, gateRepo)
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID:    gateID.String(),
+		Method:    "POST",
+		Path:      "/api/login",
+		Headers:   map[string][]string{"Content-Type": {"application/json"}},
+		Body:      b64(`{"password":"req-s3cret","user":{"ssn":"111-22-3333","name":"Bob"}}`),
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       b64(`{"password":"s3cret","user":{"ssn":"123-45-6789","name":"Alice"}}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       b64(`{"password":"s3cret","user":{"ssn":"123-45-6789","name":"Alice"}}`),
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	// Decode stored response body to verify redaction
+	liveBody, _ := base64.StdEncoding.DecodeString(string(savedReq.LiveResponse.Body))
+	assert.Contains(t, string(liveBody), `"[REDACTED]"`)
+	assert.NotContains(t, string(liveBody), "s3cret")
+	assert.NotContains(t, string(liveBody), "123-45-6789")
+	assert.Contains(t, string(liveBody), "Alice") // non-redacted field preserved
+
+	// Decode stored request body to verify redaction
+	reqBody, _ := base64.StdEncoding.DecodeString(string(savedReq.Body))
+	assert.Contains(t, string(reqBody), `"[REDACTED]"`)
+	assert.NotContains(t, string(reqBody), "req-s3cret")
+	assert.NotContains(t, string(reqBody), "111-22-3333")
+	assert.Contains(t, string(reqBody), "Bob") // non-redacted field preserved
+}
+
+func TestCreateRequestHandler_Handle_redacts_mixed_header_and_body(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+
+	redactedFields, _ := traffictesting.NewRedactedFields([]string{"headers.X-Secret", "body.token"})
+	gateRepo := &mockGateRepoForRequest{
+		getByIDFn: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			name, _ := traffictesting.ParseGateName("test")
+			live, _ := traffictesting.ParseGateURL("http://live.example.com")
+			shadow, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+			gate, _ := traffictesting.NewGate(name, live, shadow,
+				traffictesting.WithGateID(id),
+				traffictesting.WithGateRedactedFields(redactedFields),
+			)
+			return gate, nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, gateRepo)
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID:  gateID.String(),
+		Method:  "GET",
+		Path:    "/api/test",
+		Headers: map[string][]string{"X-Secret": {"hidden"}, "Content-Type": {"application/json"}},
+		Body:    []byte(`{}`),
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{"X-Secret": {"hidden"}},
+			Body:       b64(`{"token":"abc123","data":"ok"}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       b64(`{"token":"abc123","data":"ok"}`),
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, savedReq)
+
+	// Header redacted
+	assert.Equal(t, traffictesting.RedactedValue, savedReq.Headers.HTTPHeader().Get("X-Secret"))
+	assert.Equal(t, traffictesting.RedactedValue, savedReq.LiveResponse.Headers.HTTPHeader().Get("X-Secret"))
+
+	// Body field redacted
+	liveBody, _ := base64.StdEncoding.DecodeString(string(savedReq.LiveResponse.Body))
+	assert.NotContains(t, string(liveBody), "abc123")
+	assert.Contains(t, string(liveBody), "ok") // non-redacted field preserved
+}
+
+func TestCreateRequestHandler_Handle_missing_body_path_silently_skipped(t *testing.T) {
+	var savedReq *traffictesting.Request
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			savedReq = req
+			return nil
+		},
+	}
+
+	redactedFields, _ := traffictesting.NewRedactedFields([]string{"body.nonexistent.deep.path"})
+	gateRepo := &mockGateRepoForRequest{
+		getByIDFn: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			name, _ := traffictesting.ParseGateName("test")
+			live, _ := traffictesting.ParseGateURL("http://live.example.com")
+			shadow, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+			gate, _ := traffictesting.NewGate(name, live, shadow,
+				traffictesting.WithGateID(id),
+				traffictesting.WithGateRedactedFields(redactedFields),
+			)
+			return gate, nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, gateRepo)
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID:    gateID.String(),
+		Method:    "GET",
+		Path:      "/api/test",
+		Headers:   map[string][]string{},
+		Body:      []byte(`{}`),
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       b64(`{"kept":"yes"}`),
+			CreatedAt:  time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 200,
+			Headers:    http.Header{},
+			Body:       b64(`{"kept":"yes"}`),
+			CreatedAt:  time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{Content: nil},
+	}
+
+	req, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, req)
+
+	// Body should be unchanged
+	liveBody, _ := base64.StdEncoding.DecodeString(string(savedReq.LiveResponse.Body))
+	assert.JSONEq(t, `{"kept":"yes"}`, string(liveBody))
 }

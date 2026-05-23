@@ -386,14 +386,14 @@ func DiffFloatToleranceNotNil() predicate.Gate {
 	return predicate.Gate(sql.FieldNotNull(FieldDiffFloatTolerance))
 }
 
-// ScrubFieldsIsNil applies the IsNil predicate on the "scrub_fields" field.
-func ScrubFieldsIsNil() predicate.Gate {
-	return predicate.Gate(sql.FieldIsNull(FieldScrubFields))
+// RedactedFieldsIsNil applies the IsNil predicate on the "redacted_fields" field.
+func RedactedFieldsIsNil() predicate.Gate {
+	return predicate.Gate(sql.FieldIsNull(FieldRedactedFields))
 }
 
-// ScrubFieldsNotNil applies the NotNil predicate on the "scrub_fields" field.
-func ScrubFieldsNotNil() predicate.Gate {
-	return predicate.Gate(sql.FieldNotNull(FieldScrubFields))
+// RedactedFieldsNotNil applies the NotNil predicate on the "redacted_fields" field.
+func RedactedFieldsNotNil() predicate.Gate {
+	return predicate.Gate(sql.FieldNotNull(FieldRedactedFields))
 }
 
 // HasRequests applies the HasEdge predicate on the "requests" edge.

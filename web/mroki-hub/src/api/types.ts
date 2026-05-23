@@ -29,13 +29,6 @@ export interface DiffConfig {
 }
 
 /**
- * Scrub configuration for a gate — fields to redact from stored data (gjson path notation)
- */
-export interface ScrubConfig {
-  additional_fields: string[]
-}
-
-/**
  * Gate represents a live/shadow service pair
  */
 export interface Gate {
@@ -44,7 +37,7 @@ export interface Gate {
   live_url: string
   shadow_url: string
   diff_config: DiffConfig
-  scrub_config: ScrubConfig
+  redacted_fields: string[]
   created_at: string
   stats: GateStats
 }
@@ -183,7 +176,7 @@ export interface CreateGatePayload {
 export interface UpdateGatePayload {
   name?: string
   diff_config?: DiffConfig
-  scrub_config?: ScrubConfig
+  redacted_fields?: string[]
 }
 
 /**

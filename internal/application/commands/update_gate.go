@@ -13,7 +13,7 @@ type UpdateGateCommand struct {
 	ID          string
 	Name        *string
 	DiffConfig  *UpdateDiffConfigProps
-	ScrubConfig *UpdateScrubConfigProps
+	RedactedFields *UpdateRedactedFieldsProps
 }
 
 // UpdateDiffConfigProps holds the diff configuration fields for update.
@@ -23,8 +23,8 @@ type UpdateDiffConfigProps struct {
 	FloatTolerance float64
 }
 
-// UpdateScrubConfigProps holds the scrub configuration fields for update.
-type UpdateScrubConfigProps struct {
+// UpdateRedactedFieldsProps holds the redacted fields configuration for update.
+type UpdateRedactedFieldsProps struct {
 	AdditionalFields []string
 }
 
@@ -74,13 +74,13 @@ func (h *UpdateGateHandler) Handle(ctx context.Context, cmd UpdateGateCommand) (
 		gate.DiffConfig = diffConfig
 	}
 
-	// Apply scrub config if provided
-	if cmd.ScrubConfig != nil {
-		scrubConfig, err := traffictesting.NewScrubConfig(cmd.ScrubConfig.AdditionalFields)
+	// Apply redacted fields if provided
+	if cmd.RedactedFields != nil {
+		redactedFields, err := traffictesting.NewRedactedFields(cmd.RedactedFields.AdditionalFields)
 		if err != nil {
 			return nil, err
 		}
-		gate.ScrubConfig = scrubConfig
+		gate.RedactedFields = redactedFields
 	}
 
 	// Persist

@@ -8,7 +8,7 @@ type Gate struct {
 	LiveURL     GateURL
 	ShadowURL   GateURL
 	DiffConfig  DiffConfig
-	ScrubConfig ScrubConfig
+	RedactedFields RedactedFields
 	CreatedAt   time.Time
 }
 
@@ -32,9 +32,9 @@ func WithGateDiffConfig(dc DiffConfig) gateOption {
 	}
 }
 
-func WithGateScrubConfig(sc ScrubConfig) gateOption {
+func WithGateRedactedFields(rf RedactedFields) gateOption {
 	return func(g *Gate) {
-		g.ScrubConfig = sc
+		g.RedactedFields = rf
 	}
 }
 
@@ -44,7 +44,7 @@ func NewGate(name GateName, live, shadow GateURL, opts ...gateOption) (*Gate, er
 		LiveURL:     live,
 		ShadowURL:   shadow,
 		DiffConfig:  DefaultDiffConfig(),
-		ScrubConfig: DefaultScrubConfig(),
+		RedactedFields: DefaultRedactedFields(),
 	}
 
 	for _, o := range opts {

@@ -62,7 +62,7 @@ test.describe('@screenshots', () => {
     const { gate } = seed!.ordersGate
 
     // Navigate directly to the settings page — seed already configured
-    // scrub and diff fields on the orders gate
+    // redaction and diff fields on the orders gate
     await page.goto(`/gates/${gate.id}/settings`)
     await expect(page.getByText('Gate Settings')).toBeVisible()
     await page.waitForTimeout(500)

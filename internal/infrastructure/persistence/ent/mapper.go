@@ -44,20 +44,20 @@ func mapGateToDomain(raw *ent.Gate) (*traffictesting.Gate, error) {
 		return nil, fmt.Errorf("invalid diff config in database: %w", err)
 	}
 
-	scrubFields := raw.ScrubFields
-	if scrubFields == nil {
-		scrubFields = []string{}
+	redactedFieldList := raw.RedactedFields
+	if redactedFieldList == nil {
+		redactedFieldList = []string{}
 	}
-	scrubConfig, err := traffictesting.NewScrubConfig(scrubFields)
+	redactedFields, err := traffictesting.NewRedactedFields(redactedFieldList)
 	if err != nil {
-		return nil, fmt.Errorf("invalid scrub config in database: %w", err)
+		return nil, fmt.Errorf("invalid redacted fields in database: %w", err)
 	}
 
 	return traffictesting.NewGate(name, live, shadow,
 		traffictesting.WithGateID(id),
 		traffictesting.WithGateCreatedAt(raw.CreatedAt),
 		traffictesting.WithGateDiffConfig(diffConfig),
-		traffictesting.WithGateScrubConfig(scrubConfig),
+		traffictesting.WithGateRedactedFields(redactedFields),
 	)
 }
 

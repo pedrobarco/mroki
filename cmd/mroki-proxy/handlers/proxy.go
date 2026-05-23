@@ -33,8 +33,8 @@ type ProxyConfig struct {
 	// Diff options for standalone mode
 	DiffOptions []diff.Option
 
-	// Header names to scrub in standalone mode (e.g. "Authorization", "Cookie")
-	ScrubNames []string
+	// Redactor for standalone mode (redacts headers + body fields)
+	Redactor *traffictesting.Redactor
 }
 
 func Proxy(cfg ProxyConfig) http.HandlerFunc {
@@ -129,7 +129,7 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 
 	differ := proxy.NewProxyResponseDiffer(cfg.DiffOptions...)
 
-	scrubNames := cfg.ScrubNames
+	redactor := cfg.Redactor
 
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
 		reqLogger := logger.With(
@@ -138,11 +138,31 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 			slog.String("request.path", req.Path),
 		)
 
-		// Scrub sensitive headers before diffing/logging
-		if len(scrubNames) > 0 {
-			req.Headers = traffictesting.NewHeaders(req.Headers).Scrub(scrubNames).HTTPHeader()
-			live.Response.Header = traffictesting.NewHeaders(live.Response.Header).Scrub(scrubNames).HTTPHeader()
-			shadow.Response.Header = traffictesting.NewHeaders(shadow.Response.Header).Scrub(scrubNames).HTTPHeader()
+		// Redact sensitive headers and body fields before diffing/logging
+		if redactor != nil {
+			reqResult, err := redactor.Redact(req.Headers, req.Body)
+			if err != nil {
+				reqLogger.Error("failed to redact request, skipping diff", slog.String("error", err.Error()))
+				return nil
+			}
+			req.Headers = reqResult.Headers
+			req.Body = reqResult.Body
+
+			liveResult, err := redactor.Redact(live.Response.Header, live.Body)
+			if err != nil {
+				reqLogger.Error("failed to redact live response, skipping diff", slog.String("error", err.Error()))
+				return nil
+			}
+			live.Response.Header = liveResult.Headers
+			live.Body = liveResult.Body
+
+			shadowResult, err := redactor.Redact(shadow.Response.Header, shadow.Body)
+			if err != nil {
+				reqLogger.Error("failed to redact shadow response, skipping diff", slog.String("error", err.Error()))
+				return nil
+			}
+			shadow.Response.Header = shadowResult.Headers
+			shadow.Body = shadowResult.Body
 		}
 
 		ops, err := differ.Diff(live, shadow)

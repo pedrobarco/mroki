@@ -45,8 +45,8 @@ type Config config.Config[struct {
 	DiffIncludedFields []string `env:"DIFF_INCLUDED_FIELDS"` // Comma-separated
 	DiffFloatTolerance float64  `env:"DIFF_FLOAT_TOLERANCE, default=0"`
 
-	// Scrub fields (optional, gjson paths — adds to default scrub list)
-	ScrubFields []string `env:"SCRUB_FIELDS"` // Comma-separated, e.g. "headers.X-Internal-Token"
+	// Redacted fields (optional, gjson paths — adds to default redacted list)
+	RedactedFields []string `env:"REDACTED_FIELDS"` // Comma-separated, e.g. "headers.X-Internal-Token"
 }]
 
 // Validate checks all configuration values and returns a ValidationError

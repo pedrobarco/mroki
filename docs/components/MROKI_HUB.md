@@ -7,7 +7,7 @@ mroki-hub is a Vue 3 single-page application that provides a user-friendly inter
 ## Features
 
 - **Gate Management:** Create, configure, and delete gates. List and filter all gates with pagination and sorting.
-- **Gate Settings Page:** Dedicated settings page for each gate — update name, configure header scrubbing (default + per-gate additional fields), diff configuration (ignored/included fields, float tolerance), and delete gate.
+- **Gate Settings Page:** Dedicated settings page for each gate — update name, configure field redaction (default + per-gate additional fields), diff configuration (ignored/included fields, float tolerance), and delete gate.
 - **Request Browser:** List captured requests for a gate with filters (method, path, has_diff), sorting, and pagination. "Showing N of M requests" label.
 - **Diff Visualization:** View response diffs with side-by-side and unified views
 - **JSON Diff Engine:** Custom client-side diff renderer from RFC 6902 patch operations
@@ -75,7 +75,7 @@ web/mroki-hub/
 ```
 /gates                      # Gate list + create gate form
 /gates/:id                  # Gate detail (requests for gate)
-/gates/:id/settings         # Gate settings (name, scrub config, diff config, delete)
+/gates/:id/settings         # Gate settings (name, redacted fields, diff config, delete)
 /gates/:id/requests/:rid    # Request detail (full diff view)
 ```
 
@@ -274,7 +274,7 @@ CMD ["nginx", "-g", "daemon off;"]
 6. ✅ **Request browser** — List requests with filters, sorting, pagination
 7. ✅ **Diff viewer** — Request detail page with custom JSON diff visualization
 8. ✅ **E2E tests** — Playwright tests for gates, requests, navigation
-9. ✅ **Gate Settings** — Dedicated settings page with header scrubbing, diff config, and danger zone
+9. ✅ **Gate Settings** — Dedicated settings page with field redaction, diff config, and danger zone
 
 ## Related Documentation
 

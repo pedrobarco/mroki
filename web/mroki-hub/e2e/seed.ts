@@ -170,16 +170,14 @@ export async function seedScreenshotData(api: ApiHelper): Promise<{
     )
   }
 
-  // Configure the orders gate with realistic diff + scrub settings
+  // Configure the orders gate with realistic diff + redaction settings
   const configuredOrdersGate = await api.updateGate(ordersGateData.id, {
     diff_config: {
       ignored_fields: ['timestamp', 'request_id', 'trace_id'],
       included_fields: [],
       float_tolerance: 0.001,
     },
-    scrub_config: {
-      additional_fields: ['headers.X-Internal-Token', 'headers.X-Session-Id'],
-    },
+    redacted_fields: ['headers.X-Internal-Token', 'headers.X-Session-Id'],
   })
 
   return {
