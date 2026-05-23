@@ -115,8 +115,8 @@ export const test = base.extend<{ api: ApiHelper }>({
         const {
           method = 'GET',
           path = '/api/test',
-          liveBody = '{"result":"live"}',
-          shadowBody = '{"result":"shadow"}',
+          liveBody = btoa('{"result":"live"}'),
+          shadowBody = btoa('{"result":"shadow"}'),
           liveStatus = 200,
           shadowStatus = 200,
           diffContent = [{ op: 'replace', path: '/result', value: 'shadow' }],
