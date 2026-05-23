@@ -163,8 +163,27 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 			}
 			shadow.Response.Header = shadowResult.Headers
 			shadow.Body = shadowResult.Body
+
+			// Use pre-parsed trees from redaction for optimized diffing.
+			// BuildEnvelope + diff.Parsed avoids re-parsing the JSON bodies.
+			if liveResult.BodyParsed != nil && shadowResult.BodyParsed != nil {
+				liveEnvelope := diff.BuildEnvelope(live.StatusCode, live.Response.Header, liveResult.BodyParsed)
+				shadowEnvelope := diff.BuildEnvelope(shadow.StatusCode, shadow.Response.Header, shadowResult.BodyParsed)
+				ops, err := diff.Parsed(liveEnvelope, shadowEnvelope, cfg.DiffOptions...)
+				if err != nil {
+					reqLogger.Warn("failed to diff responses",
+						slog.String("error", err.Error()),
+						slog.Int("live_status", live.StatusCode),
+						slog.Int("shadow_status", shadow.StatusCode),
+					)
+					return nil
+				}
+				logDiffResult(reqLogger, live, shadow, ops)
+				return nil
+			}
 		}
 
+		// Fallback: byte-level diff (no redactor or non-JSON bodies)
 		ops, err := differ.Diff(live, shadow)
 		if err != nil {
 			reqLogger.Warn("failed to diff responses",
@@ -174,22 +193,25 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 			)
 			return nil
 		}
-
-		if len(ops) > 0 {
-			reqLogger.Info("response diff detected",
-				slog.Int("live_status", live.StatusCode),
-				slog.Int("shadow_status", shadow.StatusCode),
-				slog.Int("changes", len(ops)),
-			)
-			fmt.Println("Diff:")
-			fmt.Print(diff.FormatOps(ops))
-		} else {
-			reqLogger.Debug("responses match",
-				slog.Int("live_status", live.StatusCode),
-				slog.Int("shadow_status", shadow.StatusCode),
-			)
-		}
-
+		logDiffResult(reqLogger, live, shadow, ops)
 		return nil
+	}
+}
+
+// logDiffResult logs the diff outcome and prints the ops if any.
+func logDiffResult(logger *slog.Logger, live, shadow proxy.ProxyResponse, ops []diff.PatchOp) {
+	if len(ops) > 0 {
+		logger.Info("response diff detected",
+			slog.Int("live_status", live.StatusCode),
+			slog.Int("shadow_status", shadow.StatusCode),
+			slog.Int("changes", len(ops)),
+		)
+		fmt.Println("Diff:")
+		fmt.Print(diff.FormatOps(ops))
+	} else {
+		logger.Debug("responses match",
+			slog.Int("live_status", live.StatusCode),
+			slog.Int("shadow_status", shadow.StatusCode),
+		)
 	}
 }
