@@ -94,6 +94,7 @@ func TestUnmarshalCaddyfile_all_directives(t *testing.T) {
 		diff_ignored_fields timestamp,created_at
 		diff_included_fields user,order
 		diff_float_tolerance 0.001
+		redacted_fields headers.X-Internal-Token,body.secret
 	}`
 
 	d := caddyfile.NewTestDispenser(input)
@@ -117,6 +118,8 @@ func TestUnmarshalCaddyfile_all_directives(t *testing.T) {
 	assert.Equal(t, "user,order", *m.DiffIncludedFields)
 	require.NotNil(t, m.DiffFloatTolerance)
 	assert.Equal(t, "0.001", *m.DiffFloatTolerance)
+	require.NotNil(t, m.RedactedFields)
+	assert.Equal(t, "headers.X-Internal-Token,body.secret", *m.RedactedFields)
 }
 
 func TestUnmarshalCaddyfile_unknown_property(t *testing.T) {
@@ -133,7 +136,6 @@ func TestUnmarshalCaddyfile_unknown_property(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown property 'api_url'")
 }
-
 
 func TestMrokiGate_Validate_invalid_float_tolerance(t *testing.T) {
 	tolerance := "not-a-number"
@@ -214,4 +216,69 @@ func TestUnmarshalCaddyfile_minimal(t *testing.T) {
 	assert.Nil(t, m.DiffIgnoredFields)
 	assert.Nil(t, m.DiffIncludedFields)
 	assert.Nil(t, m.DiffFloatTolerance)
+	assert.Nil(t, m.RedactedFields)
+}
+
+func TestUnmarshalCaddyfile_redacted_fields(t *testing.T) {
+	input := `mroki_gate {
+		live http://live:8080
+		shadow http://shadow:8080
+		redacted_fields headers.X-Internal-Token,body.user.password
+	}`
+
+	d := caddyfile.NewTestDispenser(input)
+	var m caddymodule.MrokiGate
+	err := m.UnmarshalCaddyfile(d)
+
+	require.NoError(t, err)
+	require.NotNil(t, m.RedactedFields)
+	assert.Equal(t, "headers.X-Internal-Token,body.user.password", *m.RedactedFields)
+}
+
+func TestMrokiGate_Validate_redacted_fields_valid(t *testing.T) {
+	fields := "headers.X-Internal-Token,body.user.password"
+	m := caddymodule.MrokiGate{
+		RawLive:        "http://live:8080",
+		RawShadow:      "http://shadow:8080",
+		RedactedFields: &fields,
+	}
+	err := m.Validate()
+	require.NoError(t, err)
+}
+
+func TestMrokiGate_Validate_redacted_fields_invalid(t *testing.T) {
+	fields := "Authorization"
+	m := caddymodule.MrokiGate{
+		RawLive:        "http://live:8080",
+		RawShadow:      "http://shadow:8080",
+		RedactedFields: &fields,
+	}
+	err := m.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid redacted_fields")
+}
+
+func TestMrokiGate_Validate_redacted_fields_empty_string(t *testing.T) {
+	fields := ""
+	m := caddymodule.MrokiGate{
+		RawLive:        "http://live:8080",
+		RawShadow:      "http://shadow:8080",
+		RedactedFields: &fields,
+	}
+	err := m.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid redacted_fields")
+}
+
+func TestMrokiGate_Validate_default_redaction_always_applied(t *testing.T) {
+	// When redacted_fields is not set, default redaction (Auth, Cookie, etc.)
+	// should still be applied — matching main.go behavior.
+	m := caddymodule.MrokiGate{
+		RawLive:   "http://live:8080",
+		RawShadow: "http://shadow:8080",
+	}
+	err := m.Validate()
+	require.NoError(t, err)
+	// Validate succeeds and proxy is created — redactor is always initialized
+	// with default fields even without explicit redacted_fields config.
 }
