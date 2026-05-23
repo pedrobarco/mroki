@@ -198,7 +198,7 @@ type Diff struct {
 
 ### Database Schema
 
-See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
+See [Database Schema](DATABASE.md) and [API Reference](../api/REFERENCE.md) for detailed schema.
 
 ---
 
@@ -268,145 +268,10 @@ See [API Contracts](API_CONTRACTS.md#database-schema) for detailed schema.
 
 ---
 
-## Security Considerations
-
-### Implemented
-
-- [x] API key authentication (`Authorization: Bearer <key>`)
-- [x] Constant-time API key comparison (timing side-channel hardened)
-- [x] Rate limiting (token bucket, 1000 req/min/IP default)
-- [x] Field redaction — sensitive fields (`headers.Authorization`, `headers.Cookie`, `headers.Set-Cookie`, `headers.X-Api-Key`) are replaced with `[REDACTED]` before storage. Per-gate additional fields configurable via `redacted_fields`
-- [x] Request body size limits (10MB default)
-- [x] Input validation via domain value objects
-- [x] SQL injection prevention (parameterized queries via sqlc)
-- [x] CORS with configurable allowed origins
-- [x] HTTP timeouts and graceful shutdown
-- [x] RFC 7807 structured error responses
-
-### Not Yet Implemented
-
-- **No TLS:** HTTP only (use reverse proxy for HTTPS)
-- **No authorization:** All authenticated users have full access
-- **No request filtering:** All traffic captured (may contain PII)
-
-### Planned
-
-- [x] Body field redaction for non-header PII
-- [ ] RBAC for multi-tenant usage
-- [ ] Proxy-to-API mutual TLS
-
----
-
-## Scalability
-
-### Bottlenecks
-
-1. **PostgreSQL writes:** High traffic gates = many DB writes
-2. **API processing:** Request parsing, validation, and diff computation
-3. **Diff computation:** Large JSON responses computed server-side during ingest
-
-### Mitigation Strategies
-
-1. **Batching:** Proxies can batch multiple requests per API call (future)
-2. **Sampling:** Capture only N% of traffic (configurable per gate)
-3. **Async processing:** Queue diffs for background processing
-4. **Sharding:** Partition gates across multiple databases
-5. **Read replicas:** Serve hub queries from replicas
-
-### Current Limits (estimated)
-
-- **Proxy throughput:** ~1000 req/s per proxy instance
-- **API throughput:** ~500 req/s per API instance (DB-bound)
-- **Storage:** ~1KB per request avg → 1M requests = ~1GB
-
----
-
-## Observability
-
-### Request ID Correlation
-
-All components propagate an `X-Request-ID` header (UUID v4) through the entire request lifecycle:
-
-- **Proxy:** Generates the ID (or reuses an incoming header), forwards to live/shadow services and mroki-api
-- **API:** Middleware extracts/generates the ID, stores in context, logs it as `request.id`, returns in response header
-- **Domain:** The propagated ID becomes the stored `Request.ID`, enabling direct correlation between proxy logs, API logs, and stored entities
-
-### Structured Logging
-
-All components use structured logging (slog) with request ID correlation:
-
-```go
-log.Info("200: OK",
-    "request.id", "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "request.method", "POST",
-    "request.path", "/api/users",
-    "response.status", 200,
-    "response.latency", "1.234ms",
-)
-```
-
-### Metrics (Planned)
-
-- `mroki_proxy_requests_total` - Total requests proxied
-- `mroki_proxy_shadow_skipped` - Shadow requests skipped (sampling / body size)
-- `mroki_proxy_api_failures` - API send failures
-- `mroki_api_requests_total` - API request count
-- `mroki_api_request_duration` - API latency
-- `mroki_api_diffs_computed` - Diffs computed server-side
-
-### Health Checks
-
-- **API:** `GET /health/ready` - DB connectivity
-- **API:** `GET /health/live` - Service up
-- **Proxy:** HTTP server accepting connections
-
----
-
-## Deployment Topology
-
-### Option 1: Sidecar Proxy
-
-```mermaid
-graph TD
-    Client([Client]) --> Proxy[mroki-proxy]
-
-    subgraph Pod/Container
-        App[App Service] --> Proxy
-    end
-
-    Proxy --> Live[Live Service]
-    Proxy --> Shadow[Shadow Service]
-    Proxy -.-> API[mroki-api]
-```
-
-**Pros:** No app changes, transparent
-**Cons:** Resource overhead per pod
-
-### Option 2: Standalone Proxy
-
-```mermaid
-graph TD
-    Client([Client]) --> Proxy[mroki-proxy]
-    Proxy --> Live[Live Service]
-    Proxy --> Shadow[Shadow Service]
-    Proxy -.-> API[mroki-api]
-```
-
-**Pros:** Centralized, lower resource usage
-**Cons:** Single point of failure (use HA)
-
-### Option 3: Caddy Module
-
-```mermaid
-graph TD
-    Client([Client]) --> Caddy["Caddy (w/mroki)"]
-    Caddy --> Live[Live Service]
-    Caddy --> Shadow[Shadow Service]
-    Caddy -.->|Local diff| Stdout([stdout])
-```
-
-**Pros:** Integrated with existing Caddy setup, no extra binary
-**Cons:** Standalone only (no API/hub), couples to Caddy lifecycle
+> **Security, monitoring, and deployment details** have moved to dedicated guides:
+> - [Security](../production/SECURITY.md) — authentication, redaction, TLS, hardening
+> - [Monitoring](../production/MONITORING.md) — logging, health checks, observability
+> - [Docker Compose](../production/DOCKER_COMPOSE.md) / [Kubernetes](../production/KUBERNETES.md) — deployment topologies
 
 ---
 
@@ -474,7 +339,7 @@ graph TD
 
 ## Related Documentation
 
-- [API Contracts](API_CONTRACTS.md) - Detailed API specifications
-- [mroki-proxy Component](../components/MROKI_PROXY.md)
-- [mroki-api Component](../components/MROKI_API.md)
-- [mroki-hub Component](../components/MROKI_HUB.md)
+- [API Reference](../api/REFERENCE.md) — Full endpoint specification
+- [API Walkthrough](../api/WALKTHROUGH.md) — Step-by-step tutorial
+- [Configuration](../production/CONFIGURATION.md) — All environment variables
+- [Troubleshooting](../TROUBLESHOOTING.md) — Common issues and fixes

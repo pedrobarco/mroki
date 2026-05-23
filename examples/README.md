@@ -2,7 +2,7 @@
 
 Working example configurations to help you get started with mroki.
 
-For a full local dev stack (PostgreSQL + API + Agent), see [`build/dev/`](../build/dev/) or the [Quick Start Guide](../docs/guides/QUICK_START.md).
+For a full local dev stack (PostgreSQL + API + Proxy), see [`build/dev/`](../build/dev/) or the [Getting Started](../docs/getting-started/FULL_STACK.md) guide.
 
 ## Available Examples
 
@@ -36,9 +36,9 @@ See the [README](caddyfile/basic-gate/README.md) for detailed instructions.
 
 ## Need Help?
 
-- [Quick Start Guide](../docs/guides/QUICK_START.md)
-- [Development Guide](../docs/guides/DEVELOPMENT.md)
-- [Deployment Guide](../docs/guides/DEPLOYMENT.md)
+- [Getting Started](../docs/getting-started/FULL_STACK.md)
+- [Development Guide](../docs/development/DEVELOPMENT.md)
+- [Production Deployment](../docs/production/DOCKER_COMPOSE.md)
 
 ## Contributing Examples
 

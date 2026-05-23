@@ -31,7 +31,7 @@ curl http://localhost:8080/get
 
 Responses from both services are compared automatically. Open [mroki-hub](http://localhost:5173) to browse gates, requests, and diffs.
 
-See the [Quick Start Guide](docs/guides/QUICK_START.md) for the full walkthrough.
+See the [Getting Started](docs/getting-started/FULL_STACK.md) guide for the full walkthrough.
 
 ## How It Works
 
@@ -56,15 +56,6 @@ graph TD
     Hub[mroki-hub<br><i>Web UI</i>] -->|Query| API
 ```
 
-## Components
-
-| Component                                     | Description                                                                    | Docs                                   |
-| --------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------- |
-| [mroki-proxy](docs/components/MROKI_PROXY.md) | HTTP proxy — forwards traffic to live and shadow, sends responses to API       | [docs](docs/components/MROKI_PROXY.md) |
-| [mroki-api](docs/components/MROKI_API.md)     | REST API — gate management, request/diff storage, server-side diff computation | [docs](docs/components/MROKI_API.md)   |
-| [mroki-hub](docs/components/MROKI_HUB.md)     | Web UI — gate dashboard, request browser, diff viewer                          | [docs](docs/components/MROKI_HUB.md)   |
-| [caddy-mroki](docs/components/CADDY_MROKI.md) | Caddy module — standalone shadow diffing embedded in Caddy server              | [docs](docs/components/CADDY_MROKI.md) |
-
 ## Use Cases
 
 **API refactoring** — Test refactored endpoints against real production traffic to catch behavioral regressions before they ship.
@@ -75,34 +66,40 @@ graph TD
 
 ## Documentation
 
-- [Quick Start](docs/guides/QUICK_START.md) — Get running in 5 minutes
-- [Development](docs/guides/DEVELOPMENT.md) — Local setup, testing, code style
-- [Deployment](docs/guides/DEPLOYMENT.md) — Production deployment with Docker Compose and Kubernetes
-- [System Overview](docs/architecture/OVERVIEW.md) — Architecture and data flow
-- [API Contracts](docs/architecture/API_CONTRACTS.md) — Endpoint specifications
-- [Roadmap](docs/ROADMAP.md)
+| | Guide | Description |
+|---|---|---|
+| 🚀 | **Getting Started** | |
+| | [Full Stack](docs/getting-started/FULL_STACK.md) | All-in-one Docker Compose — proxy, API, hub, database |
+| | [Standalone Proxy](docs/getting-started/STANDALONE_PROXY.md) | Single binary, diffs to stdout, no database |
+| | [Caddy Module](docs/getting-started/CADDY_MODULE.md) | Embedded in an existing Caddy server |
+| 🏗️ | **Production** | |
+| | [Docker Compose](docs/production/DOCKER_COMPOSE.md) | Production deployment with Compose |
+| | [Kubernetes](docs/production/KUBERNETES.md) | K8s manifests and Helm charts |
+| | [Configuration](docs/production/CONFIGURATION.md) | All environment variables and options |
+| | [Security](docs/production/SECURITY.md) | Auth, TLS, redaction, hardening |
+| | [Monitoring](docs/production/MONITORING.md) | Logging, health checks, observability |
+| 🔌 | **API** | |
+| | [Walkthrough](docs/api/WALKTHROUGH.md) | Step-by-step: create a gate, capture traffic, query diffs |
+| | [Reference](docs/api/REFERENCE.md) | Full endpoint specification |
+| 📖 | **Reference** | |
+| | [Architecture](docs/architecture/OVERVIEW.md) | System design, data flow, technology choices |
+| | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes |
+| | [Roadmap](docs/ROADMAP.md) | What's planned |
 
 ## Development
 
 ```bash
-# Start dev stack
-make dev-up
-
-# Run all tests
-make test
-
-# Build all binaries
-make build
-
-# Lint
-make lint
+make dev-up   # Start dev stack
+make test     # Run all tests
+make build    # Build all binaries
+make lint     # Lint
 ```
 
-See the [Development Guide](docs/guides/DEVELOPMENT.md) for the full workflow.
+See the [Development Guide](docs/development/DEVELOPMENT.md) for the full workflow.
 
 ## Contributing
 
-Contributions welcome. Please read the [Contributing Guide](docs/CONTRIBUTING.md) before submitting PRs.
+Contributions welcome. Please read the [Contributing Guide](docs/development/CONTRIBUTING.md) before submitting PRs.
 
 This project follows the [Contributor Covenant Code of Conduct](docs/CODE_OF_CONDUCT.md).
 

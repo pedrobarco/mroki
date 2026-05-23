@@ -97,7 +97,6 @@ Fixes and hardening required before any production deployment with real traffic.
 
 Fix bugs and close gaps in what the diff engine compares and how results are surfaced.
 
-- [ ] **P0** Remove statusCode from diff wrapper — Remove `statusCode` from the synthetic JSON used for diffing (`{"headers": {...}, "body": ...}` only). Status code is already displayed as standalone metadata in the UI; including it in the diff tree is redundant
 - [ ] **P1** Non-JSON body handling — When response body isn't valid JSON, embed it as a raw string in the diff wrapper (`{"headers": {...}, "body": "<raw text>"}`). Diff engine compares it as a single string value, producing a `replace` at `/body` if different. No second diff algorithm needed — stays JSON-only throughout
 - [ ] **P1** Content-type auto-detection — Detect JSON vs non-JSON from `Content-Type` header to decide how to embed body in diff wrapper (parsed JSON object vs raw string). Binary content types skipped with metadata note
 - [ ] **P2** Regex field matching — Extend `FieldNormalizer` to accept regex patterns alongside gjson paths for `ignored_fields`/`included_fields` (e.g., `"regex:.*_at$"`, `"regex:.*timestamp.*"`). Walk JSON field paths and match against patterns, then delete/keep using existing sjson infrastructure

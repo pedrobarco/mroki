@@ -1,4 +1,6 @@
-# API Contracts
+# API Reference
+
+> For a guided introduction, see the [API Walkthrough](WALKTHROUGH.md).
 
 This document specifies the REST API provided by `mroki-api`, including endpoints, request/response formats, and error handling.
 
