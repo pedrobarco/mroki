@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pedrobarco/mroki/internal/application/services"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
@@ -98,68 +99,45 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	}
 	redactor := traffictesting.NewRedactor(redactedFields.AllFields())
 
-	// Decode and redact request headers + body
+	// Decode base64 bodies
 	reqBodyDecoded, reqDecodeErr := decodeBase64Body(cmd.Body)
-	reqResult, err := redactor.Redact(cmd.Headers, reqBodyDecoded)
-	if err != nil {
-		return nil, fmt.Errorf("failed to redact request: %w", err)
-	}
-	cmd.Headers = reqResult.Headers
-
-	// Convert redacted bodies to json.RawMessage for JSONB storage.
-	// If base64 decode succeeded, use the redacted body/parsed tree.
-	// If decode failed, preserve the original bytes as a JSON string.
-	var reqBodyJSON json.RawMessage
-	if reqDecodeErr == nil {
-		reqBodyJSON, err = bodyToRawMessage(reqResult.Body, reqResult.BodyParsed)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal request body: %w", err)
-		}
-	} else if len(cmd.Body) > 0 {
-		reqBodyJSON, err = rawBytesToJSONString(cmd.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal raw request body: %w", err)
-		}
-	}
-
-	// Decode base64 response bodies once, redact headers + body
 	liveBodyDecoded, liveDecodeErr := decodeBase64Body(cmd.LiveResponse.Body)
 	shadowBodyDecoded, shadowDecodeErr := decodeBase64Body(cmd.ShadowResponse.Body)
 
-	liveResult, err := redactor.Redact(cmd.LiveResponse.Headers, liveBodyDecoded)
-	if err != nil {
-		return nil, fmt.Errorf("failed to redact live response: %w", err)
+	// Build diff options from gate config
+	var diffOpts []diff.Option
+	if gateErr == nil {
+		diffOpts = gate.DiffConfig.ToDiffOptions()
 	}
-	cmd.LiveResponse.Headers = liveResult.Headers
 
-	shadowResult, err := redactor.Redact(cmd.ShadowResponse.Headers, shadowBodyDecoded)
+	// Redact all three inputs and compute diff
+	comparer := services.NewResponseComparer(redactor, diffOpts)
+	result, err := comparer.Compare(
+		services.ResponseData{Headers: cmd.Headers, Body: reqBodyDecoded},
+		services.ResponseData{StatusCode: cmd.LiveResponse.StatusCode, Headers: cmd.LiveResponse.Headers, Body: liveBodyDecoded},
+		services.ResponseData{StatusCode: cmd.ShadowResponse.StatusCode, Headers: cmd.ShadowResponse.Headers, Body: shadowBodyDecoded},
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to redact shadow response: %w", err)
+		return nil, fmt.Errorf("failed to redact/diff: %w", err)
 	}
-	cmd.ShadowResponse.Headers = shadowResult.Headers
 
-	var liveBodyJSON, shadowBodyJSON json.RawMessage
-	if liveDecodeErr == nil {
-		liveBodyJSON, err = bodyToRawMessage(liveResult.Body, liveResult.BodyParsed)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal live response body: %w", err)
-		}
-	} else if len(cmd.LiveResponse.Body) > 0 {
-		liveBodyJSON, err = rawBytesToJSONString(cmd.LiveResponse.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal raw live response body: %w", err)
-		}
+	// Update command headers with redacted versions
+	cmd.Headers = result.Request.Headers
+	cmd.LiveResponse.Headers = result.Live.Headers
+	cmd.ShadowResponse.Headers = result.Shadow.Headers
+
+	// Convert redacted bodies to json.RawMessage for JSONB storage
+	reqBodyJSON, err := redactResultToRawMessage(reqDecodeErr, result.Request, cmd.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	if shadowDecodeErr == nil {
-		shadowBodyJSON, err = bodyToRawMessage(shadowResult.Body, shadowResult.BodyParsed)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal shadow response body: %w", err)
-		}
-	} else if len(cmd.ShadowResponse.Body) > 0 {
-		shadowBodyJSON, err = rawBytesToJSONString(cmd.ShadowResponse.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal raw shadow response body: %w", err)
-		}
+	liveBodyJSON, err := redactResultToRawMessage(liveDecodeErr, result.Live, cmd.LiveResponse.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal live response body: %w", err)
+	}
+	shadowBodyJSON, err := redactResultToRawMessage(shadowDecodeErr, result.Shadow, cmd.ShadowResponse.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal shadow response body: %w", err)
 	}
 
 	// Parse and create live response (with already-redacted headers + body)
@@ -174,27 +152,12 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		return nil, fmt.Errorf("shadow response: %w", err)
 	}
 
-	// Compute or use provided diff content
+	// Use pre-provided diff or computed diff
 	var diffContent []diff.PatchOp
 	if cmd.Diff != nil {
 		diffContent = cmd.Diff.Content
 	} else {
-		var diffOpts []diff.Option
-		if gateErr == nil {
-			diffOpts = gate.DiffConfig.ToDiffOptions()
-		}
-
-		// Use pre-parsed trees from redaction to avoid re-parsing.
-		// BuildEnvelope wraps statusCode + headers + body into the diff-ready structure.
-		liveEnvelope := diff.BuildEnvelope(cmd.LiveResponse.StatusCode, cmd.LiveResponse.Headers, liveResult.BodyParsed)
-		shadowEnvelope := diff.BuildEnvelope(cmd.ShadowResponse.StatusCode, cmd.ShadowResponse.Headers, shadowResult.BodyParsed)
-		computed, err := diff.Parsed(liveEnvelope, shadowEnvelope, diffOpts...)
-		if err != nil {
-			// Diff computation errors are non-fatal — store empty diff
-			diffContent = []diff.PatchOp{}
-		} else {
-			diffContent = computed
-		}
+		diffContent = result.Ops
 	}
 
 	d, err := traffictesting.NewDiff(live.ID, shadow.ID, diffContent)
@@ -293,4 +256,16 @@ func rawBytesToJSONString(raw []byte) (json.RawMessage, error) {
 		return nil, fmt.Errorf("marshal raw bytes as string: %w", err)
 	}
 	return json.RawMessage(b), nil
+}
+
+// redactResultToRawMessage converts a RedactResult to json.RawMessage for JSONB storage.
+// If base64 decode failed (decodeErr != nil), falls back to storing the original bytes as a JSON string.
+func redactResultToRawMessage(decodeErr error, result traffictesting.RedactResult, originalBody []byte) (json.RawMessage, error) {
+	if decodeErr == nil {
+		return bodyToRawMessage(result.Body, result.BodyParsed)
+	}
+	if len(originalBody) > 0 {
+		return rawBytesToJSONString(originalBody)
+	}
+	return nil, nil
 }

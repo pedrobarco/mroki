@@ -1,41 +1,41 @@
-package caddymodule
+package caddymodule_test
 
 import (
 	"testing"
 
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
+	"github.com/pedrobarco/mroki/pkg/caddymodule"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMrokiGate_Validate_required_fields(t *testing.T) {
 	t.Run("missing live URL", func(t *testing.T) {
-		m := MrokiGate{RawShadow: "http://shadow:8080"}
+		m := caddymodule.MrokiGate{RawShadow: "http://shadow:8080"}
 		err := m.Validate()
-		assert.ErrorIs(t, err, ErrRequiredLiveURL)
+		assert.ErrorIs(t, err, caddymodule.ErrRequiredLiveURL)
 	})
 
 	t.Run("missing shadow URL", func(t *testing.T) {
-		m := MrokiGate{RawLive: "http://live:8080"}
+		m := caddymodule.MrokiGate{RawLive: "http://live:8080"}
 		err := m.Validate()
-		assert.ErrorIs(t, err, ErrRequiredShadowURL)
+		assert.ErrorIs(t, err, caddymodule.ErrRequiredShadowURL)
 	})
 
 	t.Run("valid minimal config", func(t *testing.T) {
-		m := MrokiGate{
+		m := caddymodule.MrokiGate{
 			RawLive:   "http://live:8080",
 			RawShadow: "http://shadow:8080",
 		}
 		err := m.Validate()
 		require.NoError(t, err)
-		assert.NotNil(t, m.proxy)
 	})
 }
 
 func TestMrokiGate_Validate_sampling_rate(t *testing.T) {
 	t.Run("valid sampling rate", func(t *testing.T) {
 		rate := "0.5"
-		m := MrokiGate{
+		m := caddymodule.MrokiGate{
 			RawLive:      "http://live:8080",
 			RawShadow:    "http://shadow:8080",
 			SamplingRate: &rate,
@@ -46,7 +46,7 @@ func TestMrokiGate_Validate_sampling_rate(t *testing.T) {
 
 	t.Run("invalid sampling rate", func(t *testing.T) {
 		rate := "not-a-number"
-		m := MrokiGate{
+		m := caddymodule.MrokiGate{
 			RawLive:      "http://live:8080",
 			RawShadow:    "http://shadow:8080",
 			SamplingRate: &rate,
@@ -59,7 +59,7 @@ func TestMrokiGate_Validate_sampling_rate(t *testing.T) {
 
 func TestMrokiGate_Validate_max_body_size(t *testing.T) {
 	size := "1048576"
-	m := MrokiGate{
+	m := caddymodule.MrokiGate{
 		RawLive:        "http://live:8080",
 		RawShadow:      "http://shadow:8080",
 		RawMaxBodySize: &size,
@@ -72,7 +72,7 @@ func TestMrokiGate_Validate_diff_options(t *testing.T) {
 	ignored := "timestamp,created_at"
 	included := "user,order"
 	tolerance := "0.001"
-	m := MrokiGate{
+	m := caddymodule.MrokiGate{
 		RawLive:            "http://live:8080",
 		RawShadow:          "http://shadow:8080",
 		DiffIgnoredFields:  &ignored,
@@ -97,7 +97,7 @@ func TestUnmarshalCaddyfile_all_directives(t *testing.T) {
 	}`
 
 	d := caddyfile.NewTestDispenser(input)
-	var m MrokiGate
+	var m caddymodule.MrokiGate
 	err := m.UnmarshalCaddyfile(d)
 
 	require.NoError(t, err)
@@ -127,7 +127,7 @@ func TestUnmarshalCaddyfile_unknown_property(t *testing.T) {
 	}`
 
 	d := caddyfile.NewTestDispenser(input)
-	var m MrokiGate
+	var m caddymodule.MrokiGate
 	err := m.UnmarshalCaddyfile(d)
 
 	assert.Error(t, err)
@@ -137,7 +137,7 @@ func TestUnmarshalCaddyfile_unknown_property(t *testing.T) {
 
 func TestMrokiGate_Validate_invalid_float_tolerance(t *testing.T) {
 	tolerance := "not-a-number"
-	m := MrokiGate{
+	m := caddymodule.MrokiGate{
 		RawLive:            "http://live:8080",
 		RawShadow:          "http://shadow:8080",
 		DiffFloatTolerance: &tolerance,
@@ -149,7 +149,7 @@ func TestMrokiGate_Validate_invalid_float_tolerance(t *testing.T) {
 
 func TestMrokiGate_Validate_invalid_live_timeout(t *testing.T) {
 	timeout := "not-a-duration"
-	m := MrokiGate{
+	m := caddymodule.MrokiGate{
 		RawLive:        "http://live:8080",
 		RawShadow:      "http://shadow:8080",
 		RawLiveTimeout: &timeout,
@@ -161,7 +161,7 @@ func TestMrokiGate_Validate_invalid_live_timeout(t *testing.T) {
 
 func TestMrokiGate_Validate_invalid_shadow_timeout(t *testing.T) {
 	timeout := "bad"
-	m := MrokiGate{
+	m := caddymodule.MrokiGate{
 		RawLive:          "http://live:8080",
 		RawShadow:        "http://shadow:8080",
 		RawShadowTimeout: &timeout,
@@ -173,7 +173,7 @@ func TestMrokiGate_Validate_invalid_shadow_timeout(t *testing.T) {
 
 func TestMrokiGate_Validate_invalid_max_body_size(t *testing.T) {
 	size := "not-a-number"
-	m := MrokiGate{
+	m := caddymodule.MrokiGate{
 		RawLive:        "http://live:8080",
 		RawShadow:      "http://shadow:8080",
 		RawMaxBodySize: &size,
@@ -185,7 +185,7 @@ func TestMrokiGate_Validate_invalid_max_body_size(t *testing.T) {
 
 func TestMrokiGate_Validate_sampling_rate_out_of_range(t *testing.T) {
 	rate := "1.5"
-	m := MrokiGate{
+	m := caddymodule.MrokiGate{
 		RawLive:      "http://live:8080",
 		RawShadow:    "http://shadow:8080",
 		SamplingRate: &rate,
@@ -201,7 +201,7 @@ func TestUnmarshalCaddyfile_minimal(t *testing.T) {
 	}`
 
 	d := caddyfile.NewTestDispenser(input)
-	var m MrokiGate
+	var m caddymodule.MrokiGate
 	err := m.UnmarshalCaddyfile(d)
 
 	require.NoError(t, err)

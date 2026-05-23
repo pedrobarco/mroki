@@ -1,16 +1,17 @@
-package proxy
+package proxy_test
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/pedrobarco/mroki/pkg/proxy"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMaxBodySizeCheck(t *testing.T) {
 	t.Run("allows requests under limit", func(t *testing.T) {
-		check := MaxBodySizeCheck(100)
+		check := proxy.MaxBodySizeCheck(100)
 		req := httptest.NewRequest("POST", "/test", nil)
 		req.ContentLength = 50
 
@@ -18,7 +19,7 @@ func TestMaxBodySizeCheck(t *testing.T) {
 	})
 
 	t.Run("allows requests at exact limit", func(t *testing.T) {
-		check := MaxBodySizeCheck(100)
+		check := proxy.MaxBodySizeCheck(100)
 		req := httptest.NewRequest("POST", "/test", nil)
 		req.ContentLength = 100
 
@@ -26,7 +27,7 @@ func TestMaxBodySizeCheck(t *testing.T) {
 	})
 
 	t.Run("blocks requests over limit", func(t *testing.T) {
-		check := MaxBodySizeCheck(100)
+		check := proxy.MaxBodySizeCheck(100)
 		req := httptest.NewRequest("POST", "/test", nil)
 		req.ContentLength = 101
 
@@ -34,7 +35,7 @@ func TestMaxBodySizeCheck(t *testing.T) {
 	})
 
 	t.Run("blocks chunked encoding requests", func(t *testing.T) {
-		check := MaxBodySizeCheck(100)
+		check := proxy.MaxBodySizeCheck(100)
 		req := httptest.NewRequest("POST", "/test", nil)
 		req.ContentLength = -1 // Chunked encoding
 
@@ -42,7 +43,7 @@ func TestMaxBodySizeCheck(t *testing.T) {
 	})
 
 	t.Run("allows all requests when limit is 0", func(t *testing.T) {
-		check := MaxBodySizeCheck(0)
+		check := proxy.MaxBodySizeCheck(0)
 		req := httptest.NewRequest("POST", "/test", nil)
 		req.ContentLength = 999999
 
@@ -50,7 +51,7 @@ func TestMaxBodySizeCheck(t *testing.T) {
 	})
 
 	t.Run("allows all requests when limit is negative", func(t *testing.T) {
-		check := MaxBodySizeCheck(-1)
+		check := proxy.MaxBodySizeCheck(-1)
 		req := httptest.NewRequest("POST", "/test", nil)
 		req.ContentLength = 999999
 
@@ -58,7 +59,7 @@ func TestMaxBodySizeCheck(t *testing.T) {
 	})
 
 	t.Run("allows chunked when limit is 0", func(t *testing.T) {
-		check := MaxBodySizeCheck(0)
+		check := proxy.MaxBodySizeCheck(0)
 		req := httptest.NewRequest("POST", "/test", nil)
 		req.ContentLength = -1
 
@@ -68,7 +69,7 @@ func TestMaxBodySizeCheck(t *testing.T) {
 
 func TestSamplingRateCheck(t *testing.T) {
 	t.Run("allows all requests when rate is nil", func(t *testing.T) {
-		check := SamplingRateCheck(nil)
+		check := proxy.SamplingRateCheck(nil)
 		req := httptest.NewRequest("GET", "/test", nil)
 
 		// Should always return true
@@ -78,8 +79,8 @@ func TestSamplingRateCheck(t *testing.T) {
 	})
 
 	t.Run("respects sampling rate", func(t *testing.T) {
-		rate, _ := NewSamplingRate(0.5)
-		check := SamplingRateCheck(rate)
+		rate, _ := proxy.NewSamplingRate(0.5)
+		check := proxy.SamplingRateCheck(rate)
 		req := httptest.NewRequest("GET", "/test", nil)
 
 		// Run many times and verify approximately 50% are sampled
@@ -97,8 +98,8 @@ func TestSamplingRateCheck(t *testing.T) {
 	})
 
 	t.Run("sampling rate 0 blocks all requests", func(t *testing.T) {
-		rate, _ := NewSamplingRate(0.0)
-		check := SamplingRateCheck(rate)
+		rate, _ := proxy.NewSamplingRate(0.0)
+		check := proxy.SamplingRateCheck(rate)
 		req := httptest.NewRequest("GET", "/test", nil)
 
 		// Should never sample
@@ -108,8 +109,8 @@ func TestSamplingRateCheck(t *testing.T) {
 	})
 
 	t.Run("sampling rate 1 allows all requests", func(t *testing.T) {
-		rate, _ := NewSamplingRate(1.0)
-		check := SamplingRateCheck(rate)
+		rate, _ := proxy.NewSamplingRate(1.0)
+		check := proxy.SamplingRateCheck(rate)
 		req := httptest.NewRequest("GET", "/test", nil)
 
 		// Should always sample
@@ -143,9 +144,9 @@ func TestCheckFunc_Composition(t *testing.T) {
 	})
 
 	t.Run("combining maxBodySize and sampling", func(t *testing.T) {
-		rate, _ := NewSamplingRate(1.0) // Always sample
-		bodySizeCheck := MaxBodySizeCheck(100)
-		samplingCheck := SamplingRateCheck(rate)
+		rate, _ := proxy.NewSamplingRate(1.0) // Always sample
+		bodySizeCheck := proxy.MaxBodySizeCheck(100)
+		samplingCheck := proxy.SamplingRateCheck(rate)
 
 		req := httptest.NewRequest("POST", "/test", nil)
 		req.ContentLength = 50

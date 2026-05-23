@@ -11,6 +11,7 @@ import (
 
 	"github.com/failsafe-go/failsafe-go/circuitbreaker"
 
+	"github.com/pedrobarco/mroki/internal/application/services"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/client"
 	"github.com/pedrobarco/mroki/pkg/diff"
@@ -128,7 +129,6 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 	}
 
 	differ := proxy.NewProxyResponseDiffer(cfg.DiffOptions...)
-
 	redactor := cfg.Redactor
 
 	return func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
@@ -138,52 +138,32 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 			slog.String("request.path", req.Path),
 		)
 
-		// Redact sensitive headers and body fields before diffing/logging
+		// Optimized path: redact + diff via ResponseComparer
 		if redactor != nil {
-			reqResult, err := redactor.Redact(req.Headers, req.Body)
+			comparer := services.NewResponseComparer(redactor, cfg.DiffOptions)
+			result, err := comparer.Compare(
+				services.ResponseData{Headers: req.Headers, Body: req.Body},
+				services.ResponseData{StatusCode: live.StatusCode, Headers: live.Response.Header, Body: live.Body},
+				services.ResponseData{StatusCode: shadow.StatusCode, Headers: shadow.Response.Header, Body: shadow.Body},
+			)
 			if err != nil {
-				reqLogger.Error("failed to redact request, skipping diff", slog.String("error", err.Error()))
+				reqLogger.Error("failed to redact, skipping diff", slog.String("error", err.Error()))
 				return nil
 			}
-			req.Headers = reqResult.Headers
-			req.Body = reqResult.Body
 
-			liveResult, err := redactor.Redact(live.Response.Header, live.Body)
-			if err != nil {
-				reqLogger.Error("failed to redact live response, skipping diff", slog.String("error", err.Error()))
-				return nil
-			}
-			live.Response.Header = liveResult.Headers
-			live.Body = liveResult.Body
+			// Apply redacted data back for logging
+			req.Headers = result.Request.Headers
+			req.Body = result.Request.Body
+			live.Response.Header = result.Live.Headers
+			live.Body = result.Live.Body
+			shadow.Response.Header = result.Shadow.Headers
+			shadow.Body = result.Shadow.Body
 
-			shadowResult, err := redactor.Redact(shadow.Response.Header, shadow.Body)
-			if err != nil {
-				reqLogger.Error("failed to redact shadow response, skipping diff", slog.String("error", err.Error()))
-				return nil
-			}
-			shadow.Response.Header = shadowResult.Headers
-			shadow.Body = shadowResult.Body
-
-			// Use pre-parsed trees from redaction for optimized diffing.
-			// BuildEnvelope + diff.Parsed avoids re-parsing the JSON bodies.
-			if liveResult.BodyParsed != nil && shadowResult.BodyParsed != nil {
-				liveEnvelope := diff.BuildEnvelope(live.StatusCode, live.Response.Header, liveResult.BodyParsed)
-				shadowEnvelope := diff.BuildEnvelope(shadow.StatusCode, shadow.Response.Header, shadowResult.BodyParsed)
-				ops, err := diff.Parsed(liveEnvelope, shadowEnvelope, cfg.DiffOptions...)
-				if err != nil {
-					reqLogger.Warn("failed to diff responses",
-						slog.String("error", err.Error()),
-						slog.Int("live_status", live.StatusCode),
-						slog.Int("shadow_status", shadow.StatusCode),
-					)
-					return nil
-				}
-				logDiffResult(reqLogger, live, shadow, ops)
-				return nil
-			}
+			logDiffResult(reqLogger, live, shadow, result.Ops)
+			return nil
 		}
 
-		// Fallback: byte-level diff (no redactor or non-JSON bodies)
+		// Fallback: byte-level diff (no redactor)
 		ops, err := differ.Diff(live, shadow)
 		if err != nil {
 			reqLogger.Warn("failed to diff responses",
