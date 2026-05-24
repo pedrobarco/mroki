@@ -78,9 +78,10 @@ services:
     image: ghcr.io/pedrobarco/mroki-hub:latest
     restart: always
     ports:
-      - "3000:3000"
+      - "3000:80"
     environment:
-      MROKI_APP_API_URL: http://mroki-api:8090
+      MROKI_APP_API_BASE_URL: http://mroki-api:8090
+      MROKI_APP_API_KEY: ${API_KEY}
     depends_on:
       - mroki-api
 

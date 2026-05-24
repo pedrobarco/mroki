@@ -1137,6 +1137,7 @@ curl -H "Authorization: Bearer your-api-key" \
 
 ## Related Documentation
 
-- [Architecture Overview](OVERVIEW.md)
-- [mroki-api Component](../components/MROKI_API.md)
-- [mroki-proxy Component](../components/MROKI_PROXY.md)
+- [Architecture Overview](../architecture/OVERVIEW.md)
+- [API Walkthrough](WALKTHROUGH.md)
+- [Configuration](../production/CONFIGURATION.md)
+- [Troubleshooting](../TROUBLESHOOTING.md)

@@ -6,6 +6,15 @@ For a full local dev stack (PostgreSQL + API + Proxy), see [`build/dev/`](../bui
 
 ## Available Examples
 
+### Standalone Proxy
+
+#### [standalone-proxy](standalone-proxy/)
+Run mroki-proxy as a single binary — diffs printed to stdout, no database required.
+- `.env.example` template with all relevant settings
+- Quick-start for local testing and CI/CD pipelines
+
+**Use when:** You want the simplest possible setup with no infrastructure dependencies.
+
 ### Caddyfile
 
 #### [basic-gate](caddyfile/basic-gate/)
@@ -16,15 +25,32 @@ Basic Caddy configuration showing how to shadow specific routes.
 
 **Use when:** You want to integrate mroki with Caddy server for shadow traffic testing.
 
+#### [multi-gate](caddyfile/multi-gate/)
+Multiple route-based gates with per-route configuration.
+- Different shadow backends per route
+- Per-route sampling rates and diff tuning
+- Non-shadowed fallback route
+
+**Use when:** You need to shadow several APIs independently with different settings.
+
 ## Quick Start
 
 ```bash
+# Standalone proxy
+cd examples/standalone-proxy
+cp .env.example .env   # edit with your URLs
+go build -o mroki-proxy ../../cmd/mroki-proxy && ./mroki-proxy
+
+# Caddy — basic gate
 cd examples/caddyfile/basic-gate
-# Build Caddy with mroki module first (see README)
+./caddy run --config Caddyfile
+
+# Caddy — multi gate
+cd examples/caddyfile/multi-gate
 ./caddy run --config Caddyfile
 ```
 
-See the [README](caddyfile/basic-gate/README.md) for detailed instructions.
+See each example's README for detailed instructions.
 
 ## Example Workflow
 

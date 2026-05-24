@@ -28,10 +28,10 @@ spec:
               containerPort: {{ .Values.containerPort }}
               protocol: TCP
           env:
-            - name: MROKI_API_BASE_URL
+            - name: MROKI_APP_API_BASE_URL
               value: {{ include "hub.apiBaseUrl" . | quote }}
             {{- if .Values.existingSecret }}
-            - name: MROKI_API_KEY
+            - name: MROKI_APP_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.existingSecret }}

@@ -6,7 +6,7 @@ Guide for developers working on mroki.
 
 ### Prerequisites
 
-- **Go 1.21+**
+- **Go 1.26+**
 - **Docker & Docker Compose**
 - **Node.js 18+** (for hub development)
 - **PostgreSQL 15+** (via Docker is fine)
@@ -27,7 +27,49 @@ go mod download
 
 # For hub development
 cd web/mroki-hub
-npm install
+pnpm install
+```
+
+## Building from Source
+
+### All Components
+
+```bash
+make build
+```
+
+This builds `mroki-api`, `mroki-proxy`, and `mroki-hub` in one step.
+
+### Individual Components
+
+**mroki-api:**
+
+```bash
+make api-build
+# Output: bin/mroki-api
+```
+
+**mroki-proxy:**
+
+```bash
+make proxy-build
+# Output: bin/mroki-proxy
+```
+
+**mroki-hub:**
+
+```bash
+cd web/mroki-hub
+pnpm install
+pnpm build
+# Output: web/mroki-hub/dist/
+```
+
+**caddy-mroki** (requires [xcaddy](https://github.com/caddyserver/xcaddy)):
+
+```bash
+xcaddy build --with github.com/pedrobarco/mroki/pkg/caddymodule=./pkg/caddymodule
+# Output: ./caddy
 ```
 
 ## Project Structure
@@ -89,7 +131,7 @@ docker compose -f build/dev/compose.yaml up -d
 # Run each component in separate terminals
 go run ./cmd/mroki-api
 go run ./cmd/mroki-proxy
-cd web/mroki-hub && npm run dev
+cd web/mroki-hub && pnpm dev
 ```
 
 ### Building Binaries
@@ -321,17 +363,6 @@ fix(api): handle nil pointer in gate creation
 docs: update API contracts documentation
 test(proxy): add test for timeout handling
 ```
-
-## Release Process
-
-(To be defined - placeholder for future)
-
-1. Update version in appropriate files
-2. Update CHANGELOG
-3. Create git tag
-4. Build binaries
-5. Create GitHub release
-6. Publish to package registries
 
 ## Useful Commands
 

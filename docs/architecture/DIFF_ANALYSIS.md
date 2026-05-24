@@ -1,131 +1,102 @@
-# Diff Entity Analysis
+# Diff Pipeline
 
-Analysis of the domain and persistence layers for the "diff" entity in mroki-hub.
+The diff engine is the core of mroki's shadow traffic testing. It compares the HTTP response from your **live** service against the response from your **shadow** service and produces a structured list of differences. This lets you answer: *"For this request, how did the shadow's response differ from live?"*
 
-## 1. Semantic Role
+## Pipeline Overview
 
-A **diff** in mroki-hub is a **delta-based comparison record** used for **shadow traffic testing**. It captures the computed difference between two HTTP responses: one from the **live** production service and one from the **shadow** (canary/candidate) service.
+Every diff goes through the same stages, regardless of operating mode:
 
-The system operates as a traffic mirroring platform: `mroki-proxy` proxies incoming requests to both live and shadow backends and sends the raw responses to `mroki-api`. The API computes a JSON diff of the two responses server-side and persists the entire capture (request + both responses + diff) for retrospective analysis in the `mroki-hub` dashboard. In standalone mode (no API), the proxy computes and prints diffs locally.
+```mermaid
+graph TD
+    A[Capture] --> B[Transmission]
+    B --> C[Redaction]
+    C --> D[Envelope Construction]
+    D --> E[Field Filtering]
+    E --> F[Comparison]
+    F --> G[Output]
+```
 
-The diff is **not** used for state versioning or audit logging. It serves a purely **observational/analytical** function — answering the question: *"For this request, how did the shadow's response differ from the live's response?"*
+### Stages
 
-## 2. Persistence Layer Data Model
+1. **Capture** — The proxy intercepts an HTTP request, forwards it to both the live and shadow services in parallel, and returns the live response to the client immediately. Both responses are captured for comparison.
 
-The schema is defined via the **ent** ORM framework in `ent/schema/diff.go`.
+2. **Transmission** — In **API mode**, the proxy sends raw responses (with base64-encoded bodies) to the API server via HTTP POST, with automatic retry and circuit breaker. In **standalone mode**, this step is skipped — everything happens locally in the proxy.
 
-**Table: `diffs`**
+3. **Redaction** — Sensitive fields are replaced with `[REDACTED]` before any comparison takes place. A default set of fields is always redacted (e.g., `Authorization` and `Cookie` headers, common credential body paths). Additional fields can be configured per gate.
 
-| Column | Type | Constraints |
+4. **Envelope Construction** — Both responses are wrapped into synthetic JSON documents with this structure:
+   ```json
+   { "statusCode": 200, "headers": { "...": "..." }, "body": { "...": "..." } }
+   ```
+   This ensures the **full response** is compared — status code and headers included — not just the body.
+
+5. **Field Filtering** — Optional include/exclude lists narrow the comparison scope:
+   - **Include list** (whitelist): only the specified fields are compared.
+   - **Exclude list** (blacklist): the specified fields are removed before comparison.
+   - If both are set, include is applied first, then exclude.
+   - Field paths support array wildcards via gjson syntax (e.g., `users.#.email`).
+
+6. **Comparison** — The two documents are compared to produce a list of differences as RFC 6902 JSON Patch operations (`add`, `remove`, `replace`). Float values are compared with a configurable tolerance to avoid false positives from floating-point precision.
+
+7. **Output** — In **API mode**, the diff is persisted to PostgreSQL alongside the request and both responses. In **standalone mode**, diffs are printed to stdout.
+
+## Operating Modes
+
+| | API Mode | Standalone Mode |
 |---|---|---|
-| `id` | UUID | PK, immutable, auto-generated |
-| `request_id` | UUID | Unique, FK → `requests.id` |
-| `from_response_id` | UUID | FK → `responses.id`, Unique, Required |
-| `to_response_id` | UUID | FK → `responses.id`, Unique, Required |
-| `content` | JSON ([]diff.PatchOp) | Not null |
-| `created_at` | TIMESTAMP | Not null, auto-generated |
-
-**Key observations:**
-
-- **1:1 relationship with Request**: Enforced by the `Unique()` constraint on `request_id` and the ent edge definition. Each request has at most one diff.
-- **FK on response IDs**: `from_response_id` and `to_response_id` are declared as proper ent edges (`from_response` and `to_response`) with `Required()` and `Unique()` constraints, providing FK constraints, eager-loading, and cascade behavior at the database level.
-- **Content is structured RFC 6902 JSON Patch**: The diff content is stored as a JSON array of `diff.PatchOp` objects, each containing `op`, `path`, and `value` fields following the RFC 6902 JSON Patch standard. This format is machine-parseable, queryable, and interoperable.
-
-## 3. Domain Model Representation
-
-The domain model lives at `internal/domain/traffictesting/diff.go`.
-
-**Mapping analysis** (via `mapDiffToDomain` in `internal/infrastructure/persistence/ent/mapper.go`):
-
-- **The domain model is a Value Object** — it has no identity (`ID` is not carried into the domain) and carries `FromResponseID`, `ToResponseID`, `Content` (as `[]diff.PatchOp`), and `CreatedAt`. It provides `IsZero()` and `Equals()` methods. The `NewDiff()` constructor accepts typed `[]diff.PatchOp` content.
-- **The mapping is trivially thin** — a near 1:1 projection with no transformation, which is efficient but reveals the domain model adds very little encapsulation over the persistence model.
-- **Diff is embedded in Request as a field, not a separate aggregate** — this correctly models the lifecycle dependency (a diff cannot exist without a request).
-- **The `ID` field is dropped during domain mapping** — the persistence entity has an `id` column, but the domain `Diff` struct has no `ID` field. The diff is always accessed through its parent request.
-
-## 4. Diff Workflow
-
-### Full lifecycle
+| **Diff computed by** | API server | Proxy (locally) |
+| **Output destination** | PostgreSQL | stdout |
+| **Requires mroki-api** | Yes | No |
 
 ```mermaid
 graph LR
-    Proxy["mroki-proxy<br><i>(proxy)</i>"] -->|"Base64-encoded<br>responses (HTTP POST)"| API["mroki-api<br><i>Receive</i>"]
-    API -->|"Decode base64 bodies<br>Build synthetic JSON envelope<br>(statusCode + headers + body)"| Diff["pkg/diff<br><i>JSON()</i>"]
-    Diff -->|"RFC 6902<br>PatchOp[]"| DB[("PostgreSQL<br><i>Save()</i>")]
+    subgraph "API Mode"
+        P1[Proxy] -->|raw responses| API[API Server]
+        API -->|compute diff| DB[(PostgreSQL)]
+    end
 ```
-
-**Standalone mode** (no API): the proxy computes diffs locally using the same `pkg/diff` engine and prints to stdout.
 
 ```mermaid
 graph LR
-    Proxy["mroki-proxy<br><i>(standalone)</i>"] -->|"Live + Shadow<br>responses"| Diff["pkg/diff<br><i>JSON()</i>"]
-    Diff -->|"RFC 6902<br>PatchOp[]"| Stdout([stdout])
+    subgraph "Standalone Mode"
+        P2[Proxy] -->|compute diff locally| OUT([stdout])
+    end
 ```
 
-**Step-by-step:**
+## Output Format
 
-1. **Capture** (proxy-side, `pkg/proxy/proxy.go`): After both live and shadow responses return, the proxy invokes the callback with the raw `ProxyRequest`, live `ProxyResponse`, and shadow `ProxyResponse`. No diff computation occurs in the proxy.
-2. **Transmission** (proxy → API, `pkg/client/converter.go`): The raw responses (base64-encoded bodies) are sent as part of `CreateRequestPayload` via HTTP POST. The `diff` field is omitted from the payload.
-3. **Diff computation** (API-side, `internal/application/commands/create_request.go`): When the `diff` field is absent, `computeDiff()` decodes the base64 response bodies, constructs synthetic JSON documents (statusCode + headers + body), and calls `diff.JSON()` to produce RFC 6902 patch operations. If the proxy provides a pre-computed diff (backward compatibility), it is used as-is.
-4. **Persistence** (API-side, `internal/infrastructure/persistence/ent/request_repository.go`): The entire request+responses+diff is saved in a single database transaction. `saveDiff()` checks `IsZero()` and skips if no diff exists.
-5. **Retrieval** (API-side): Diffs are always eager-loaded with their parent request via `WithDiff()`. A `has_diff` filter exists in `RequestFilters`.
+Diffs use the **RFC 6902 JSON Patch** format. Each operation describes a single difference:
 
-### Potential bottlenecks
+| Field | Description |
+|---|---|
+| `op` | Operation type: `add`, `remove`, or `replace` |
+| `path` | Location of the change as an RFC 6901 JSON Pointer |
+| `value` | New value (present for `add` and `replace`) |
+| `oldValue` | Previous value (present for `replace`) |
 
-| Issue | Impact | Severity |
-|---|---|---|
-| Content stored as unbounded TEXT | Large JSON responses produce large diff strings; no size limit | Medium |
-| Non-standard, non-queryable diff format | Cannot filter/aggregate by changed fields at the DB level | Medium |
-| Body embedded in synthetic JSON | Diff wraps full response body into a JSON envelope, inflating content | Medium |
-| Server-side diff computation at ingest | Diff computed synchronously during `CreateRequest` — blocks write path | Medium |
-| No indexing on response ID columns | Future joins/lookups by response ID would table-scan | Low |
-
-
-## 5. Recommendations
-
-### ~~5.1 Improve Relational Integrity~~ ✅ Completed
-
-`from_response_id` and `to_response_id` now have proper ent edges (`from_response` and `to_response`) with `Required()` and `Unique()` constraints, providing FK constraints, eager-loading, and cascade behavior.
-
-### ~~5.2 Adopt a Structured, Standard Diff Format~~ ✅ Completed
-
-Diffs are now stored in **RFC 6902 JSON Patch** format as `[]diff.PatchOp`:
+**Example** — the shadow returned a different status code and a changed field in the body:
 
 ```json
 [
-  {"op": "replace", "path": "/statusCode", "value": 500},
-  {"op": "replace", "path": "/body/user/name", "value": "Bob"}
+  { "op": "replace", "path": "/statusCode", "value": 500, "oldValue": 200 },
+  { "op": "replace", "path": "/body/user/name", "value": "Bob", "oldValue": "Alice" },
+  { "op": "add", "path": "/body/user/role", "value": "admin" }
 ]
 ```
 
-This format is queryable with PostgreSQL JSONB, machine-parseable, and interoperable.
+An empty array `[]` means the responses were identical (after redaction and filtering).
 
-### 5.3 Enrich the Domain Model (Medium Priority)
+## Configuration
 
-The domain `Diff` is an anemic value object with no validation and a constructor that never fails. Add semantic richness with a structured `DiffOp` type and domain behavior methods like `HasChanges()`, `ChangedPaths()`, `HasStatusCodeChange()`, and `Summary()`.
+Diff behavior can be configured globally via environment variables or per gate in the gate configuration.
 
-### 5.4 Bound and Optimize Content Storage (Medium Priority)
-
-No size limit on diff content; large response bodies produce large diff strings in unbounded TEXT.
-
-- Truncate or cap diff content at a configurable maximum (e.g., 64KB) with a `truncated` boolean flag.
-- Add a `change_count` integer column for lightweight filtering/aggregation without parsing the content blob.
-- Consider compression (zstd/gzip) for large diffs before storage.
-
-### ~~5.5 Add `created_at` Timestamp to Diff~~ ✅ Completed
-
-The `Diff` domain model now includes a `CreatedAt` field, set automatically during construction via `NewDiff()`.
-
-### 5.6 Consider Async Diff Computation (Low Priority)
-
-Diff computation now happens server-side in mroki-api during request ingest (synchronous). The proxy sends raw captures without a diff, and the API computes the diff before persisting. For even higher throughput, a future enhancement could move diff computation to an async worker pool: the API would store raw responses immediately and enqueue diff jobs for background processing. This would decouple ingest latency from diff complexity.
-
-## Summary
-
-| Area | Current State | Recommendation | Priority |
+| Setting | Environment Variable | Per-Gate Field | Description |
 |---|---|---|---|
-| Referential integrity | ~~`from/to_response_id` are plain UUIDs~~ Proper ent edges with `Required()` and `Unique()` constraints | ✅ Completed | — |
-| Content format | ~~Proprietary text via `cleanReporter`~~ RFC 6902 JSON Patch (`[]diff.PatchOp`) | ✅ Completed | — |
-| Domain model | Anemic value object, no validation | Structured `DiffOp` list, domain behavior | Medium |
-| Storage bounds | Unbounded TEXT, no size limit | Cap content size, add `change_count` column | Medium |
-| Temporal metadata | ~~No timestamp on diff~~ `CreatedAt` field present | ✅ Completed | — |
-| Computation architecture | Synchronous server-side (API) | Consider async worker pipeline at scale | Low |
+| Excluded fields | `MROKI_APP_DIFF_IGNORED_FIELDS` | `diff_config.ignored_fields` | Fields to exclude from comparison (blacklist) |
+| Included fields | `MROKI_APP_DIFF_INCLUDED_FIELDS` | `diff_config.included_fields` | Fields to include in comparison (whitelist) |
+| Float tolerance | `MROKI_APP_DIFF_FLOAT_TOLERANCE` | `diff_config.float_tolerance` | Tolerance for floating-point comparisons |
+| Redacted fields | `MROKI_APP_REDACTED_FIELDS` | `redacted_fields` | Fields replaced with `[REDACTED]` before comparison |
+
+Field paths use **gjson syntax** — use `#` as an array wildcard (e.g., `users.#.email` matches the `email` field in every element of the `users` array).
+
+Per-gate configuration overrides global defaults. See the [Configuration reference](../production/CONFIGURATION.md) for the full list of environment variables.

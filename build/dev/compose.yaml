@@ -43,8 +43,8 @@ services:
       service: mroki-hub
     profiles: [frontend]
     environment:
-      MROKI_API_BASE_URL: http://localhost:8090
-      MROKI_API_KEY: mroki-dev-api-key-16
+      MROKI_APP_API_BASE_URL: http://localhost:8090
+      MROKI_APP_API_KEY: mroki-dev-api-key-16
     depends_on:
       mroki-api:
         condition: service_healthy

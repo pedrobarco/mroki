@@ -60,10 +60,10 @@ curl http://localhost:8080/health
 
 ```bash
 # List all gates
-curl http://localhost:8081/gates
+curl http://localhost:8090/gates
 
 # List all requests for a gate
-curl http://localhost:8081/gates/{gate_id}/requests
+curl http://localhost:8090/gates/{gate_id}/requests
 ```
 
 ## Configuration Options

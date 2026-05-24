@@ -78,8 +78,8 @@ kubectl describe pod -n mroki <pod-name>
 ## Health Checks
 
 The API deployment includes:
-- **Liveness probe**: `/health/live` on port 8081
-- **Readiness probe**: `/health/ready` on port 8081
+- **Liveness probe**: `/health/live` on port 8090
+- **Readiness probe**: `/health/ready` on port 8090
 
 Kubernetes automatically restarts unhealthy pods.
 

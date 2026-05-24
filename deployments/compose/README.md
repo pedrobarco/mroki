@@ -41,7 +41,7 @@ Full-stack deployment of mroki using Docker Compose.
 ## Services
 
 - **mroki-db**: PostgreSQL 15 database on port 5432
-- **mroki-api**: API server on port 8081
+- **mroki-api**: API server on port 8090
 - **mroki-proxy**: Proxy on port 8080
 
 ## Requirements

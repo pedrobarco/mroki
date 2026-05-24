@@ -83,6 +83,7 @@ graph TD
 | | [Reference](docs/api/REFERENCE.md) | Full endpoint specification |
 | 📖 | **Reference** | |
 | | [Architecture](docs/architecture/OVERVIEW.md) | System design, data flow, technology choices |
+| | [Diff Pipeline](docs/architecture/DIFF_ANALYSIS.md) | How responses are compared and diffed |
 | | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes |
 | | [Roadmap](docs/ROADMAP.md) | What's planned |
 
@@ -101,7 +102,7 @@ See the [Development Guide](docs/development/DEVELOPMENT.md) for the full workfl
 
 Contributions welcome. Please read the [Contributing Guide](docs/development/CONTRIBUTING.md) before submitting PRs.
 
-This project follows the [Contributor Covenant Code of Conduct](docs/CODE_OF_CONDUCT.md).
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

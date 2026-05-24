@@ -98,6 +98,17 @@ Configure how responses are compared. These options only apply in **Standalone m
 
 ## mroki-hub
 
+The hub is a static SPA. It doesn't read environment variables at runtime — configuration is injected differently depending on the environment:
+
+**Production (Docker):** The container entrypoint script reads `MROKI_APP_*` env vars and generates a `config.js` file that injects them into `window.__MROKI__` before the app loads.
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MROKI_APP_API_BASE_URL` | Yes | — | mroki-api base URL |
+| `MROKI_APP_API_KEY` | Yes | — | API key for authentication |
+
+**Development (Vite dev server):** Vite compiles `VITE_*` env vars into the bundle at build time. Set these in a `.env` file inside `web/mroki-hub/`:
+
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `VITE_API_BASE_URL` | Yes | — | mroki-api base URL |
@@ -160,7 +171,7 @@ MROKI_APP_DATABASE_URL=postgres://postgres:postgres@localhost:5432/mroki
 MROKI_APP_API_KEY=dev-test-key-min-16-chars
 MROKI_APP_CORS_ORIGINS=http://localhost:5173
 
-# mroki-hub
+# mroki-hub (dev uses VITE_ prefix, see note above)
 VITE_API_BASE_URL=http://localhost:8090
 VITE_API_KEY=dev-test-key-min-16-chars
 ```
@@ -191,8 +202,8 @@ MROKI_APP_CLEANUP_INTERVAL=1h
 MROKI_APP_CORS_ORIGINS=https://hub.example.com
 
 # mroki-hub
-VITE_API_BASE_URL=https://api.example.com
-VITE_API_KEY=your-production-api-key
+MROKI_APP_API_BASE_URL=https://api.example.com
+MROKI_APP_API_KEY=your-production-api-key
 ```
 
 ### Standalone with Diff Tuning

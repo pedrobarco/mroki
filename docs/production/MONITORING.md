@@ -4,16 +4,7 @@ Mroki uses structured logging and request ID correlation to provide observabilit
 
 ## Structured Logging
 
-Both **mroki-proxy** and **mroki-api** use Go's `slog` package with JSON output.
-
-Set the log level via the `LOG_LEVEL` environment variable (see [Configuration](CONFIGURATION.md)):
-
-| Level   | Description                                            |
-|---------|--------------------------------------------------------|
-| `debug` | Detailed operation info (DB queries, diff details)     |
-| `info`  | Normal operation (requests processed, server started)  |
-| `warn`  | Recoverable errors (API failures, retry attempts)      |
-| `error` | Unrecoverable errors (exhausted retries)               |
+Both **mroki-proxy** and **mroki-api** use Go's `slog` package with JSON output at `info` level.
 
 **Example JSON log line (proxy):**
 
@@ -59,13 +50,13 @@ The API exposes two health check endpoints:
 livenessProbe:
   httpGet:
     path: /health/live
-    port: 8081
+    port: 8090
   initialDelaySeconds: 5
   periodSeconds: 10
 readinessProbe:
   httpGet:
     path: /health/ready
-    port: 8081
+    port: 8090
   initialDelaySeconds: 5
   periodSeconds: 10
 ```
@@ -74,7 +65,7 @@ readinessProbe:
 
 ```dockerfile
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD curl -f http://localhost:8081/health/live || exit 1
+  CMD curl -f http://localhost:8090/health/live || exit 1
 ```
 
 ## Viewing Logs
