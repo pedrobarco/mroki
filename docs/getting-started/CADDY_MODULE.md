@@ -10,7 +10,7 @@ Embed shadow traffic diffing directly in your Caddy server — no extra services
 
 ## Prerequisites
 
-- **Go 1.24+** — [install](https://go.dev/dl/)
+- **Go 1.26+** — [install](https://go.dev/dl/)
 - **xcaddy** — Caddy's build tool for custom modules:
   ```bash
   go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
@@ -21,6 +21,10 @@ Embed shadow traffic diffing directly in your Caddy server — no extra services
 Caddy modules must be compiled into the binary. Use `xcaddy` to build a Caddy binary with the mroki module:
 
 ```bash
+# From a cloned copy of the repo:
+xcaddy build --with github.com/pedrobarco/mroki/pkg/caddymodule=./pkg/caddymodule
+
+# Or, to fetch the module directly (no clone needed):
 xcaddy build --with github.com/pedrobarco/mroki/pkg/caddymodule
 ```
 

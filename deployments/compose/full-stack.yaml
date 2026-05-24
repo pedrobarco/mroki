@@ -13,10 +13,10 @@ services:
       service: mroki-api
     image: mroki-api:latest
     environment:
-      MROKI_APP_PORT: 8081
+      MROKI_APP_PORT: 8090
       MROKI_APP_DATABASE_URL: postgres://postgres:${DB_PASSWORD}@mroki-db:5432/mroki
     ports:
-      - "8081:8081"
+      - "8090:8090"
     depends_on:
       mroki-db:
         condition: service_healthy
@@ -30,7 +30,7 @@ services:
       MROKI_APP_LIVE_URL: ${LIVE_URL}
       MROKI_APP_SHADOW_URL: ${SHADOW_URL}
       MROKI_APP_PORT: 8080
-      MROKI_APP_API_URL: http://mroki-api:8081
+      MROKI_APP_API_URL: http://mroki-api:8090
       MROKI_APP_GATE_ID: ${GATE_ID}
     depends_on:
       - mroki-api
@@ -41,8 +41,8 @@ services:
       service: mroki-hub
     image: mroki-hub:latest
     environment:
-      MROKI_API_BASE_URL: ${MROKI_API_BASE_URL:-}
-      MROKI_API_KEY: ${MROKI_APP_API_KEY:-}
+      MROKI_APP_API_BASE_URL: ${MROKI_APP_API_BASE_URL:-}
+      MROKI_APP_API_KEY: ${MROKI_APP_API_KEY:-}
     depends_on:
       - mroki-api
 

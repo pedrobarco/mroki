@@ -1,0 +1,31 @@
+{
+	admin off
+	auto_https off
+}
+
+# Multi-gate configuration — shadow different backends per route
+:8080 {
+	# Shadow the users API
+	route /api/users/* {
+		mroki_gate {
+			live https://api.production.example.com
+			shadow https://api-v2.staging.example.com
+		}
+	}
+
+	# Shadow the orders API with sampling and diff tuning
+	route /api/orders/* {
+		mroki_gate {
+			live https://orders.production.example.com
+			shadow https://orders.staging.example.com
+			sampling_rate 0.5
+			diff_ignored_fields timestamp,updated_at
+			diff_float_tolerance 0.01
+		}
+	}
+
+	# Non-shadowed routes — proxy directly to production
+	route /* {
+		reverse_proxy https://api.production.example.com
+	}
+}

@@ -5,8 +5,8 @@ set -e
 # This overwrites the default empty config.js with actual values.
 cat <<EOF > /srv/config.js
 window.__MROKI__ = {
-  API_BASE_URL: "${MROKI_API_BASE_URL}",
-  API_KEY: "${MROKI_API_KEY}"
+  API_BASE_URL: "${MROKI_APP_API_BASE_URL}",
+  API_KEY: "${MROKI_APP_API_KEY}"
 };
 EOF
 

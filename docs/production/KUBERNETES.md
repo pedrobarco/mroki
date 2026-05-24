@@ -84,7 +84,7 @@ containers:
   - containerPort: 8080
   env:
   - name: MROKI_APP_API_URL
-    value: "http://mroki-api:8081"
+    value: "http://mroki-api:8090"
   - name: MROKI_APP_GATE_ID
     value: "550e8400-e29b-41d4-a716-446655440000"
   - name: MROKI_APP_API_KEY
@@ -115,7 +115,7 @@ spec:
         ports: [{ containerPort: 8080 }]
         env:
         - name: MROKI_APP_API_URL
-          value: "http://mroki-api:8081"
+          value: "http://mroki-api:8090"
         - name: MROKI_APP_GATE_ID
           valueFrom:
             configMapKeyRef: { name: mroki-config, key: gate-id }

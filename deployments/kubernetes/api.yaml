@@ -17,10 +17,10 @@ spec:
       - name: mroki-api
         image: mroki-api:v1.0.0
         ports:
-        - containerPort: 8081
+        - containerPort: 8090
         env:
         - name: MROKI_APP_PORT
-          value: "8081"
+          value: "8090"
         - name: MROKI_APP_DATABASE_URL
           valueFrom:
             secretKeyRef:
@@ -34,13 +34,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /health/live
-            port: 8081
+            port: 8090
           initialDelaySeconds: 10
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health/ready
-            port: 8081
+            port: 8090
           initialDelaySeconds: 5
           periodSeconds: 5
         resources:
@@ -61,5 +61,5 @@ spec:
     app: mroki-api
   ports:
   - port: 80
-    targetPort: 8081
+    targetPort: 8090
   type: ClusterIP

@@ -10,7 +10,7 @@ Thanks for your interest in contributing to mroki! This guide will help you get 
    git clone https://github.com/<your-username>/mroki.git
    cd mroki
    ```
-3. **Set up** your development environment — see the [Development Guide](guides/DEVELOPMENT.md)
+3. **Set up** your development environment — see the [Development Guide](DEVELOPMENT.md)
 
 ## Development Workflow
 
@@ -109,7 +109,7 @@ Open a [GitHub Issue](https://github.com/pedrobarco/mroki/issues) with:
 
 ## Project Structure
 
-See the [Development Guide](guides/DEVELOPMENT.md#project-structure) for a full breakdown of the repository layout.
+See the [Development Guide](DEVELOPMENT.md#project-structure) for a full breakdown of the repository layout.
 
 ## Questions?
 

@@ -11,7 +11,7 @@ image:
   # -- Overrides the image tag (default is the chart appVersion)
   tag: ""
 
-# -- Name of an existing Secret containing MROKI_API_KEY
+# -- Name of an existing Secret containing MROKI_APP_API_KEY
 existingSecret: ""
 
 # -- API base URL (empty = auto-discover via release-name-api service)

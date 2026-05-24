@@ -90,7 +90,7 @@ curl https://api.shadow.example.com/health
 grep ERROR proxy.log
 
 # Verify API is reachable (API mode)
-curl http://localhost:8081/health/live
+curl http://localhost:8090/health/live
 
 # Test with httpbin (guaranteed to produce diffs)
 MROKI_APP_LIVE_URL=https://httpbin.org/anything?service=live
@@ -236,7 +236,7 @@ mroki_gate {
 ## Hub Issues
 
 **Symptom:** Hub can't connect to the API — network errors in the browser console.
-**Cause:** `VITE_API_BASE_URL` (dev) or `MROKI_API_BASE_URL` (production) is not set, or the API is not running.
+**Cause:** `VITE_API_BASE_URL` (dev) or `MROKI_APP_API_BASE_URL` (production) is not set, or the API is not running.
 **Fix:**
 ```bash
 # Dev: create .env in web/mroki-hub
@@ -265,18 +265,6 @@ MROKI_APP_CORS_ORIGINS=http://localhost:5173,https://hub.example.com
 ---
 
 ## Debugging Tips
-
-### Enable Debug Logging
-
-Set `LOG_LEVEL=debug` to see detailed operation info (database queries, API sends, diff details):
-
-```bash
-# Proxy
-MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-proxy
-
-# API
-MROKI_APP_LOG_LEVEL=debug go run ./cmd/mroki-api
-```
 
 ### Check Structured Logs
 

@@ -29,14 +29,14 @@ function loadConfig(): MrokiConfig {
   if (!apiBaseUrl) {
     throw new Error(
       'API base URL is not configured. ' +
-        'Set VITE_API_BASE_URL (dev) or MROKI_API_BASE_URL (production).'
+        'Set VITE_API_BASE_URL (dev) or MROKI_APP_API_BASE_URL (production).'
     )
   }
 
   const apiKey = runtime?.API_KEY || import.meta.env.VITE_API_KEY
   if (!apiKey) {
     throw new Error(
-      'API key is not configured. ' + 'Set VITE_API_KEY (dev) or MROKI_API_KEY (production).'
+      'API key is not configured. ' + 'Set VITE_API_KEY (dev) or MROKI_APP_API_KEY (production).'
     )
   }
 

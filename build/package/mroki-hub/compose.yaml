@@ -4,8 +4,8 @@ services:
       context: ../../..
       dockerfile: build/package/mroki-hub/Dockerfile
     environment:
-      MROKI_API_BASE_URL: ${MROKI_API_BASE_URL:-}
-      MROKI_API_KEY: ${MROKI_API_KEY:-}
+      MROKI_APP_API_BASE_URL: ${MROKI_APP_API_BASE_URL:-}
+      MROKI_APP_API_KEY: ${MROKI_APP_API_KEY:-}
     ports:
       - "${MROKI_HUB_PORT:-3000}:80"
     healthcheck:

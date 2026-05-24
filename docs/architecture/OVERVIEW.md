@@ -38,7 +38,7 @@ graph TD
 - Compute and print JSON diffs locally (standalone mode only)
 
 **Technology:**
-- Language: Go 1.24+
+- Language: Go 1.26+
 - HTTP Proxy: Custom `pkg/proxy`
 - Diff Engine: Custom JSON differ `pkg/diff` (gjson/sjson + go-cmp) — used only in standalone mode
 - API Client: `pkg/client` with exponential backoff
@@ -60,7 +60,7 @@ graph TD
 - Health check endpoints for Kubernetes
 
 **Technology:**
-- Language: Go 1.24+
+- Language: Go 1.26+
 - Framework: net/http (stdlib, Go 1.22+ routing)
 - Database: PostgreSQL with pgx/v5
 - ORM: Ent (schema-first, type-safe)
@@ -101,7 +101,7 @@ graph TD
 - Enable mroki without a separate proxy binary
 
 **Technology:**
-- Language: Go 1.24+
+- Language: Go 1.26+
 - Integration: Caddy module system
 
 **Deployment:** Compiled into Caddy binary
@@ -150,6 +150,24 @@ sequenceDiagram
 
 ### Core Entities
 
+```
+┌──────────┐
+│  gates   │
+└────┬─────┘
+     │ 1:N
+     ↓
+┌──────────┐
+│ requests │
+└────┬─────┘
+     │ 1:N
+     ↓
+┌───────────┐     ┌────────┐
+│ responses │────▶│ diffs  │
+└───────────┘ N:1 └────────┘
+```
+
+The database stores four main entities: **Gates** (live/shadow service pairs), **Requests** (captured HTTP requests), **Responses** (HTTP responses from live and shadow services), and **Diffs** (computed differences between response pairs).
+
 ```go
 // Gate represents a live/shadow service pair (command-side aggregate)
 type Gate struct {
@@ -196,9 +214,25 @@ type Diff struct {
 }
 ```
 
-### Database Schema
+### Relationships
 
-See [Database Schema](DATABASE.md) and [API Reference](../api/REFERENCE.md) for detailed schema.
+All relationships use `ON DELETE CASCADE` — deleting a gate cascades to all its requests, responses, and diffs.
+
+- **Gate → Requests:** 1:N (one gate has many requests)
+- **Request → Responses:** 1:2 (one live, one shadow)
+- **Request → Diff:** 1:1 (one diff per request)
+
+### Storage
+
+- **Headers** are stored as JSONB (indexable, supports multiple values per key)
+- **Bodies** are stored as BYTEA (handles any content type)
+- **Diff content** is stored as TEXT (RFC 6902 JSON Patch, human-readable)
+
+### Schema Management
+
+- Schema defined in `ent/schema/`
+- Migrations generated via `make api-migrate name=<description>`
+- Auto-applied on API startup via ent auto-migration
 
 ---
 
@@ -343,3 +377,4 @@ See [Database Schema](DATABASE.md) and [API Reference](../api/REFERENCE.md) for 
 - [API Walkthrough](../api/WALKTHROUGH.md) — Step-by-step tutorial
 - [Configuration](../production/CONFIGURATION.md) — All environment variables
 - [Troubleshooting](../TROUBLESHOOTING.md) — Common issues and fixes
+

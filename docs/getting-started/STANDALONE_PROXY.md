@@ -12,7 +12,7 @@ Run mroki-proxy as a single binary — diffs printed to stdout, no database requ
 
 ## Prerequisites
 
-- **Go 1.24+** (to build from source), _or_
+- **Go 1.26+** (to build from source), _or_
 - **Docker**
 
 ## Step 1: Build or Pull
