@@ -1,0 +1,48 @@
+name: Feature Request
+description: Suggest a new feature or improvement.
+labels: ["feature"]
+body:
+  - type: checkboxes
+    id: search
+    attributes:
+      label: Pre-check
+      options:
+        - label: I have searched existing issues and this hasn't been requested yet
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What this feature is and why it matters.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What "done" looks like — checkboxes encouraged.
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      multiple: true
+      options:
+        - api
+        - proxy
+        - hub
+        - caddy
+        - infra
+    validations:
+      required: true
+  - type: textarea
+    id: implementation-notes
+    attributes:
+      label: Implementation Notes
+      description: Technical approach, relevant files, or design decisions (optional).
+    validations:
+      required: false
