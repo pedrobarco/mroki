@@ -85,7 +85,7 @@ graph TD
 | | [Architecture](docs/architecture/OVERVIEW.md) | System design, data flow, technology choices |
 | | [Diff Pipeline](docs/architecture/DIFF_ANALYSIS.md) | How responses are compared and diffed |
 | | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes |
-| | [Roadmap](docs/ROADMAP.md) | What's planned |
+| | [Roadmap](https://github.com/pedrobarco/mroki/issues) | What's planned |
 
 ## Development
 
