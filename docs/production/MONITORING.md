@@ -109,4 +109,4 @@ Prometheus metrics are planned for a future release. Planned metric names includ
 - `mroki_api_requests_total` — API request count
 - `mroki_api_diffs_computed` — Diffs computed server-side
 
-See [Roadmap](../ROADMAP.md) Phase 4 for implementation timeline.
+See [Prometheus metrics](https://github.com/pedrobarco/mroki/issues/18) for implementation timeline.

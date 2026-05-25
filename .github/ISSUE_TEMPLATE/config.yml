@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question
+    url: https://github.com/pedrobarco/mroki/discussions/new?category=q-a
+    about: Have a question about using mroki? Ask in Discussions.
+  - name: Idea or suggestion
+    url: https://github.com/pedrobarco/mroki/discussions/new?category=ideas
+    about: Want to brainstorm before opening a feature request? Start a Discussion.
