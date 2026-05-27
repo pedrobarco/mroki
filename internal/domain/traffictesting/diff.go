@@ -37,6 +37,12 @@ func (d Diff) IsZero() bool {
 	return d.FromResponseID == uuid.Nil && d.ToResponseID == uuid.Nil
 }
 
+// HasContent returns true if the Diff contains actual differences.
+// A Diff with empty Content means the compared responses were identical.
+func (d Diff) HasContent() bool {
+	return len(d.Content) > 0
+}
+
 // Equals compares two Diff value objects for equality.
 // Value objects are equal if all their attributes are equal.
 func (d Diff) Equals(other Diff) bool {
