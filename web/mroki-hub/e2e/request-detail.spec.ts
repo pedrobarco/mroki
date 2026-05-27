@@ -105,6 +105,93 @@ test.describe('Request Detail Page', () => {
     expect(clipboardText).toContain(`curl-live-${suffix}.example.com/api/curl-test`)
   })
 
+  test('displays query parameters in request header', async ({ page, api }) => {
+    const gate = await api.createGate(
+      'qp-detail-gate',
+      'https://qp-live.example.com',
+      'https://qp-shadow.example.com'
+    )
+    const req = await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/search',
+      rawQuery: 'q=hello&page=1',
+      liveBody: btoa('{"results":[]}'),
+      shadowBody: btoa('{"results":[]}'),
+      liveStatus: 200,
+      shadowStatus: 200,
+      diffContent: [],
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+
+    // Path with query params should be visible in the header
+    await expect(page.getByText('/api/search?q=hello&page=1')).toBeVisible()
+  })
+
+  test('copy cURL includes query parameters', async ({ page, api, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `curl-qp-gate-${suffix}`,
+      `https://curl-qp-live-${suffix}.example.com`,
+      `https://curl-qp-shadow-${suffix}.example.com`
+    )
+    const req = await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/items',
+      rawQuery: 'category=books&limit=25',
+      liveBody: btoa('{"items":[]}'),
+      shadowBody: btoa('{"items":[]}'),
+      liveStatus: 200,
+      shadowStatus: 200,
+      diffContent: [],
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+
+    await page.getByRole('button', { name: 'Copy cURL' }).click()
+    await page.getByText('Live endpoint').click()
+    await expect(page.getByText('Copied!')).toBeVisible()
+
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText())
+    expect(clipboardText).toContain('/api/items?category=books&limit=25')
+    expect(clipboardText).toContain(`curl-qp-live-${suffix}.example.com`)
+  })
+
+  test('export JSON includes query parameters', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `export-qp-gate-${suffix}`,
+      `https://export-qp-live-${suffix}.example.com`,
+      `https://export-qp-shadow-${suffix}.example.com`
+    )
+    const req = await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/export-qp',
+      rawQuery: 'format=csv&fields=name,email',
+      liveBody: btoa('{}'),
+      shadowBody: btoa('{}'),
+      liveStatus: 200,
+      shadowStatus: 200,
+      diffContent: [],
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+
+    const downloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Export JSON' }).click()
+    const download = await downloadPromise
+
+    const filePath = await download.path()
+    expect(filePath).toBeTruthy()
+
+    const fs = await import('fs')
+    const content = JSON.parse(fs.readFileSync(filePath!, 'utf-8'))
+    expect(content.path).toBe('/api/export-qp')
+    expect(content.raw_query).toBe('format=csv&fields=name,email')
+  })
+
   test('export JSON downloads request data', async ({ page, api }) => {
     const suffix = Date.now()
     const gate = await api.createGate(

@@ -76,6 +76,26 @@ func (_u *RequestUpdate) SetNillablePath(v *string) *RequestUpdate {
 	return _u
 }
 
+// SetRawQuery sets the "raw_query" field.
+func (_u *RequestUpdate) SetRawQuery(v string) *RequestUpdate {
+	_u.mutation.SetRawQuery(v)
+	return _u
+}
+
+// SetNillableRawQuery sets the "raw_query" field if the given value is not nil.
+func (_u *RequestUpdate) SetNillableRawQuery(v *string) *RequestUpdate {
+	if v != nil {
+		_u.SetRawQuery(*v)
+	}
+	return _u
+}
+
+// ClearRawQuery clears the value of the "raw_query" field.
+func (_u *RequestUpdate) ClearRawQuery() *RequestUpdate {
+	_u.mutation.ClearRawQuery()
+	return _u
+}
+
 // SetHeaders sets the "headers" field.
 func (_u *RequestUpdate) SetHeaders(v map[string][]string) *RequestUpdate {
 	_u.mutation.SetHeaders(v)
@@ -260,6 +280,12 @@ func (_u *RequestUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(request.FieldPath, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RawQuery(); ok {
+		_spec.SetField(request.FieldRawQuery, field.TypeString, value)
+	}
+	if _u.mutation.RawQueryCleared() {
+		_spec.ClearField(request.FieldRawQuery, field.TypeString)
+	}
 	if value, ok := _u.mutation.Headers(); ok {
 		_spec.SetField(request.FieldHeaders, field.TypeJSON, value)
 	}
@@ -442,6 +468,26 @@ func (_u *RequestUpdateOne) SetNillablePath(v *string) *RequestUpdateOne {
 	if v != nil {
 		_u.SetPath(*v)
 	}
+	return _u
+}
+
+// SetRawQuery sets the "raw_query" field.
+func (_u *RequestUpdateOne) SetRawQuery(v string) *RequestUpdateOne {
+	_u.mutation.SetRawQuery(v)
+	return _u
+}
+
+// SetNillableRawQuery sets the "raw_query" field if the given value is not nil.
+func (_u *RequestUpdateOne) SetNillableRawQuery(v *string) *RequestUpdateOne {
+	if v != nil {
+		_u.SetRawQuery(*v)
+	}
+	return _u
+}
+
+// ClearRawQuery clears the value of the "raw_query" field.
+func (_u *RequestUpdateOne) ClearRawQuery() *RequestUpdateOne {
+	_u.mutation.ClearRawQuery()
 	return _u
 }
 
@@ -658,6 +704,12 @@ func (_u *RequestUpdateOne) sqlSave(ctx context.Context) (_node *Request, err er
 	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(request.FieldPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RawQuery(); ok {
+		_spec.SetField(request.FieldRawQuery, field.TypeString, value)
+	}
+	if _u.mutation.RawQueryCleared() {
+		_spec.ClearField(request.FieldRawQuery, field.TypeString)
 	}
 	if value, ok := _u.mutation.Headers(); ok {
 		_spec.SetField(request.FieldHeaders, field.TypeJSON, value)

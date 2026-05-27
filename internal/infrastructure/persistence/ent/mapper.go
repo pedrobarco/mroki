@@ -89,6 +89,7 @@ func mapRequestToDomain(raw *ent.Request) (*traffictesting.Request, error) {
 		GateID:    gateID,
 		Method:    method,
 		Path:      path,
+		RawQuery:  raw.RawQuery,
 		Headers:   headers,
 		Body:      raw.Body,
 		CreatedAt: raw.CreatedAt,

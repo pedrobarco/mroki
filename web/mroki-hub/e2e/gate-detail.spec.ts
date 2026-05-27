@@ -121,6 +121,27 @@ test.describe('Gate Detail Page', () => {
     await expect(page.getByText('Page 1 of 2')).toBeVisible()
   })
 
+  test('displays query parameters in request list', async ({ page, api }) => {
+    const gate = await api.createGate(
+      'query-gate',
+      'https://query-live.example.com',
+      'https://query-shadow.example.com'
+    )
+    await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/search',
+      rawQuery: 'q=hello&page=1&sort=name',
+    })
+    await api.seedRequest(gate.id, { method: 'POST', path: '/api/create' })
+
+    await page.goto(`/gates/${gate.id}`)
+
+    // Request with query params shows path?query
+    await expect(page.getByText('/api/search?q=hello&page=1&sort=name')).toBeVisible()
+    // Request without query params shows path only
+    await expect(page.getByText('/api/create')).toBeVisible()
+  })
+
   test('click request navigates to detail', async ({ page, api }) => {
     const gate = await api.createGate(
       'nav-gate',

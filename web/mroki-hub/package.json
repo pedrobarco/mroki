@@ -18,7 +18,7 @@
     "test:unit": "vitest run",
     "test:e2e": "pnpm test:e2e:setup && playwright test --grep-invert @screenshots",
     "test:e2e:ui": "pnpm test:e2e:setup && playwright test --ui --grep-invert @screenshots",
-    "test:e2e:setup": "docker compose -f ../../build/dev/compose.yaml down -v && docker compose -f ../../build/dev/compose.yaml up -d --build --wait",
+    "test:e2e:setup": "docker compose -f ../../build/dev/compose.yaml --profile backend down -v && docker compose -f ../../build/dev/compose.yaml --profile backend up -d --build --wait",
     "screenshots": "playwright test --grep @screenshots"
   },
   "dependencies": {

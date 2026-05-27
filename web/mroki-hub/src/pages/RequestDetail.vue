@@ -83,24 +83,29 @@ function formatTimestamp(timestamp: string): string {
   return new Date(timestamp).toLocaleString()
 }
 
+function shellEscape(s: string): string {
+  return s.replace(/'/g, "'\\''")
+}
+
 function buildCurl(targetUrl: string): string {
   const req = request.value
   if (!req) return ''
 
-  const parts: string[] = [`curl -X ${req.method} '${targetUrl}${req.path}'`]
+  const fullPath = req.raw_query ? `${req.path}?${req.raw_query}` : req.path
+  const parts: string[] = [`curl -X ${req.method} '${shellEscape(targetUrl + fullPath)}'`]
 
   // Add request headers
   if (req.headers) {
     for (const [name, values] of Object.entries(req.headers)) {
       for (const value of values) {
-        parts.push(`  -H '${name}: ${value}'`)
+        parts.push(`  -H '${shellEscape(`${name}: ${value}`)}'`)
       }
     }
   }
 
   // Add request body
   if (req.body) {
-    parts.push(`  -d '${req.body.replace(/'/g, "'\\''")}'`)
+    parts.push(`  -d '${shellEscape(req.body)}'`)
   }
 
   return parts.join(' \\\n')
@@ -205,16 +210,18 @@ onMounted(() => {
       <!-- Request Metadata Card -->
       <div class="bg-card border border-border rounded-xl p-5">
         <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 min-w-0">
             <span
-              class="inline-flex items-center justify-center text-xs font-bold font-mono px-2.5 py-1 rounded-md tracking-wide"
+              class="inline-flex items-center justify-center text-xs font-bold font-mono px-2.5 py-1 rounded-md tracking-wide shrink-0"
               :class="getMethodClasses(request.method)"
             >
               {{ request.method }}
             </span>
-            <code class="text-sm font-mono text-foreground">{{ request.path }}</code>
+            <code class="text-sm font-mono text-foreground truncate"
+              >{{ request.path }}{{ request.raw_query ? `?${request.raw_query}` : '' }}</code
+            >
           </div>
-          <div v-if="diffCount > 0" class="flex items-center gap-2">
+          <div v-if="diffCount > 0" class="flex items-center gap-2 shrink-0 ml-4">
             <span
               class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium"
             >

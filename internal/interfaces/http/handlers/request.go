@@ -32,6 +32,7 @@ func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 			GateID:    gateIDStr,
 			Method:    req.Method,
 			Path:      req.Path,
+			RawQuery:  req.RawQuery,
 			Headers:   req.Headers,
 			Body:      []byte(req.Body),
 			CreatedAt: req.CreatedAt,
@@ -239,6 +240,7 @@ func toRequestResponseDTO(req *traffictesting.Request) dto.Request {
 		ID:        req.ID.String(),
 		Method:    req.Method.String(),
 		Path:      req.Path.String(),
+		RawQuery:  req.RawQuery,
 		CreatedAt: req.CreatedAt,
 		LiveResponse: &dto.ResponseSummary{
 			StatusCode: req.LiveResponse.StatusCode.Int(),
@@ -278,6 +280,7 @@ func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
 		ID:             req.ID.String(),
 		Method:         req.Method.String(),
 		Path:           req.Path.String(),
+		RawQuery:       req.RawQuery,
 		Headers:        req.Headers.HTTPHeader(),
 		Body:           rawMessageToStringPtr(req.Body),
 		CreatedAt:      req.CreatedAt,

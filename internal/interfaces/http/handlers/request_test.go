@@ -382,6 +382,7 @@ func TestGetRequestByID_Success(t *testing.T) {
 		gateID,
 		method,
 		path,
+		"",
 		traffictesting.NewHeaders(http.Header{}),
 		json.RawMessage(`{"key":"value"}`),
 		time.Now(),
@@ -647,6 +648,7 @@ func TestGetAllRequestsByGateID_WithoutDiff(t *testing.T) {
 	path, _ := traffictesting.ParsePath("/api/test")
 	req1, _ := traffictesting.NewRequest(
 		gateID, method, path,
+		"",
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
 		time.Now(),
@@ -832,6 +834,7 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 		gateID,
 		method,
 		path,
+		"",
 		traffictesting.NewHeaders(http.Header{}),
 		[]byte(""),
 		time.Now(),

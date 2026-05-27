@@ -83,9 +83,10 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 
 	gateID := traffictesting.NewGateID()
 	cmd := CreateRequestCommand{
-		GateID: gateID.String(),
-		Method: "GET",
-		Path:   "/api/test",
+		GateID:   gateID.String(),
+		Method:   "GET",
+		Path:     "/api/test",
+		RawQuery: "page=1&limit=20",
 		Headers: map[string][]string{
 			"Content-Type": {"application/json"},
 		},
@@ -118,6 +119,7 @@ func TestCreateRequestHandler_Handle_success(t *testing.T) {
 	assert.Equal(t, gateID, req.GateID)
 	assert.Equal(t, "GET", req.Method.String())
 	assert.Equal(t, "/api/test", req.Path.String())
+	assert.Equal(t, "page=1&limit=20", req.RawQuery)
 	assert.Equal(t, 200, req.LiveResponse.StatusCode.Int())
 	assert.Equal(t, 200, req.ShadowResponse.StatusCode.Int())
 }

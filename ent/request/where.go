@@ -71,6 +71,11 @@ func Path(v string) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldPath, v))
 }
 
+// RawQuery applies equality check predicate on the "raw_query" field. It's identical to RawQueryEQ.
+func RawQuery(v string) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldRawQuery, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Request {
 	return predicate.Request(sql.FieldEQ(FieldCreatedAt, v))
@@ -224,6 +229,81 @@ func PathEqualFold(v string) predicate.Request {
 // PathContainsFold applies the ContainsFold predicate on the "path" field.
 func PathContainsFold(v string) predicate.Request {
 	return predicate.Request(sql.FieldContainsFold(FieldPath, v))
+}
+
+// RawQueryEQ applies the EQ predicate on the "raw_query" field.
+func RawQueryEQ(v string) predicate.Request {
+	return predicate.Request(sql.FieldEQ(FieldRawQuery, v))
+}
+
+// RawQueryNEQ applies the NEQ predicate on the "raw_query" field.
+func RawQueryNEQ(v string) predicate.Request {
+	return predicate.Request(sql.FieldNEQ(FieldRawQuery, v))
+}
+
+// RawQueryIn applies the In predicate on the "raw_query" field.
+func RawQueryIn(vs ...string) predicate.Request {
+	return predicate.Request(sql.FieldIn(FieldRawQuery, vs...))
+}
+
+// RawQueryNotIn applies the NotIn predicate on the "raw_query" field.
+func RawQueryNotIn(vs ...string) predicate.Request {
+	return predicate.Request(sql.FieldNotIn(FieldRawQuery, vs...))
+}
+
+// RawQueryGT applies the GT predicate on the "raw_query" field.
+func RawQueryGT(v string) predicate.Request {
+	return predicate.Request(sql.FieldGT(FieldRawQuery, v))
+}
+
+// RawQueryGTE applies the GTE predicate on the "raw_query" field.
+func RawQueryGTE(v string) predicate.Request {
+	return predicate.Request(sql.FieldGTE(FieldRawQuery, v))
+}
+
+// RawQueryLT applies the LT predicate on the "raw_query" field.
+func RawQueryLT(v string) predicate.Request {
+	return predicate.Request(sql.FieldLT(FieldRawQuery, v))
+}
+
+// RawQueryLTE applies the LTE predicate on the "raw_query" field.
+func RawQueryLTE(v string) predicate.Request {
+	return predicate.Request(sql.FieldLTE(FieldRawQuery, v))
+}
+
+// RawQueryContains applies the Contains predicate on the "raw_query" field.
+func RawQueryContains(v string) predicate.Request {
+	return predicate.Request(sql.FieldContains(FieldRawQuery, v))
+}
+
+// RawQueryHasPrefix applies the HasPrefix predicate on the "raw_query" field.
+func RawQueryHasPrefix(v string) predicate.Request {
+	return predicate.Request(sql.FieldHasPrefix(FieldRawQuery, v))
+}
+
+// RawQueryHasSuffix applies the HasSuffix predicate on the "raw_query" field.
+func RawQueryHasSuffix(v string) predicate.Request {
+	return predicate.Request(sql.FieldHasSuffix(FieldRawQuery, v))
+}
+
+// RawQueryIsNil applies the IsNil predicate on the "raw_query" field.
+func RawQueryIsNil() predicate.Request {
+	return predicate.Request(sql.FieldIsNull(FieldRawQuery))
+}
+
+// RawQueryNotNil applies the NotNil predicate on the "raw_query" field.
+func RawQueryNotNil() predicate.Request {
+	return predicate.Request(sql.FieldNotNull(FieldRawQuery))
+}
+
+// RawQueryEqualFold applies the EqualFold predicate on the "raw_query" field.
+func RawQueryEqualFold(v string) predicate.Request {
+	return predicate.Request(sql.FieldEqualFold(FieldRawQuery, v))
+}
+
+// RawQueryContainsFold applies the ContainsFold predicate on the "raw_query" field.
+func RawQueryContainsFold(v string) predicate.Request {
+	return predicate.Request(sql.FieldContainsFold(FieldRawQuery, v))
 }
 
 // HeadersIsNil applies the IsNil predicate on the "headers" field.

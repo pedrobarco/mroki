@@ -57,6 +57,7 @@ export interface Request {
   id: string
   method: string
   path: string
+  raw_query?: string
   created_at: string
   live_response: ResponseSummary | null
   shadow_response: ResponseSummary | null
@@ -98,6 +99,7 @@ export interface RequestDetail {
   id: string
   method: string
   path: string
+  raw_query?: string
   headers: Record<string, string[]>
   body: string | null
   created_at: string

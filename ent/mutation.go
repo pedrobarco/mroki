@@ -1724,6 +1724,7 @@ type RequestMutation struct {
 	id               *uuid.UUID
 	method           *string
 	_path            *string
+	raw_query        *string
 	headers          *map[string][]string
 	body             *json.RawMessage
 	appendbody       json.RawMessage
@@ -1951,6 +1952,55 @@ func (m *RequestMutation) OldPath(ctx context.Context) (v string, err error) {
 // ResetPath resets all changes to the "path" field.
 func (m *RequestMutation) ResetPath() {
 	m._path = nil
+}
+
+// SetRawQuery sets the "raw_query" field.
+func (m *RequestMutation) SetRawQuery(s string) {
+	m.raw_query = &s
+}
+
+// RawQuery returns the value of the "raw_query" field in the mutation.
+func (m *RequestMutation) RawQuery() (r string, exists bool) {
+	v := m.raw_query
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRawQuery returns the old "raw_query" field's value of the Request entity.
+// If the Request object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RequestMutation) OldRawQuery(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRawQuery is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRawQuery requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRawQuery: %w", err)
+	}
+	return oldValue.RawQuery, nil
+}
+
+// ClearRawQuery clears the value of the "raw_query" field.
+func (m *RequestMutation) ClearRawQuery() {
+	m.raw_query = nil
+	m.clearedFields[request.FieldRawQuery] = struct{}{}
+}
+
+// RawQueryCleared returns if the "raw_query" field was cleared in this mutation.
+func (m *RequestMutation) RawQueryCleared() bool {
+	_, ok := m.clearedFields[request.FieldRawQuery]
+	return ok
+}
+
+// ResetRawQuery resets all changes to the "raw_query" field.
+func (m *RequestMutation) ResetRawQuery() {
+	m.raw_query = nil
+	delete(m.clearedFields, request.FieldRawQuery)
 }
 
 // SetHeaders sets the "headers" field.
@@ -2257,7 +2307,7 @@ func (m *RequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RequestMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.gate != nil {
 		fields = append(fields, request.FieldGateID)
 	}
@@ -2266,6 +2316,9 @@ func (m *RequestMutation) Fields() []string {
 	}
 	if m._path != nil {
 		fields = append(fields, request.FieldPath)
+	}
+	if m.raw_query != nil {
+		fields = append(fields, request.FieldRawQuery)
 	}
 	if m.headers != nil {
 		fields = append(fields, request.FieldHeaders)
@@ -2290,6 +2343,8 @@ func (m *RequestMutation) Field(name string) (ent.Value, bool) {
 		return m.Method()
 	case request.FieldPath:
 		return m.Path()
+	case request.FieldRawQuery:
+		return m.RawQuery()
 	case request.FieldHeaders:
 		return m.Headers()
 	case request.FieldBody:
@@ -2311,6 +2366,8 @@ func (m *RequestMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldMethod(ctx)
 	case request.FieldPath:
 		return m.OldPath(ctx)
+	case request.FieldRawQuery:
+		return m.OldRawQuery(ctx)
 	case request.FieldHeaders:
 		return m.OldHeaders(ctx)
 	case request.FieldBody:
@@ -2346,6 +2403,13 @@ func (m *RequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPath(v)
+		return nil
+	case request.FieldRawQuery:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRawQuery(v)
 		return nil
 	case request.FieldHeaders:
 		v, ok := value.(map[string][]string)
@@ -2398,6 +2462,9 @@ func (m *RequestMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *RequestMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(request.FieldRawQuery) {
+		fields = append(fields, request.FieldRawQuery)
+	}
 	if m.FieldCleared(request.FieldHeaders) {
 		fields = append(fields, request.FieldHeaders)
 	}
@@ -2418,6 +2485,9 @@ func (m *RequestMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *RequestMutation) ClearField(name string) error {
 	switch name {
+	case request.FieldRawQuery:
+		m.ClearRawQuery()
+		return nil
 	case request.FieldHeaders:
 		m.ClearHeaders()
 		return nil
@@ -2440,6 +2510,9 @@ func (m *RequestMutation) ResetField(name string) error {
 		return nil
 	case request.FieldPath:
 		m.ResetPath()
+		return nil
+	case request.FieldRawQuery:
+		m.ResetRawQuery()
 		return nil
 	case request.FieldHeaders:
 		m.ResetHeaders()

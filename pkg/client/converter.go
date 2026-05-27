@@ -19,6 +19,7 @@ func ConvertProxyToCapture(
 		ID:        req.Headers.Get("X-Request-ID"),
 		Method:    req.Method,
 		Path:      req.Path,
+		RawQuery:  req.RawQuery,
 		Headers:   req.Headers,
 		Body:      base64.StdEncoding.EncodeToString(req.Body),
 		CreatedAt: now,

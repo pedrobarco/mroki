@@ -160,7 +160,7 @@ onMounted(() => {
               {{ request.method }}
             </span>
             <code class="text-xs font-mono text-foreground truncate">
-              {{ request.path }}
+              {{ request.path }}{{ request.raw_query ? `?${request.raw_query}` : '' }}
             </code>
           </div>
           <div class="flex items-center gap-4 shrink-0 ml-4">

@@ -21,10 +21,11 @@ var (
 
 // ProxyRequest represents the original HTTP request being proxied
 type ProxyRequest struct {
-	Method  string
-	Path    string
-	Headers http.Header
-	Body    []byte
+	Method   string
+	Path     string
+	RawQuery string
+	Headers  http.Header
+	Body     []byte
 }
 
 type CallbackFunc func(req ProxyRequest, live, shadow ProxyResponse) error
@@ -324,10 +325,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			proxyReq := ProxyRequest{
-				Method:  r.Method,
-				Path:    r.URL.Path,
-				Headers: r.Header.Clone(),
-				Body:    body,
+				Method:   r.Method,
+				Path:     r.URL.Path,
+				RawQuery: r.URL.RawQuery,
+				Headers:  r.Header.Clone(),
+				Body:     body,
 			}
 			live := ProxyResponse{
 				StatusCode: liveResp.resp.StatusCode,

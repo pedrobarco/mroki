@@ -11,10 +11,11 @@ import (
 // This is sent from proxies to the API.
 type CreateRequestPayload struct {
 	// Request metadata
-	ID        string              `json:"id,omitempty"` // Optional: API will generate if empty
-	Method    string              `json:"method"`       // e.g., "GET", "POST"
-	Path      string              `json:"path"`         // e.g., "/api/users/123"
-	Headers   map[string][]string `json:"headers"`      // HTTP headers
+	ID        string              `json:"id,omitempty"`        // Optional: API will generate if empty
+	Method    string              `json:"method"`              // e.g., "GET", "POST"
+	Path      string              `json:"path"`                // e.g., "/api/users/123"
+	RawQuery  string              `json:"raw_query,omitempty"` // e.g., "page=2&limit=10"
+	Headers   map[string][]string `json:"headers"`             // HTTP headers
 	Body      string              `json:"body"`         // Base64 encoded
 	CreatedAt time.Time           `json:"created_at"`   // When request was captured
 
@@ -52,6 +53,7 @@ type Request struct {
 	ID             string           `json:"id"`
 	Method         string           `json:"method"`
 	Path           string           `json:"path"`
+	RawQuery       string           `json:"raw_query,omitempty"`
 	CreatedAt      time.Time        `json:"created_at"`
 	LiveResponse   *ResponseSummary `json:"live_response"`
 	ShadowResponse *ResponseSummary `json:"shadow_response"`
@@ -63,6 +65,7 @@ type RequestDetail struct {
 	ID        string              `json:"id"`
 	Method    string              `json:"method"`
 	Path      string              `json:"path"`
+	RawQuery  string              `json:"raw_query,omitempty"`
 	Headers   map[string][]string `json:"headers"`
 	Body      *string             `json:"body"`
 	CreatedAt time.Time           `json:"created_at"`
