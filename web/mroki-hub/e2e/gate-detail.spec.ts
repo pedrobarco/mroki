@@ -136,8 +136,9 @@ test.describe('Gate Detail Page', () => {
 
     await page.goto(`/gates/${gate.id}`)
 
-    // Request with query params shows path?query
-    await expect(page.getByText('/api/search?q=hello&page=1&sort=name')).toBeVisible()
+    // Request with query params shows path and truncated query
+    await expect(page.getByText('/api/search')).toBeVisible()
+    await expect(page.getByText('?q=hello&page=1&sort=name')).toBeVisible()
     // Request without query params shows path only
     await expect(page.getByText('/api/create')).toBeVisible()
   })

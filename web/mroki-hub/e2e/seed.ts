@@ -81,6 +81,7 @@ const orderDiffOps = [
 interface RequestDef {
   method: string
   path: string
+  rawQuery?: string
   liveBody: object
   shadowBody: object
   liveStatus: number
@@ -118,7 +119,8 @@ const ordersRequests: RequestDef[] = [
   },
   {
     method: 'GET',
-    path: '/v1/orders?page=1&limit=20',
+    path: '/v1/orders',
+    rawQuery: 'page=1&limit=20&sort=created_at&order=desc&status=confirmed&customer_tier=premium',
     liveBody: { data: [orderLive], pagination: { total: 1, page: 1, limit: 20 } },
     shadowBody: { data: [orderLive], pagination: { total: 1, page: 1, limit: 20 } },
     liveStatus: 200,
@@ -161,6 +163,7 @@ export async function seedScreenshotData(api: ApiHelper): Promise<{
       await api.seedRequest(ordersGateData.id, {
         method: req.method,
         path: req.path,
+        rawQuery: req.rawQuery,
         liveBody: btoa(JSON.stringify(req.liveBody)),
         shadowBody: btoa(JSON.stringify(req.shadowBody)),
         liveStatus: req.liveStatus,

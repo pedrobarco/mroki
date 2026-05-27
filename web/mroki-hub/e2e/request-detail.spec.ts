@@ -124,8 +124,9 @@ test.describe('Request Detail Page', () => {
 
     await page.goto(`/gates/${gate.id}/requests/${req.id}`)
 
-    // Path with query params should be visible in the header
-    await expect(page.getByText('/api/search?q=hello&page=1')).toBeVisible()
+    // Path and query params should be visible in the header (in separate elements)
+    await expect(page.getByText('/api/search')).toBeVisible()
+    await expect(page.getByText('?q=hello&page=1')).toBeVisible()
   })
 
   test('copy cURL includes query parameters', async ({ page, api, context }) => {

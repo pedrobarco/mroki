@@ -6,6 +6,7 @@ import type { Request } from '@/api'
 import type { FilterState } from '@/components/requests/RequestFilters.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ChevronRight } from 'lucide-vue-next'
 
 interface Props {
@@ -103,6 +104,27 @@ function getMethodClasses(method: string): string {
   return methodColors[method.toUpperCase()] || 'bg-muted text-muted-foreground'
 }
 
+const TRUNCATION_CHAR_BUDGET = 80
+
+function smartTruncateQuery(path: string, rawQuery?: string) {
+  if (!rawQuery) return { display: path, queryDisplay: '', remaining: 0 }
+  const params = rawQuery.split('&')
+  const budget = TRUNCATION_CHAR_BUDGET - path.length - 1 // -1 for '?'
+  if (budget <= 0) {
+    return { display: path, queryDisplay: '', remaining: params.length }
+  }
+  const visible: string[] = []
+  let charCount = 0
+  for (const p of params) {
+    const added = charCount === 0 ? p.length : p.length + 1 // +1 for '&'
+    if (charCount + added > budget && visible.length > 0) break
+    visible.push(p)
+    charCount += added
+  }
+  const remaining = params.length - visible.length
+  return { display: path, queryDisplay: visible.join('&'), remaining }
+}
+
 function formatTimestamp(timestamp: string): string {
   const date = new Date(timestamp)
   const now = new Date()
@@ -114,6 +136,14 @@ function formatTimestamp(timestamp: string): string {
   if (diffHrs < 24) return `${diffHrs}h ago`
   return date.toLocaleDateString()
 }
+
+const truncatedQueries = computed(() => {
+  const map = new Map<string, ReturnType<typeof smartTruncateQuery>>()
+  for (const r of requests.value) {
+    map.set(r.id, smartTruncateQuery(r.path, r.raw_query))
+  }
+  return map
+})
 
 onMounted(() => {
   loadRequests()
@@ -145,72 +175,109 @@ onMounted(() => {
 
     <!-- Request Rows -->
     <div v-else>
-      <div class="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
-        <div
-          v-for="request in requests"
-          :key="request.id"
-          class="flex items-center px-5 py-3.5 cursor-pointer transition-colors hover:bg-accent"
-          @click="handleRequestClick(request.id)"
-        >
-          <div class="flex items-center gap-3 flex-1 min-w-0">
-            <span
-              class="inline-flex items-center justify-center text-xs font-bold font-mono px-2 py-0.5 rounded-md tracking-wide w-14 text-center shrink-0"
-              :class="getMethodClasses(request.method)"
-            >
-              {{ request.method }}
-            </span>
-            <code class="text-xs font-mono text-foreground truncate">
-              {{ request.path }}{{ request.raw_query ? `?${request.raw_query}` : '' }}
-            </code>
-          </div>
-          <div class="flex items-center gap-4 shrink-0 ml-4">
-            <!-- Diff badge -->
-            <span
-              v-if="request.has_diff"
-              class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-400"
-            >
-              <span class="w-1 h-1 rounded-full bg-red-400" />
-              Diff
-            </span>
-            <span
-              v-else
-              class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400"
-            >
-              No diff
-            </span>
-            <!-- Status codes -->
-            <span class="text-xs font-mono text-dim w-24 text-right whitespace-nowrap">
+      <TooltipProvider :delay-duration="300">
+        <div class="bg-card border border-border rounded-xl divide-y divide-border">
+          <div
+            v-for="request in requests"
+            :key="request.id"
+            class="flex items-center px-5 py-3.5 cursor-pointer transition-colors hover:bg-accent"
+            @click="handleRequestClick(request.id)"
+          >
+            <div class="flex items-center gap-3 flex-1 min-w-0">
               <span
-                :class="
-                  (request.live_response?.status_code ?? 0) < 400
-                    ? 'text-muted-foreground'
-                    : 'text-danger'
-                "
-                >{{ request.live_response?.status_code ?? '—' }}</span
+                class="inline-flex items-center justify-center text-xs font-bold font-mono px-2 py-0.5 rounded-md tracking-wide w-14 text-center shrink-0"
+                :class="getMethodClasses(request.method)"
               >
-              <span class="text-dim"> / </span>
-              <span
-                :class="
-                  (request.shadow_response?.status_code ?? 0) < 400
-                    ? 'text-muted-foreground'
-                    : 'text-danger'
-                "
-                >{{ request.shadow_response?.status_code ?? '—' }}</span
-              >
-            </span>
-            <!-- Latency -->
-            <span class="text-xs font-mono text-dim w-36 text-right whitespace-nowrap">
-              {{ request.live_response?.latency_ms ?? '—' }}ms /
-              {{ request.shadow_response?.latency_ms ?? '—' }}ms
-            </span>
-            <!-- Timestamp -->
-            <div class="text-xs text-dim w-20 text-right">
-              {{ formatTimestamp(request.created_at) }}
+                {{ request.method }}
+              </span>
+              <div v-if="request.raw_query" class="min-w-0 flex items-center overflow-hidden">
+                <code
+                  class="text-xs font-mono text-foreground whitespace-nowrap overflow-hidden text-ellipsis"
+                >
+                  {{ truncatedQueries.get(request.id)!.display
+                  }}<span
+                    v-if="truncatedQueries.get(request.id)!.queryDisplay"
+                    class="text-muted-foreground"
+                    >?{{ truncatedQueries.get(request.id)!.queryDisplay }}</span
+                  >
+                </code>
+                <Tooltip v-if="truncatedQueries.get(request.id)!.remaining > 0">
+                  <TooltipTrigger as-child>
+                    <span
+                      class="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-mono ml-1.5 whitespace-nowrap shrink-0 cursor-default"
+                    >
+                      +{{ truncatedQueries.get(request.id)!.remaining }} param{{
+                        truncatedQueries.get(request.id)!.remaining > 1 ? 's' : ''
+                      }}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" align="start" class="max-w-lg p-3">
+                    <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                      <template v-for="(param, i) in request.raw_query!.split('&')" :key="i">
+                        <span class="text-[11px] font-mono text-muted-foreground">{{
+                          param.split('=')[0]
+                        }}</span>
+                        <span class="text-[11px] font-mono text-foreground break-all">{{
+                          param.split('=').slice(1).join('=')
+                        }}</span>
+                      </template>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <code v-else class="text-xs font-mono text-foreground truncate">
+                {{ request.path }}
+              </code>
             </div>
-            <ChevronRight class="h-3.5 w-3.5 text-dim/40 shrink-0" />
+            <div class="flex items-center gap-4 shrink-0 ml-4">
+              <!-- Diff badge -->
+              <span
+                v-if="request.has_diff"
+                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-400"
+              >
+                <span class="w-1 h-1 rounded-full bg-red-400" />
+                Diff
+              </span>
+              <span
+                v-else
+                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400"
+              >
+                No diff
+              </span>
+              <!-- Status codes -->
+              <span class="text-xs font-mono text-dim w-24 text-right whitespace-nowrap">
+                <span
+                  :class="
+                    (request.live_response?.status_code ?? 0) < 400
+                      ? 'text-muted-foreground'
+                      : 'text-danger'
+                  "
+                  >{{ request.live_response?.status_code ?? '—' }}</span
+                >
+                <span class="text-dim"> / </span>
+                <span
+                  :class="
+                    (request.shadow_response?.status_code ?? 0) < 400
+                      ? 'text-muted-foreground'
+                      : 'text-danger'
+                  "
+                  >{{ request.shadow_response?.status_code ?? '—' }}</span
+                >
+              </span>
+              <!-- Latency -->
+              <span class="text-xs font-mono text-dim w-36 text-right whitespace-nowrap">
+                {{ request.live_response?.latency_ms ?? '—' }}ms /
+                {{ request.shadow_response?.latency_ms ?? '—' }}ms
+              </span>
+              <!-- Timestamp -->
+              <div class="text-xs text-dim w-20 text-right">
+                {{ formatTimestamp(request.created_at) }}
+              </div>
+              <ChevronRight class="h-3.5 w-3.5 text-dim/40 shrink-0" />
+            </div>
           </div>
         </div>
-      </div>
+      </TooltipProvider>
 
       <!-- Pagination Controls -->
       <div class="flex items-center justify-between mt-4 text-xs">

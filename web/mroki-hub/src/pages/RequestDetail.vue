@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import DiffViewer from '@/components/diff/DiffViewer.vue'
 import { ChevronLeft, Copy, Download, ChevronDown, Check } from 'lucide-vue-next'
 import { truncateId } from '@/lib/utils'
@@ -46,6 +47,32 @@ function getMethodClasses(method: string): string {
 }
 
 const diffCount = computed(() => request.value?.diff?.content?.length ?? 0)
+
+const TRUNCATION_CHAR_BUDGET = 80
+
+function smartTruncateQuery(path: string, rawQuery?: string) {
+  if (!rawQuery) return { display: path, queryDisplay: '', remaining: 0 }
+  const params = rawQuery.split('&')
+  const budget = TRUNCATION_CHAR_BUDGET - path.length - 1
+  if (budget <= 0) {
+    return { display: path, queryDisplay: '', remaining: params.length }
+  }
+  const visible: string[] = []
+  let charCount = 0
+  for (const p of params) {
+    const added = charCount === 0 ? p.length : p.length + 1
+    if (charCount + added > budget && visible.length > 0) break
+    visible.push(p)
+    charCount += added
+  }
+  const remaining = params.length - visible.length
+  return { display: path, queryDisplay: visible.join('&'), remaining }
+}
+
+const truncatedQuery = computed(() => {
+  if (!request.value) return null
+  return smartTruncateQuery(request.value.path, request.value.raw_query)
+})
 
 async function loadRequest() {
   loading.value = true
@@ -209,26 +236,66 @@ onMounted(() => {
     <div v-else-if="request" class="space-y-6">
       <!-- Request Metadata Card -->
       <div class="bg-card border border-border rounded-xl p-5">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3 min-w-0">
-            <span
-              class="inline-flex items-center justify-center text-xs font-bold font-mono px-2.5 py-1 rounded-md tracking-wide shrink-0"
-              :class="getMethodClasses(request.method)"
-            >
-              {{ request.method }}
-            </span>
-            <code class="text-sm font-mono text-foreground truncate"
-              >{{ request.path }}{{ request.raw_query ? `?${request.raw_query}` : '' }}</code
-            >
+        <TooltipProvider :delay-duration="200">
+          <div class="flex items-center justify-between mb-4">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-3">
+                <span
+                  class="inline-flex items-center justify-center text-xs font-bold font-mono px-2.5 py-1 rounded-md tracking-wide shrink-0"
+                  :class="getMethodClasses(request.method)"
+                >
+                  {{ request.method }}
+                </span>
+                <div
+                  v-if="request.raw_query && truncatedQuery"
+                  class="min-w-0 flex items-center overflow-hidden"
+                >
+                  <code
+                    class="text-sm font-mono text-foreground whitespace-nowrap overflow-hidden text-ellipsis"
+                  >
+                    {{ truncatedQuery.display
+                    }}<span v-if="truncatedQuery.queryDisplay" class="text-muted-foreground"
+                      >?{{ truncatedQuery.queryDisplay }}</span
+                    >
+                  </code>
+                  <Tooltip v-if="truncatedQuery.remaining > 0">
+                    <TooltipTrigger as-child>
+                      <span
+                        class="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-accent text-muted-foreground font-mono ml-1.5 whitespace-nowrap shrink-0 cursor-default"
+                      >
+                        +{{ truncatedQuery.remaining }} param{{
+                          truncatedQuery.remaining > 1 ? 's' : ''
+                        }}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="start" class="max-w-lg p-3">
+                      <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                        <template v-for="(param, i) in request.raw_query!.split('&')" :key="i">
+                          <span class="text-[11px] font-mono text-muted-foreground">{{
+                            param.split('=')[0]
+                          }}</span>
+                          <span class="text-[11px] font-mono text-foreground break-all">{{
+                            param.split('=').slice(1).join('=')
+                          }}</span>
+                        </template>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <code v-else class="text-sm font-mono text-foreground truncate">
+                  {{ request.path }}
+                </code>
+              </div>
+            </div>
+            <div v-if="diffCount > 0" class="flex items-center gap-2 shrink-0 ml-4">
+              <span
+                class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium"
+              >
+                {{ diffCount }} diff{{ diffCount > 1 ? 's' : '' }} found
+              </span>
+            </div>
           </div>
-          <div v-if="diffCount > 0" class="flex items-center gap-2 shrink-0 ml-4">
-            <span
-              class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium"
-            >
-              {{ diffCount }} diff{{ diffCount > 1 ? 's' : '' }} found
-            </span>
-          </div>
-        </div>
+        </TooltipProvider>
         <div class="grid grid-cols-4 gap-4">
           <div>
             <div class="text-xs uppercase tracking-widest text-dim mb-1">Request ID</div>
