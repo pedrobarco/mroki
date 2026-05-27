@@ -27,6 +27,8 @@ type Request struct {
 	Method string `json:"method,omitempty"`
 	// Path holds the value of the "path" field.
 	Path string `json:"path,omitempty"`
+	// RawQuery holds the value of the "raw_query" field.
+	RawQuery string `json:"raw_query,omitempty"`
 	// Headers holds the value of the "headers" field.
 	Headers map[string][]string `json:"headers,omitempty"`
 	// Body holds the value of the "body" field.
@@ -90,7 +92,7 @@ func (*Request) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case request.FieldHeaders, request.FieldBody:
 			values[i] = new([]byte)
-		case request.FieldMethod, request.FieldPath:
+		case request.FieldMethod, request.FieldPath, request.FieldRawQuery:
 			values[i] = new(sql.NullString)
 		case request.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -134,6 +136,12 @@ func (_m *Request) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field path", values[i])
 			} else if value.Valid {
 				_m.Path = value.String
+			}
+		case request.FieldRawQuery:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field raw_query", values[i])
+			} else if value.Valid {
+				_m.RawQuery = value.String
 			}
 		case request.FieldHeaders:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -216,6 +224,9 @@ func (_m *Request) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("path=")
 	builder.WriteString(_m.Path)
+	builder.WriteString(", ")
+	builder.WriteString("raw_query=")
+	builder.WriteString(_m.RawQuery)
 	builder.WriteString(", ")
 	builder.WriteString("headers=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Headers))

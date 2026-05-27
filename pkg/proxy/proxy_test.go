@@ -347,6 +347,47 @@ func TestProxy_ServeHTTP_preserves_query_params(t *testing.T) {
 	assert.Contains(t, receivedQuery, "param2=value2")
 }
 
+func TestProxy_ServeHTTP_callback_captures_raw_query(t *testing.T) {
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer liveServer.Close()
+
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer shadowServer.Close()
+
+	done := make(chan struct{})
+	var capturedReq proxy.ProxyRequest
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+	p := proxy.NewProxy(
+		liveURL,
+		shadowURL,
+		proxy.WithCallbackFn(func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+			capturedReq = req
+			close(done)
+			return nil
+		}),
+	)
+
+	req := httptest.NewRequest("GET", "/test?foo=bar&baz=qux", nil)
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	select {
+	case <-done:
+		// Callback was called successfully
+	case <-time.After(1 * time.Second):
+		t.Fatal("callback was not called within timeout")
+	}
+
+	assert.Equal(t, "foo=bar&baz=qux", capturedReq.RawQuery)
+}
+
 func TestProxy_ServeHTTP_copies_response_headers(t *testing.T) {
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Custom-Response", "custom-value")

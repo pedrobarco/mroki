@@ -12,6 +12,7 @@ type Request struct {
 	GateID    GateID
 	Method    HTTPMethod
 	Path      Path
+	RawQuery  string
 	Headers   Headers
 	Body      json.RawMessage
 	CreatedAt time.Time
@@ -33,6 +34,7 @@ func NewRequest(
 	gateID GateID,
 	method HTTPMethod,
 	path Path,
+	rawQuery string,
 	headers Headers,
 	body json.RawMessage,
 	createdAt time.Time,
@@ -45,6 +47,7 @@ func NewRequest(
 		GateID:         gateID,
 		Method:         method,
 		Path:           path,
+		RawQuery:       rawQuery,
 		Headers:        headers,
 		Body:           body,
 		CreatedAt:      createdAt,

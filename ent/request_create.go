@@ -43,6 +43,20 @@ func (_c *RequestCreate) SetPath(v string) *RequestCreate {
 	return _c
 }
 
+// SetRawQuery sets the "raw_query" field.
+func (_c *RequestCreate) SetRawQuery(v string) *RequestCreate {
+	_c.mutation.SetRawQuery(v)
+	return _c
+}
+
+// SetNillableRawQuery sets the "raw_query" field if the given value is not nil.
+func (_c *RequestCreate) SetNillableRawQuery(v *string) *RequestCreate {
+	if v != nil {
+		_c.SetRawQuery(*v)
+	}
+	return _c
+}
+
 // SetHeaders sets the "headers" field.
 func (_c *RequestCreate) SetHeaders(v map[string][]string) *RequestCreate {
 	_c.mutation.SetHeaders(v)
@@ -224,6 +238,10 @@ func (_c *RequestCreate) createSpec() (*Request, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Path(); ok {
 		_spec.SetField(request.FieldPath, field.TypeString, value)
 		_node.Path = value
+	}
+	if value, ok := _c.mutation.RawQuery(); ok {
+		_spec.SetField(request.FieldRawQuery, field.TypeString, value)
+		_node.RawQuery = value
 	}
 	if value, ok := _c.mutation.Headers(); ok {
 		_spec.SetField(request.FieldHeaders, field.TypeJSON, value)

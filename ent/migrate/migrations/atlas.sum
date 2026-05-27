@@ -1,4 +1,4 @@
-h1:uLjcRYozsZVk82TBtvOsjnwG5Lt6vAqXs+7jG4gQk+c=
+h1:RscNJtC3EvMRFEFE6bfxMUHjirBIdFjutQpI3VpXX7I=
 20260328015306_initial_schema.sql h1:WlF0KlGjvsoe/5LtCONshCG4VWAB3T7Ps+VxioJdGbs=
 20260329090852_add_gate_name_created_at.sql h1:ohqRYAmYZBxlS43u3pbRLWBFKgzsY1yfWHElNws5RjM=
 20260329092402_add_gate_url_unique_index.sql h1:PwZD+lSFjbKrO8YCYEGfIB1MKRlt1FRsSJrLT/T1jwo=
@@ -8,3 +8,4 @@ h1:uLjcRYozsZVk82TBtvOsjnwG5Lt6vAqXs+7jG4gQk+c=
 20260519225113_add_gate_scrub_fields.sql h1:vyNULtwcySSwF80/b6pDoO7j/G1q3xagoNmafMQU1nE=
 20260523094731_rename_scrub_fields_to_redacted_fields.sql h1:avQRAvjgqpF+mv2oabVODHwndn7f8D2X7MeNTnCbjBc=
 20260523163846_body_bytea_to_jsonb.sql h1:mjt/cIWwZ5B2Ftv834tqYOdNk2kX4N5LTvlcC4G2GMM=
+20260527205020_add_request_raw_query.sql h1:31ymzjedG1ZaPbzT44P7T1SzjuiGjVu1oEFklgyo1hc=

@@ -19,6 +19,8 @@ const (
 	FieldMethod = "method"
 	// FieldPath holds the string denoting the path field in the database.
 	FieldPath = "path"
+	// FieldRawQuery holds the string denoting the raw_query field in the database.
+	FieldRawQuery = "raw_query"
 	// FieldHeaders holds the string denoting the headers field in the database.
 	FieldHeaders = "headers"
 	// FieldBody holds the string denoting the body field in the database.
@@ -62,6 +64,7 @@ var Columns = []string{
 	FieldGateID,
 	FieldMethod,
 	FieldPath,
+	FieldRawQuery,
 	FieldHeaders,
 	FieldBody,
 	FieldCreatedAt,
@@ -107,6 +110,11 @@ func ByMethod(opts ...sql.OrderTermOption) OrderOption {
 // ByPath orders the results by the path field.
 func ByPath(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPath, opts...).ToFunc()
+}
+
+// ByRawQuery orders the results by the raw_query field.
+func ByRawQuery(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRawQuery, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

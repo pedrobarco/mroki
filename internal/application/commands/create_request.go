@@ -21,6 +21,7 @@ type CreateRequestCommand struct {
 	GateID         string
 	Method         string
 	Path           string
+	RawQuery       string
 	Headers        map[string][]string
 	Body           []byte
 	CreatedAt      time.Time
@@ -170,6 +171,7 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		gateID,
 		method,
 		path,
+		cmd.RawQuery,
 		traffictesting.NewHeaders(cmd.Headers),
 		reqBodyJSON,
 		cmd.CreatedAt,

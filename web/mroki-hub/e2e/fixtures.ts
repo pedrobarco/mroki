@@ -43,6 +43,7 @@ interface ResponsePayload {
 interface CreateRequestPayload {
   method: string
   path: string
+  raw_query?: string
   headers: Record<string, string[]>
   body: string
   created_at: string
@@ -60,6 +61,7 @@ export interface ApiHelper {
     options?: {
       method?: string
       path?: string
+      rawQuery?: string
       liveBody?: string
       shadowBody?: string
       liveStatus?: number
@@ -115,6 +117,7 @@ export const test = base.extend<{ api: ApiHelper }>({
         const {
           method = 'GET',
           path = '/api/test',
+          rawQuery,
           liveBody = btoa('{"result":"live"}'),
           shadowBody = btoa('{"result":"shadow"}'),
           liveStatus = 200,
@@ -126,6 +129,7 @@ export const test = base.extend<{ api: ApiHelper }>({
         return this.createRequest(gateId, {
           method,
           path,
+          raw_query: rawQuery,
           headers: { 'Content-Type': ['application/json'] },
           body: '',
           created_at: createdAt,

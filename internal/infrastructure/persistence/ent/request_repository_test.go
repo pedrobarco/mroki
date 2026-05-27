@@ -29,6 +29,7 @@ func newTestRequestWithoutDiff(t *testing.T, gateID traffictesting.GateID) *traf
 		GateID:    gateID,
 		Method:    method,
 		Path:      path,
+		RawQuery:  "",
 		Headers:   traffictesting.NewHeaders(http.Header{}),
 		Body:      nil,
 		CreatedAt: time.Now(),
@@ -64,6 +65,7 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 		GateID:    gateID,
 		Method:    method,
 		Path:      path,
+		RawQuery:  "page=1&sort=desc",
 		Headers:   traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
 		Body:      json.RawMessage(`{"test":"data"}`),
 		CreatedAt: time.Now(),
@@ -133,6 +135,7 @@ func TestRequestRepository_GetByID_success(t *testing.T) {
 	assert.Equal(t, req.ID.String(), result.ID.String())
 	assert.Equal(t, gateID.String(), result.GateID.String())
 	assert.Equal(t, "POST", result.Method.String())
+	assert.Equal(t, "page=1&sort=desc", result.RawQuery)
 	assert.Equal(t, 200, result.LiveResponse.StatusCode.Int())
 	assert.Equal(t, 200, result.ShadowResponse.StatusCode.Int())
 	assert.False(t, result.Diff.IsZero())

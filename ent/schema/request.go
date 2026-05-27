@@ -27,6 +27,8 @@ func (Request) Fields() []ent.Field {
 			NotEmpty(),
 		field.String("path").
 			NotEmpty(),
+		field.String("raw_query").
+			Optional(),
 		field.JSON("headers", map[string][]string{}).
 			Optional(),
 		field.JSON("body", json.RawMessage{}).

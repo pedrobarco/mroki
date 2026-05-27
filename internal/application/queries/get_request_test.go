@@ -42,6 +42,7 @@ func TestGetRequestHandler_Handle_success(t *testing.T) {
 		gateID,
 		method,
 		path,
+		"",
 		traffictesting.NewHeaders(map[string][]string{"Content-Type": {"application/json"}}),
 		[]byte(`{"test":"data"}`),
 		time.Now(),

@@ -575,6 +575,7 @@ curl -X DELETE http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 
   "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "method": "POST",
   "path": "/api/users",
+  "raw_query": "page=2&limit=10",
   "headers": {
     "Content-Type": ["application/json"],
     "User-Agent": ["curl/7.68.0"]
@@ -619,6 +620,7 @@ curl -X DELETE http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 
 - `id` (optional) - Request UUID, generated if omitted
 - `method` (required) - HTTP method (GET, POST, etc.)
 - `path` (required) - Request path
+- `raw_query` (optional) - Raw URL query string, without the leading `?` (e.g., `page=2&limit=10`)
 - `headers` (required) - Request headers
 - `body` (required) - Request body (Base64 encoded string)
 - `created_at` (required) - Request timestamp
@@ -644,6 +646,7 @@ curl -X DELETE http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 
     "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
     "method": "POST",
     "path": "/api/users",
+    "raw_query": "page=2&limit=10",
     "created_at": "2026-01-31T20:00:00Z"
   }
 }
@@ -679,6 +682,7 @@ curl -X POST http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/re
     "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
     "method": "POST",
     "path": "/api/users",
+    "raw_query": "page=2&limit=10",
     "headers": {
       "Content-Type": ["application/json"],
       "User-Agent": ["curl/7.68.0"]
@@ -760,6 +764,7 @@ curl -H "Authorization: Bearer your-api-key" \
       "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
       "method": "POST",
       "path": "/api/users",
+      "raw_query": "page=1&limit=50",
       "created_at": "2026-01-31T20:00:00Z",
       "live_response": { "status_code": 200, "latency_ms": 142 },
       "shadow_response": { "status_code": 200, "latency_ms": 187 },
@@ -788,6 +793,7 @@ curl -H "Authorization: Bearer your-api-key" \
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `raw_query` | `string?` | Raw URL query string, without the leading `?`. Omitted when empty |
 | `live_response` | `ResponseSummary?` | Live response summary (`null` if not yet received) |
 | `shadow_response` | `ResponseSummary?` | Shadow response summary (`null` if not yet received) |
 | `has_diff` | `bool` | Whether a diff exists between the live and shadow responses |

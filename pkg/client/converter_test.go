@@ -13,8 +13,9 @@ import (
 func TestConvertProxyToCapture(t *testing.T) {
 	// Create test data
 	proxyReq := proxy.ProxyRequest{
-		Method: "POST",
-		Path:   "/api/users",
+		Method:   "POST",
+		Path:     "/api/users",
+		RawQuery: "page=2&limit=10",
 		Headers: http.Header{
 			"Content-Type": []string{"application/json"},
 			"X-Request-ID": []string{"req-123"},
@@ -56,6 +57,7 @@ func TestConvertProxyToCapture(t *testing.T) {
 	assert.Equal(t, "/api/users", captured.Path)
 	assert.Equal(t, map[string][]string(proxyReq.Headers), captured.Headers)
 	assert.Equal(t, "eyJuYW1lIjoiSm9obiJ9", captured.Body) // Base64 encoded {"name":"John"}
+	assert.Equal(t, "page=2&limit=10", captured.RawQuery)
 	assert.NotZero(t, captured.CreatedAt)
 
 	// Verify live response
@@ -111,6 +113,7 @@ func TestConvertProxyToCapture_EmptyBody(t *testing.T) {
 
 	// Base64 encoding of empty byte array is empty string
 	assert.Equal(t, "", captured.Body)
+	assert.Equal(t, "", captured.RawQuery)
 	assert.Equal(t, "", captured.LiveResponse.Body)
 	assert.Equal(t, "", captured.ShadowResponse.Body)
 }

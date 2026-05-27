@@ -71,6 +71,7 @@ func (r *requestRepository) saveRequest(ctx context.Context, tx *ent.Tx, req *tr
 		SetGateID(req.GateID.UUID()).
 		SetMethod(req.Method.String()).
 		SetPath(req.Path.String()).
+		SetRawQuery(req.RawQuery).
 		SetHeaders(req.Headers.HTTPHeader()).
 		SetBody(req.Body).
 		SetCreatedAt(req.CreatedAt)
