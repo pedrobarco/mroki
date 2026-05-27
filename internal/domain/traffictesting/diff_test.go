@@ -56,6 +56,30 @@ func TestDiff_Equals(t *testing.T) {
 	assert.False(t, diff1.Equals(*diff3), "diffs with different FromResponseID should not be equal")
 }
 
+func TestDiff_HasContent(t *testing.T) {
+	t.Run("zero diff returns false", func(t *testing.T) {
+		var zero traffictesting.Diff
+		assert.False(t, zero.HasContent())
+	})
+
+	t.Run("empty content returns false", func(t *testing.T) {
+		d, _ := traffictesting.NewDiff(uuid.New(), uuid.New(), []diff.PatchOp{})
+		assert.False(t, d.HasContent())
+	})
+
+	t.Run("nil content returns false", func(t *testing.T) {
+		d, _ := traffictesting.NewDiff(uuid.New(), uuid.New(), nil)
+		assert.False(t, d.HasContent())
+	})
+
+	t.Run("non-empty content returns true", func(t *testing.T) {
+		d, _ := traffictesting.NewDiff(uuid.New(), uuid.New(), []diff.PatchOp{
+			{Op: "replace", Path: "/status", Value: "different"},
+		})
+		assert.True(t, d.HasContent())
+	})
+}
+
 func TestNewDiff_with_empty_content(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()

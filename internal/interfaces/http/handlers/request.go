@@ -248,7 +248,7 @@ func toRequestResponseDTO(req *traffictesting.Request) dto.Request {
 			StatusCode: req.ShadowResponse.StatusCode.Int(),
 			LatencyMs:  req.ShadowResponse.LatencyMs,
 		},
-		HasDiff: !req.Diff.IsZero(),
+		HasDiff: req.Diff.HasContent(),
 	}
 }
 

@@ -823,7 +823,9 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 		time.Now(),
 	)
 
-	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{})
+	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{
+		{Op: "replace", Path: "/status", Value: "different"},
+	})
 	method, _ := traffictesting.NewHTTPMethod("GET")
 	path, _ := traffictesting.ParsePath("/test")
 	return traffictesting.NewRequest(
