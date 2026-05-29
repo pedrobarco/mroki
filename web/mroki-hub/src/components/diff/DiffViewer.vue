@@ -3,9 +3,30 @@ import { computed, ref, shallowRef, watch, onMounted, onUnmounted } from 'vue'
 import type { Response, PatchOp } from '@/api'
 import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from '@/lib/json-diff'
 import type { DiffLine, Token, TokenType } from '@/lib/json-diff'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { WrapText } from 'lucide-vue-next'
 
 type ViewMode = 'unified' | 'split'
 const viewMode = ref<ViewMode>('unified')
+const wrapLines = ref(false)
+
+// Synchronized horizontal scroll for split view panes
+const splitLeftRef = ref<HTMLPreElement | null>(null)
+const splitRightRef = ref<HTMLPreElement | null>(null)
+let isSyncingScroll = false
+
+function onSplitScroll(source: 'left' | 'right') {
+  if (isSyncingScroll) return
+  isSyncingScroll = true
+  const from = source === 'left' ? splitLeftRef.value : splitRightRef.value
+  const to = source === 'left' ? splitRightRef.value : splitLeftRef.value
+  if (from && to) {
+    to.scrollLeft = from.scrollLeft
+  }
+  requestAnimationFrame(() => {
+    isSyncingScroll = false
+  })
+}
 
 const MD_BREAKPOINT = 768
 const isMdScreen = ref(window.innerWidth >= MD_BREAKPOINT)
@@ -221,10 +242,33 @@ function tokenClass(token: Token): string {
             <span class="w-2.5 h-2.5 rounded-sm bg-amber-500/10 border border-amber-500/30" />
             Changed
           </div>
+          <!-- Wrap toggle -->
+          <div
+            v-if="isJson && !isBinary"
+            class="flex items-center rounded-md border border-border ml-2"
+          >
+            <TooltipProvider :delay-duration="300">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <button
+                    class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-md transition-colors"
+                    :class="
+                      wrapLines ? 'bg-accent text-foreground' : 'text-dim hover:text-foreground'
+                    "
+                    @click="wrapLines = !wrapLines"
+                  >
+                    <WrapText class="size-3.5" />
+                    <span>Wrap</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top"> Soft-wrap long lines </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <!-- View mode toggle (md+ only) -->
           <div
             v-if="isJson && !isBinary && isMdScreen"
-            class="flex items-center rounded-md border border-border ml-2"
+            class="flex items-center rounded-md border border-border"
           >
             <button
               class="px-2 py-0.5 text-xs rounded-l-md transition-colors"
@@ -254,27 +298,32 @@ function tokenClass(token: Token): string {
 
       <!-- Unified JSON Diff View -->
       <div v-if="isJson && !isBinary && viewMode === 'unified'" class="overflow-x-auto">
-        <pre class="text-xs font-mono leading-5 p-0 m-0"><template
+        <pre
+          :key="'unified-' + wrapLines"
+          :class="[
+            'text-xs font-mono leading-5 p-0 m-0',
+            wrapLines ? 'whitespace-pre-wrap break-words' : '',
+          ]"
+        ><template
             v-for="(line, idx) in diffLines"
             :key="idx"
           ><div
               v-if="line.type === 'collapsed'"
-              class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+              :class="['px-4 cursor-pointer hover:bg-accent/50 transition-colors group', wrapLines ? '' : 'min-w-fit']"
               @click="handleExpand(idx)"
             ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(line.indent) }}</span><template
                 v-for="(tok, ti) in line.tokens"
                 :key="ti"
               ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
               v-else-if="isExpandedRoot(line)"
-              class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+              :class="['px-4 cursor-pointer hover:bg-accent/50 transition-colors group', wrapLines ? '' : 'min-w-fit']"
               @click="handleCollapse(line)"
             ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(line.indent) }}</span><template
                 v-for="(tok, ti) in line.tokens"
                 :key="ti"
               ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▾ collapse</span></div><div
               v-else
-              :class="lineBg(line)"
-              class="px-4 min-w-fit"
+              :class="['px-4', lineBg(line), wrapLines ? '' : 'min-w-fit']"
             ><span
                 :class="gutterClass(line)"
                 class="inline-block w-4 mr-2 select-none text-center"
@@ -296,29 +345,36 @@ function tokenClass(token: Token): string {
             Shadow
           </div>
         </div>
-        <div class="overflow-x-auto">
+        <div>
           <div class="grid grid-cols-2 divide-x divide-border">
-            <pre class="text-xs font-mono leading-5 p-0 m-0"><template
+            <pre
+              ref="splitLeftRef"
+              :key="'split-l-' + wrapLines"
+              :class="[
+                'text-xs font-mono leading-5 p-0 m-0 min-w-0',
+                wrapLines ? 'whitespace-pre-wrap break-words overflow-hidden' : 'overflow-x-auto',
+              ]"
+              @scroll="onSplitScroll('left')"
+            ><template
                 v-for="(row, idx) in splitRows"
                 :key="'l-' + idx"
               ><div
                   v-if="row.left && row.left.type === 'collapsed'"
-                  class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+                  :class="['px-4 cursor-pointer hover:bg-accent/50 transition-colors group', wrapLines ? '' : 'min-w-fit']"
                   @click="handleExpandLine(row.left)"
                 ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.left.indent) }}</span><template
                     v-for="(tok, ti) in row.left.tokens"
                     :key="ti"
                   ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
                   v-else-if="row.left && isExpandedRoot(row.left)"
-                  class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+                  :class="['px-4 cursor-pointer hover:bg-accent/50 transition-colors group', wrapLines ? '' : 'min-w-fit']"
                   @click="handleCollapse(row.left)"
                 ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.left.indent) }}</span><template
                     v-for="(tok, ti) in row.left.tokens"
                     :key="ti"
                   ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▾ collapse</span></div><div
                   v-else-if="row.left"
-                  :class="lineBg(row.left)"
-                  class="px-4 min-w-fit"
+                  :class="['px-4', lineBg(row.left), wrapLines ? '' : 'min-w-fit']"
                 ><span
                     :class="gutterClass(row.left)"
                     class="inline-block w-4 mr-2 select-none text-center"
@@ -327,29 +383,36 @@ function tokenClass(token: Token): string {
                     :key="ti"
                   ><span :class="tokenClass(tok)">{{ tok.text }}</span></template></div><div
                   v-else
-                  class="px-4 min-w-fit text-transparent select-none"
+                  :class="['px-4 text-transparent select-none', wrapLines ? '' : 'min-w-fit']"
                 >&nbsp;</div></template></pre>
-            <pre class="text-xs font-mono leading-5 p-0 m-0"><template
+            <pre
+              ref="splitRightRef"
+              :key="'split-r-' + wrapLines"
+              :class="[
+                'text-xs font-mono leading-5 p-0 m-0 min-w-0',
+                wrapLines ? 'whitespace-pre-wrap break-words overflow-hidden' : 'overflow-x-auto',
+              ]"
+              @scroll="onSplitScroll('right')"
+            ><template
                 v-for="(row, idx) in splitRows"
                 :key="'r-' + idx"
               ><div
                   v-if="row.right && row.right.type === 'collapsed'"
-                  class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+                  :class="['px-4 cursor-pointer hover:bg-accent/50 transition-colors group', wrapLines ? '' : 'min-w-fit']"
                   @click="handleExpandLine(row.right)"
                 ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.right.indent) }}</span><template
                     v-for="(tok, ti) in row.right.tokens"
                     :key="ti"
                   ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
                   v-else-if="row.right && isExpandedRoot(row.right)"
-                  class="px-4 min-w-fit cursor-pointer hover:bg-accent/50 transition-colors group"
+                  :class="['px-4 cursor-pointer hover:bg-accent/50 transition-colors group', wrapLines ? '' : 'min-w-fit']"
                   @click="handleCollapse(row.right)"
                 ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.right.indent) }}</span><template
                     v-for="(tok, ti) in row.right.tokens"
                     :key="ti"
                   ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▾ collapse</span></div><div
                   v-else-if="row.right"
-                  :class="lineBg(row.right)"
-                  class="px-4 min-w-fit"
+                  :class="['px-4', lineBg(row.right), wrapLines ? '' : 'min-w-fit']"
                 ><span
                     :class="gutterClass(row.right)"
                     class="inline-block w-4 mr-2 select-none text-center"
@@ -358,7 +421,7 @@ function tokenClass(token: Token): string {
                     :key="ti"
                   ><span :class="tokenClass(tok)">{{ tok.text }}</span></template></div><div
                   v-else
-                  class="px-4 min-w-fit text-transparent select-none"
+                  :class="['px-4 text-transparent select-none', wrapLines ? '' : 'min-w-fit']"
                 >&nbsp;</div></template></pre>
           </div>
         </div>

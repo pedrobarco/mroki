@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>mroki hub — Diff Viewer Wrap Toggle</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#09090b', card: '#111113', hover: '#18181b', border: '#27272a', subtle: '#1c1c1f' },
+        fg: { DEFAULT: '#fafafa', muted: '#a1a1aa', dim: '#71717a', accent: '#e4e4e7' },
+        accent: { green: '#22c55e', greenDim: '#166534', blue: '#3b82f6', blueDim: '#1e3a5f', amber: '#f59e0b', red: '#ef4444', redDim: '#7f1d1d' },
+        diff: { add: '#16a34a', addBg: 'rgba(22,163,74,0.10)', del: '#ef4444', delBg: 'rgba(239,68,68,0.10)', changeBg: 'rgba(250,204,21,0.07)' }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+  ::selection { background: #3b82f6; color: white; }
+  .line-num { min-width: 2.2em; text-align: right; user-select: none; }
+  .diff-line-changed { background: rgba(250,204,21,0.06); }
+  .diff-line-added { background: rgba(22,163,74,0.10); }
+  .diff-line-removed { background: rgba(239,68,68,0.10); }
+  .diff-text-old { background: rgba(239,68,68,0.18); color: #fca5a5; border-radius: 2px; padding: 0 2px; }
+  .diff-text-new { background: rgba(22,163,74,0.18); color: #86efac; border-radius: 2px; padding: 0 2px; }
+  .json-key { color: #7dd3fc; }
+  .json-str { color: #c4b5fd; }
+  .json-num { color: #6ee7b7; }
+  .json-bool { color: #fdba74; }
+  .json-null { color: #f9a8d4; font-style: italic; }
+  .json-brace { color: #71717a; }
+
+  /* Wrap continuation marker */
+  .wrap-continuation {
+    position: relative;
+    padding-left: 1.2em;
+  }
+  .wrap-continuation::before {
+    content: '↪';
+    position: absolute;
+    left: 0;
+    color: #3f3f46;
+    font-size: 10px;
+    user-select: none;
+  }
+
+  /* Tooltip */
+  .tooltip-wrap {
+    position: relative;
+  }
+  .tooltip-wrap .tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #27272a;
+    color: #e4e4e7;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 10;
+  }
+  .tooltip-wrap .tooltip-text::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #27272a;
+  }
+  .tooltip-wrap:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  /* Segmented control shared styles */
+  .seg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    transition: all 0.15s;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: #71717a;
+  }
+  .seg-btn:hover { color: #e4e4e7; }
+  .seg-btn.active { background: #27272a; color: #fafafa; }
+  .seg-btn svg { width: 13px; height: 13px; }
+
+  /* Scrollbar styling */
+  .diff-scroll::-webkit-scrollbar { height: 6px; }
+  .diff-scroll::-webkit-scrollbar-track { background: transparent; }
+  .diff-scroll::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+  .diff-scroll::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+
+<!-- Top Nav -->
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      </div>
+      <nav class="flex items-center gap-1 text-[13px]">
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Gates</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Agents</a>
+        <a href="#" class="px-3 py-1.5 rounded-md bg-bg-hover text-fg font-medium">Requests</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Settings</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5 text-[12px] text-accent-green bg-accent-greenDim/30 px-2.5 py-1 rounded-full">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse"></span><span>API Connected</span>
+      </div>
+      <div class="w-7 h-7 rounded-full bg-bg-hover border border-bg-border flex items-center justify-center text-[11px] font-medium text-fg-muted">DK</div>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-6 py-6">
+  <!-- Page title -->
+  <div class="flex items-center gap-2 mb-5">
+    <a href="#" class="inline-flex items-center gap-1.5 text-[13px] text-fg-muted hover:text-fg transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Gate
+    </a>
+    <span class="text-fg-dim text-[13px]">·</span>
+    <span class="text-[12px] font-mono text-fg-dim">checkout-api</span>
+  </div>
+
+  <h1 class="text-[22px] font-semibold tracking-tight mb-6">Wrap Toggle — Design Mockup</h1>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: UNIFIED VIEW                                -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden mb-8">
+    <!-- Card Header -->
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-bg-border">
+      <div class="flex items-center gap-2">
+        <h2 class="text-[14px] font-semibold">Response Comparison</h2>
+        <span class="text-[11px] text-fg-dim bg-bg-hover px-2 py-0.5 rounded-md font-mono">json</span>
+        <span class="text-[11px] px-2 py-0.5 rounded-md font-mono bg-amber-500/15 text-amber-400">3 changes</span>
+      </div>
+      <div class="flex items-center gap-3 text-[11px]">
+        <!-- Legend -->
+        <div class="flex items-center gap-1.5 text-fg-dim">
+          <span class="w-2.5 h-2.5 rounded-sm bg-diff-delBg border border-accent-red/30"></span> Removed
+        </div>
+        <div class="flex items-center gap-1.5 text-fg-dim">
+          <span class="w-2.5 h-2.5 rounded-sm bg-diff-addBg border border-accent-green/30"></span> Added
+        </div>
+        <div class="flex items-center gap-1.5 text-fg-dim">
+          <span class="w-2.5 h-2.5 rounded-sm bg-diff-changeBg border border-amber-500/30"></span> Changed
+        </div>
+
+        <!-- Wrap toggle — icon button with tooltip -->
+        <div class="flex items-center rounded-md border border-bg-border ml-2">
+          <div class="tooltip-wrap">
+            <button id="wrapBtn1" class="seg-btn rounded-md" onclick="toggleWrap('unified')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"/>
+                <path d="M3 12h15a3 3 0 1 1 0 6h-4"/>
+                <polyline points="13 16 11 18 13 20"/>
+                <path d="M3 18h4"/>
+              </svg>
+              <span>Wrap</span>
+            </button>
+            <span class="tooltip-text">Soft-wrap long lines</span>
+          </div>
+        </div>
+
+        <!-- View mode segmented control -->
+        <div class="flex items-center rounded-md border border-bg-border">
+          <button id="unifiedBtn1" class="seg-btn rounded-l-md active" onclick="setViewMode('unified', 'unified')">Unified</button>
+          <button id="splitBtn1" class="seg-btn rounded-r-md border-l border-bg-border" onclick="setViewMode('unified', 'split')">Split</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unified diff body -->
+    <div id="unified-body" class="overflow-x-auto diff-scroll"></div>
+    <!-- Split diff body (hidden initially) -->
+    <div id="unified-split-body" class="hidden"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: SPLIT VIEW                                  -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden mb-8">
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-bg-border">
+      <div class="flex items-center gap-2">
+        <h2 class="text-[14px] font-semibold">Response Comparison</h2>
+        <span class="text-[11px] text-fg-dim bg-bg-hover px-2 py-0.5 rounded-md font-mono">json</span>
+        <span class="text-[11px] px-2 py-0.5 rounded-md font-mono bg-amber-500/15 text-amber-400">3 changes</span>
+      </div>
+      <div class="flex items-center gap-3 text-[11px]">
+        <div class="flex items-center gap-1.5 text-fg-dim">
+          <span class="w-2.5 h-2.5 rounded-sm bg-diff-delBg border border-accent-red/30"></span> Removed
+        </div>
+        <div class="flex items-center gap-1.5 text-fg-dim">
+          <span class="w-2.5 h-2.5 rounded-sm bg-diff-addBg border border-accent-green/30"></span> Added
+        </div>
+        <div class="flex items-center gap-1.5 text-fg-dim">
+          <span class="w-2.5 h-2.5 rounded-sm bg-diff-changeBg border border-amber-500/30"></span> Changed
+        </div>
+        <div class="flex items-center rounded-md border border-bg-border ml-2">
+          <div class="tooltip-wrap">
+            <button id="wrapBtn2" class="seg-btn rounded-md" onclick="toggleWrap('split')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><polyline points="13 16 11 18 13 20"/><path d="M3 18h4"/>
+              </svg>
+              <span>Wrap</span>
+            </button>
+            <span class="tooltip-text">Soft-wrap long lines</span>
+          </div>
+        </div>
+        <div class="flex items-center rounded-md border border-bg-border">
+          <button id="unifiedBtn2" class="seg-btn rounded-l-md" onclick="setViewMode('split', 'unified')">Unified</button>
+          <button id="splitBtn2" class="seg-btn rounded-r-md border-l border-bg-border active" onclick="setViewMode('split', 'split')">Split</button>
+        </div>
+      </div>
+    </div>
+    <div id="split-body"></div>
+  </div>
+</main>
+
+<script>
+// ── Data: realistic long-string JSON diff ──
+const unifiedLines = [
+  { text: '{', type: 'normal', indent: 0 },
+  { text: '"status": "completed",', type: 'normal', indent: 1 },
+  { text: '"order_id": "ord_8k3m2f9x1a",', type: 'normal', indent: 1 },
+  { text: '"callback_url": "https://api.example.com/webhooks/checkout/v2/complete?order_id=ord_8k3m2f9x1a&session=sess_3fa82c1e&token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0&verify=true&redirect=https%3A%2F%2Fshop.example.com%2Forder%2Fcomplete",', type: 'replaced-old', indent: 1, gutter: '~', diffClass: 'diff-text-old' },
+  { text: '"callback_url": "https://api.staging.example.com/webhooks/checkout/v3/complete?order_id=ord_8k3m2f9x1a&session=sess_3fa82c1e&token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0&verify=true&redirect=https%3A%2F%2Fshop.staging.example.com%2Forder%2Fcomplete",', type: 'replaced-new', indent: 1, gutter: '~', diffClass: 'diff-text-new' },
+  { text: '"amount": 149.99,', type: 'normal', indent: 1 },
+  { text: '"error_message": null,', type: 'removed', indent: 1, gutter: '−' },
+  { text: '"error_message": "Payment gateway timeout: upstream service at payments.internal.example.com:8443 did not respond within 30000ms. Retry attempt 3/3 failed. Circuit breaker OPEN for partition checkout-eu-west-1. Trace ID: 7f2a9c4e-81b3-4d2f-a156-3c8e9f1b2d4a",', type: 'added', indent: 1, gutter: '+' },
+  { text: '"payment": {', type: 'normal', indent: 1 },
+  { text: '"method": "card",', type: 'normal', indent: 2 },
+  { text: '"last_four": "4242",', type: 'normal', indent: 2 },
+  { text: '"brand": "visa",', type: 'normal', indent: 2 },
+  { text: '"risk_score": 0.12,', type: 'replaced-old', indent: 2, gutter: '~', diffClass: 'diff-text-old' },
+  { text: '"risk_score": 0.08,', type: 'replaced-new', indent: 2, gutter: '~', diffClass: 'diff-text-new' },
+  { text: '"3ds_required": false,', type: 'normal', indent: 2 },
+  { text: '"signature": "MEUCIQD0qz3Yt6pkLECpFVdBnGGzU8U1G5D6rHqR1mRiVSleaQIgVmBvEHkP4KzG7VfOqRJw5vN1GcDh8tKFLc2nR3aX50="', type: 'normal', indent: 2 },
+  { text: '},', type: 'normal', indent: 1 },
+  { text: '"metadata": {', type: 'normal', indent: 1 },
+  { text: '"trace_id": "7f2a9c4e-81b3-4d2f-a156-3c8e9f1b2d4a",', type: 'normal', indent: 2 },
+  { text: '"session_id": "sess_3fa82c1e",', type: 'normal', indent: 2 },
+  { text: '"api_version": "2026-03-01"', type: 'normal', indent: 2 },
+  { text: '}', type: 'normal', indent: 1 },
+  { text: '}', type: 'normal', indent: 0 },
+];
+
+// State
+const state = { unified: { wrap: false }, split: { wrap: false } };
+
+function gutterChar(line) {
+  if (line.gutter) return line.gutter;
+  return ' ';
+}
+function gutterColor(line) {
+  switch(line.type) {
+    case 'added': return 'color: #4ade80';
+    case 'removed': return 'color: #f87171';
+    case 'replaced-old': case 'replaced-new': return 'color: #fbbf24';
+    default: return 'color: transparent';
+  }
+}
+function lineBgClass(line) {
+  switch(line.type) {
+    case 'added': return 'diff-line-added';
+    case 'removed': return 'diff-line-removed';
+    case 'replaced-old': case 'replaced-new': return 'diff-line-changed';
+    default: return '';
+  }
+}
+
+function syntaxHL(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/("(?:[^"\\]|\\.)*")\s*:/g, '<span class="json-key">$1</span>:')
+    .replace(/:\s*("(?:[^"\\]|\\.)*")/g, function(m,v){ return ': <span class="json-str">'+v+'</span>'; })
+    .replace(/:\s*(\d+\.?\d*)/g, ': <span class="json-num">$1</span>')
+    .replace(/:\s*(true|false)/g, ': <span class="json-bool">$1</span>')
+    .replace(/:\s*(null)/g, ': <span class="json-null">$1</span>')
+    .replace(/([{}[\]])/g, '<span class="json-brace">$1</span>');
+}
+
+// ── Render functions ──
+function renderUnifiedLine(line, idx, wrap) {
+  const indent = '  '.repeat(line.indent);
+  const bg = lineBgClass(line);
+  const gc = gutterChar(line);
+  const gs = gutterColor(line);
+  const minW = wrap ? '' : 'min-width: fit-content;';
+  const wrapStyle = wrap ? 'white-space: pre-wrap; word-break: break-all;' : '';
+  const content = syntaxHL(indent + line.text);
+  return `<div class="flex hover:bg-bg-hover/30 ${bg}" style="${minW} ${wrapStyle}">
+    <span class="line-num shrink-0 px-2 py-0 text-fg-dim/40 text-[11px] select-none border-r border-bg-border/40 mr-0" style="min-width:2.5em;">${idx+1}</span>
+    <span class="shrink-0 inline-block text-center select-none" style="width:1.5em; ${gs}">${gc}</span>
+    <span class="flex-1 pr-4">${content}</span>
+  </div>`;
+}
+
+function renderUnified(wrap) {
+  const scrollClass = wrap ? '' : 'overflow-x-auto diff-scroll';
+  const wrapPre = wrap ? 'white-space: pre-wrap; word-break: break-all;' : '';
+  let html = `<pre class="text-[12.5px] font-mono leading-[1.65] p-0 m-0 ${scrollClass}" style="${wrapPre}">`;
+  unifiedLines.forEach((l, i) => { html += renderUnifiedLine(l, i, wrap); });
+  html += '</pre>';
+  return html;
+}
+
+function renderSplitColumn(lines, label, dotColor, wrap) {
+  const wrapPre = wrap ? 'white-space: pre-wrap; word-break: break-all; overflow: hidden;' : 'overflow-x: auto;';
+  let html = `<div class="min-w-0">`;
+  html += `<div class="flex items-center gap-2 px-4 py-2.5 border-b border-bg-border bg-bg-subtle/50">
+    <span class="w-2 h-2 rounded-full ${dotColor}"></span>
+    <span class="text-[12px] font-semibold text-fg-muted uppercase tracking-wider">${label}</span>
+  </div>`;
+  html += `<pre class="text-[12.5px] font-mono leading-[1.65] p-0 m-0 min-w-0 diff-scroll" style="${wrapPre}">`;
+  let idx = 0;
+  lines.forEach(l => {
+    const show = l.type !== 'added';
+    if (label === 'Shadow') {
+      const show2 = l.type !== 'removed';
+      if (!show2) return;
+    } else {
+      if (l.type === 'added') return;
+      if (l.type === 'replaced-new') return;
+    }
+    const indent = '  '.repeat(l.indent);
+    const bg = lineBgClass(l);
+    const gc = gutterChar(l);
+    const gs = gutterColor(l);
+    const minW = wrap ? '' : 'min-width: fit-content;';
+    const wrapStyle = wrap ? 'white-space: pre-wrap; word-break: break-all;' : '';
+    const content = syntaxHL(indent + l.text);
+    html += `<div class="flex hover:bg-bg-hover/30 ${bg}" style="${minW} ${wrapStyle}">
+      <span class="line-num shrink-0 px-2 py-0 text-fg-dim/40 text-[11px] select-none border-r border-bg-border/40 mr-0" style="min-width:2.5em;">${idx+1}</span>
+      <span class="shrink-0 inline-block text-center select-none" style="width:1.5em; ${gs}">${gc}</span>
+      <span class="flex-1 pr-4">${content}</span>
+    </div>`;
+    idx++;
+  });
+  html += '</pre></div>';
+  return html;
+}
+
+function renderSplit(wrap) {
+  return `<div class="grid grid-cols-2 divide-x divide-bg-border">
+    ${renderSplitColumn(unifiedLines, 'Live', 'bg-accent-green', wrap)}
+    ${renderSplitColumn(unifiedLines, 'Shadow', 'bg-accent-blue', wrap)}
+  </div>`;
+}
+
+// ── Toggle / render logic ──
+function render() {
+  // Section 1 (starts unified)
+  document.getElementById('unified-body').innerHTML = renderUnified(state.unified.wrap);
+  document.getElementById('unified-body').className = state.unified.wrap ? '' : 'overflow-x-auto diff-scroll';
+
+  // Section 2 (starts split)
+  document.getElementById('split-body').innerHTML = renderSplit(state.split.wrap);
+
+  // Button states
+  updateWrapBtn('wrapBtn1', state.unified.wrap);
+  updateWrapBtn('wrapBtn2', state.split.wrap);
+}
+
+function updateWrapBtn(id, active) {
+  const btn = document.getElementById(id);
+  if (active) {
+    btn.classList.add('active');
+  } else {
+    btn.classList.remove('active');
+  }
+}
+
+function toggleWrap(section) {
+  state[section].wrap = !state[section].wrap;
+  render();
+}
+
+function setViewMode(section, mode) {
+  if (section === 'unified') {
+    const ub = document.getElementById('unified-body');
+    const sb = document.getElementById('unified-split-body');
+    const ubtn = document.getElementById('unifiedBtn1');
+    const sbtn = document.getElementById('splitBtn1');
+    if (mode === 'unified') {
+      ub.classList.remove('hidden');
+      sb.classList.add('hidden');
+      ub.innerHTML = renderUnified(state.unified.wrap);
+      ubtn.classList.add('active');
+      sbtn.classList.remove('active');
+    } else {
+      ub.classList.add('hidden');
+      sb.classList.remove('hidden');
+      sb.innerHTML = renderSplit(state.unified.wrap);
+      ubtn.classList.remove('active');
+      sbtn.classList.add('active');
+    }
+  }
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
