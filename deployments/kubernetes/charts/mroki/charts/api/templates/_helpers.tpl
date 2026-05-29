@@ -84,3 +84,39 @@ Return the migration image name.
 {{- printf "%s:%s" .Values.migration.image.repository $tag -}}
 {{- end -}}
 {{- end }}
+
+{{/*
+Return the database host, defaulting to the release's PostgreSQL service.
+*/}}
+{{- define "api.databaseHost" -}}
+{{- .Values.database.host | default (printf "%s-postgresql" .Release.Name) -}}
+{{- end }}
+
+{{/*
+Return the database password Secret name, defaulting to the release's PostgreSQL secret.
+*/}}
+{{- define "api.databasePasswordSecret" -}}
+{{- .Values.database.passwordSecret | default (printf "%s-postgresql" .Release.Name) -}}
+{{- end }}
+
+{{/*
+Database environment variables shared by the API container and the db-migrator init container.
+Uses existingSecret when set, otherwise constructs the URL from the individual database fields.
+*/}}
+{{- define "api.databaseEnv" -}}
+{{- if .Values.existingSecret -}}
+- name: MROKI_APP_DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.existingSecret }}
+      key: database-url
+{{- else if .Values.database.passwordSecret -}}
+- name: MROKI_DB_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "api.databasePasswordSecret" . }}
+      key: {{ .Values.database.passwordSecretKey }}
+- name: MROKI_APP_DATABASE_URL
+  value: "postgres://{{ .Values.database.user }}:$(MROKI_DB_PASSWORD)@{{ include "api.databaseHost" . }}:{{ .Values.database.port }}/{{ .Values.database.name }}?sslmode={{ .Values.database.sslmode }}"
+{{- end -}}
+{{- end -}}

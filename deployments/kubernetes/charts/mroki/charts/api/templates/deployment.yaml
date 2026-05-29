@@ -21,7 +21,7 @@ spec:
         {{- include "api.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "api.serviceAccountName" . }}
-      {{- if and .Values.migration.enabled .Values.existingSecret }}
+      {{- if and .Values.migration.enabled (or .Values.existingSecret .Values.database.passwordSecret) }}
       initContainers:
         - name: db-migrator
           image: {{ include "api.migrationImage" . }}
@@ -30,11 +30,7 @@ spec:
             - "--url"
             - "$(MROKI_APP_DATABASE_URL)"
           env:
-            - name: MROKI_APP_DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.existingSecret }}
-                  key: database-url
+            {{- include "api.databaseEnv" . | nindent 12 }}
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
@@ -49,12 +45,10 @@ spec:
               value: "production"
             - name: MROKI_APP_PORT
               value: {{ .Values.containerPort | quote }}
+            {{- if or .Values.existingSecret .Values.database.passwordSecret }}
+            {{- include "api.databaseEnv" . | nindent 12 }}
+            {{- end }}
             {{- if .Values.existingSecret }}
-            - name: MROKI_APP_DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.existingSecret }}
-                  key: database-url
             - name: MROKI_APP_API_KEY
               valueFrom:
                 secretKeyRef:

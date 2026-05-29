@@ -27,6 +27,23 @@ migration:
 # -- Name of an existing Secret containing MROKI_APP_API_KEY and MROKI_APP_DATABASE_URL
 existingSecret: ""
 
+# -- Database connection fields (used when existingSecret is not set)
+database:
+  # -- Database host (defaults to {{ .Release.Name }}-postgresql)
+  host: ""
+  # -- Database port
+  port: 5432
+  # -- Database name
+  name: "mroki"
+  # -- Database user
+  user: "mroki"
+  # -- Name of an existing Secret containing the database password
+  passwordSecret: ""
+  # -- Key in the password Secret
+  passwordSecretKey: "password"
+  # -- SSL mode
+  sslmode: "disable"
+
 # -- Additional environment variables
 extraEnv: []
 
