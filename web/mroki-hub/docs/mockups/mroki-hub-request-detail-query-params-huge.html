@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>mroki hub — Request Detail (Huge Query — 50 params)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#09090b', card: '#111113', hover: '#18181b', border: '#27272a', subtle: '#1c1c1f' },
+        fg: { DEFAULT: '#fafafa', muted: '#a1a1aa', dim: '#71717a', accent: '#e4e4e7' },
+        accent: { green: '#22c55e', greenDim: '#166534', blue: '#3b82f6', blueDim: '#1e3a5f', amber: '#f59e0b', red: '#ef4444', redDim: '#7f1d1d' },
+        diff: { add: '#16a34a', addBg: 'rgba(22,163,74,0.10)', del: '#ef4444', delBg: 'rgba(239,68,68,0.10)', changeBg: 'rgba(250,204,21,0.07)' }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+  .dot-pulse { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  ::selection { background: #3b82f6; color: white; }
+
+</style>
+</head>
+<body class="min-h-screen antialiased">
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 text-[12px] text-accent-green bg-accent-greenDim/30 px-2.5 py-1 rounded-full">
+      <span class="dot-pulse bg-accent-green"></span><span>API Connected</span>
+    </div>
+  </div>
+</header>
+<main class="max-w-6xl mx-auto px-6 py-6">
+  <div class="flex items-center gap-2 mb-5">
+    <a href="#" class="inline-flex items-center gap-1.5 text-[13px] text-fg-muted hover:text-fg transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Gate
+    </a>
+    <span class="text-fg-dim text-[13px]">·</span>
+    <span class="text-[12px] font-mono text-fg-dim">checkout-api</span>
+  </div>
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-[22px] font-semibold tracking-tight">Request Detail</h1>
+    <div class="flex items-center gap-2">
+      <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-muted border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">Copy cURL</button>
+      <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-muted border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">Export JSON</button>
+    </div>
+  </div>
+
+  <!-- Design note -->
+  <div class="bg-accent-blue/10 border border-accent-blue/20 rounded-xl px-5 py-3.5 mb-6 text-[13px] text-blue-300">
+    <strong>Huge query (50 params with UUIDs/long strings):</strong> Stress test — does the wrapping approach still look acceptable with ~3000 chars of query string?
+  </div>
+
+  <!-- Request Metadata Card — IMPROVED -->
+  <div class="bg-bg-card border border-bg-border rounded-xl p-5 mb-6">
+    <div class="flex items-start justify-between mb-4">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-start gap-3">
+          <span class="inline-flex items-center justify-center bg-green-500/15 text-green-400 text-[12px] font-bold font-mono px-2.5 py-1 rounded-md tracking-wide shrink-0 mt-0.5">POST</span>
+          <code class="text-[14px] font-mono text-fg break-all leading-relaxed">/api/v3/bulk-export<span class="text-fg-dim">?param_00=e85f5029-b67e-47b0-9eaf-1abf67520003&amp;param_01=long-string-value-23a13c08162848f3abbca195-extra-data-1&amp;param_02=bfe67ebb-ad4c-468d-a70b-9e28bfc79fbc&amp;param_03=long-string-value-011d2ffa61ba4e35a9451ef5-extra-data-3&amp;param_04=c5902ac2-0ee8-4b2f-9d21-f38d5d2faed2&amp;param_05=long-string-value-57f58bb838bb4cf4a9cd9363-extra-data-5&amp;param_06=164310b7-b178-4e0a-9843-fd45ee7f0a8a&amp;param_07=long-string-value-a6c2fb9e7fd64ae090a4917f-extra-data-7&amp;param_08=2e40b3cb-6d95-4c88-8618-64aa4f78a425&amp;param_09=long-string-value-03868e1abe714190a8324473-extra-data-9&amp;param_10=6b0300db-eef8-4c05-a7ea-7b37b6c834ba&amp;param_11=long-string-value-19a3ab32d85e4f059a253bdf-extra-data-11&amp;param_12=46b1e0bf-6a64-4178-bbf8-ea1a78f27fb0&amp;param_13=long-string-value-e286a5b5c2404f72a0a58e93-extra-data-13&amp;param_14=ab681458-146d-4f75-a4fc-56985f17eed3&amp;param_15=long-string-value-259dee3a7e7b471fa18ba2e0-extra-data-15&amp;param_16=7e2a54f3-6d42-4ddc-b3c4-7cf6fadd1545&amp;param_17=long-string-value-8ee332b61b9a4ad5a7d7f399-extra-data-17&amp;param_18=8ffa3f7e-0351-4930-b3d2-7b77c1b399c5&amp;param_19=long-string-value-6b94ce3744d6436ebfdb76eb-extra-data-19&amp;param_20=94abd2eb-d670-483f-8afa-05eaebbfdd74&amp;param_21=long-string-value-fb2ac12570014768b3ba8227-extra-data-21&amp;param_22=d524cc89-c5b1-4fa9-b90f-895c65958c3f&amp;param_23=long-string-value-6c320b47c991478383438017-extra-data-23&amp;param_24=861d2cda-5211-401a-aace-9145b83da828&amp;param_25=long-string-value-b74ad52acbe343f4a5e62411-extra-data-25&amp;param_26=b8d9a9b2-ced8-4f00-9545-35e0e06be353&amp;param_27=long-string-value-343e0b4138cf4b3ebdc89f54-extra-data-27&amp;param_28=d47e46e0-cca7-4da8-9167-5b65b5f0f10e&amp;param_29=long-string-value-76351c5aba8a4ce9a563a104-extra-data-29&amp;param_30=af762ce6-2925-42ad-91ea-1bc2f236a3a3&amp;param_31=long-string-value-98275dd650bd456fad290fcf-extra-data-31&amp;param_32=0b1a9ca3-8046-4362-9191-3e07201dc860&amp;param_33=long-string-value-948077a64f704fd1a1838f42-extra-data-33&amp;param_34=b716dcd7-5768-4746-acd4-f89a888d1093&amp;param_35=long-string-value-e586f8de305a4b52be5e268b-extra-data-35&amp;param_36=94c5d0c7-92a1-4777-a946-686557f9fa2d&amp;param_37=long-string-value-a579638128da4bb89e24c104-extra-data-37&amp;param_38=9eeb1e37-ffd2-4a90-8ec3-c45bc510eb2a&amp;param_39=long-string-value-c308605c505b44a09759dd16-extra-data-39&amp;param_40=6b9e62e1-88b1-460a-9bd9-7b02ef2c2fdd&amp;param_41=long-string-value-685de63dd1c745fabde3ef66-extra-data-41&amp;param_42=d90f4688-5a42-49b7-a64d-70519ca51759&amp;param_43=long-string-value-96eee52c9e764722b4430bb5-extra-data-43&amp;param_44=1a6971fb-241c-40f2-bf45-ba124e28ccd7&amp;param_45=long-string-value-8cce72cc0552429287bb4aee-extra-data-45&amp;param_46=b0bfcf23-7a6c-4544-96bd-47c1ccc19c4c&amp;param_47=long-string-value-f23ab170f948434bb4d96c11-extra-data-47&amp;param_48=7d5b55c3-9ea3-460e-b5ba-ad3dbebfe66a&amp;param_49=long-string-value-8f46725a9c134038956008c1-extra-data-49</span></code>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0 ml-4 mt-0.5">
+        <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-accent-amber/15 text-amber-400 font-medium">3 diffs found</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-4 gap-4">
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Request ID</div>
+        <code class="text-[12px] font-mono text-fg-muted">req_7f2a9c4e81b3</code>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Timestamp</div>
+        <span class="text-[12px] text-fg-muted">2026-05-27 21:30:14 UTC</span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Live Status</div>
+        <span class="text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">· 38ms</span></span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Shadow Status</div>
+        <span class="text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">· 42ms</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diff viewer placeholder -->
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-bg-border">
+      <div class="flex items-center gap-2">
+        <h2 class="text-[14px] font-semibold">Response Comparison</h2>
+        <span class="text-[11px] text-fg-dim bg-bg-hover px-2 py-0.5 rounded-md font-mono">application/json</span>
+      </div>
+    </div>
+    <div class="px-5 py-12 text-center text-fg-dim text-[13px]">
+      Diff viewer content (same as existing design)
+    </div>
+  </div>
+</main>
+</body>
+</html>
