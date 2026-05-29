@@ -23,6 +23,8 @@ const (
 	FieldToResponseID = "to_response_id"
 	// FieldContent holds the string denoting the content field in the database.
 	FieldContent = "content"
+	// FieldConfig holds the string denoting the config field in the database.
+	FieldConfig = "config"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeRequest holds the string denoting the request edge name in mutations.
@@ -63,6 +65,7 @@ var Columns = []string{
 	FieldFromResponseID,
 	FieldToResponseID,
 	FieldContent,
+	FieldConfig,
 	FieldCreatedAt,
 }
 

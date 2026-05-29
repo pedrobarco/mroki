@@ -245,6 +245,7 @@ func UpdateGate(handler *commands.UpdateGateHandler) AppHandler {
 				IgnoredFields:  req.DiffConfig.IgnoredFields,
 				IncludedFields: req.DiffConfig.IncludedFields,
 				FloatTolerance: req.DiffConfig.FloatTolerance,
+				SortArrays:     req.DiffConfig.SortArrays,
 			}
 		}
 
@@ -309,6 +310,7 @@ func mapGateToDTO(gws *queries.GateWithStats) dto.Gate {
 			IgnoredFields:  gws.Gate.DiffConfig.IgnoredFields,
 			IncludedFields: gws.Gate.DiffConfig.IncludedFields,
 			FloatTolerance: gws.Gate.DiffConfig.FloatTolerance,
+			SortArrays:     gws.Gate.DiffConfig.SortArrays,
 		},
 		RedactedFields: gws.Gate.RedactedFields.AdditionalFields,
 		CreatedAt: gws.Gate.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),

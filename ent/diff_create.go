@@ -14,6 +14,7 @@ import (
 	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
+	"github.com/pedrobarco/mroki/ent/schema"
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
@@ -45,6 +46,20 @@ func (_c *DiffCreate) SetToResponseID(v uuid.UUID) *DiffCreate {
 // SetContent sets the "content" field.
 func (_c *DiffCreate) SetContent(v []diff.PatchOp) *DiffCreate {
 	_c.mutation.SetContent(v)
+	return _c
+}
+
+// SetConfig sets the "config" field.
+func (_c *DiffCreate) SetConfig(v schema.DiffConfigSnapshot) *DiffCreate {
+	_c.mutation.SetConfig(v)
+	return _c
+}
+
+// SetNillableConfig sets the "config" field if the given value is not nil.
+func (_c *DiffCreate) SetNillableConfig(v *schema.DiffConfigSnapshot) *DiffCreate {
+	if v != nil {
+		_c.SetConfig(*v)
+	}
 	return _c
 }
 
@@ -200,6 +215,10 @@ func (_c *DiffCreate) createSpec() (*Diff, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Content(); ok {
 		_spec.SetField(entdiff.FieldContent, field.TypeJSON, value)
 		_node.Content = value
+	}
+	if value, ok := _c.mutation.Config(); ok {
+		_spec.SetField(entdiff.FieldConfig, field.TypeJSON, value)
+		_node.Config = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(entdiff.FieldCreatedAt, field.TypeTime, value)

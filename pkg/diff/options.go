@@ -3,6 +3,7 @@ package diff
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -14,6 +15,7 @@ type options struct {
 	includedFields []string
 	ignoredFields  []string
 	floatTolerance float64
+	sortArrays     bool
 }
 
 // Option is a functional option for configuring JSON comparison.
@@ -57,6 +59,20 @@ func WithFloatTolerance(tolerance float64) Option {
 	}
 }
 
+// WithSortArrays controls whether arrays are sorted before comparison.
+// When true, arrays are sorted using a deterministic key function so that
+// element ordering does not produce false-positive diffs.
+// Default is false (positional comparison).
+//
+// Example:
+//
+//	diff.JSON(a, b, diff.WithSortArrays(true))
+func WithSortArrays(sort bool) Option {
+	return func(o *options) {
+		o.sortArrays = sort
+	}
+}
+
 // Field filtering strategies:
 // - WithIncludedFields only: Whitelist (keep only these fields)
 // - WithIgnoredFields only: Blacklist (remove these fields)
@@ -74,10 +90,15 @@ func WithFloatTolerance(tolerance float64) Option {
 func (o *options) toCmpOptions() []cmp.Option {
 	var opts []cmp.Option
 
-	// Always sort slices to avoid false positives from array ordering
-	opts = append(opts, cmpopts.SortSlices(func(a, b any) bool {
-		return toSortKey(a) < toSortKey(b)
-	}))
+	// Sort slices only when explicitly enabled.
+	// When sortArrays is true, input data should be pre-sorted via
+	// SortArraysInTree before calling go-cmp so that the reporter's
+	// indices match the sorted data the caller (and frontend) sees.
+	if o.sortArrays {
+		opts = append(opts, cmpopts.SortSlices(func(a, b any) bool {
+			return toSortKey(a) < toSortKey(b)
+		}))
+	}
 
 	// Apply float tolerance if specified
 	if o.floatTolerance > 0 {
@@ -85,6 +106,31 @@ func (o *options) toCmpOptions() []cmp.Option {
 	}
 
 	return opts
+}
+
+// SortArraysInTree recursively sorts all []any slices in v using
+// the same deterministic key function used by cmpopts.SortSlices.
+// Maps and other values are traversed but not reordered.
+// The value is sorted in-place and also returned for convenience.
+func SortArraysInTree(v any) any {
+	switch val := v.(type) {
+	case []any:
+		// Recursively sort nested structures first
+		for i, elem := range val {
+			val[i] = SortArraysInTree(elem)
+		}
+		sort.SliceStable(val, func(i, j int) bool {
+			return toSortKey(val[i]) < toSortKey(val[j])
+		})
+		return val
+	case map[string]any:
+		for k, elem := range val {
+			val[k] = SortArraysInTree(elem)
+		}
+		return val
+	default:
+		return v
+	}
 }
 
 // toSortKey converts a value to a deterministic string for sorting.

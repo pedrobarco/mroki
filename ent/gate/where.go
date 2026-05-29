@@ -81,6 +81,11 @@ func DiffFloatTolerance(v float64) predicate.Gate {
 	return predicate.Gate(sql.FieldEQ(FieldDiffFloatTolerance, v))
 }
 
+// DiffSortArrays applies equality check predicate on the "diff_sort_arrays" field. It's identical to DiffSortArraysEQ.
+func DiffSortArrays(v bool) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldDiffSortArrays, v))
+}
+
 // NameEQ applies the EQ predicate on the "name" field.
 func NameEQ(v string) predicate.Gate {
 	return predicate.Gate(sql.FieldEQ(FieldName, v))
@@ -384,6 +389,26 @@ func DiffFloatToleranceIsNil() predicate.Gate {
 // DiffFloatToleranceNotNil applies the NotNil predicate on the "diff_float_tolerance" field.
 func DiffFloatToleranceNotNil() predicate.Gate {
 	return predicate.Gate(sql.FieldNotNull(FieldDiffFloatTolerance))
+}
+
+// DiffSortArraysEQ applies the EQ predicate on the "diff_sort_arrays" field.
+func DiffSortArraysEQ(v bool) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldDiffSortArrays, v))
+}
+
+// DiffSortArraysNEQ applies the NEQ predicate on the "diff_sort_arrays" field.
+func DiffSortArraysNEQ(v bool) predicate.Gate {
+	return predicate.Gate(sql.FieldNEQ(FieldDiffSortArrays, v))
+}
+
+// DiffSortArraysIsNil applies the IsNil predicate on the "diff_sort_arrays" field.
+func DiffSortArraysIsNil() predicate.Gate {
+	return predicate.Gate(sql.FieldIsNull(FieldDiffSortArrays))
+}
+
+// DiffSortArraysNotNil applies the NotNil predicate on the "diff_sort_arrays" field.
+func DiffSortArraysNotNil() predicate.Gate {
+	return predicate.Gate(sql.FieldNotNull(FieldDiffSortArrays))
 }
 
 // RedactedFieldsIsNil applies the IsNil predicate on the "redacted_fields" field.

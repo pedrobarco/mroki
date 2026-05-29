@@ -26,6 +26,7 @@ export interface DiffConfig {
   ignored_fields: string[]
   included_fields: string[]
   float_tolerance: number
+  sort_arrays: boolean
 }
 
 /**
@@ -90,6 +91,7 @@ export interface PatchOp {
  */
 export interface Diff {
   content: PatchOp[]
+  config: DiffConfig
 }
 
 /**

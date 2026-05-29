@@ -47,6 +47,7 @@ type MrokiGate struct {
 	DiffIgnoredFields  *string `json:"diff_ignored_fields,omitempty"`
 	DiffIncludedFields *string `json:"diff_included_fields,omitempty"`
 	DiffFloatTolerance *string `json:"diff_float_tolerance,omitempty"`
+	DiffSortArrays     *string `json:"diff_sort_arrays,omitempty"`
 
 	// Redaction options
 	RedactedFields *string `json:"redacted_fields,omitempty"`
@@ -180,6 +181,16 @@ func (m *MrokiGate) Validate() error {
 		diffOpts = append(diffOpts, diff.WithFloatTolerance(tolerance))
 	}
 
+	if m.DiffSortArrays != nil {
+		v, err := strconv.ParseBool(*m.DiffSortArrays)
+		if err != nil {
+			return fmt.Errorf("invalid diff_sort_arrays: %w", err)
+		}
+		if v {
+			diffOpts = append(diffOpts, diff.WithSortArrays(true))
+		}
+	}
+
 	// Build redactor from config (adds to default redacted list)
 	var additionalFields []string
 	if m.RedactedFields != nil {
@@ -307,6 +318,7 @@ func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp
 //	    [diff_ignored_fields  <comma-separated>]
 //	    [diff_included_fields <comma-separated>]
 //	    [diff_float_tolerance <float>]
+//	    [diff_sort_arrays     <bool>]
 //	    [redacted_fields      <comma-separated>]
 //	}
 func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
@@ -366,6 +378,12 @@ func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			}
 			val := d.Val()
 			m.DiffFloatTolerance = &val
+		case "diff_sort_arrays":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.DiffSortArrays = &val
 		case "redacted_fields":
 			if !d.NextArg() {
 				return d.ArgErr()

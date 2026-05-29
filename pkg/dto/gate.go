@@ -13,6 +13,7 @@ type DiffConfig struct {
 	IgnoredFields  []string `json:"ignored_fields"`
 	IncludedFields []string `json:"included_fields"`
 	FloatTolerance float64  `json:"float_tolerance"`
+	SortArrays     bool     `json:"sort_arrays"`
 }
 
 // Gate represents a traffic testing gate with live and shadow URLs.

@@ -78,10 +78,18 @@ func JSON(a, b string, opts ...Option) ([]PatchOp, error) {
 		return nil, fmt.Errorf("invalid JSON structure in second input: expected object or array")
 	}
 
-	// Step 3: Compare using go-cmp with patch reporter
+	// Step 3: Pre-sort arrays if configured (avoids mismatching array indices)
+	valA := resultA.Value()
+	valB := resultB.Value()
+	if cfg.sortArrays {
+		valA = SortArraysInTree(valA)
+		valB = SortArraysInTree(valB)
+	}
+
+	// Step 4: Compare using go-cmp with patch reporter
 	reporter := &patchReporter{}
 	cmpOpts := append(cfg.toCmpOptions(), cmp.Reporter(reporter))
-	cmp.Equal(resultA.Value(), resultB.Value(), cmpOpts...)
+	cmp.Equal(valA, valB, cmpOpts...)
 
 	ops := reporter.Ops()
 	if ops == nil {

@@ -29,6 +29,8 @@ const (
 	FieldDiffIncludedFields = "diff_included_fields"
 	// FieldDiffFloatTolerance holds the string denoting the diff_float_tolerance field in the database.
 	FieldDiffFloatTolerance = "diff_float_tolerance"
+	// FieldDiffSortArrays holds the string denoting the diff_sort_arrays field in the database.
+	FieldDiffSortArrays = "diff_sort_arrays"
 	// FieldRedactedFields holds the string denoting the redacted_fields field in the database.
 	FieldRedactedFields = "redacted_fields"
 	// EdgeRequests holds the string denoting the requests edge name in mutations.
@@ -54,6 +56,7 @@ var Columns = []string{
 	FieldDiffIgnoredFields,
 	FieldDiffIncludedFields,
 	FieldDiffFloatTolerance,
+	FieldDiffSortArrays,
 	FieldRedactedFields,
 }
 
@@ -76,6 +79,8 @@ var (
 	ShadowURLValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
+	// DefaultDiffSortArrays holds the default value on creation for the "diff_sort_arrays" field.
+	DefaultDiffSortArrays bool
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -111,6 +116,11 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByDiffFloatTolerance orders the results by the diff_float_tolerance field.
 func ByDiffFloatTolerance(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDiffFloatTolerance, opts...).ToFunc()
+}
+
+// ByDiffSortArrays orders the results by the diff_sort_arrays field.
+func ByDiffSortArrays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiffSortArrays, opts...).ToFunc()
 }
 
 // ByRequestsCount orders the results by requests count.

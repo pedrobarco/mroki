@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from './index'
+import {
+  buildDiffLines,
+  buildSplitRows,
+  stripPathPrefix,
+  expandCollapsed,
+  sortArraysInTree,
+} from './index'
 import type { DiffLine } from './types'
 import type { PatchOp } from '@/api'
 
@@ -323,5 +329,107 @@ describe('edge cases', () => {
     // Keys with / and ~ should still render correctly
     const keyLines = lines.filter((l) => lineText(l).includes('"a/b"'))
     expect(keyLines).toHaveLength(1)
+  })
+})
+
+describe('sortArraysInTree', () => {
+  it('returns primitives unchanged', () => {
+    expect(sortArraysInTree('hello')).toBe('hello')
+    expect(sortArraysInTree(42)).toBe(42)
+    expect(sortArraysInTree(true)).toBe(true)
+    expect(sortArraysInTree(null)).toBe(null)
+  })
+
+  it('sorts a flat array of strings', () => {
+    expect(sortArraysInTree(['banana', 'apple', 'cherry'])).toEqual(['apple', 'banana', 'cherry'])
+  })
+
+  it('sorts a flat array of numbers', () => {
+    expect(sortArraysInTree([3, 1, 2])).toEqual([1, 2, 3])
+  })
+
+  it('sorts a flat array of mixed types deterministically', () => {
+    const result = sortArraysInTree([true, 'hello', 42, null])
+    // Sort keys: b:true, s:hello, n:42, z:null
+    // Alphabetically: b:true < n:42 < s:hello < z:null
+    expect(result).toEqual([true, 42, 'hello', null])
+  })
+
+  it('sorts arrays of objects by canonical JSON key', () => {
+    const input = [
+      { name: 'charlie', id: 3 },
+      { name: 'alice', id: 1 },
+      { name: 'bob', id: 2 },
+    ]
+    const result = sortArraysInTree(input) as Array<{ name: string; id: number }>
+    // Canonical JSON sorts object keys: {"id":1,"name":"alice"} < {"id":2,"name":"bob"} < {"id":3,"name":"charlie"}
+    expect(result[0].name).toBe('alice')
+    expect(result[1].name).toBe('bob')
+    expect(result[2].name).toBe('charlie')
+  })
+
+  it('recursively sorts nested arrays', () => {
+    const input = { items: [3, 1, 2], tags: ['z', 'a'] }
+    const result = sortArraysInTree(input) as { items: number[]; tags: string[] }
+    expect(result.items).toEqual([1, 2, 3])
+    expect(result.tags).toEqual(['a', 'z'])
+  })
+
+  it('sorts deeply nested arrays', () => {
+    const input = {
+      level1: {
+        level2: {
+          data: [{ items: ['c', 'a', 'b'] }, { items: ['z', 'x', 'y'] }],
+        },
+      },
+    }
+    const result = sortArraysInTree(input) as any
+    expect(result.level1.level2.data[0].items).toEqual(['a', 'b', 'c'])
+    expect(result.level1.level2.data[1].items).toEqual(['x', 'y', 'z'])
+  })
+
+  it('does not mutate the original data', () => {
+    const original = [3, 1, 2]
+    const copy = [...original]
+    sortArraysInTree(original)
+    expect(original).toEqual(copy)
+  })
+
+  it('does not mutate nested objects', () => {
+    const original = { items: [3, 1, 2] }
+    sortArraysInTree(original)
+    expect(original.items).toEqual([3, 1, 2])
+  })
+
+  it('handles empty arrays', () => {
+    expect(sortArraysInTree([])).toEqual([])
+  })
+
+  it('handles empty objects', () => {
+    expect(sortArraysInTree({})).toEqual({})
+  })
+
+  it('handles arrays with duplicate values', () => {
+    expect(sortArraysInTree([2, 1, 2, 1])).toEqual([1, 1, 2, 2])
+  })
+
+  it('produces same output as Go SortArraysInTree for typical API response', () => {
+    // Simulate a typical unordered API response
+    const input = {
+      order_id: 'ord_123',
+      items: [
+        { name: 'Wireless Charger', price: 29.99 },
+        { name: 'Gaming Mouse', price: 49.99 },
+        { name: 'Ergonomic Keyboard', price: 79.99 },
+      ],
+      tags: ['electronics', 'accessories', 'gaming'],
+    }
+    const result = sortArraysInTree(input) as any
+    // Items sorted by canonical JSON (keys alphabetized: name, price)
+    expect(result.items[0].name).toBe('Ergonomic Keyboard')
+    expect(result.items[1].name).toBe('Gaming Mouse')
+    expect(result.items[2].name).toBe('Wireless Charger')
+    // Tags sorted alphabetically
+    expect(result.tags).toEqual(['accessories', 'electronics', 'gaming'])
   })
 })

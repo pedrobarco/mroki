@@ -43,6 +43,12 @@ func Parsed(a, b jsontree.Tree, opts ...Option) ([]PatchOp, error) {
 	normalizedA := normalizer.NormalizeTree(a)
 	normalizedB := normalizer.NormalizeTree(b)
 
+	// Pre-sort arrays if configured (avoids mismatching array indices)
+	if cfg.sortArrays {
+		normalizedA = SortArraysInTree(normalizedA)
+		normalizedB = SortArraysInTree(normalizedB)
+	}
+
 	// Compare using go-cmp with patch reporter
 	reporter := &patchReporter{}
 	cmpOpts := append(cfg.toCmpOptions(), cmp.Reporter(reporter))

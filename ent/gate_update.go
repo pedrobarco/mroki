@@ -107,6 +107,26 @@ func (_u *GateUpdate) ClearDiffFloatTolerance() *GateUpdate {
 	return _u
 }
 
+// SetDiffSortArrays sets the "diff_sort_arrays" field.
+func (_u *GateUpdate) SetDiffSortArrays(v bool) *GateUpdate {
+	_u.mutation.SetDiffSortArrays(v)
+	return _u
+}
+
+// SetNillableDiffSortArrays sets the "diff_sort_arrays" field if the given value is not nil.
+func (_u *GateUpdate) SetNillableDiffSortArrays(v *bool) *GateUpdate {
+	if v != nil {
+		_u.SetDiffSortArrays(*v)
+	}
+	return _u
+}
+
+// ClearDiffSortArrays clears the value of the "diff_sort_arrays" field.
+func (_u *GateUpdate) ClearDiffSortArrays() *GateUpdate {
+	_u.mutation.ClearDiffSortArrays()
+	return _u
+}
+
 // SetRedactedFields sets the "redacted_fields" field.
 func (_u *GateUpdate) SetRedactedFields(v []string) *GateUpdate {
 	_u.mutation.SetRedactedFields(v)
@@ -248,6 +268,12 @@ func (_u *GateUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DiffFloatToleranceCleared() {
 		_spec.ClearField(gate.FieldDiffFloatTolerance, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DiffSortArrays(); ok {
+		_spec.SetField(gate.FieldDiffSortArrays, field.TypeBool, value)
+	}
+	if _u.mutation.DiffSortArraysCleared() {
+		_spec.ClearField(gate.FieldDiffSortArrays, field.TypeBool)
 	}
 	if value, ok := _u.mutation.RedactedFields(); ok {
 		_spec.SetField(gate.FieldRedactedFields, field.TypeJSON, value)
@@ -399,6 +425,26 @@ func (_u *GateUpdateOne) AddDiffFloatTolerance(v float64) *GateUpdateOne {
 // ClearDiffFloatTolerance clears the value of the "diff_float_tolerance" field.
 func (_u *GateUpdateOne) ClearDiffFloatTolerance() *GateUpdateOne {
 	_u.mutation.ClearDiffFloatTolerance()
+	return _u
+}
+
+// SetDiffSortArrays sets the "diff_sort_arrays" field.
+func (_u *GateUpdateOne) SetDiffSortArrays(v bool) *GateUpdateOne {
+	_u.mutation.SetDiffSortArrays(v)
+	return _u
+}
+
+// SetNillableDiffSortArrays sets the "diff_sort_arrays" field if the given value is not nil.
+func (_u *GateUpdateOne) SetNillableDiffSortArrays(v *bool) *GateUpdateOne {
+	if v != nil {
+		_u.SetDiffSortArrays(*v)
+	}
+	return _u
+}
+
+// ClearDiffSortArrays clears the value of the "diff_sort_arrays" field.
+func (_u *GateUpdateOne) ClearDiffSortArrays() *GateUpdateOne {
+	_u.mutation.ClearDiffSortArrays()
 	return _u
 }
 
@@ -573,6 +619,12 @@ func (_u *GateUpdateOne) sqlSave(ctx context.Context) (_node *Gate, err error) {
 	}
 	if _u.mutation.DiffFloatToleranceCleared() {
 		_spec.ClearField(gate.FieldDiffFloatTolerance, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DiffSortArrays(); ok {
+		_spec.SetField(gate.FieldDiffSortArrays, field.TypeBool, value)
+	}
+	if _u.mutation.DiffSortArraysCleared() {
+		_spec.ClearField(gate.FieldDiffSortArrays, field.TypeBool)
 	}
 	if value, ok := _u.mutation.RedactedFields(); ok {
 		_spec.SetField(gate.FieldRedactedFields, field.TypeJSON, value)

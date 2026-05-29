@@ -375,7 +375,7 @@ func TestGetRequestByID_Success(t *testing.T) {
 		time.Now(),
 	)
 
-	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{{Op: "replace", Path: "/status", Value: "error"}})
+	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{{Op: "replace", Path: "/status", Value: "error"}}, traffictesting.DefaultDiffConfig())
 	method, _ := traffictesting.NewHTTPMethod("GET")
 	path, _ := traffictesting.ParsePath("/test")
 	expectedRequest, _ := traffictesting.NewRequest(
@@ -450,6 +450,90 @@ func TestGetRequestByID_Success(t *testing.T) {
 	if response.Data.ShadowResponse.LatencyMs != 187 {
 		t.Errorf("expected shadow latency 187, got %d", response.Data.ShadowResponse.LatencyMs)
 	}
+
+	// Verify diff config snapshot (default config)
+	assert.Equal(t, false, response.Data.Diff.Config.SortArrays)
+	assert.Empty(t, response.Data.Diff.Config.IgnoredFields)
+	assert.Empty(t, response.Data.Diff.Config.IncludedFields)
+	assert.Equal(t, 0.0, response.Data.Diff.Config.FloatTolerance)
+}
+
+func TestGetRequestByID_CustomDiffConfig(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+	requestID := traffictesting.NewRequestID()
+
+	statusCode, _ := traffictesting.ParseStatusCode(200)
+	liveResp, _ := traffictesting.NewResponse(
+		statusCode,
+		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
+		json.RawMessage(`{"items":[1,2]}`),
+		int64(100),
+		time.Now(),
+	)
+	shadowResp, _ := traffictesting.NewResponse(
+		statusCode,
+		traffictesting.NewHeaders(http.Header{"Content-Type": []string{"application/json"}}),
+		json.RawMessage(`{"items":[2,1]}`),
+		int64(110),
+		time.Now(),
+	)
+
+	customConfig, _ := traffictesting.NewDiffConfig(
+		[]string{"timestamp"},
+		[]string{"body.user"},
+		0.01,
+		true,
+	)
+	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{{Op: "replace", Path: "/items"}}, customConfig)
+	method, _ := traffictesting.NewHTTPMethod("POST")
+	path, _ := traffictesting.ParsePath("/api/data")
+	expectedRequest, _ := traffictesting.NewRequest(
+		gateID,
+		method,
+		path,
+		"",
+		traffictesting.NewHeaders(http.Header{}),
+		json.RawMessage(`{}`),
+		time.Now(),
+		*liveResp,
+		*shadowResp,
+		*d,
+		traffictesting.WithRequestID(requestID),
+	)
+
+	repo := &mockRequestRepository{
+		getByIDFunc: func(ctx context.Context, id traffictesting.RequestID, gid traffictesting.GateID) (*traffictesting.Request, error) {
+			return expectedRequest, nil
+		},
+	}
+	handler := queries.NewGetRequestHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/gates/"+gateID.String()+"/requests/"+requestID.String(), nil)
+	req.SetPathValue("gate_id", gateID.String())
+	req.SetPathValue("request_id", requestID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := GetRequestByID(handler)
+	err := appHandler(rec, req)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var response dto.Response[dto.RequestDetail]
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&response))
+
+	assert.Equal(t, requestID.String(), response.Data.ID)
+
+	// Verify custom diff config snapshot
+	assert.Equal(t, true, response.Data.Diff.Config.SortArrays)
+	assert.Equal(t, []string{"timestamp"}, response.Data.Diff.Config.IgnoredFields)
+	assert.Equal(t, []string{"body.user"}, response.Data.Diff.Config.IncludedFields)
+	assert.Equal(t, 0.01, response.Data.Diff.Config.FloatTolerance)
+
+	// Verify diff content is present
+	require.Len(t, response.Data.Diff.Content, 1)
+	assert.Equal(t, "replace", response.Data.Diff.Content[0].Op)
+	assert.Equal(t, "/items", response.Data.Diff.Content[0].Path)
 }
 
 func TestGetRequestByID_MissingGateID(t *testing.T) {
@@ -827,7 +911,7 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 
 	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{
 		{Op: "replace", Path: "/status", Value: "different"},
-	})
+	}, traffictesting.DefaultDiffConfig())
 	method, _ := traffictesting.NewHTTPMethod("GET")
 	path, _ := traffictesting.ParsePath("/test")
 	return traffictesting.NewRequest(

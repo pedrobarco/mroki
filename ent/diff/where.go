@@ -136,6 +136,16 @@ func ToResponseIDNotIn(vs ...uuid.UUID) predicate.Diff {
 	return predicate.Diff(sql.FieldNotIn(FieldToResponseID, vs...))
 }
 
+// ConfigIsNil applies the IsNil predicate on the "config" field.
+func ConfigIsNil() predicate.Diff {
+	return predicate.Diff(sql.FieldIsNull(FieldConfig))
+}
+
+// ConfigNotNil applies the NotNil predicate on the "config" field.
+func ConfigNotNil() predicate.Diff {
+	return predicate.Diff(sql.FieldNotNull(FieldConfig))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Diff {
 	return predicate.Diff(sql.FieldEQ(FieldCreatedAt, v))

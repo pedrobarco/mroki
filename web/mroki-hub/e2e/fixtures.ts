@@ -7,6 +7,7 @@ interface DiffConfig {
   ignored_fields: string[]
   included_fields: string[]
   float_tolerance: number
+  sort_arrays: boolean
 }
 
 interface Gate {

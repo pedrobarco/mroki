@@ -342,6 +342,7 @@ onMounted(() => {
         :live-response="liveResponse"
         :shadow-response="shadowResponse"
         :diff-content="request.diff.content"
+        :sort-arrays="request.diff.config?.sort_arrays"
       />
 
       <!-- Missing Responses Warning -->

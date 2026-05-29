@@ -111,6 +111,41 @@ test.describe('Gate Settings Page', () => {
     expect(updated.diff_config.float_tolerance).toBe(0.001)
   })
 
+  test('enables sort arrays toggle', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `sort-arrays-gate-${suffix}`,
+      `https://sort-live-${suffix}.example.com`,
+      `https://sort-shadow-${suffix}.example.com`
+    )
+
+    await page.goto(`/gates/${gate.id}/settings`)
+
+    // Verify Array Order section exists
+    await expect(page.getByText('Array Order')).toBeVisible()
+    await expect(page.getByText('Ignore array element order')).toBeVisible()
+
+    // Toggle should start unchecked (default is false)
+    const toggle = page.locator('[data-slot="switch"]')
+    await expect(toggle).toHaveAttribute('data-state', 'unchecked')
+
+    // Enable sort arrays
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('data-state', 'checked')
+
+    // Save
+    await page.getByRole('button', { name: 'Save Changes' }).click()
+    await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible()
+
+    // Verify via API
+    const updated = await api.updateGate(gate.id, {})
+    expect(updated.diff_config.sort_arrays).toBe(true)
+
+    // Reload and verify toggle persists
+    await page.reload()
+    await expect(page.locator('[data-slot="switch"]')).toHaveAttribute('data-state', 'checked')
+  })
+
   test('delete gate from settings and navigates to gates list', async ({ page, api }) => {
     const suffix = Date.now()
     const gate = await api.createGate(

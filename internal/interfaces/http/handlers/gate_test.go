@@ -114,6 +114,10 @@ func TestCreateGate_Success(t *testing.T) {
 	if response.Data.ShadowURL != "http://shadow.example.com" {
 		t.Errorf("expected shadow URL %s, got %s", "http://shadow.example.com", response.Data.ShadowURL)
 	}
+
+	if response.Data.DiffConfig.SortArrays != false {
+		t.Errorf("expected sort_arrays false, got %v", response.Data.DiffConfig.SortArrays)
+	}
 }
 
 func TestCreateGate_InvalidJSON(t *testing.T) {
@@ -272,6 +276,10 @@ func TestGetGateByID_Success(t *testing.T) {
 
 	if response.Data.ID != gateID.String() {
 		t.Errorf("expected ID %s, got %s", gateID.String(), response.Data.ID)
+	}
+
+	if response.Data.DiffConfig.SortArrays != false {
+		t.Errorf("expected sort_arrays false, got %v", response.Data.DiffConfig.SortArrays)
 	}
 
 	// Verify stats field is present (zero values since domain object has no stats set)
@@ -876,7 +884,7 @@ func TestUpdateGate_Success_DiffConfig(t *testing.T) {
 	}
 	handler := commands.NewUpdateGateHandler(repo)
 
-	body := `{"diff_config":{"ignored_fields":["timestamp","trace_id"],"included_fields":[],"float_tolerance":0.001}}`
+	body := `{"diff_config":{"ignored_fields":["timestamp","trace_id"],"included_fields":[],"float_tolerance":0.001,"sort_arrays":true}}`
 	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
 	req.SetPathValue("gate_id", gateID.String())
 	rec := httptest.NewRecorder()
@@ -906,6 +914,9 @@ func TestUpdateGate_Success_DiffConfig(t *testing.T) {
 	}
 	if response.Data.DiffConfig.FloatTolerance != 0.001 {
 		t.Errorf("expected float tolerance 0.001, got %f", response.Data.DiffConfig.FloatTolerance)
+	}
+	if response.Data.DiffConfig.SortArrays != true {
+		t.Errorf("expected sort_arrays true, got %v", response.Data.DiffConfig.SortArrays)
 	}
 }
 

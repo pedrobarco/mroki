@@ -18,6 +18,7 @@ import (
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
+	"github.com/pedrobarco/mroki/ent/schema"
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
@@ -44,6 +45,7 @@ type DiffMutation struct {
 	id                   *uuid.UUID
 	content              *[]diff.PatchOp
 	appendcontent        []diff.PatchOp
+	_config              *schema.DiffConfigSnapshot
 	created_at           *time.Time
 	clearedFields        map[string]struct{}
 	request              *uuid.UUID
@@ -320,6 +322,55 @@ func (m *DiffMutation) ResetContent() {
 	m.appendcontent = nil
 }
 
+// SetConfig sets the "config" field.
+func (m *DiffMutation) SetConfig(scs schema.DiffConfigSnapshot) {
+	m._config = &scs
+}
+
+// Config returns the value of the "config" field in the mutation.
+func (m *DiffMutation) Config() (r schema.DiffConfigSnapshot, exists bool) {
+	v := m._config
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConfig returns the old "config" field's value of the Diff entity.
+// If the Diff object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiffMutation) OldConfig(ctx context.Context) (v schema.DiffConfigSnapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConfig is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConfig requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConfig: %w", err)
+	}
+	return oldValue.Config, nil
+}
+
+// ClearConfig clears the value of the "config" field.
+func (m *DiffMutation) ClearConfig() {
+	m._config = nil
+	m.clearedFields[entdiff.FieldConfig] = struct{}{}
+}
+
+// ConfigCleared returns if the "config" field was cleared in this mutation.
+func (m *DiffMutation) ConfigCleared() bool {
+	_, ok := m.clearedFields[entdiff.FieldConfig]
+	return ok
+}
+
+// ResetConfig resets all changes to the "config" field.
+func (m *DiffMutation) ResetConfig() {
+	m._config = nil
+	delete(m.clearedFields, entdiff.FieldConfig)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *DiffMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -471,7 +522,7 @@ func (m *DiffMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DiffMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.request != nil {
 		fields = append(fields, entdiff.FieldRequestID)
 	}
@@ -483,6 +534,9 @@ func (m *DiffMutation) Fields() []string {
 	}
 	if m.content != nil {
 		fields = append(fields, entdiff.FieldContent)
+	}
+	if m._config != nil {
+		fields = append(fields, entdiff.FieldConfig)
 	}
 	if m.created_at != nil {
 		fields = append(fields, entdiff.FieldCreatedAt)
@@ -503,6 +557,8 @@ func (m *DiffMutation) Field(name string) (ent.Value, bool) {
 		return m.ToResponseID()
 	case entdiff.FieldContent:
 		return m.Content()
+	case entdiff.FieldConfig:
+		return m.Config()
 	case entdiff.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -522,6 +578,8 @@ func (m *DiffMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldToResponseID(ctx)
 	case entdiff.FieldContent:
 		return m.OldContent(ctx)
+	case entdiff.FieldConfig:
+		return m.OldConfig(ctx)
 	case entdiff.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -561,6 +619,13 @@ func (m *DiffMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetContent(v)
 		return nil
+	case entdiff.FieldConfig:
+		v, ok := value.(schema.DiffConfigSnapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConfig(v)
+		return nil
 	case entdiff.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -597,7 +662,11 @@ func (m *DiffMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *DiffMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(entdiff.FieldConfig) {
+		fields = append(fields, entdiff.FieldConfig)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -610,6 +679,11 @@ func (m *DiffMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *DiffMutation) ClearField(name string) error {
+	switch name {
+	case entdiff.FieldConfig:
+		m.ClearConfig()
+		return nil
+	}
 	return fmt.Errorf("unknown Diff nullable field %s", name)
 }
 
@@ -628,6 +702,9 @@ func (m *DiffMutation) ResetField(name string) error {
 		return nil
 	case entdiff.FieldContent:
 		m.ResetContent()
+		return nil
+	case entdiff.FieldConfig:
+		m.ResetConfig()
 		return nil
 	case entdiff.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -762,6 +839,7 @@ type GateMutation struct {
 	appenddiff_included_fields []string
 	diff_float_tolerance       *float64
 	adddiff_float_tolerance    *float64
+	diff_sort_arrays           *bool
 	redacted_fields            *[]string
 	appendredacted_fields      []string
 	clearedFields              map[string]struct{}
@@ -1221,6 +1299,55 @@ func (m *GateMutation) ResetDiffFloatTolerance() {
 	delete(m.clearedFields, gate.FieldDiffFloatTolerance)
 }
 
+// SetDiffSortArrays sets the "diff_sort_arrays" field.
+func (m *GateMutation) SetDiffSortArrays(b bool) {
+	m.diff_sort_arrays = &b
+}
+
+// DiffSortArrays returns the value of the "diff_sort_arrays" field in the mutation.
+func (m *GateMutation) DiffSortArrays() (r bool, exists bool) {
+	v := m.diff_sort_arrays
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDiffSortArrays returns the old "diff_sort_arrays" field's value of the Gate entity.
+// If the Gate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GateMutation) OldDiffSortArrays(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDiffSortArrays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDiffSortArrays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDiffSortArrays: %w", err)
+	}
+	return oldValue.DiffSortArrays, nil
+}
+
+// ClearDiffSortArrays clears the value of the "diff_sort_arrays" field.
+func (m *GateMutation) ClearDiffSortArrays() {
+	m.diff_sort_arrays = nil
+	m.clearedFields[gate.FieldDiffSortArrays] = struct{}{}
+}
+
+// DiffSortArraysCleared returns if the "diff_sort_arrays" field was cleared in this mutation.
+func (m *GateMutation) DiffSortArraysCleared() bool {
+	_, ok := m.clearedFields[gate.FieldDiffSortArrays]
+	return ok
+}
+
+// ResetDiffSortArrays resets all changes to the "diff_sort_arrays" field.
+func (m *GateMutation) ResetDiffSortArrays() {
+	m.diff_sort_arrays = nil
+	delete(m.clearedFields, gate.FieldDiffSortArrays)
+}
+
 // SetRedactedFields sets the "redacted_fields" field.
 func (m *GateMutation) SetRedactedFields(s []string) {
 	m.redacted_fields = &s
@@ -1374,7 +1501,7 @@ func (m *GateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GateMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.name != nil {
 		fields = append(fields, gate.FieldName)
 	}
@@ -1395,6 +1522,9 @@ func (m *GateMutation) Fields() []string {
 	}
 	if m.diff_float_tolerance != nil {
 		fields = append(fields, gate.FieldDiffFloatTolerance)
+	}
+	if m.diff_sort_arrays != nil {
+		fields = append(fields, gate.FieldDiffSortArrays)
 	}
 	if m.redacted_fields != nil {
 		fields = append(fields, gate.FieldRedactedFields)
@@ -1421,6 +1551,8 @@ func (m *GateMutation) Field(name string) (ent.Value, bool) {
 		return m.DiffIncludedFields()
 	case gate.FieldDiffFloatTolerance:
 		return m.DiffFloatTolerance()
+	case gate.FieldDiffSortArrays:
+		return m.DiffSortArrays()
 	case gate.FieldRedactedFields:
 		return m.RedactedFields()
 	}
@@ -1446,6 +1578,8 @@ func (m *GateMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldDiffIncludedFields(ctx)
 	case gate.FieldDiffFloatTolerance:
 		return m.OldDiffFloatTolerance(ctx)
+	case gate.FieldDiffSortArrays:
+		return m.OldDiffSortArrays(ctx)
 	case gate.FieldRedactedFields:
 		return m.OldRedactedFields(ctx)
 	}
@@ -1505,6 +1639,13 @@ func (m *GateMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDiffFloatTolerance(v)
+		return nil
+	case gate.FieldDiffSortArrays:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDiffSortArrays(v)
 		return nil
 	case gate.FieldRedactedFields:
 		v, ok := value.([]string)
@@ -1567,6 +1708,9 @@ func (m *GateMutation) ClearedFields() []string {
 	if m.FieldCleared(gate.FieldDiffFloatTolerance) {
 		fields = append(fields, gate.FieldDiffFloatTolerance)
 	}
+	if m.FieldCleared(gate.FieldDiffSortArrays) {
+		fields = append(fields, gate.FieldDiffSortArrays)
+	}
 	if m.FieldCleared(gate.FieldRedactedFields) {
 		fields = append(fields, gate.FieldRedactedFields)
 	}
@@ -1592,6 +1736,9 @@ func (m *GateMutation) ClearField(name string) error {
 		return nil
 	case gate.FieldDiffFloatTolerance:
 		m.ClearDiffFloatTolerance()
+		return nil
+	case gate.FieldDiffSortArrays:
+		m.ClearDiffSortArrays()
 		return nil
 	case gate.FieldRedactedFields:
 		m.ClearRedactedFields()
@@ -1624,6 +1771,9 @@ func (m *GateMutation) ResetField(name string) error {
 		return nil
 	case gate.FieldDiffFloatTolerance:
 		m.ResetDiffFloatTolerance()
+		return nil
+	case gate.FieldDiffSortArrays:
+		m.ResetDiffSortArrays()
 		return nil
 	case gate.FieldRedactedFields:
 		m.ResetRedactedFields()
