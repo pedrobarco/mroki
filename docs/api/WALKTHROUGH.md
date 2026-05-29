@@ -37,7 +37,8 @@ curl -X POST http://localhost:8090/gates \
     "diff_config": {
       "ignored_fields": [],
       "included_fields": [],
-      "float_tolerance": 0
+      "float_tolerance": 0,
+      "sort_arrays": false
     },
     "redacted_fields": [],
     "created_at": "2026-03-29T09:00:00Z",
@@ -216,7 +217,8 @@ curl -X PATCH "http://localhost:8090/gates/$GATE_ID" \
     "diff_config": {
       "ignored_fields": ["timestamp", "request_id"],
       "included_fields": [],
-      "float_tolerance": 0.001
+      "float_tolerance": 0.001,
+      "sort_arrays": false
     }
   }'
 ```
@@ -233,7 +235,8 @@ curl -X PATCH "http://localhost:8090/gates/$GATE_ID" \
     "diff_config": {
       "ignored_fields": ["timestamp", "request_id"],
       "included_fields": [],
-      "float_tolerance": 0.001
+      "float_tolerance": 0.001,
+      "sort_arrays": false
     },
     "redacted_fields": [],
     "created_at": "2026-03-29T09:00:00Z",
@@ -252,6 +255,7 @@ curl -X PATCH "http://localhost:8090/gates/$GATE_ID" \
 | `ignored_fields` | JSON field paths to exclude from diff computation (supports wildcards) |
 | `included_fields` | JSON field paths to include exclusively in diff computation (supports wildcards) |
 | `float_tolerance` | Absolute tolerance for floating-point comparisons (`0` = exact match) |
+| `sort_arrays` | Sort arrays before comparison so element order does not produce diffs (`false` = positional comparison) |
 
 ## Step 8: Configure Field Redaction
 
@@ -278,7 +282,8 @@ curl -X PATCH "http://localhost:8090/gates/$GATE_ID" \
     "diff_config": {
       "ignored_fields": ["timestamp", "request_id"],
       "included_fields": [],
-      "float_tolerance": 0.001
+      "float_tolerance": 0.001,
+      "sort_arrays": false
     },
     "redacted_fields": ["headers.X-Internal-Token", "body.user.password"],
     "created_at": "2026-03-29T09:00:00Z",
