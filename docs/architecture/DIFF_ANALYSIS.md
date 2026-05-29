@@ -35,6 +35,7 @@ graph TD
    - **Exclude list** (blacklist): the specified fields are removed before comparison.
    - If both are set, include is applied first, then exclude.
    - Field paths support array wildcards via gjson syntax (e.g., `users.#.email`).
+   - The `X-Mroki-Mode` header that tags shadow requests is automatically excluded, so services that echo request headers back in their responses don't produce spurious diffs.
 
 6. **Comparison** — The two documents are compared to produce a list of differences as RFC 6902 JSON Patch operations (`add`, `remove`, `replace`). Float values are compared with a configurable tolerance to avoid false positives from floating-point precision.
 

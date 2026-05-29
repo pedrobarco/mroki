@@ -156,6 +156,11 @@ func (m *MrokiGate) Validate() error {
 	// Build diff options
 	var diffOpts []diff.Option
 
+	// Exclude the shadow identification header from diff comparison so it never
+	// shows up as a difference. It is not redacted — its value stays visible for
+	// reference in stored request data.
+	diffOpts = append(diffOpts, diff.WithIgnoredFields("headers."+proxy.ShadowHeader))
+
 	if m.DiffIgnoredFields != nil {
 		fields := strings.Split(*m.DiffIgnoredFields, ",")
 		for i := range fields {
