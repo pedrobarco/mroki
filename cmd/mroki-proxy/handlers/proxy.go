@@ -25,6 +25,7 @@ type ProxyConfig struct {
 	ShadowTimeout time.Duration
 	MaxBodySize   int64
 	SamplingRate  *proxy.SamplingRate // always set, default 1.0
+	ShadowRules   []proxy.ShadowRule  // shadow matching rules
 
 	// API integration (optional)
 	APIClient  *client.MrokiClient
@@ -56,6 +57,10 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 	}
 
 	checks = append(checks, proxy.SamplingRateCheck(cfg.SamplingRate))
+
+	if len(cfg.ShadowRules) > 0 {
+		checks = append(checks, proxy.ShadowRulesCheck(cfg.ShadowRules))
+	}
 
 	if len(checks) > 0 {
 		opts = append(opts, proxy.WithShouldProxyToShadow(checks...))
