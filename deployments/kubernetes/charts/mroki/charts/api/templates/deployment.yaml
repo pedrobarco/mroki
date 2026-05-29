@@ -21,6 +21,21 @@ spec:
         {{- include "api.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "api.serviceAccountName" . }}
+      {{- if and .Values.migration.enabled .Values.existingSecret }}
+      initContainers:
+        - name: db-migrator
+          image: {{ include "api.migrationImage" . }}
+          imagePullPolicy: {{ .Values.migration.image.pullPolicy }}
+          args:
+            - "--url"
+            - "$(MROKI_APP_DATABASE_URL)"
+          env:
+            - name: MROKI_APP_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: database-url
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ include "api.image" . }}

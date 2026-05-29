@@ -33,6 +33,7 @@ graph TD
 - Intercept incoming HTTP requests
 - Operate in dual modes: fetch gate config from API or use hardcoded URLs
 - Forward to both live and shadow services in parallel
+- Tag shadow requests with a fixed `X-Mroki-Mode: shadow` header so downstream systems can distinguish shadow traffic (live requests are never modified, and the `Host` header is left untouched)
 - Return live service response to client immediately
 - Send raw captured responses to mroki-api with retry logic (API mode)
 - Compute and print JSON diffs locally (standalone mode only)
@@ -126,6 +127,7 @@ sequenceDiagram
     par Forward in parallel (same X-Request-ID)
         P->>L: Forward request
         P->>S: Forward request
+        Note over S: Tagged X-Mroki-Mode: shadow
     end
     L-->>P: Live Response
     P-->>C: Return Live Response (X-Request-ID header)
