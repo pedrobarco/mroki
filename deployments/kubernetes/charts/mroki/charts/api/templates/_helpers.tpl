@@ -71,3 +71,18 @@ Return the image name.
 {{- printf "%s:%s" .Values.image.repository $tag -}}
 {{- end -}}
 {{- end }}
+
+
+{{/*
+Return the database host, defaulting to the release's PostgreSQL service.
+*/}}
+{{- define "api.databaseHost" -}}
+{{- .Values.database.host | default (printf "%s-postgresql" .Release.Name) -}}
+{{- end }}
+
+{{/*
+Return the database password Secret name, defaulting to the release's PostgreSQL secret.
+*/}}
+{{- define "api.databasePasswordSecret" -}}
+{{- .Values.database.passwordSecret | default (printf "%s-postgresql" .Release.Name) -}}
+{{- end }}

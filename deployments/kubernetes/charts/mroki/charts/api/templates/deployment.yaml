@@ -45,6 +45,14 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.existingSecret }}
                   key: api-key
+            {{- else if .Values.database.passwordSecret }}
+            - name: MROKI_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "api.databasePasswordSecret" . }}
+                  key: {{ .Values.database.passwordSecretKey }}
+            - name: MROKI_APP_DATABASE_URL
+              value: "postgres://{{ .Values.database.user }}:$(MROKI_DB_PASSWORD)@{{ include "api.databaseHost" . }}:{{ .Values.database.port }}/{{ .Values.database.name }}?sslmode={{ .Values.database.sslmode }}"
             {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
