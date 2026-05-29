@@ -72,12 +72,14 @@ func TestMrokiGate_Validate_diff_options(t *testing.T) {
 	ignored := "timestamp,created_at"
 	included := "user,order"
 	tolerance := "0.001"
+	sortArrays := "true"
 	m := caddymodule.MrokiGate{
 		RawLive:            "http://live:8080",
 		RawShadow:          "http://shadow:8080",
 		DiffIgnoredFields:  &ignored,
 		DiffIncludedFields: &included,
 		DiffFloatTolerance: &tolerance,
+		DiffSortArrays:     &sortArrays,
 	}
 	err := m.Validate()
 	require.NoError(t, err)
@@ -94,6 +96,7 @@ func TestUnmarshalCaddyfile_all_directives(t *testing.T) {
 		diff_ignored_fields timestamp,created_at
 		diff_included_fields user,order
 		diff_float_tolerance 0.001
+		diff_sort_arrays true
 		redacted_fields headers.X-Internal-Token,body.secret
 	}`
 
@@ -118,6 +121,8 @@ func TestUnmarshalCaddyfile_all_directives(t *testing.T) {
 	assert.Equal(t, "user,order", *m.DiffIncludedFields)
 	require.NotNil(t, m.DiffFloatTolerance)
 	assert.Equal(t, "0.001", *m.DiffFloatTolerance)
+	require.NotNil(t, m.DiffSortArrays)
+	assert.Equal(t, "true", *m.DiffSortArrays)
 	require.NotNil(t, m.RedactedFields)
 	assert.Equal(t, "headers.X-Internal-Token,body.secret", *m.RedactedFields)
 }
@@ -216,6 +221,7 @@ func TestUnmarshalCaddyfile_minimal(t *testing.T) {
 	assert.Nil(t, m.DiffIgnoredFields)
 	assert.Nil(t, m.DiffIncludedFields)
 	assert.Nil(t, m.DiffFloatTolerance)
+	assert.Nil(t, m.DiffSortArrays)
 	assert.Nil(t, m.RedactedFields)
 }
 
@@ -268,6 +274,18 @@ func TestMrokiGate_Validate_redacted_fields_empty_string(t *testing.T) {
 	err := m.Validate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid redacted_fields")
+}
+
+func TestMrokiGate_Validate_invalid_diff_sort_arrays(t *testing.T) {
+	sortArrays := "invalid"
+	m := caddymodule.MrokiGate{
+		RawLive:        "http://live:8080",
+		RawShadow:      "http://shadow:8080",
+		DiffSortArrays: &sortArrays,
+	}
+	err := m.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid diff_sort_arrays")
 }
 
 func TestMrokiGate_Validate_default_redaction_always_applied(t *testing.T) {

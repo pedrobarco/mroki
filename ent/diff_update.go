@@ -16,6 +16,7 @@ import (
 	"github.com/pedrobarco/mroki/ent/predicate"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
+	"github.com/pedrobarco/mroki/ent/schema"
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
@@ -83,6 +84,26 @@ func (_u *DiffUpdate) SetContent(v []diff.PatchOp) *DiffUpdate {
 // AppendContent appends value to the "content" field.
 func (_u *DiffUpdate) AppendContent(v []diff.PatchOp) *DiffUpdate {
 	_u.mutation.AppendContent(v)
+	return _u
+}
+
+// SetConfig sets the "config" field.
+func (_u *DiffUpdate) SetConfig(v schema.DiffConfigSnapshot) *DiffUpdate {
+	_u.mutation.SetConfig(v)
+	return _u
+}
+
+// SetNillableConfig sets the "config" field if the given value is not nil.
+func (_u *DiffUpdate) SetNillableConfig(v *schema.DiffConfigSnapshot) *DiffUpdate {
+	if v != nil {
+		_u.SetConfig(*v)
+	}
+	return _u
+}
+
+// ClearConfig clears the value of the "config" field.
+func (_u *DiffUpdate) ClearConfig() *DiffUpdate {
+	_u.mutation.ClearConfig()
 	return _u
 }
 
@@ -184,6 +205,12 @@ func (_u *DiffUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, entdiff.FieldContent, value)
 		})
+	}
+	if value, ok := _u.mutation.Config(); ok {
+		_spec.SetField(entdiff.FieldConfig, field.TypeJSON, value)
+	}
+	if _u.mutation.ConfigCleared() {
+		_spec.ClearField(entdiff.FieldConfig, field.TypeJSON)
 	}
 	if _u.mutation.RequestCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -346,6 +373,26 @@ func (_u *DiffUpdateOne) AppendContent(v []diff.PatchOp) *DiffUpdateOne {
 	return _u
 }
 
+// SetConfig sets the "config" field.
+func (_u *DiffUpdateOne) SetConfig(v schema.DiffConfigSnapshot) *DiffUpdateOne {
+	_u.mutation.SetConfig(v)
+	return _u
+}
+
+// SetNillableConfig sets the "config" field if the given value is not nil.
+func (_u *DiffUpdateOne) SetNillableConfig(v *schema.DiffConfigSnapshot) *DiffUpdateOne {
+	if v != nil {
+		_u.SetConfig(*v)
+	}
+	return _u
+}
+
+// ClearConfig clears the value of the "config" field.
+func (_u *DiffUpdateOne) ClearConfig() *DiffUpdateOne {
+	_u.mutation.ClearConfig()
+	return _u
+}
+
 // SetRequest sets the "request" edge to the Request entity.
 func (_u *DiffUpdateOne) SetRequest(v *Request) *DiffUpdateOne {
 	return _u.SetRequestID(v.ID)
@@ -474,6 +521,12 @@ func (_u *DiffUpdateOne) sqlSave(ctx context.Context) (_node *Diff, err error) {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, entdiff.FieldContent, value)
 		})
+	}
+	if value, ok := _u.mutation.Config(); ok {
+		_spec.SetField(entdiff.FieldConfig, field.TypeJSON, value)
+	}
+	if _u.mutation.ConfigCleared() {
+		_spec.ClearField(entdiff.FieldConfig, field.TypeJSON)
 	}
 	if _u.mutation.RequestCleared() {
 		edge := &sqlgraph.EdgeSpec{

@@ -1,6 +1,7 @@
 package traffictesting
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,24 +12,26 @@ type Diff struct {
 	FromResponseID uuid.UUID
 	ToResponseID   uuid.UUID
 	Content        []diff.PatchOp
+	Config         DiffConfig
 	CreatedAt      time.Time
 }
 
 type diffOption func(*Diff)
 
-func NewDiff(from, to uuid.UUID, content []diff.PatchOp, opts ...diffOption) (*Diff, error) {
-	diff := &Diff{
+func NewDiff(from, to uuid.UUID, content []diff.PatchOp, config DiffConfig, opts ...diffOption) (*Diff, error) {
+	d := &Diff{
 		FromResponseID: from,
 		ToResponseID:   to,
 		Content:        content,
+		Config:         config,
 		CreatedAt:      time.Now(),
 	}
 
 	for _, o := range opts {
-		o(diff)
+		o(d)
 	}
 
-	return diff, nil
+	return d, nil
 }
 
 // IsZero returns true if the Diff is the zero value.
@@ -43,19 +46,12 @@ func (d Diff) HasContent() bool {
 	return len(d.Content) > 0
 }
 
-// Equals compares two Diff value objects for equality.
-// Value objects are equal if all their attributes are equal.
+// Equals checks value equality by comparing Content and Config.
+// Fields like FromResponseID, ToResponseID, and CreatedAt are
+// entity/persistence concerns and not part of the value identity.
 func (d Diff) Equals(other Diff) bool {
-	if d.FromResponseID != other.FromResponseID || d.ToResponseID != other.ToResponseID {
+	if !reflect.DeepEqual(d.Content, other.Content) {
 		return false
 	}
-	if len(d.Content) != len(other.Content) {
-		return false
-	}
-	for i, op := range d.Content {
-		if op.Op != other.Content[i].Op || op.Path != other.Content[i].Path {
-			return false
-		}
-	}
-	return true
+	return reflect.DeepEqual(d.Config, other.Config)
 }

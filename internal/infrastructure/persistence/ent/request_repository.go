@@ -108,6 +108,7 @@ func (r *requestRepository) saveDiff(ctx context.Context, tx *ent.Tx, req *traff
 		SetFromResponseID(req.Diff.FromResponseID).
 		SetToResponseID(req.Diff.ToResponseID).
 		SetContent(req.Diff.Content).
+		SetConfig(mapDiffConfigToPersistence(req.Diff.Config)).
 		SetCreatedAt(req.Diff.CreatedAt).
 		Save(ctx); err != nil {
 		return fmt.Errorf("failed to save diff: %w", err)
@@ -179,7 +180,7 @@ func (r *requestRepository) GetAllByGateID(
 			q.Select(response.FieldID, response.FieldType, response.FieldStatusCode, response.FieldLatencyMs)
 		}).
 		WithDiff(func(q *ent.DiffQuery) {
-			q.Select(entdiff.FieldID, entdiff.FieldFromResponseID, entdiff.FieldContent)
+			q.Select(entdiff.FieldID, entdiff.FieldFromResponseID, entdiff.FieldContent, entdiff.FieldConfig)
 		}).
 		Order(r.buildOrderBy(sort)).
 		Limit(params.Limit()).

@@ -33,6 +33,8 @@ type Gate struct {
 	DiffIncludedFields []string `json:"diff_included_fields,omitempty"`
 	// DiffFloatTolerance holds the value of the "diff_float_tolerance" field.
 	DiffFloatTolerance float64 `json:"diff_float_tolerance,omitempty"`
+	// DiffSortArrays holds the value of the "diff_sort_arrays" field.
+	DiffSortArrays bool `json:"diff_sort_arrays,omitempty"`
 	// RedactedFields holds the value of the "redacted_fields" field.
 	RedactedFields []string `json:"redacted_fields,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -66,6 +68,8 @@ func (*Gate) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case gate.FieldDiffIgnoredFields, gate.FieldDiffIncludedFields, gate.FieldRedactedFields:
 			values[i] = new([]byte)
+		case gate.FieldDiffSortArrays:
+			values[i] = new(sql.NullBool)
 		case gate.FieldDiffFloatTolerance:
 			values[i] = new(sql.NullFloat64)
 		case gate.FieldName, gate.FieldLiveURL, gate.FieldShadowURL:
@@ -141,6 +145,12 @@ func (_m *Gate) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.DiffFloatTolerance = value.Float64
 			}
+		case gate.FieldDiffSortArrays:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field diff_sort_arrays", values[i])
+			} else if value.Valid {
+				_m.DiffSortArrays = value.Bool
+			}
 		case gate.FieldRedactedFields:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field redacted_fields", values[i])
@@ -210,6 +220,9 @@ func (_m *Gate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("diff_float_tolerance=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DiffFloatTolerance))
+	builder.WriteString(", ")
+	builder.WriteString("diff_sort_arrays=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiffSortArrays))
 	builder.WriteString(", ")
 	builder.WriteString("redacted_fields=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RedactedFields))

@@ -161,7 +161,14 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		diffContent = result.Ops
 	}
 
-	d, err := traffictesting.NewDiff(live.ID, shadow.ID, diffContent)
+	// Snapshot the gate's diff config so the frontend knows how to interpret
+	// the patch indices even if the gate config changes later.
+	var diffConfig traffictesting.DiffConfig
+	if gateErr == nil {
+		diffConfig = gate.DiffConfig
+	}
+
+	d, err := traffictesting.NewDiff(live.ID, shadow.ID, diffContent, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create diff: %w", err)
 	}

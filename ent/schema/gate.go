@@ -40,6 +40,9 @@ func (Gate) Fields() []ent.Field {
 			Optional(),
 		field.Float("diff_float_tolerance").
 			Optional(),
+		field.Bool("diff_sort_arrays").
+			Optional().
+			Default(false),
 		field.JSON("redacted_fields", []string{}).
 			Optional(),
 	}

@@ -18,7 +18,7 @@ func TestNewDiff_creates_diff_with_values(t *testing.T) {
 	}
 
 	before := time.Now()
-	d, err := traffictesting.NewDiff(fromID, toID, content)
+	d, err := traffictesting.NewDiff(fromID, toID, content, traffictesting.DefaultDiffConfig())
 	after := time.Now()
 
 	assert.NoError(t, err)
@@ -36,7 +36,7 @@ func TestDiff_IsZero(t *testing.T) {
 
 	fromID := uuid.New()
 	toID := uuid.New()
-	d, _ := traffictesting.NewDiff(fromID, toID, []diff.PatchOp{{Op: "replace", Path: "/a"}})
+	d, _ := traffictesting.NewDiff(fromID, toID, []diff.PatchOp{{Op: "replace", Path: "/a"}}, traffictesting.DefaultDiffConfig())
 	assert.False(t, d.IsZero())
 }
 
@@ -46,14 +46,31 @@ func TestDiff_Equals(t *testing.T) {
 	content := []diff.PatchOp{
 		{Op: "replace", Path: "/name", Value: "bob"},
 	}
+	cfg := traffictesting.DefaultDiffConfig()
 
-	diff1, _ := traffictesting.NewDiff(fromID, toID, content)
-	diff2, _ := traffictesting.NewDiff(fromID, toID, content)
+	diff1, _ := traffictesting.NewDiff(fromID, toID, content, cfg)
+	diff2, _ := traffictesting.NewDiff(fromID, toID, content, cfg)
 
 	assert.True(t, diff1.Equals(*diff2), "diffs with same values should be equal")
 
-	diff3, _ := traffictesting.NewDiff(uuid.New(), toID, content)
-	assert.False(t, diff1.Equals(*diff3), "diffs with different FromResponseID should not be equal")
+	t.Run("different content", func(t *testing.T) {
+		other, _ := traffictesting.NewDiff(fromID, toID, []diff.PatchOp{
+			{Op: "add", Path: "/age", Value: float64(30)},
+		}, cfg)
+		assert.False(t, diff1.Equals(*other))
+	})
+
+	t.Run("different config", func(t *testing.T) {
+		sortCfg, _ := traffictesting.NewDiffConfig(nil, nil, 0, true)
+		other, _ := traffictesting.NewDiff(fromID, toID, content, sortCfg)
+		assert.False(t, diff1.Equals(*other))
+	})
+
+	t.Run("ignores entity metadata", func(t *testing.T) {
+		other, _ := traffictesting.NewDiff(uuid.New(), uuid.New(), content, cfg)
+		other.CreatedAt = diff1.CreatedAt.Add(time.Hour)
+		assert.True(t, diff1.Equals(*other), "response IDs and CreatedAt are not part of value identity")
+	})
 }
 
 func TestDiff_HasContent(t *testing.T) {
@@ -63,19 +80,19 @@ func TestDiff_HasContent(t *testing.T) {
 	})
 
 	t.Run("empty content returns false", func(t *testing.T) {
-		d, _ := traffictesting.NewDiff(uuid.New(), uuid.New(), []diff.PatchOp{})
+		d, _ := traffictesting.NewDiff(uuid.New(), uuid.New(), []diff.PatchOp{}, traffictesting.DefaultDiffConfig())
 		assert.False(t, d.HasContent())
 	})
 
 	t.Run("nil content returns false", func(t *testing.T) {
-		d, _ := traffictesting.NewDiff(uuid.New(), uuid.New(), nil)
+		d, _ := traffictesting.NewDiff(uuid.New(), uuid.New(), nil, traffictesting.DefaultDiffConfig())
 		assert.False(t, d.HasContent())
 	})
 
 	t.Run("non-empty content returns true", func(t *testing.T) {
 		d, _ := traffictesting.NewDiff(uuid.New(), uuid.New(), []diff.PatchOp{
 			{Op: "replace", Path: "/status", Value: "different"},
-		})
+		}, traffictesting.DefaultDiffConfig())
 		assert.True(t, d.HasContent())
 	})
 }
@@ -84,7 +101,7 @@ func TestNewDiff_with_empty_content(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()
 
-	d, err := traffictesting.NewDiff(fromID, toID, []diff.PatchOp{})
+	d, err := traffictesting.NewDiff(fromID, toID, []diff.PatchOp{}, traffictesting.DefaultDiffConfig())
 
 	assert.NoError(t, err)
 	assert.Empty(t, d.Content, "empty content should be allowed")

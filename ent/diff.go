@@ -14,6 +14,7 @@ import (
 	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/ent/response"
+	"github.com/pedrobarco/mroki/ent/schema"
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
@@ -30,6 +31,8 @@ type Diff struct {
 	ToResponseID uuid.UUID `json:"to_response_id,omitempty"`
 	// Content holds the value of the "content" field.
 	Content []diff.PatchOp `json:"content,omitempty"`
+	// Config holds the value of the "config" field.
+	Config schema.DiffConfigSnapshot `json:"config,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -89,7 +92,7 @@ func (*Diff) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case entdiff.FieldContent:
+		case entdiff.FieldContent, entdiff.FieldConfig:
 			values[i] = new([]byte)
 		case entdiff.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -140,6 +143,14 @@ func (_m *Diff) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.Content); err != nil {
 					return fmt.Errorf("unmarshal field content: %w", err)
+				}
+			}
+		case entdiff.FieldConfig:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field config", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Config); err != nil {
+					return fmt.Errorf("unmarshal field config: %w", err)
 				}
 			}
 		case entdiff.FieldCreatedAt:
@@ -210,6 +221,9 @@ func (_m *Diff) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("content=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Content))
+	builder.WriteString(", ")
+	builder.WriteString("config=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Config))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

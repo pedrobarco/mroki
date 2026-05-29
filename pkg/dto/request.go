@@ -88,4 +88,5 @@ type ResponseDetail struct {
 // DiffDetail represents diff content (used in request detail view).
 type DiffDetail struct {
 	Content []diff.PatchOp `json:"content"` // RFC 6902 JSON Patch operations
+	Config  DiffConfig     `json:"config"`  // Snapshot of the gate's diff config at computation time
 }

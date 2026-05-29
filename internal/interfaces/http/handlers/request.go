@@ -288,6 +288,12 @@ func toFullRequestResponseDTO(req *traffictesting.Request) dto.RequestDetail {
 		ShadowResponse: mapResponseDetail(req.ShadowResponse),
 		Diff: dto.DiffDetail{
 			Content: req.Diff.Content,
+			Config: dto.DiffConfig{
+				IgnoredFields:  req.Diff.Config.IgnoredFields,
+				IncludedFields: req.Diff.Config.IncludedFields,
+				FloatTolerance: req.Diff.Config.FloatTolerance,
+				SortArrays:     req.Diff.Config.SortArrays,
+			},
 		},
 	}
 }
