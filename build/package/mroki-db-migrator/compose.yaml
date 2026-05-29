@@ -1,0 +1,9 @@
+services:
+  mroki-db-migrator:
+    build:
+      context: ../../..
+      dockerfile: build/package/mroki-db-migrator/Dockerfile
+    command:
+      - "--url"
+      - "${MROKI_APP_DATABASE_URL:-}"
+    restart: "no"
