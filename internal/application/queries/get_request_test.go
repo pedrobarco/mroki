@@ -2,6 +2,7 @@ package queries
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -112,6 +113,131 @@ func TestGetRequestHandler_Handle_invalid_gate_id(t *testing.T) {
 	// Assert
 	require.Error(t, err)
 	assert.Nil(t, req)
+}
+
+func TestGetRequestHandler_Handle_sort_arrays_sorts_response_bodies(t *testing.T) {
+	// Arrange
+	gateID := traffictesting.NewGateID()
+	requestID := traffictesting.NewRequestID()
+	method, _ := traffictesting.NewHTTPMethod("GET")
+	path, _ := traffictesting.ParsePath("/api/test")
+
+	liveBody := json.RawMessage(`{"items":[3,1,2],"tags":["z","a"]}`)
+	shadowBody := json.RawMessage(`{"items":[2,3,1],"tags":["b","a"]}`)
+
+	sortConfig, _ := traffictesting.NewDiffConfig(nil, nil, 0, true)
+
+	req, _ := traffictesting.NewRequest(
+		gateID,
+		method,
+		path,
+		"",
+		traffictesting.NewHeaders(map[string][]string{"Content-Type": {"application/json"}}),
+		nil,
+		time.Now(),
+		traffictesting.Response{Body: liveBody},
+		traffictesting.Response{Body: shadowBody},
+		traffictesting.Diff{Config: sortConfig},
+	)
+	req.ID = requestID
+
+	repo := &mockRequestRepositoryForGetRequest{
+		getByIDFn: func(ctx context.Context, id traffictesting.RequestID, gid traffictesting.GateID) (*traffictesting.Request, error) {
+			return req, nil
+		},
+	}
+	handler := NewGetRequestHandler(repo)
+
+	query := GetRequestQuery{
+		ID:     requestID.String(),
+		GateID: gateID.String(),
+	}
+
+	// Act
+	result, err := handler.Handle(context.Background(), query)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// Verify bodies are sorted
+	var liveResult, shadowResult map[string]any
+	require.NoError(t, json.Unmarshal(result.LiveResponse.Body, &liveResult))
+	require.NoError(t, json.Unmarshal(result.ShadowResponse.Body, &shadowResult))
+
+	assert.Equal(t, []any{float64(1), float64(2), float64(3)}, liveResult["items"])
+	assert.Equal(t, []any{"a", "z"}, liveResult["tags"])
+	assert.Equal(t, []any{float64(1), float64(2), float64(3)}, shadowResult["items"])
+	assert.Equal(t, []any{"a", "b"}, shadowResult["tags"])
+}
+
+func TestGetRequestHandler_Handle_no_sort_arrays_leaves_bodies_unchanged(t *testing.T) {
+	// Arrange
+	gateID := traffictesting.NewGateID()
+	requestID := traffictesting.NewRequestID()
+	method, _ := traffictesting.NewHTTPMethod("GET")
+	path, _ := traffictesting.ParsePath("/api/test")
+
+	liveBody := json.RawMessage(`{"items":[3,1,2]}`)
+
+	noSortConfig, _ := traffictesting.NewDiffConfig(nil, nil, 0, false)
+
+	req, _ := traffictesting.NewRequest(
+		gateID,
+		method,
+		path,
+		"",
+		traffictesting.NewHeaders(map[string][]string{"Content-Type": {"application/json"}}),
+		nil,
+		time.Now(),
+		traffictesting.Response{Body: liveBody},
+		traffictesting.Response{},
+		traffictesting.Diff{Config: noSortConfig},
+	)
+	req.ID = requestID
+
+	repo := &mockRequestRepositoryForGetRequest{
+		getByIDFn: func(ctx context.Context, id traffictesting.RequestID, gid traffictesting.GateID) (*traffictesting.Request, error) {
+			return req, nil
+		},
+	}
+	handler := NewGetRequestHandler(repo)
+
+	query := GetRequestQuery{
+		ID:     requestID.String(),
+		GateID: gateID.String(),
+	}
+
+	// Act
+	result, err := handler.Handle(context.Background(), query)
+
+	// Assert
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// Body should remain in original order
+	var liveResult map[string]any
+	require.NoError(t, json.Unmarshal(result.LiveResponse.Body, &liveResult))
+	assert.Equal(t, []any{float64(3), float64(1), float64(2)}, liveResult["items"])
+}
+
+func TestSortResponseBody_nil_body(t *testing.T) {
+	resp := &traffictesting.Response{Body: nil}
+	sortResponseBody(resp)
+	assert.Nil(t, resp.Body)
+}
+
+func TestSortResponseBody_empty_body(t *testing.T) {
+	resp := &traffictesting.Response{Body: json.RawMessage{}}
+	sortResponseBody(resp)
+	assert.Empty(t, resp.Body)
+}
+
+func TestSortResponseBody_non_json_body(t *testing.T) {
+	original := json.RawMessage(`not valid json`)
+	resp := &traffictesting.Response{Body: original}
+	sortResponseBody(resp)
+	assert.Equal(t, original, resp.Body)
 }
 
 func TestGetRequestHandler_Handle_not_found(t *testing.T) {
