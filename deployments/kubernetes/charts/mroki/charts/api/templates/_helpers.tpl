@@ -71,3 +71,16 @@ Return the image name.
 {{- printf "%s:%s" .Values.image.repository $tag -}}
 {{- end -}}
 {{- end }}
+
+{{/*
+Return the migration image name.
+*/}}
+{{- define "api.migrationImage" -}}
+{{- $registry := .Values.migration.image.registry | default .Values.global.imageRegistry -}}
+{{- $tag := .Values.migration.image.tag | default .Chart.AppVersion -}}
+{{- if $registry -}}
+{{- printf "%s/%s:%s" $registry .Values.migration.image.repository $tag -}}
+{{- else -}}
+{{- printf "%s:%s" .Values.migration.image.repository $tag -}}
+{{- end -}}
+{{- end }}
