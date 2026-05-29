@@ -5,10 +5,40 @@ services:
       service: mroki-db
     environment:
       POSTGRES_PASSWORD: postgres
+
+  mroki-db-migrator:
+    extends:
+      file: ../package/mroki-db-migrator/compose.yaml
+      service: mroki-db-migrator
+    command:
+      - "--url"
+      - postgres://postgres:postgres@mroki-db:5432/postgres?sslmode=disable
+    depends_on:
+      mroki-db:
+        condition: service_healthy
+
+  mroki-db-seed:
+    image: postgres:15-alpine
+    environment:
+      PGPASSWORD: postgres
     volumes:
-      - ../../ent/migrate/migrations:/migrations:ro
-      - ./init-db.sh:/docker-entrypoint-initdb.d/00-init-db.sh:ro
-      - ./seed.sql:/docker-entrypoint-initdb.d/99-seed.sql:ro
+      - ./seed.sql:/seed.sql:ro
+    command:
+      - psql
+      - "-h"
+      - mroki-db
+      - "-U"
+      - postgres
+      - "-d"
+      - postgres
+      - "-v"
+      - ON_ERROR_STOP=1
+      - "-f"
+      - /seed.sql
+    depends_on:
+      mroki-db-migrator:
+        condition: service_completed_successfully
+    restart: "no"
 
   mroki-api:
     extends:
@@ -23,6 +53,8 @@ services:
     depends_on:
       mroki-db:
         condition: service_healthy
+      mroki-db-seed:
+        condition: service_completed_successfully
 
   mroki-proxy:
     extends:
