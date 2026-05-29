@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>mroki hub — Request Detail (Query Params Improvements)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#09090b', card: '#111113', hover: '#18181b', border: '#27272a', subtle: '#1c1c1f' },
+        fg: { DEFAULT: '#fafafa', muted: '#a1a1aa', dim: '#71717a', accent: '#e4e4e7' },
+        accent: { green: '#22c55e', greenDim: '#166534', blue: '#3b82f6', blueDim: '#1e3a5f', amber: '#f59e0b', red: '#ef4444', redDim: '#7f1d1d' },
+        diff: { add: '#16a34a', addBg: 'rgba(22,163,74,0.10)', del: '#ef4444', delBg: 'rgba(239,68,68,0.10)', changeBg: 'rgba(250,204,21,0.07)' }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+  .dot-pulse { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  ::selection { background: #3b82f6; color: white; }
+  .tooltip-wrap { position: relative; }
+  .tooltip-wrap .tooltip {
+    visibility: hidden; opacity: 0; position: absolute; bottom: calc(100% + 8px); left: 0;
+    background: #111113; border: 1px solid #27272a; border-radius: 8px; padding: 10px 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 50; transition: opacity 0.15s;
+    max-width: 500px; pointer-events: none;
+  }
+  .tooltip-wrap:hover .tooltip { visibility: visible; opacity: 1; }
+  .tooltip-grid { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+  .tooltip-grid .tk { font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: #71717a; white-space: nowrap; }
+  .tooltip-grid .tv { font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: #a1a1aa; word-break: break-all; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 text-[12px] text-accent-green bg-accent-greenDim/30 px-2.5 py-1 rounded-full">
+      <span class="dot-pulse bg-accent-green"></span><span>API Connected</span>
+    </div>
+  </div>
+</header>
+<main class="max-w-6xl mx-auto px-6 py-6">
+  <div class="flex items-center gap-2 mb-5">
+    <a href="#" class="inline-flex items-center gap-1.5 text-[13px] text-fg-muted hover:text-fg transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Gate
+    </a>
+    <span class="text-fg-dim text-[13px]">·</span>
+    <span class="text-[12px] font-mono text-fg-dim">checkout-api</span>
+  </div>
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-[22px] font-semibold tracking-tight">Request Detail</h1>
+    <div class="flex items-center gap-2">
+      <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-muted border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">Copy cURL</button>
+      <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-muted border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">Export JSON</button>
+    </div>
+  </div>
+
+  <!-- Design note -->
+  <div class="bg-accent-blue/10 border border-accent-blue/20 rounded-xl px-5 py-3.5 mb-6 text-[13px] text-blue-300">
+    <strong>Option A:</strong> Path shown cleanly, query params displayed as a parsed key-value grid below — all inside the same metadata card. No raw query string.
+  </div>
+
+  <!-- OPTION A: Truncated path + tooltip, parsed params grid inside same card -->
+  <div class="bg-bg-card border border-bg-border rounded-xl p-5 mb-10">
+    <div class="flex items-start justify-between mb-4">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center justify-center bg-blue-500/15 text-blue-400 text-[12px] font-bold font-mono px-2.5 py-1 rounded-md tracking-wide shrink-0">GET</span>
+          <div class="tooltip-wrap flex items-center min-w-0">
+            <code class="text-[14px] font-mono text-fg whitespace-nowrap overflow-hidden text-ellipsis">/api/v1/search<span class="text-fg-dim">?q=hello+world&amp;category=electronics</span></code>
+            <span class="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-bg-hover text-fg-dim font-mono ml-1.5 whitespace-nowrap shrink-0">+19 params</span>
+            <div class="tooltip" style="bottom: auto; top: calc(100% + 8px);">
+              <code class="text-[13px] font-mono font-medium text-fg">/api/v1/search</code>
+              <div class="border-t border-bg-border mt-1.5 pt-1.5 tooltip-grid" id="tooltip-a"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0 ml-4">
+        <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-accent-amber/15 text-amber-400 font-medium">3 diffs found</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-4 gap-4">
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Request ID</div>
+        <code class="text-[12px] font-mono text-fg-muted">req_7f2a9c4e81b3</code>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Timestamp</div>
+        <span class="text-[12px] text-fg-muted">2026-05-27 21:30:14 UTC</span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Live Status</div>
+        <span class="text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">· 38ms</span></span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Shadow Status</div>
+        <span class="text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">· 42ms</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B note -->
+  <div class="bg-accent-amber/10 border border-accent-amber/20 rounded-xl px-5 py-3.5 mb-6 text-[13px] text-amber-300">
+    <strong>Option B:</strong> Same layout but query params grid is below the metadata row, separated by a subtle border. More compact header.
+  </div>
+
+  <!-- OPTION B: Truncated path + tooltip, params grid below metadata -->
+  <div class="bg-bg-card border border-bg-border rounded-xl p-5 mb-6">
+    <div class="flex items-start justify-between mb-4">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center justify-center bg-blue-500/15 text-blue-400 text-[12px] font-bold font-mono px-2.5 py-1 rounded-md tracking-wide shrink-0">GET</span>
+          <div class="tooltip-wrap flex items-center min-w-0">
+            <code class="text-[14px] font-mono text-fg whitespace-nowrap overflow-hidden text-ellipsis">/api/v1/search<span class="text-fg-dim">?q=hello+world&amp;category=electronics</span></code>
+            <span class="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-bg-hover text-fg-dim font-mono ml-1.5 whitespace-nowrap shrink-0">+19 params</span>
+            <div class="tooltip">
+              <code class="text-[13px] font-mono font-medium text-fg">/api/v1/search</code>
+              <div class="border-t border-bg-border mt-1.5 pt-1.5 tooltip-grid" id="tooltip-b"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0 ml-4">
+        <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-accent-amber/15 text-amber-400 font-medium">3 diffs found</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-4 gap-4">
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Request ID</div>
+        <code class="text-[12px] font-mono text-fg-muted">req_7f2a9c4e81b3</code>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Timestamp</div>
+        <span class="text-[12px] text-fg-muted">2026-05-27 21:30:14 UTC</span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Live Status</div>
+        <span class="text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">· 38ms</span></span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Shadow Status</div>
+        <span class="text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">· 42ms</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diff viewer placeholder -->
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-bg-border">
+      <div class="flex items-center gap-2">
+        <h2 class="text-[14px] font-semibold">Response Comparison</h2>
+        <span class="text-[11px] text-fg-dim bg-bg-hover px-2 py-0.5 rounded-md font-mono">application/json</span>
+      </div>
+    </div>
+    <div class="px-5 py-12 text-center text-fg-dim text-[13px]">
+      Diff viewer content (same as existing design)
+    </div>
+  </div>
+</main>
+<script>
+const params = [
+  ['q','hello+world'],['category','electronics'],['brand','apple'],['brand','samsung'],
+  ['min_price','100'],['max_price','999.99'],['sort','relevance'],['order','desc'],
+  ['page','1'],['per_page','50'],['in_stock','true'],['shipping','free'],
+  ['rating','4.5'],['color','black'],['color','white'],['color','blue'],
+  ['condition','new'],['seller_id','abc123'],['warehouse','us-east-1'],
+  ['locale','en-US'],['currency','USD']
+];
+['tooltip-a','tooltip-b'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  params.forEach(([k,v]) => {
+    el.innerHTML += '<span class="tk">' + k + '</span><span class="tv">' + v + '</span>';
+  });
+});
+</script>
+</body>
+</html>

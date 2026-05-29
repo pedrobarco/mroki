@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>mroki hub — Gate Detail (Query Params Improvements)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#09090b', card: '#111113', hover: '#18181b', border: '#27272a', subtle: '#1c1c1f' },
+        fg: { DEFAULT: '#fafafa', muted: '#a1a1aa', dim: '#71717a', accent: '#e4e4e7' },
+        accent: { green: '#22c55e', greenDim: '#166534', blue: '#3b82f6', blueDim: '#1e3a5f', amber: '#f59e0b', red: '#ef4444', redDim: '#7f1d1d' },
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+  .dot-pulse { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  ::selection { background: #3b82f6; color: white; }
+  .req-row { transition: background-color 0.1s ease; }
+  .req-row:hover { background-color: #18181b; }
+  .tooltip-wrap { position: relative; }
+  .tooltip-wrap .tooltip {
+    visibility: hidden; opacity: 0; position: absolute; bottom: calc(100% + 8px); left: 0;
+    background: #1c1c1f; border: 1px solid #3f3f46; border-radius: 8px; padding: 8px 12px;
+    font-size: 11px; font-family: 'SF Mono', Menlo, monospace; color: #e4e4e7;
+    word-break: break-all; white-space: normal; line-height: 1.5;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 50; transition: opacity 0.15s;
+    max-width: 600px; pointer-events: none;
+  }
+  .tooltip-wrap:hover .tooltip { visibility: visible; opacity: 1; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      </div>
+      <nav class="flex items-center gap-1 text-[13px]">
+        <a href="#" class="px-3 py-1.5 rounded-md bg-bg-hover text-fg font-medium">Gates</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-1.5 text-[12px] text-accent-green bg-accent-greenDim/30 px-2.5 py-1 rounded-full">
+      <span class="dot-pulse bg-accent-green"></span><span>API Connected</span>
+    </div>
+  </div>
+</header>
+<main class="max-w-6xl mx-auto px-6 py-6">
+  <a href="#" class="inline-flex items-center gap-1.5 text-[13px] text-fg-muted hover:text-fg transition-colors mb-5">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Gates
+  </a>
+  <div class="bg-bg-card border border-bg-border rounded-xl p-5 mb-8">
+    <div class="flex items-center gap-2.5 mb-1.5">
+      <h1 class="text-[20px] font-semibold tracking-tight">checkout-api</h1>
+      <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-accent-greenDim/30 text-accent-green font-medium"><span class="dot-pulse bg-accent-green"></span>Active</span>
+    </div>
+    <div class="flex items-center gap-6 text-[12px] pt-3 border-t border-bg-border/50 mt-3">
+      <div><span class="text-fg-dim">Requests (24h)</span> <span class="text-fg font-medium ml-1">5,241</span></div>
+      <div><span class="text-fg-dim">Diff rate</span> <span class="text-amber-400 font-medium ml-1">3.1%</span></div>
+    </div>
+  </div>
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-[16px] font-semibold tracking-tight">Captured Requests</h2>
+    <span class="text-[12px] text-fg-dim">Showing 6 requests</span>
+  </div>
+  <div class="bg-accent-blue/10 border border-accent-blue/20 rounded-xl px-5 py-3.5 mb-4 text-[13px] text-blue-300">
+    <strong>Design improvements:</strong> ① Path in normal weight, query string in dimmer color ② Smart truncation at param boundaries with <code>+N params</code> badge ③ Tooltip on hover shows full URL color-coded ④ Stable right-side metadata columns
+  </div>
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-visible divide-y divide-bg-border" id="req-list"></div>
+</main>
+<script>
+const requests = [
+  { method: 'GET',  path: '/api/v1/search', query: 'q=hello+world&category=electronics&brand=apple&brand=samsung&min_price=100&max_price=999.99&sort=relevance&order=desc&page=1&per_page=50&in_stock=true&shipping=free&rating=4.5&color=black&color=white&color=blue', ago: '2 min ago', statusLive: 200, statusShadow: 200, latencyLive: 38, latencyShadow: 42, hasDiff: false },
+  { method: 'POST', path: '/api/v1/orders', query: 'utm_source=google&utm_medium=cpc&utm_campaign=summer_sale_2026&utm_term=buy+cheap+electronics&utm_content=banner_v3&ref=homepage_hero&session_id=sess_8f7a6b5c4d3e2f1a&tracking_id=trk_1234567890abcdef&ab_test=checkout_v2', ago: '5 min ago', statusLive: 201, statusShadow: 201, latencyLive: 142, latencyShadow: 187, hasDiff: true, diffs: 3 },
+  { method: 'GET',  path: '/api/v2/users', query: 'filter[status]=active&filter[role]=admin&filter[created_after]=2024-01-01T00:00:00Z&include=profile,permissions,teams&fields[user]=id,name,email,avatar&sort=-created_at,name&page[number]=1&page[size]=25', ago: '8 min ago', statusLive: 200, statusShadow: 200, latencyLive: 67, latencyShadow: 71, hasDiff: false },
+  { method: 'GET',  path: '/short', query: 'a=1', ago: '12 min ago', statusLive: 200, statusShadow: 200, latencyLive: 4, latencyShadow: 6, hasDiff: false },
+  { method: 'GET',  path: '/no-query-params', query: '', ago: '14 min ago', statusLive: 200, statusShadow: 200, latencyLive: 23, latencyShadow: 28, hasDiff: false },
+  { method: 'DELETE', path: '/api/v2/checkout/cart/itm_77e3a2', query: 'force=true&cascade=children', ago: '16 min ago', statusLive: 204, statusShadow: 500, latencyLive: 23, latencyShadow: 312, hasDiff: true, diffs: 5 },
+];
+const methodColors = { GET: 'bg-blue-500/15 text-blue-400', POST: 'bg-green-500/15 text-green-400', PUT: 'bg-amber-500/15 text-amber-400', DELETE: 'bg-red-500/15 text-red-400' };
+const MAX_CHARS = 80; // character budget for path + visible query params
+
+function smartTruncateQuery(path, query) {
+  if (!query) return { display: path, badge: '' };
+  const params = query.split('&');
+  const budget = MAX_CHARS - path.length - 1; // -1 for the '?'
+  if (budget <= 0) {
+    // Path alone exceeds budget — show path truncated + badge for all params
+    return {
+      display: path,
+      badge: `<span class="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-bg-hover text-fg-dim font-mono ml-1 whitespace-nowrap">${params.length} params</span>`
+    };
+  }
+  let visible = [];
+  let charCount = 0;
+  for (const p of params) {
+    const added = charCount === 0 ? p.length : p.length + 1; // +1 for '&'
+    if (charCount + added > budget && visible.length > 0) break;
+    visible.push(p);
+    charCount += added;
+  }
+  const remaining = params.length - visible.length;
+  const visibleQuery = visible.join('&');
+  const badge = remaining > 0
+    ? `<span class="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-bg-hover text-fg-dim font-mono ml-1 whitespace-nowrap">+${remaining} param${remaining > 1 ? 's' : ''}</span>`
+    : '';
+  return {
+    display: `${path}<span class="text-fg-dim">?${visibleQuery}</span>`,
+    badge
+  };
+}
+
+const container = document.getElementById('req-list');
+requests.forEach(r => {
+  const diffBadge = r.hasDiff
+    ? `<span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-medium whitespace-nowrap"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>${r.diffs} diff${r.diffs>1?'s':''}</span>`
+    : `<span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 font-medium whitespace-nowrap"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>No diff</span>`;
+  const sColor = r.statusShadow >= 500 ? 'text-red-400' : 'text-accent-green';
+  const { display, badge } = smartTruncateQuery(r.path, r.query);
+  const tip = r.query ? `<div class="tooltip"><span class="text-fg-accent">${r.path}</span><span class="text-fg-dim">?</span><span class="text-amber-400/80">${r.query}</span></div>` : '';
+  container.innerHTML += `
+  <a href="#" class="req-row flex items-center px-5 py-3.5 cursor-pointer">
+    <div class="flex items-center gap-3 flex-1 min-w-0">
+      <span class="inline-flex items-center justify-center ${methodColors[r.method]} text-[11px] font-bold font-mono px-2 py-0.5 rounded-md tracking-wide w-[52px] text-center shrink-0">${r.method}</span>
+      <div class="tooltip-wrap min-w-0 flex-1 flex items-center">
+        <code class="text-[13px] font-mono text-fg truncate">${display}</code>${badge}
+        ${tip}
+      </div>
+    </div>
+    <div class="flex items-center gap-5 shrink-0 ml-4">
+      ${diffBadge}
+      <div class="text-[11px] text-fg-dim w-[110px] text-right whitespace-nowrap">
+        <span class="text-fg-muted font-mono">${r.statusLive}</span><span class="text-fg-dim/60"> / </span><span class="${sColor} font-mono">${r.statusShadow}</span>
+        <span class="text-fg-dim/50 ml-1">${r.latencyLive}ms / ${r.latencyShadow}ms</span>
+      </div>
+      <div class="text-[11px] text-fg-dim w-[72px] text-right whitespace-nowrap">${r.ago}</div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fg-dim/40 shrink-0"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </a>`;
+});
+</script>
+</body>
+</html>

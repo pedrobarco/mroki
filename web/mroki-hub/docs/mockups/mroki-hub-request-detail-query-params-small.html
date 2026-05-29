@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>mroki hub — Request Detail (Small Query)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#09090b', card: '#111113', hover: '#18181b', border: '#27272a', subtle: '#1c1c1f' },
+        fg: { DEFAULT: '#fafafa', muted: '#a1a1aa', dim: '#71717a', accent: '#e4e4e7' },
+        accent: { green: '#22c55e', greenDim: '#166534', blue: '#3b82f6', blueDim: '#1e3a5f', amber: '#f59e0b', red: '#ef4444', redDim: '#7f1d1d' },
+        diff: { add: '#16a34a', addBg: 'rgba(22,163,74,0.10)', del: '#ef4444', delBg: 'rgba(239,68,68,0.10)', changeBg: 'rgba(250,204,21,0.07)' }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+  .dot-pulse { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  ::selection { background: #3b82f6; color: white; }
+
+</style>
+</head>
+<body class="min-h-screen antialiased">
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 text-[12px] text-accent-green bg-accent-greenDim/30 px-2.5 py-1 rounded-full">
+      <span class="dot-pulse bg-accent-green"></span><span>API Connected</span>
+    </div>
+  </div>
+</header>
+<main class="max-w-6xl mx-auto px-6 py-6">
+  <div class="flex items-center gap-2 mb-5">
+    <a href="#" class="inline-flex items-center gap-1.5 text-[13px] text-fg-muted hover:text-fg transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Gate
+    </a>
+    <span class="text-fg-dim text-[13px]">·</span>
+    <span class="text-[12px] font-mono text-fg-dim">checkout-api</span>
+  </div>
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-[22px] font-semibold tracking-tight">Request Detail</h1>
+    <div class="flex items-center gap-2">
+      <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-muted border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">Copy cURL</button>
+      <button class="inline-flex items-center gap-1.5 text-[12px] text-fg-muted border border-bg-border rounded-lg px-3 py-1.5 bg-bg-card hover:bg-bg-hover transition-colors">Export JSON</button>
+    </div>
+  </div>
+
+  <!-- Design note -->
+  <div class="bg-accent-blue/10 border border-accent-blue/20 rounded-xl px-5 py-3.5 mb-6 text-[13px] text-blue-300">
+    <strong>Small query:</strong> Short query string — path + query fit on a single line without wrapping.
+  </div>
+
+  <!-- Request Metadata Card — IMPROVED -->
+  <div class="bg-bg-card border border-bg-border rounded-xl p-5 mb-6">
+    <div class="flex items-start justify-between mb-4">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-start gap-3">
+          <span class="inline-flex items-center justify-center bg-blue-500/15 text-blue-400 text-[12px] font-bold font-mono px-2.5 py-1 rounded-md tracking-wide shrink-0 mt-0.5">GET</span>
+          <code class="text-[14px] font-mono text-fg break-all leading-relaxed">/api/v1/users<span class="text-fg-dim">?page=2&amp;limit=25</span></code>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0 ml-4 mt-0.5">
+        <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-accent-amber/15 text-amber-400 font-medium">3 diffs found</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-4 gap-4">
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Request ID</div>
+        <code class="text-[12px] font-mono text-fg-muted">req_7f2a9c4e81b3</code>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Timestamp</div>
+        <span class="text-[12px] text-fg-muted">2026-05-27 21:30:14 UTC</span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Live Status</div>
+        <span class="text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">· 38ms</span></span>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-widest text-fg-dim mb-1">Shadow Status</div>
+        <span class="text-[12px] text-accent-green font-mono font-medium">200 <span class="text-fg-dim font-normal font-sans">· 42ms</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diff viewer placeholder -->
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-bg-border">
+      <div class="flex items-center gap-2">
+        <h2 class="text-[14px] font-semibold">Response Comparison</h2>
+        <span class="text-[11px] text-fg-dim bg-bg-hover px-2 py-0.5 rounded-md font-mono">application/json</span>
+      </div>
+    </div>
+    <div class="px-5 py-12 text-center text-fg-dim text-[13px]">
+      Diff viewer content (same as existing design)
+    </div>
+  </div>
+</main>
+</body>
+</html>
