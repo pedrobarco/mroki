@@ -12,7 +12,7 @@ image:
   tag: ""
 
 migration:
-  # -- Enable database migration init container
+  # -- Enable the database migration pre-install/pre-upgrade Job hook
   enabled: true
   image:
     # -- Migration image registry
@@ -23,6 +23,15 @@ migration:
     pullPolicy: IfNotPresent
     # -- Overrides the migration image tag (default is the chart appVersion)
     tag: ""
+  # -- Baseline migration version for pre-existing databases not yet tracked by
+  # Atlas (e.g. previously managed by Ent auto-migration). Leave empty for fresh
+  # installs. When set, migrations up to this version are marked as applied
+  # without being re-executed.
+  baseline: ""
+  # -- Number of retries before the migration Job is considered failed
+  backoffLimit: 3
+  # -- Resource requests/limits for the migration Job
+  resources: {}
 
 # -- Name of an existing Secret containing MROKI_APP_API_KEY and MROKI_APP_DATABASE_URL
 existingSecret: ""
