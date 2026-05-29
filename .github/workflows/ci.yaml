@@ -45,7 +45,8 @@ jobs:
         [
           "build/package/mroki-api",
           "build/package/mroki-proxy",
-          "build/package/mroki-hub"
+          "build/package/mroki-hub",
+          "build/package/mroki-db-migrator"
         ]
     secrets: inherit
 
