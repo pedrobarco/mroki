@@ -80,6 +80,8 @@ Uses hardcoded URLs — no communication with mroki-api.
 
 Sensitive field values (headers and JSON body) are replaced with `[REDACTED]` before storage or diff computation. A default set (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key` headers) is always redacted. In API mode, extra redacted fields come from the gate configuration in mroki-api.
 
+> **Note:** Requests forwarded to the shadow service include a fixed `X-Mroki-Mode: shadow` header so downstream systems can identify shadow traffic. It is added to shadow requests only — live requests are never modified — and is intentionally **not** redacted so its value stays visible for reference in stored request data. The header name is not configurable.
+
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `MROKI_APP_REDACTED_FIELDS` | No | _(none)_ | Comma-separated additional fields to redact (gjson path notation). Redacted fields are also excluded from diff computation. |

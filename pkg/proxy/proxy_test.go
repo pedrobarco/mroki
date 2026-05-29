@@ -563,3 +563,93 @@ func TestProxy_ServeHTTP_unlimited_when_zero(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	assert.True(t, shadowCalled.Load(), "shadow service should be called when max body size is 0 (unlimited)")
 }
+
+func TestProxy_ServeHTTP_adds_shadow_header_to_shadow_only(t *testing.T) {
+	var liveMode, liveHost atomic.Value
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		liveMode.Store(r.Header.Get(proxy.ShadowHeader))
+		liveHost.Store(r.Host)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer liveServer.Close()
+
+	shadowReceived := make(chan struct {
+		mode string
+		host string
+	}, 1)
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		shadowReceived <- struct {
+			mode string
+			host string
+		}{mode: r.Header.Get(proxy.ShadowHeader), host: r.Host}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer shadowServer.Close()
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+	p := proxy.NewProxy(liveURL, shadowURL)
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	select {
+	case got := <-shadowReceived:
+		assert.Equal(t, "shadow", got.mode, "shadow request should carry the identification header")
+		// Host must not get a "-shadow" suffix (avoid Envoy anti-pattern); it
+		// is the shadow target host as set by normal URL rewriting.
+		assert.Equal(t, shadowURL.Host, got.host, "shadow Host must be the target host, unmodified")
+		assert.NotContains(t, got.host, "-shadow", "Host must never be suffixed with -shadow")
+	case <-time.After(1 * time.Second):
+		t.Fatal("shadow service was not called within timeout")
+	}
+
+	// Live request must not be modified in any way.
+	assert.Equal(t, "", liveMode.Load(), "live request must not carry the shadow identification header")
+	assert.Equal(t, liveURL.Host, liveHost.Load(), "live Host must be the target host, unmodified")
+}
+
+func TestProxy_ServeHTTP_captures_shadow_header_in_request_data(t *testing.T) {
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer liveServer.Close()
+
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer shadowServer.Close()
+
+	done := make(chan struct{})
+	var capturedReq proxy.ProxyRequest
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+	p := proxy.NewProxy(
+		liveURL,
+		shadowURL,
+		proxy.WithCallbackFn(func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+			capturedReq = req
+			close(done)
+			return nil
+		}),
+	)
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("callback was not called within timeout")
+	}
+
+	assert.Equal(t, "shadow", capturedReq.Headers.Get(proxy.ShadowHeader),
+		"stored request data should capture the shadow identification header")
+}

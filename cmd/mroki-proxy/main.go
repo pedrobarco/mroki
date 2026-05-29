@@ -116,6 +116,11 @@ func main() {
 	// Build diff options from config (works in both modes)
 	var diffOpts []diff.Option
 
+	// Exclude the shadow identification header from diff comparison so it never
+	// shows up as a difference. It is not redacted — its value stays visible for
+	// reference in stored request data.
+	diffOpts = append(diffOpts, diff.WithIgnoredFields("headers."+proxy.ShadowHeader))
+
 	if len(cfg.App.DiffIgnoredFields) > 0 {
 		diffOpts = append(diffOpts, diff.WithIgnoredFields(cfg.App.DiffIgnoredFields...))
 	}

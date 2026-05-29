@@ -19,6 +19,15 @@ var (
 	defaultShadowTimeout = 10 * time.Second
 )
 
+// ShadowHeader is the fixed header added to requests forwarded to the shadow
+// service so downstream systems can distinguish shadow traffic from live
+// traffic. The name is intentionally not configurable so consumers can rely on
+// a stable convention. The live request path is never modified.
+const ShadowHeader = "X-Mroki-Mode"
+
+// shadowHeaderValue is the value set on ShadowHeader for shadow requests.
+const shadowHeaderValue = "shadow"
+
 // ProxyRequest represents the original HTTP request being proxied
 type ProxyRequest struct {
 	Method   string
@@ -260,10 +269,17 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// This allows shadow requests to complete even if the client disconnects,
 	// ensuring we collect complete response data for the callback
 	shadowCtx, shadowCancel := context.WithTimeout(context.Background(), p.shadowTimeout)
+
+	// Clone the request for the shadow target and add the identification header
+	// so the live request is never modified. The clone carries Background()
+	// context to match the shadow lifecycle.
+	shadowReq := r.Clone(context.Background())
+	shadowReq.Header.Set(ShadowHeader, shadowHeaderValue)
+
 	// Launch shadow request
 	go func() {
 		start := time.Now()
-		resp, err := p.forwardRequest(shadowCtx, r, p.Shadow, body)
+		resp, err := p.forwardRequest(shadowCtx, shadowReq, p.Shadow, body)
 		if err != nil {
 			shadowCh <- responseResult{err: err}
 			return
@@ -328,8 +344,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				Method:   r.Method,
 				Path:     r.URL.Path,
 				RawQuery: r.URL.RawQuery,
-				Headers:  r.Header.Clone(),
-				Body:     body,
+				// Capture the shadow request headers so the identification
+				// header is recorded in stored request data for reference.
+				Headers: shadowReq.Header.Clone(),
+				Body:    body,
 			}
 			live := ProxyResponse{
 				StatusCode: liveResp.resp.StatusCode,
