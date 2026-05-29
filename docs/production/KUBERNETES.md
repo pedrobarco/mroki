@@ -25,6 +25,19 @@ helm install mroki oci://ghcr.io/pedrobarco/mroki/charts/mroki \
 
 See the chart README for all configurable values.
 
+### Database migrations
+
+Schema migrations are applied by the `mroki-db-migrator` image (Atlas), not the API. The chart runs it as a Helm `pre-install,pre-upgrade` Job hook, so migrations execute exactly once per `helm install`/`helm upgrade` — before the API pods roll out.
+
+- Enabled by default (`api.migration.enabled=true`). The Job is created when either `api.existingSecret` or `api.database.passwordSecret` is set.
+- To apply a new migration, run `helm upgrade` with a chart/image version that bundles it.
+- **Existing databases:** a database previously managed by the API's old auto-migration has no Atlas revision table, so the migrator fails with `not clean: ... baseline version ... required`. Set the baseline to the schema version already present to mark those migrations as applied without re-running them:
+
+  ```bash
+  helm upgrade mroki oci://ghcr.io/pedrobarco/mroki/charts/mroki \
+    --set api.migration.baseline=20260328015306
+  ```
+
 ## Raw Manifests
 
 Apply manifests from [`deployments/kubernetes/`](../../deployments/kubernetes/):

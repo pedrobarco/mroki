@@ -125,7 +125,7 @@ go test ./pkg/proxy/...
 See the [Getting Started: Full Stack](../getting-started/FULL_STACK.md) guide for running all components with Docker Compose, or run individual components with `go run`:
 
 ```bash
-# Start dev dependencies (PostgreSQL)
+# Start dev dependencies (PostgreSQL + migrations + seed data)
 docker compose -f build/dev/compose.yaml up -d
 
 # Run each component in separate terminals
@@ -302,7 +302,7 @@ func TestProxy_ServeHTTP(t *testing.T) {
 
 ### Schema Changes
 
-Currently using ent for schema definition and auto-migration.
+Uses Ent for schema definition and Atlas for versioned migrations.
 
 **File Locations:**
 - Schema: `ent/schema/` (e.g., `request.go`, `response.go`, `diff.go`, `gate.go`)
@@ -319,7 +319,17 @@ Currently using ent for schema definition and auto-migration.
 
 ### Running Migrations
 
-Currently applied automatically on startup. Future versions will use migration tools.
+Migrations are versioned files in `ent/migrate/migrations/`, applied by the `mroki-db-migrator` image (Atlas) — **not** by the API at startup.
+
+Generate a new migration after changing the schema:
+
+```bash
+make api-migrate name=<description>
+```
+
+The dev stack applies migrations automatically: `docker compose -f build/dev/compose.yaml up` starts PostgreSQL, runs `mroki-db-migrator` to completion, then seeds the database before the API starts.
+
+> If you have a dev database volume created before the Atlas migrator existed (raw `psql` schema, untracked by Atlas), the migrator refuses to run with `not clean: ... baseline version ... required`. Reset it with `docker compose -f build/dev/compose.yaml down -v`.
 
 ## Debugging
 

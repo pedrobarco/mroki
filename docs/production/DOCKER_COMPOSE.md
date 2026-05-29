@@ -48,6 +48,14 @@ services:
       timeout: 5s
       retries: 5
 
+  mroki-db-migrator:
+    image: ghcr.io/pedrobarco/mroki/mroki-db-migrator:latest
+    command: ["--url", "postgres://mroki:${DB_PASSWORD}@postgres:5432/mroki?sslmode=disable"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   mroki-api:
     image: ghcr.io/pedrobarco/mroki-api:latest
     restart: always
@@ -60,6 +68,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mroki-db-migrator:
+        condition: service_completed_successfully
 
   mroki-proxy:
     image: ghcr.io/pedrobarco/mroki-proxy:latest

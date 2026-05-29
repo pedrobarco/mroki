@@ -233,8 +233,8 @@ All relationships use `ON DELETE CASCADE` — deleting a gate cascades to all it
 ### Schema Management
 
 - Schema defined in `ent/schema/`
-- Migrations generated via `make api-migrate name=<description>`
-- Auto-applied on API startup via ent auto-migration
+- Versioned migrations generated via `make api-migrate name=<description>` (written to `ent/migrate/migrations/`)
+- Applied by the `mroki-db-migrator` image (Atlas), **not** the API: a Helm `pre-install`/`pre-upgrade` Job hook on Kubernetes, and a one-shot service on Docker Compose
 
 ---
 

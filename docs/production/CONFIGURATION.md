@@ -32,6 +32,8 @@ This is the single source of truth for all mroki configuration. Each component i
 | `MROKI_APP_DATABASE_MAX_CONN_IDLE` | No | `5m` | Max idle time for a pooled connection |
 | `MROKI_APP_DATABASE_MAX_CONN_LIFE` | No | `1h` | Max lifetime of a pooled connection |
 
+> **Schema migrations** are not configured via environment variables. They are applied by the `mroki-db-migrator` image (Atlas) — a Helm `pre-install`/`pre-upgrade` Job on Kubernetes (`api.migration.*`, including `baseline` for pre-existing databases) and a one-shot service on Docker Compose. See [Kubernetes → Database migrations](KUBERNETES.md#database-migrations).
+
 ---
 
 ## mroki-proxy

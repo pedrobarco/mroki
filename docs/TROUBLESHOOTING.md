@@ -145,7 +145,7 @@ echo $MROKI_APP_DATABASE_URL
 
 **Symptom:** `POST /gates` returns 500.
 **Cause:** Database schema not created, connection pool exhausted, or invalid URL in the request body.
-**Fix:** Check API logs for the specific database error. Ensure the API started successfully and ran auto-migration.
+**Fix:** Check API logs for the specific database error. Ensure the API started successfully and that the schema migration ran (the `mroki-db-migrator` Job/service applies the schema — the API does not auto-migrate).
 
 ---
 
@@ -183,9 +183,9 @@ psql -U postgres -c "SELECT count(*) FROM pg_stat_activity WHERE datname = 'post
 
 ---
 
-**Symptom:** Schema or migration errors on startup.
-**Cause:** The API auto-migrates on startup using ent. Failures indicate a database permission issue or incompatible schema state.
-**Fix:** Connect directly and inspect:
+**Symptom:** Schema or migration errors.
+**Cause:** The schema is applied by the `mroki-db-migrator` image (Atlas), not the API. A database created before the migrator existed (untracked by Atlas) reports `not clean: ... baseline version ... required`; otherwise check database permissions or an incompatible schema state.
+**Fix:** Inspect the migrator logs (`kubectl logs job/<release>-api-migrate` or `docker compose logs mroki-db-migrator`). For a pre-existing/untracked database, set the migration baseline (Helm: `--set api.migration.baseline=<version>`). Connect directly to inspect:
 ```bash
 psql -U postgres -d postgres
 \dt  -- list tables
