@@ -11,6 +11,19 @@ image:
   # -- Overrides the image tag (default is the chart appVersion)
   tag: ""
 
+migration:
+  # -- Enable database migration init container
+  enabled: true
+  image:
+    # -- Migration image registry
+    registry: ghcr.io
+    # -- Migration image repository
+    repository: pedrobarco/mroki/mroki-db-migrator
+    # -- Migration image pull policy
+    pullPolicy: IfNotPresent
+    # -- Overrides the migration image tag (default is the chart appVersion)
+    tag: ""
+
 # -- Name of an existing Secret containing MROKI_APP_API_KEY and MROKI_APP_DATABASE_URL
 existingSecret: ""
 
