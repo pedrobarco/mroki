@@ -8,7 +8,7 @@ Guide for developers working on mroki.
 
 - **Go 1.26+**
 - **Docker & Docker Compose**
-- **Node.js 18+** (for hub development)
+- **Node.js 22 (LTS)** — minimum 20.19+ (for hub development)
 - **PostgreSQL 15+** (via Docker is fine)
 - **Make** (optional, for convenience)
 
