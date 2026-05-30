@@ -19,8 +19,9 @@ type Config config.Config[struct {
 	ShadowURL *url.URL `env:"SHADOW_URL"`
 
 	Port          int           `env:"PORT, default=8080"`
+	AdminPort     int           `env:"ADMIN_PORT, default=8081"`        // health endpoints listener, separate from proxied traffic
 	MaxBodySize   int64         `env:"MAX_BODY_SIZE, default=10485760"` // 10MB, 0=unlimited
-	SamplingRate  float64       `env:"SAMPLING_RATE, default=1.0"`       // 0.0-1.0, default=1.0 (100%)
+	SamplingRate  float64       `env:"SAMPLING_RATE, default=1.0"`      // 0.0-1.0, default=1.0 (100%)
 	LiveTimeout   time.Duration `env:"LIVE_TIMEOUT, default=5s"`
 	ShadowTimeout time.Duration `env:"SHADOW_TIMEOUT, default=10s"`
 	ReadTimeout   time.Duration `env:"READ_TIMEOUT, default=30s"`
@@ -58,6 +59,17 @@ func (c Config) Validate() error {
 	// Validate port range
 	if c.App.Port < 1 || c.App.Port > 65535 {
 		verr.Add(config.SeverityError, fmt.Sprintf("port must be between 1 and 65535, got %d", c.App.Port))
+	}
+
+	// Validate admin port range
+	if c.App.AdminPort < 1 || c.App.AdminPort > 65535 {
+		verr.Add(config.SeverityError, fmt.Sprintf("admin_port must be between 1 and 65535, got %d", c.App.AdminPort))
+	}
+
+	// Admin port must differ from the main proxy port so health endpoints never
+	// collide with proxied traffic on the same listener.
+	if c.App.Port >= 1 && c.App.AdminPort >= 1 && c.App.AdminPort == c.App.Port {
+		verr.Add(config.SeverityError, fmt.Sprintf("admin_port (%d) must differ from port (%d)", c.App.AdminPort, c.App.Port))
 	}
 
 	// Check if API mode or standalone mode

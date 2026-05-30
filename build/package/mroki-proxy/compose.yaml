@@ -5,9 +5,16 @@ services:
       dockerfile: build/package/mroki-proxy/Dockerfile
     environment:
       MROKI_APP_PORT: ${MROKI_PROXY_PORT:-8080}
+      MROKI_APP_ADMIN_PORT: ${MROKI_PROXY_ADMIN_PORT:-8081}
       MROKI_APP_API_URL: ${MROKI_APP_API_URL:-}
       MROKI_APP_API_KEY: ${MROKI_APP_API_KEY:-}
       MROKI_APP_GATE_ID: ${MROKI_APP_GATE_ID:-}
     ports:
       - "${MROKI_PROXY_PORT:-8080}:${MROKI_PROXY_PORT:-8080}"
+      - "${MROKI_PROXY_ADMIN_PORT:-8081}:${MROKI_PROXY_ADMIN_PORT:-8081}"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:${MROKI_PROXY_ADMIN_PORT:-8081}/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped

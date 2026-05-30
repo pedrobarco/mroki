@@ -29,7 +29,7 @@ COPY --from=builder /app/mroki-proxy .
 # Skip .env file loading in container
 ENV APP_ENV=production
 
-# Expose default port
-EXPOSE 8080
+# Expose default proxy and admin (health) ports
+EXPOSE 8080 8081
 
 CMD ["./mroki-proxy"]
