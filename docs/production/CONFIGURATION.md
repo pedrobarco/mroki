@@ -49,6 +49,7 @@ The proxy supports two mutually exclusive operating modes: **API mode** and **St
 | `MROKI_APP_SHADOW_TIMEOUT` | No | `10s` | Shadow request timeout — does not block client |
 | `MROKI_APP_MAX_BODY_SIZE` | No | `10485760` | Skip shadow for requests above this size in bytes (`0` = unlimited) |
 | `MROKI_APP_SAMPLING_RATE` | No | `1.0` | Shadow traffic sampling rate (`0.0`–`1.0`, `1.0` = 100%) |
+| `MROKI_APP_SHADOW_RULES` | No | _(deny non-idempotent)_ | Shadow matching rules — see [Shadow Matching Rules](#shadow-matching-rules) |
 | `MROKI_APP_READ_TIMEOUT` | No | `30s` | Server read timeout |
 | `MROKI_APP_WRITE_TIMEOUT` | No | `60s` | Server write timeout (must be ≥ live timeout) |
 | `MROKI_APP_IDLE_TIMEOUT` | No | `120s` | Server idle timeout |
@@ -87,6 +88,31 @@ Sensitive field values (headers and JSON body) are replaced with `[REDACTED]` be
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `MROKI_APP_REDACTED_FIELDS` | No | _(none)_ | Comma-separated additional fields to redact (gjson path notation). Redacted fields are also excluded from diff computation. |
+
+### Shadow Matching Rules
+
+Selectively shadow requests based on HTTP method and path. By default the proxy mirrors every request to the shadow service, including infrastructure routes (`/metrics`, `/health`) and non-idempotent requests that may cause side effects.
+
+`MROKI_APP_SHADOW_RULES` is a comma-separated list of `ACTION METHOD:path` entries:
+
+- **ACTION** — `allow` (shadow it) or `deny` (skip shadow, live-only)
+- **METHOD** — an HTTP method (e.g. `POST`) or `*` for any method
+- **path** — a glob-style pattern (e.g. `/health/*`, `*`)
+
+Rules are evaluated in definition order; the **first match wins**. Requests that match no rule are shadowed.
+
+When unset, the **defaults** apply: deny `POST`, `PUT`, `DELETE`, and `PATCH` (so only `GET`, `HEAD`, and `OPTIONS` are shadowed). Setting `MROKI_APP_SHADOW_RULES` **replaces** the defaults entirely.
+
+```bash
+# Deny infra routes, allow one search endpoint, deny all other writes
+MROKI_APP_SHADOW_RULES="deny *:/health/*,allow POST:/api/v1/search,deny POST:*"
+```
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MROKI_APP_SHADOW_RULES` | No | _(deny POST/PUT/DELETE/PATCH)_ | Comma-separated `ACTION METHOD:path` rules. First match wins; unmatched requests are shadowed. Replaces defaults when set. |
+
+> **Note:** Not needed for the Caddy module — Caddy's native route matchers already handle selective shadowing.
 
 ### Diff Options
 
