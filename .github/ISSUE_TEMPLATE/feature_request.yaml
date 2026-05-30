@@ -1,7 +1,15 @@
 name: Feature Request
 description: Suggest a new feature or improvement.
 labels: ["feature"]
+title: "feat(<scope>): <short description>"
 body:
+  - type: markdown
+    attributes:
+      value: |
+        **Title convention:** Use `type(scope): description` (Conventional Commits).
+        - **type**: one of `feat`, `fix`, `docs`, `test`, `ci`, `refactor`, `chore`, `perf`
+        - **scope**: matches the Component below — `api`, `proxy`, `hub`, `caddy`, `infra`
+        - Example: `feat(proxy): add admin health endpoints`
   - type: checkboxes
     id: search
     attributes:
