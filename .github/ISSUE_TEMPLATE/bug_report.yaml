@@ -1,7 +1,15 @@
 name: Bug Report
 description: Report a bug or unexpected behavior in mroki.
 labels: ["bug"]
+title: "fix(<scope>): <short description>"
 body:
+  - type: markdown
+    attributes:
+      value: |
+        **Title convention:** Use `type(scope): description` (Conventional Commits).
+        - **type**: usually `fix` for bugs; other types are `feat`, `docs`, `test`, `ci`, `refactor`, `chore`, `perf`
+        - **scope**: matches the Component below — `api`, `proxy`, `hub`, `caddy`, `infra`
+        - Example: `fix(proxy): prevent panic on nil request body`
   - type: checkboxes
     id: search
     attributes:
