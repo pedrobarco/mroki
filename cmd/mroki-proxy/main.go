@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -170,8 +171,8 @@ func main() {
 		Logger:        log,
 		APIClient:     apiClient,          // nil if standalone mode
 		APITimeout:    cfg.App.APITimeout, // overall deadline for API calls
-		DiffOptions:   diffOpts,    // Only used in standalone mode
-		Redactor:      redactor,    // Only used in standalone mode
+		DiffOptions:   diffOpts,           // Only used in standalone mode
+		Redactor:      redactor,           // Only used in standalone mode
 	}
 
 	mux := http.NewServeMux()
@@ -185,17 +186,45 @@ func main() {
 		IdleTimeout:  cfg.App.IdleTimeout,
 	}
 
+	// Admin server hosts the health endpoints on a dedicated port so they never
+	// collide with proxied traffic on the main listener. ready signals whether
+	// the proxy should receive traffic; it is flipped on once startup completes
+	// and back off when graceful shutdown begins.
+	var ready atomic.Bool
+	adminMux := http.NewServeMux()
+	adminMux.Handle("/health/live", handlers.Liveness())
+	adminMux.Handle("/health/ready", handlers.Readiness(&ready))
+
+	adminServer := &http.Server{
+		Addr:              fmt.Sprintf(":%d", cfg.App.AdminPort),
+		Handler:           adminMux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	// serverErrors is buffered for both listeners so a failing goroutine never
+	// blocks on send.
+	serverErrors := make(chan error, 2)
+
+	go func() {
+		log.Info("Admin server started", "address", adminServer.Addr)
+		if err := adminServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErrors <- fmt.Errorf("admin server: %w", err)
+		}
+	}()
+
 	// Start server in goroutine
-	serverErrors := make(chan error, 1)
 	go func() {
 		log.Info("Proxy server started",
 			"address", server.Addr,
 			"mode", getModeString(apiClient),
 		)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			serverErrors <- err
+			serverErrors <- fmt.Errorf("proxy server: %w", err)
 		}
 	}()
+
+	// Configuration is loaded and both listeners are starting; report ready.
+	ready.Store(true)
 
 	// Wait for interrupt signal
 	stop := make(chan os.Signal, 1)
@@ -209,6 +238,10 @@ func main() {
 		log.Info("Shutting down server", "signal", sig.String())
 	}
 
+	// Stop reporting ready so readiness probes drain this pod before the
+	// listeners close.
+	ready.Store(false)
+
 	// Graceful shutdown with timeout
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -217,6 +250,12 @@ func main() {
 		log.Error("Error during shutdown", "error", err)
 	} else {
 		log.Info("Server stopped")
+	}
+
+	if err := adminServer.Shutdown(shutdownCtx); err != nil {
+		log.Error("Error during admin server shutdown", "error", err)
+	} else {
+		log.Info("Admin server stopped")
 	}
 }
 

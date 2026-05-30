@@ -23,6 +23,7 @@ func validStandaloneConfig() config.Config {
 	cfg.App.LiveURL = mustURL("http://live:8080")
 	cfg.App.ShadowURL = mustURL("http://shadow:8080")
 	cfg.App.Port = 8080
+	cfg.App.AdminPort = 8081
 	cfg.App.SamplingRate = 1.0
 	cfg.App.LiveTimeout = 5 * time.Second
 	cfg.App.ShadowTimeout = 10 * time.Second
@@ -39,6 +40,7 @@ func validAPIConfig() config.Config {
 	cfg.App.GateID = "550e8400-e29b-41d4-a716-446655440000"
 	cfg.App.APIKey = "test-api-key-min-16-chars"
 	cfg.App.Port = 8080
+	cfg.App.AdminPort = 8081
 	cfg.App.SamplingRate = 1.0
 	cfg.App.LiveTimeout = 5 * time.Second
 	cfg.App.ShadowTimeout = 10 * time.Second
@@ -87,6 +89,27 @@ func TestValidate_invalid_port(t *testing.T) {
 	err = cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "port must be between 1 and 65535")
+}
+
+func TestValidate_invalid_admin_port(t *testing.T) {
+	cfg := validStandaloneConfig()
+	cfg.App.AdminPort = 0
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "admin_port must be between 1 and 65535")
+
+	cfg.App.AdminPort = 70000
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "admin_port must be between 1 and 65535")
+}
+
+func TestValidate_admin_port_equals_port(t *testing.T) {
+	cfg := validStandaloneConfig()
+	cfg.App.AdminPort = cfg.App.Port
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must differ from port")
 }
 
 func TestValidate_invalid_timeouts(t *testing.T) {
@@ -148,7 +171,6 @@ func TestValidate_sampling_rate(t *testing.T) {
 		assert.Contains(t, err.Error(), "sampling_rate must be between 0.0 and 1.0")
 	})
 }
-
 
 func TestValidate_api_mode_invalid_gate_id(t *testing.T) {
 	cfg := validAPIConfig()

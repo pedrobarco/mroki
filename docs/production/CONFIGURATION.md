@@ -45,6 +45,7 @@ The proxy supports two mutually exclusive operating modes: **API mode** and **St
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `MROKI_APP_PORT` | No | `8080` | Proxy server port |
+| `MROKI_APP_ADMIN_PORT` | No | `8081` | Admin server port for health endpoints — must differ from `MROKI_APP_PORT` |
 | `MROKI_APP_LIVE_TIMEOUT` | No | `5s` | Live request timeout — blocks client response, keep tight |
 | `MROKI_APP_SHADOW_TIMEOUT` | No | `10s` | Shadow request timeout — does not block client |
 | `MROKI_APP_MAX_BODY_SIZE` | No | `10485760` | Skip shadow for requests above this size in bytes (`0` = unlimited) |
@@ -52,6 +53,15 @@ The proxy supports two mutually exclusive operating modes: **API mode** and **St
 | `MROKI_APP_READ_TIMEOUT` | No | `30s` | Server read timeout |
 | `MROKI_APP_WRITE_TIMEOUT` | No | `60s` | Server write timeout (must be ≥ live timeout) |
 | `MROKI_APP_IDLE_TIMEOUT` | No | `120s` | Server idle timeout |
+
+#### Health endpoints
+
+The proxy exposes health endpoints on the admin port (`MROKI_APP_ADMIN_PORT`, default `8081`), kept separate from the main proxy port so they never collide with proxied traffic forwarded to the upstream service.
+
+| Endpoint | Purpose | Responses |
+|----------|---------|-----------|
+| `GET /health/live` | Liveness — process is running | `200 OK` |
+| `GET /health/ready` | Readiness — accepting traffic | `200 OK` when ready, `503 Service Unavailable` during startup or shutdown |
 
 ### API Mode (Recommended)
 
