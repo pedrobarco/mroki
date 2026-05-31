@@ -310,4 +310,51 @@ test.describe('Request Detail Page', () => {
     expect(content.shadow_response.status_code).toBe(500)
     expect(content.diff.content).toHaveLength(1)
   })
+
+  test('patch view lists operations and filters by op type', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `patch-gate-${suffix}`,
+      `https://patch-live-${suffix}.example.com`,
+      `https://patch-shadow-${suffix}.example.com`
+    )
+    const req = await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/patch-test',
+      liveBody: btoa(JSON.stringify({ status: 'processing', legacy_token: 'tok_old' })),
+      shadowBody: btoa(JSON.stringify({ status: 'completed', coupon: 'SAVE10' })),
+      liveStatus: 200,
+      shadowStatus: 200,
+      diffContent: [
+        { op: 'replace', path: '/body/status', value: 'completed' },
+        { op: 'add', path: '/body/coupon', value: 'SAVE10' },
+        { op: 'remove', path: '/body/legacy_token' },
+      ],
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+
+    // Switch to the Patch view
+    await page.getByRole('button', { name: 'Patch' }).click()
+    await expect(page.getByText(/3 shown/)).toBeVisible()
+
+    // All three operations render with their leaf paths and values
+    await expect(page.getByText('coupon')).toBeVisible()
+    await expect(page.getByText('legacy_token')).toBeVisible()
+    await expect(page.getByText('completed')).toBeVisible()
+    await expect(page.getByText('"processing"')).toBeVisible() // struck-through old value
+    await expect(page.getByText('"tok_old"')).toBeVisible()
+
+    // Filtering by Removed shows only the remove op
+    await page.getByRole('button', { name: /Removed/ }).click()
+    await expect(page.getByText(/1 shown/)).toBeVisible()
+    await expect(page.getByText('legacy_token')).toBeVisible()
+    await expect(page.getByText('coupon')).not.toBeVisible()
+    await expect(page.getByText('completed')).not.toBeVisible()
+
+    // Filtering by Added shows only the add op
+    await page.getByRole('button', { name: /Added/ }).click()
+    await expect(page.getByText('coupon')).toBeVisible()
+    await expect(page.getByText('legacy_token')).not.toBeVisible()
+  })
 })

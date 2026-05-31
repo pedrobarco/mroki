@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch, onMounted, onUnmounted } from 'vue'
 import type { Response, PatchOp, DiffConfig } from '@/api'
-import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from '@/lib/json-diff'
-import type { DiffLine, Token, TokenType } from '@/lib/json-diff'
+import {
+  buildDiffLines,
+  buildSplitRows,
+  stripPathPrefix,
+  expandCollapsed,
+  buildPatchRows,
+  tokenizeJson,
+} from '@/lib/json-diff'
+import type { DiffLine, Token, TokenType, PatchRow } from '@/lib/json-diff'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { WrapText, SlidersHorizontal } from 'lucide-vue-next'
+import { WrapText, SlidersHorizontal, ChevronRight, Check, ListFilter } from 'lucide-vue-next'
 
-type ViewMode = 'unified' | 'split'
+type ViewMode = 'unified' | 'split' | 'patch'
 const MD_BREAKPOINT = 768
 const isMdScreen = ref(window.innerWidth >= MD_BREAKPOINT)
 // Default to split view on desktop; auto-fall back to unified below the breakpoint.
@@ -101,6 +108,7 @@ const combinedOps = computed(() => {
 })
 
 const expandedPaths = ref(new Set<string>())
+const expandedPatchRows = ref(new Set<string>())
 const baseDiffLines = shallowRef<DiffLine[]>([])
 watch(
   [isJson, liveCombined, shadowCombined, combinedOps],
@@ -110,6 +118,7 @@ watch(
         ? buildDiffLines(liveCombined.value, shadowCombined.value, combinedOps.value)
         : []
     expandedPaths.value = new Set()
+    expandedPatchRows.value = new Set()
   },
   { immediate: true }
 )
@@ -156,6 +165,90 @@ function handleCollapse(line: DiffLine) {
 const livePlain = computed(() => liveBody.value ?? '')
 const shadowPlain = computed(() => shadowBody.value ?? '')
 const diffCount = computed(() => props.diffContent?.length ?? 0)
+
+// --- Patch list view (#75) ---
+type PatchFilter = 'all' | 'add' | 'remove' | 'replace'
+const patchFilter = ref<PatchFilter>('all')
+
+const patchRows = computed<PatchRow[]>(() => buildPatchRows(combinedOps.value, liveCombined.value))
+const patchCounts = computed(() => {
+  const c = { all: patchRows.value.length, add: 0, remove: 0, replace: 0 }
+  for (const r of patchRows.value) c[r.op]++
+  return c
+})
+const filteredPatchRows = computed(() =>
+  patchFilter.value === 'all'
+    ? patchRows.value
+    : patchRows.value.filter((r) => r.op === patchFilter.value)
+)
+const patchFilters = computed(() => [
+  {
+    key: 'all' as const,
+    label: 'All',
+    n: patchCounts.value.all,
+    active: 'bg-accent text-foreground',
+  },
+  {
+    key: 'add' as const,
+    label: 'Added',
+    n: patchCounts.value.add,
+    active: 'bg-green-500/15 text-green-400',
+  },
+  {
+    key: 'remove' as const,
+    label: 'Removed',
+    n: patchCounts.value.remove,
+    active: 'bg-red-500/15 text-red-400',
+  },
+  {
+    key: 'replace' as const,
+    label: 'Replaced',
+    n: patchCounts.value.replace,
+    active: 'bg-amber-500/15 text-amber-400',
+  },
+])
+
+function togglePatchRow(path: string) {
+  const next = new Set(expandedPatchRows.value)
+  if (next.has(path)) next.delete(path)
+  else next.add(path)
+  expandedPatchRows.value = next
+}
+function isPatchRowExpanded(path: string): boolean {
+  return expandedPatchRows.value.has(path)
+}
+
+interface OpMeta {
+  sign: string
+  abbr: string
+  badge: string
+  rowHover: string
+}
+function opMeta(op: PatchRow['op']): OpMeta {
+  switch (op) {
+    case 'add':
+      return {
+        sign: '+',
+        abbr: 'ADD',
+        badge: 'bg-green-500/15 text-green-400',
+        rowHover: 'hover:bg-green-500/5',
+      }
+    case 'remove':
+      return {
+        sign: '−',
+        abbr: 'REM',
+        badge: 'bg-red-500/15 text-red-400',
+        rowHover: 'hover:bg-red-500/5',
+      }
+    default:
+      return {
+        sign: '~',
+        abbr: 'REP',
+        badge: 'bg-amber-500/15 text-amber-400',
+        rowHover: 'hover:bg-amber-500/5',
+      }
+  }
+}
 
 // --- Line styling (background strip) ---
 function lineBg(line: DiffLine): string {
@@ -273,13 +366,22 @@ function tokenClass(token: Token): string {
               </Tooltip>
             </TooltipProvider>
           </div>
-          <!-- View mode toggle (md+ only) -->
-          <div
-            v-if="isJson && !isBinary && isMdScreen"
-            class="flex items-center rounded-md border border-border"
-          >
+          <!-- View mode toggle -->
+          <div v-if="isJson && !isBinary" class="flex items-center rounded-md border border-border">
             <button
               class="px-2 py-0.5 text-xs rounded-l-md transition-colors"
+              :class="
+                viewMode === 'unified'
+                  ? 'bg-accent text-foreground'
+                  : 'text-dim hover:text-foreground'
+              "
+              @click="viewMode = 'unified'"
+            >
+              Unified
+            </button>
+            <button
+              v-if="isMdScreen"
+              class="px-2 py-0.5 text-xs transition-colors border-l border-border"
               :class="
                 viewMode === 'split'
                   ? 'bg-accent text-foreground'
@@ -292,13 +394,13 @@ function tokenClass(token: Token): string {
             <button
               class="px-2 py-0.5 text-xs rounded-r-md transition-colors border-l border-border"
               :class="
-                viewMode === 'unified'
+                viewMode === 'patch'
                   ? 'bg-accent text-foreground'
                   : 'text-dim hover:text-foreground'
               "
-              @click="viewMode = 'unified'"
+              @click="viewMode = 'patch'"
             >
-              Unified
+              Patch
             </button>
           </div>
           <!-- Diff config snapshot (settings used to compute this diff) -->
@@ -508,6 +610,153 @@ function tokenClass(token: Token): string {
                   :class="['px-4 text-transparent select-none', wrapLines ? '' : 'min-w-fit']"
                 >&nbsp;</div></template></pre>
           </div>
+        </div>
+      </div>
+
+      <!-- Patch list view (#75) -->
+      <div v-else-if="isJson && !isBinary && viewMode === 'patch'">
+        <!-- Filter toolbar -->
+        <div
+          class="flex items-center justify-between gap-3 flex-wrap px-5 py-2.5 border-b border-border"
+        >
+          <div class="flex items-center gap-1.5 text-xs">
+            <button
+              v-for="f in patchFilters"
+              :key="f.key"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border transition-colors"
+              :class="patchFilter === f.key ? f.active : 'text-dim hover:text-foreground'"
+              @click="patchFilter = f.key"
+            >
+              {{ f.label }}
+              <span class="text-[10px] font-mono opacity-70">{{ f.n }}</span>
+            </button>
+          </div>
+          <div class="text-[11px] text-dim font-mono hidden sm:block">
+            RFC 6902 JSON Patch · {{ filteredPatchRows.length }} shown
+          </div>
+        </div>
+
+        <!-- Change rows -->
+        <div v-if="filteredPatchRows.length">
+          <div
+            v-for="row in filteredPatchRows"
+            :key="row.path"
+            class="grid grid-cols-[auto_auto_1fr] items-start gap-3 px-5 py-2.5 border-b border-border/60 transition-colors"
+            :class="opMeta(row.op).rowHover"
+          >
+            <!-- Expand chevron / spacer -->
+            <button
+              v-if="row.expandable"
+              class="shrink-0 text-dim hover:text-foreground mt-1 transition-transform"
+              :class="isPatchRowExpanded(row.path) ? 'rotate-90' : ''"
+              :aria-label="isPatchRowExpanded(row.path) ? 'Collapse value' : 'Expand value'"
+              @click="togglePatchRow(row.path)"
+            >
+              <ChevronRight class="size-3" />
+            </button>
+            <span v-else class="w-3 shrink-0" />
+
+            <!-- Op badge -->
+            <span
+              class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold mt-0.5"
+              :class="opMeta(row.op).badge"
+            >
+              <span class="text-xs leading-none">{{ opMeta(row.op).sign }}</span>
+              {{ opMeta(row.op).abbr }}
+            </span>
+
+            <!-- Path + value + expandable detail -->
+            <div class="min-w-0">
+              <div class="font-mono text-[12.5px] leading-tight">
+                <span class="text-dim">/</span
+                ><template v-for="(seg, si) in row.pathPrefix" :key="si"
+                  ><span class="text-dim">{{ seg }}</span
+                  ><span class="text-dim">/</span></template
+                ><span
+                  :class="row.leafIsIndex ? 'text-muted-foreground' : 'text-foreground font-medium'"
+                  >{{ row.leafLabel }}</span
+                >
+              </div>
+              <div
+                class="font-mono text-[12.5px] leading-snug mt-1 truncate"
+                :title="row.valueTitle"
+              >
+                <template v-if="row.op === 'replace'"
+                  ><span class="line-through decoration-red-400/50"
+                    ><span v-for="(t, ti) in row.oldInline" :key="ti" :class="tokenClass(t)">{{
+                      t.text
+                    }}</span></span
+                  ><span class="text-dim mx-1.5">→</span
+                  ><span
+                    ><span v-for="(t, ti) in row.newInline" :key="ti" :class="tokenClass(t)">{{
+                      t.text
+                    }}</span></span
+                  ></template
+                ><template v-else-if="row.op === 'add'"
+                  ><span v-for="(t, ti) in row.newInline" :key="ti" :class="tokenClass(t)">{{
+                    t.text
+                  }}</span></template
+                ><template v-else
+                  ><span class="line-through decoration-red-400/40"
+                    ><span v-for="(t, ti) in row.oldInline" :key="ti" :class="tokenClass(t)">{{
+                      t.text
+                    }}</span></span
+                  ></template
+                >
+              </div>
+
+              <!-- Expanded before/after detail -->
+              <div
+                v-if="row.expandable && isPatchRowExpanded(row.path)"
+                class="grid gap-2 mt-2 sm:grid-cols-2"
+              >
+                <div v-if="row.hasOld">
+                  <div class="text-[10px] uppercase tracking-widest text-red-400/70 mb-1">
+                    live · old
+                  </div>
+                  <pre
+                    class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words bg-red-500/5 border border-red-500/20 rounded-md px-3 py-2 m-0"
+                  ><span v-for="(t, ti) in tokenizeJson(row.oldValue, true)" :key="ti" :class="tokenClass(t)">{{ t.text }}</span></pre>
+                </div>
+                <div v-if="row.hasNew">
+                  <div class="text-[10px] uppercase tracking-widest text-green-400/70 mb-1">
+                    shadow · new
+                  </div>
+                  <pre
+                    class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words bg-green-500/5 border border-green-500/20 rounded-md px-3 py-2 m-0"
+                  ><span v-for="(t, ti) in tokenizeJson(row.newValue, true)" :key="ti" :class="tokenClass(t)">{{ t.text }}</span></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty states -->
+        <div v-else class="flex flex-col items-center justify-center text-center py-14 px-6">
+          <template v-if="patchRows.length === 0">
+            <div
+              class="w-10 h-10 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mb-3"
+            >
+              <Check class="size-[18px] text-green-400" />
+            </div>
+            <div class="text-[13px] font-medium text-muted-foreground">No differences</div>
+            <div class="text-xs text-dim mt-1">
+              The live and shadow responses are identical — nothing to patch.
+            </div>
+          </template>
+          <template v-else>
+            <div
+              class="w-10 h-10 rounded-full bg-accent border border-border flex items-center justify-center mb-3"
+            >
+              <ListFilter class="size-[18px] text-dim" />
+            </div>
+            <div class="text-[13px] font-medium text-muted-foreground">
+              No operations of this type
+            </div>
+            <div class="text-xs text-dim mt-1">
+              Try a different filter, or switch back to “All”.
+            </div>
+          </template>
         </div>
       </div>
 

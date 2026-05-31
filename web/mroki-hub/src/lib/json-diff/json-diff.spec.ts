@@ -1,11 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from './index'
-import type { DiffLine } from './types'
+import {
+  buildDiffLines,
+  buildSplitRows,
+  stripPathPrefix,
+  expandCollapsed,
+  tokenizeJson,
+  buildPatchRows,
+  resolvePointer,
+} from './index'
+import type { DiffLine, Token } from './types'
 import type { PatchOp } from '@/api'
 
 // Helper to extract text from tokens on a line
 function lineText(line: DiffLine): string {
   return line.tokens.map((t) => t.text).join('')
+}
+
+// Helper to flatten a token list to plain text
+function tokenText(tokens: Token[]): string {
+  return tokens.map((t) => t.text).join('')
 }
 
 describe('stripPathPrefix', () => {
@@ -323,5 +336,96 @@ describe('edge cases', () => {
     // Keys with / and ~ should still render correctly
     const keyLines = lines.filter((l) => lineText(l).includes('"a/b"'))
     expect(keyLines).toHaveLength(1)
+  })
+})
+
+describe('tokenizeJson', () => {
+  it('tokenizes primitives with the matching token type', () => {
+    expect(tokenizeJson('hi')).toEqual([{ text: '"hi"', type: 'string' }])
+    expect(tokenizeJson(42)).toEqual([{ text: '42', type: 'number' }])
+    expect(tokenizeJson(true)).toEqual([{ text: 'true', type: 'boolean' }])
+    expect(tokenizeJson(null)).toEqual([{ text: 'null', type: 'null' }])
+  })
+
+  it('tokenizes objects on a single compact line by default', () => {
+    const tokens = tokenizeJson({ a: 1, b: 'x' })
+    expect(tokenText(tokens)).toBe('{"a": 1, "b": "x"}')
+    // Keys keep the key token type for highlighting
+    expect(tokens.find((t) => t.text === '"a"')?.type).toBe('key')
+    expect(tokens.some((t) => t.text.includes('\n'))).toBe(false)
+  })
+
+  it('emits newline tokens when pretty-printing', () => {
+    const text = tokenText(tokenizeJson({ a: 1 }, true))
+    expect(text).toBe('{\n  "a": 1\n}')
+  })
+
+  it('renders empty containers compactly', () => {
+    expect(tokenText(tokenizeJson([]))).toBe('[]')
+    expect(tokenText(tokenizeJson({}))).toBe('{}')
+  })
+})
+
+describe('resolvePointer', () => {
+  const doc = { body: { items: [{ price: 10 }, { price: 20 }], 'a/b': 1 }, headers: { x: ['v'] } }
+
+  it('resolves nested object and array pointers', () => {
+    expect(resolvePointer(doc, '/body/items/1/price')).toEqual({ found: true, value: 20 })
+    expect(resolvePointer(doc, '/headers/x/0')).toEqual({ found: true, value: 'v' })
+  })
+
+  it('unescapes ~1 and ~0 pointer tokens', () => {
+    expect(resolvePointer(doc, '/body/a~1b')).toEqual({ found: true, value: 1 })
+  })
+
+  it('returns the whole document for the root pointer', () => {
+    expect(resolvePointer(doc, '')).toEqual({ found: true, value: doc })
+  })
+
+  it('reports not found for missing keys and out-of-range indices', () => {
+    expect(resolvePointer(doc, '/body/missing')).toEqual({ found: false, value: undefined })
+    expect(resolvePointer(doc, '/body/items/5')).toEqual({ found: false, value: undefined })
+  })
+})
+
+describe('buildPatchRows', () => {
+  const live = {
+    body: { status: 'processing', items: [{ id: 1 }, { id: 2 }], legacy: 'old-token' },
+    headers: { 'content-type': ['application/json'] },
+  }
+
+  it('derives old value from live and new value from op.value for replace', () => {
+    const rows = buildPatchRows([{ op: 'replace', path: '/body/status', value: 'completed' }], live)
+    expect(rows).toHaveLength(1)
+    const row = rows[0]
+    expect(row.op).toBe('replace')
+    expect(row.hasOld).toBe(true)
+    expect(row.oldValue).toBe('processing')
+    expect(row.hasNew).toBe(true)
+    expect(row.newValue).toBe('completed')
+    expect(row.leafLabel).toBe('status')
+    expect(row.pathPrefix).toEqual(['body'])
+    expect(row.valueTitle).toBe('processing  →  completed')
+  })
+
+  it('marks add ops with only a new value', () => {
+    const rows = buildPatchRows([{ op: 'add', path: '/body/coupon', value: 'X1' }], live)
+    expect(rows[0].hasOld).toBe(false)
+    expect(rows[0].hasNew).toBe(true)
+    expect(rows[0].newValue).toBe('X1')
+  })
+
+  it('marks remove ops with only the resolved old value', () => {
+    const rows = buildPatchRows([{ op: 'remove', path: '/body/legacy' }], live)
+    expect(rows[0].hasOld).toBe(true)
+    expect(rows[0].oldValue).toBe('old-token')
+    expect(rows[0].hasNew).toBe(false)
+  })
+
+  it('formats array index leaves and flags complex values as expandable', () => {
+    const rows = buildPatchRows([{ op: 'remove', path: '/body/items/1' }], live)
+    expect(rows[0].leafLabel).toBe('[1]')
+    expect(rows[0].leafIsIndex).toBe(true)
+    expect(rows[0].expandable).toBe(true)
   })
 })
