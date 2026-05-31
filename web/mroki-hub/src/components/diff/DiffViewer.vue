@@ -57,19 +57,6 @@ const floatTolerance = computed(() => props.diffConfig?.float_tolerance ?? 0)
 const ignoredFields = computed(() => props.diffConfig?.ignored_fields ?? [])
 const includedFields = computed(() => props.diffConfig?.included_fields ?? [])
 
-// Number of settings that differ from their defaults; drives the header indicator.
-const activeConfigCount = computed(
-  () =>
-    (sortArrays.value ? 1 : 0) +
-    (floatTolerance.value > 0 ? 1 : 0) +
-    (ignoredFields.value.length > 0 ? 1 : 0) +
-    (includedFields.value.length > 0 ? 1 : 0)
-)
-const hasActiveConfig = computed(() => activeConfigCount.value > 0)
-const configPillLabel = computed(
-  () => `${activeConfigCount.value} diff setting${activeConfigCount.value === 1 ? '' : 's'}`
-)
-
 function tryParseJson(str: string): unknown | null {
   try {
     return JSON.parse(str)
@@ -238,12 +225,6 @@ function tokenClass(token: Token): string {
             {{ isJson ? 'json' : 'text' }}
           </span>
           <span
-            v-if="hasActiveConfig"
-            class="text-xs px-2 py-0.5 rounded-md font-mono bg-accent text-dim"
-          >
-            {{ configPillLabel }}
-          </span>
-          <span
             v-if="diffCount > 0"
             class="text-xs px-2 py-0.5 rounded-md font-mono bg-amber-500/15 text-amber-400"
           >
@@ -321,7 +302,7 @@ function tokenClass(token: Token): string {
             </button>
           </div>
           <!-- Diff config snapshot (settings used to compute this diff) -->
-          <Popover v-if="hasActiveConfig">
+          <Popover>
             <PopoverTrigger as-child>
               <button
                 class="inline-flex items-center justify-center size-[26px] rounded-md border border-border text-dim hover:text-foreground hover:bg-accent data-[state=open]:bg-accent data-[state=open]:text-foreground transition-colors"
