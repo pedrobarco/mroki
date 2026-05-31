@@ -34,7 +34,7 @@ ENV APP_ENV=production
 # Run as a non-root user
 USER 1000
 
-# Expose default port
-EXPOSE 8080
+# Expose default proxy and admin (health) ports
+EXPOSE 8080 8081
 
 CMD ["./mroki-proxy"]

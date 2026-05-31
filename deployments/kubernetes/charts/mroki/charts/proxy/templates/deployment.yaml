@@ -35,11 +35,16 @@ spec:
             - name: http
               containerPort: {{ .Values.containerPort }}
               protocol: TCP
+            - name: admin
+              containerPort: {{ .Values.adminPort }}
+              protocol: TCP
           env:
             - name: APP_ENV
               value: "production"
             - name: MROKI_APP_PORT
               value: {{ .Values.containerPort | quote }}
+            - name: MROKI_APP_ADMIN_PORT
+              value: {{ .Values.adminPort | quote }}
             {{- if eq .Values.mode "api" }}
             - name: MROKI_APP_API_URL
               value: {{ include "proxy.apiUrl" . | quote }}
@@ -61,6 +66,18 @@ spec:
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: admin
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: admin
+            initialDelaySeconds: 5
+            periodSeconds: 5
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

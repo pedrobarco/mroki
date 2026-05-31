@@ -64,6 +64,9 @@ service:
 
 containerPort: 8080
 
+# -- Port for the admin listener (health endpoints), separate from proxied traffic
+adminPort: 8081
+
 resources:
   requests:
     memory: "64Mi"
