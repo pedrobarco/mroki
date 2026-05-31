@@ -37,3 +37,9 @@ Visualize JSON response diffs with syntax-highlighted tokens. Unchanged subtrees
 Side-by-side comparison of live and shadow responses with matched rows.
 
 ![Request Detail — Split](assets/screenshots/hub-request-detail-split.png)
+
+## Request Detail — Patch List
+
+Flat list of the RFC 6902 JSON Patch operations that make up the diff, filterable by operation type (added, removed, replaced). Complex or long values expand inline for full detail.
+
+![Request Detail — Patch](assets/screenshots/hub-request-detail-patch.png)

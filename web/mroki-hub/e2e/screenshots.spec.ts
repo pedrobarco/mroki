@@ -104,4 +104,21 @@ test.describe('@screenshots', () => {
       fullPage: true,
     })
   })
+
+  test('hub-request-detail-patch', async ({ page }) => {
+    expect(seed).not.toBeNull()
+    const { gate, requests } = seed!.ordersGate
+
+    await page.goto(`/gates/${gate.id}/requests/${requests[0].id}`)
+    await expect(page.getByRole('heading', { name: 'Request Detail' })).toBeVisible()
+    await page.waitForTimeout(500)
+
+    await page.getByRole('button', { name: 'Patch' }).click()
+    await page.waitForTimeout(300)
+
+    await page.screenshot({
+      path: path.join(ASSETS_DIR, 'hub-request-detail-patch.png'),
+      fullPage: true,
+    })
+  })
 })

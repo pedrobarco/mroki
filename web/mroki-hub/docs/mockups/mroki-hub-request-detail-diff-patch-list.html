@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mroki hub — Patch List (v1 · change rows)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui','-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif'],
+        mono: ['SF Mono','Menlo','Monaco','Consolas','monospace'],
+      },
+      colors: {
+        bg: { DEFAULT:'#09090b', card:'#111113', hover:'#18181b', border:'#27272a', subtle:'#1c1c1f' },
+        fg: { DEFAULT:'#fafafa', muted:'#a1a1aa', dim:'#71717a', accent:'#e4e4e7' },
+        accent: { green:'#22c55e', greenDim:'#166534', blue:'#3b82f6', blueDim:'#1e3a5f', amber:'#f59e0b', red:'#ef4444', redDim:'#7f1d1d' },
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background:#09090b; color:#fafafa; font-family:system-ui,-apple-system,sans-serif; }
+  ::selection { background:#3b82f6; color:white; }
+  /* JSON value token colors — match DiffViewer.vue tokenClass() exactly */
+  .json-key { color:#38bdf8; }   /* sky-400 */
+  .json-str { color:#a78bfa; }   /* violet-400 */
+  .json-num { color:#34d399; }   /* emerald-400 */
+  .json-bool { color:#fb923c; }  /* orange-400 */
+  .json-null { color:#f472b6; }  /* pink-400 */
+  .json-punc { color:#71717a; }  /* zinc-500 */
+  .truncate-1 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+
+<!-- Top Nav (trimmed clone of the hub chrome) -->
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-2">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      <span class="text-fg-dim text-[13px] ml-3">·</span>
+      <span class="text-[12px] font-mono text-fg-dim ml-1">Patch list — variant 1 (change rows)</span>
+    </div>
+    <div class="w-7 h-7 rounded-full bg-bg-hover border border-bg-border flex items-center justify-center text-[11px] font-medium text-fg-muted">DK</div>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-6 py-6">
+
+  <!-- Response Comparison card -->
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden">
+    <!-- Card Header -->
+    <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-3.5 border-b border-bg-border">
+      <div class="flex items-center gap-2 flex-wrap">
+        <h2 class="text-[14px] font-semibold">Response Comparison</h2>
+        <span class="text-[11px] text-fg-dim bg-bg-hover px-2 py-0.5 rounded-md font-mono">json</span>
+        <span class="text-[11px] px-2 py-0.5 rounded-md font-mono bg-amber-500/15 text-amber-400">12 changes</span>
+      </div>
+      <!-- View mode toggle — now with a third "Patch" option shown active -->
+      <div class="flex items-center rounded-md border border-bg-border">
+        <button class="px-2.5 py-0.5 text-[11px] rounded-l-md text-fg-dim hover:text-fg transition-colors">Unified</button>
+        <button class="px-2.5 py-0.5 text-[11px] text-fg-dim hover:text-fg transition-colors border-l border-bg-border">Split</button>
+        <button class="px-2.5 py-0.5 text-[11px] rounded-r-md bg-bg-hover text-fg font-medium transition-colors border-l border-bg-border">Patch</button>
+      </div>
+    </div>
+
+    <!-- Filter toolbar -->
+    <div class="flex items-center justify-between gap-3 flex-wrap px-5 py-2.5 border-b border-bg-border bg-bg-subtle/40">
+      <div id="filters" class="flex items-center gap-1.5 text-[12px]"></div>
+      <div class="text-[11px] text-fg-dim font-mono hidden sm:block">RFC 6902 JSON Patch · <span id="visible-count">12</span> shown</div>
+    </div>
+
+    <!-- The flat change list -->
+    <div id="patch-list"></div>
+
+    <!-- Empty state (hidden unless the active filter has no matches) -->
+    <div id="empty-state" class="hidden flex-col items-center justify-center text-center py-14 px-6">
+      <div class="w-10 h-10 rounded-full bg-bg-hover border border-bg-border flex items-center justify-center mb-3">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="text-[13px] font-medium text-fg-muted">No operations of this type</div>
+      <div class="text-[12px] text-fg-dim mt-1">Try a different filter, or switch back to “All”.</div>
+    </div>
+  </div>
+
+  <!-- Secondary card: identical-response empty state (documents the zero-diff case) -->
+  <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden mt-6">
+    <div class="flex items-center gap-2 px-5 py-3.5 border-b border-bg-border">
+      <h2 class="text-[14px] font-semibold">Response Comparison</h2>
+      <span class="text-[11px] text-fg-dim bg-bg-hover px-2 py-0.5 rounded-md font-mono">json</span>
+      <span class="text-[11px] px-2 py-0.5 rounded-md font-mono bg-green-500/15 text-green-400">identical</span>
+    </div>
+    <div class="flex flex-col items-center justify-center text-center py-12 px-6">
+      <div class="w-10 h-10 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mb-3">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="text-[13px] font-medium text-fg-muted">No differences</div>
+      <div class="text-[12px] text-fg-dim mt-1">The live and shadow responses are identical — nothing to patch.</div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ---- Sample RFC 6902 JSON Patch (live -> shadow), checkout/orders theme ---- */
+const OPS = [
+  { op:'replace', path:'/body/status', old:'processing', new:'completed' },
+  { op:'replace', path:'/body/total', old:289.97, new:284.97 },
+  { op:'replace', path:'/body/items/1/unit_price', old:49.99, new:44.99 },
+  { op:'replace', path:'/headers/content-type/0', old:'application/json', new:'application/json; charset=utf-8' },
+  { op:'replace', path:'/body/customer/email', old:'ada.lovelace@oldmail.example.com', new:'ada@analyticalengine.example.com' },
+  { op:'replace', path:'/body/notes', old:'Customer requested expedited shipping to the downtown office before 5pm; leave with reception if absent.', new:'Customer requested expedited shipping to the downtown office before noon; signature required on delivery, do not leave unattended.' },
+  { op:'add', path:'/body/discount', new:{ code:'SPRING25', amount:5.0, type:'percentage', applies_to:['KBD-2011'] } },
+  { op:'add', path:'/body/shipping/tracking_number', new:'1Z999AA10123456784' },
+  { op:'add', path:'/headers/x-cache', new:['HIT'] },
+  { op:'remove', path:'/body/items/2', old:{ sku:'WDG-1042', name:'Wireless Charger Pro', qty:1, unit_price:149.99 } },
+  { op:'remove', path:'/body/legacy_token', old:'tok_4f9a2c7e81b30d5a6f1e9c8b7a4d2e0f3b6c9a1d8e7f0a2b' },
+  { op:'remove', path:'/body/meta/deprecated_flag', old:true },
+];
+
+const META = {
+  add:     { label:'Added',    sign:'+', text:'text-green-400', bg:'bg-green-500/15', rail:'bg-green-500',  ring:'ring-green-500/30',  line:'hover:bg-green-500/5'  },
+  remove:  { label:'Removed',  sign:'−', text:'text-red-400',   bg:'bg-red-500/15',   rail:'bg-red-500',    ring:'ring-red-500/30',    line:'hover:bg-red-500/5'    },
+  replace: { label:'Replaced', sign:'~', text:'text-amber-400', bg:'bg-amber-500/15', rail:'bg-amber-500',  ring:'ring-amber-500/30',  line:'hover:bg-amber-500/5'  },
+};
+
+/* ---- value highlighting (matches DiffViewer.vue token colors) ---- */
+function highlightJson(text){
+  return text
+    .replace(/("(?:[^"\\]|\\.)*")(\s*:)/g, '<span class="json-key">$1</span>$2')
+    .replace(/:\s*("(?:[^"\\]|\\.)*")/g, ': <span class="json-str">$1</span>')
+    .replace(/(^|[,\s\[])(-?\d+\.?\d*)(?=[,\s\]\}]|$)/g, '$1<span class="json-num">$2</span>')
+    .replace(/\b(true|false)\b/g, '<span class="json-bool">$1</span>')
+    .replace(/\bnull\b/g, '<span class="json-null">null</span>')
+    .replace(/([{}\[\]])/g, '<span class="json-punc">$1</span>');
+}
+function valHtml(v){
+  if (v === undefined) return '';
+  if (v === null) return '<span class="json-null">null</span>';
+  if (typeof v === 'string') return '<span class="json-str">"'+v+'"</span>';
+  if (typeof v === 'number') return '<span class="json-num">'+v+'</span>';
+  if (typeof v === 'boolean') return '<span class="json-bool">'+v+'</span>';
+  return highlightJson(JSON.stringify(v));        // compact one-line for the row
+}
+function valBlock(v){ return highlightJson(JSON.stringify(v, null, 2)); }
+function isComplex(v){ return v !== null && typeof v === 'object'; }
+function isLong(v){ return typeof v === 'string' && v.length > 48; }
+
+/* ---- path: de-emphasize prefix, emphasize leaf ---- */
+function pathHtml(path){
+  const segs = path.split('/').filter(Boolean);
+  const leaf = segs.pop();
+  const prefix = segs.length ? segs.join('<span class="text-fg-dim/50">/</span>') : '';
+  const head = prefix ? '<span class="text-fg-dim">'+prefix+'</span><span class="text-fg-dim/50">/</span>' : '<span class="text-fg-dim/50">/</span>';
+  const leafCls = /^\d+$/.test(leaf) ? 'text-fg-muted' : 'text-fg font-medium';
+  const leafTxt = /^\d+$/.test(leaf) ? '['+leaf+']' : leaf;
+  return head + '<span class="'+leafCls+'">'+leafTxt+'</span>';
+}
+
+/* ---- render a single change row ---- */
+function rowHtml(o, i){
+  const m = META[o.op];
+  const complex = isComplex(o.old) || isComplex(o.new);
+  let valueLine;
+  if (o.op === 'replace'){
+    valueLine = '<span class="line-through decoration-red-400/50 text-fg-dim">'+valHtml(o.old)+'</span>'
+      + '<span class="text-fg-dim mx-1.5">→</span><span>'+valHtml(o.new)+'</span>';
+  } else if (o.op === 'add'){
+    valueLine = valHtml(o.new);
+  } else {
+    valueLine = '<span class="line-through decoration-red-400/40 text-fg-dim">'+valHtml(o.old)+'</span>';
+  }
+  const expandable = complex || isLong(o.old) || isLong(o.new);
+  const chevron = expandable
+    ? '<button class="js-expand shrink-0 text-fg-dim hover:text-fg mt-0.5" data-i="'+i+'" aria-label="expand"><svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>'
+    : '<span class="w-3 shrink-0"></span>';
+  let detail = '';
+  if (expandable){
+    const parts = [];
+    if (o.old !== undefined) parts.push('<div><div class="text-[10px] uppercase tracking-widest text-red-400/70 mb-1">live · old</div><pre class="font-mono text-[12px] leading-[1.6] whitespace-pre-wrap break-words bg-red-500/5 border border-red-500/20 rounded-md px-3 py-2 m-0">'+valBlock(o.old)+'</pre></div>');
+    if (o.new !== undefined) parts.push('<div><div class="text-[10px] uppercase tracking-widest text-green-400/70 mb-1">shadow · new</div><pre class="font-mono text-[12px] leading-[1.6] whitespace-pre-wrap break-words bg-green-500/5 border border-green-500/20 rounded-md px-3 py-2 m-0">'+valBlock(o.new)+'</pre></div>');
+    detail = '<div class="js-detail hidden grid gap-2 mt-2 sm:grid-cols-2">'+parts.join('')+'</div>';
+  }
+  return '<div class="op-row group grid grid-cols-[auto_auto_1fr] items-start gap-3 px-5 py-2.5 border-b border-bg-border/60 '+m.line+' transition-colors" data-op="'+o.op+'">'
+    + chevron
+    + '<span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold '+m.bg+' '+m.text+' mt-0.5"><span class="text-[12px] leading-none">'+m.sign+'</span>'+m.label.slice(0,3).toUpperCase()+'</span>'
+    + '<div class="min-w-0">'
+      + '<div class="font-mono text-[12.5px] leading-tight">'+pathHtml(o.path)+'</div>'
+      + '<div class="font-mono text-[12.5px] leading-snug mt-1 truncate-1" title="'+(o.op==='add'?'':String(o.old))+(o.op==='replace'?'  →  ':'')+(o.op==='remove'?'':String(o.new ?? ''))+'">'+valueLine+'</div>'
+      + detail
+    + '</div></div>';
+}
+
+/* ---- filter state + counts ---- */
+const counts = { all:OPS.length, add:0, remove:0, replace:0 };
+OPS.forEach(o => counts[o.op]++);
+const FILTERS = [
+  { key:'all',     label:'All',      n:counts.all,     cls:'data-[active=true]:bg-bg-hover data-[active=true]:text-fg' },
+  { key:'add',     label:'Added',    n:counts.add,     cls:'data-[active=true]:bg-green-500/15 data-[active=true]:text-green-400' },
+  { key:'remove',  label:'Removed',  n:counts.remove,  cls:'data-[active=true]:bg-red-500/15 data-[active=true]:text-red-400' },
+  { key:'replace', label:'Replaced', n:counts.replace, cls:'data-[active=true]:bg-amber-500/15 data-[active=true]:text-amber-400' },
+];
+let active = 'all';
+
+function renderFilters(){
+  document.getElementById('filters').innerHTML = FILTERS.map(f =>
+    '<button data-key="'+f.key+'" data-active="'+(active===f.key)+'" class="js-filter inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-bg-border text-fg-dim hover:text-fg transition-colors '+f.cls+'">'
+    + f.label + '<span class="text-[10px] font-mono opacity-70">'+f.n+'</span></button>'
+  ).join('');
+}
+function renderList(){
+  const rows = OPS.map((o,i)=>({o,i})).filter(x => active==='all' || x.o.op===active);
+  const list = document.getElementById('patch-list');
+  const empty = document.getElementById('empty-state');
+  document.getElementById('visible-count').textContent = rows.length;
+  if (!rows.length){ list.innerHTML=''; empty.classList.remove('hidden'); empty.classList.add('flex'); return; }
+  empty.classList.add('hidden'); empty.classList.remove('flex');
+  list.innerHTML = rows.map(x => rowHtml(x.o, x.i)).join('');
+  list.querySelectorAll('.js-expand').forEach(btn => btn.addEventListener('click', e => {
+    const row = btn.closest('.op-row');
+    row.querySelector('.js-detail').classList.toggle('hidden');
+    btn.querySelector('.chev').style.transform = row.querySelector('.js-detail').classList.contains('hidden') ? '' : 'rotate(90deg)';
+  }));
+}
+document.getElementById('filters').addEventListener('click', e => {
+  const b = e.target.closest('.js-filter'); if(!b) return;
+  active = b.dataset.key; renderFilters(); renderList();
+});
+renderFilters();
+renderList();
+</script>
+</body>
+</html>
