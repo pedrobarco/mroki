@@ -8,7 +8,7 @@ Guide for developers working on mroki.
 
 - **Go 1.26+**
 - **Docker & Docker Compose**
-- **Node.js 18+** (for hub development)
+- **Node.js 22 (LTS)** — minimum 20.19+ (for hub development)
 - **PostgreSQL 15+** (via Docker is fine)
 - **Make** (optional, for convenience)
 
@@ -65,10 +65,10 @@ pnpm build
 # Output: web/mroki-hub/dist/
 ```
 
-**caddy-mroki** (requires [xcaddy](https://github.com/caddyserver/xcaddy)):
+**caddy-mroki** (a self-contained Caddy build — standard modules + the mroki gate handler):
 
 ```bash
-xcaddy build --with github.com/pedrobarco/mroki/pkg/caddymodule=./pkg/caddymodule
+go build -o caddy ./cmd/caddy-mroki
 # Output: ./caddy
 ```
 
@@ -144,7 +144,7 @@ go build -o mroki-proxy ./cmd/mroki-proxy
 go build -o mroki-api ./cmd/mroki-api
 
 # Build Caddy with mroki module
-xcaddy build --with github.com/pedrobarco/mroki/pkg/caddymodule=./pkg/caddymodule
+go build -o caddy ./cmd/caddy-mroki
 
 # Build all
 go build ./...

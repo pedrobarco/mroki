@@ -11,20 +11,24 @@ Embed shadow traffic diffing directly in your Caddy server — no extra services
 ## Prerequisites
 
 - **Go 1.26+** — [install](https://go.dev/dl/)
-- **xcaddy** — Caddy's build tool for custom modules:
-  ```bash
-  go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
-  ```
 
 ## Step 1: Build Custom Caddy
 
-Caddy modules must be compiled into the binary. Use `xcaddy` to build a Caddy binary with the mroki module:
+Caddy modules must be compiled into the binary. `cmd/caddy-mroki` is a self-contained
+Caddy entrypoint (Caddy's standard modules + the mroki gate handler), so a plain
+`go build` produces a Caddy binary with the mroki module — no xcaddy required:
 
 ```bash
 # From a cloned copy of the repo:
-xcaddy build --with github.com/pedrobarco/mroki/pkg/caddymodule=./pkg/caddymodule
+go build -o caddy ./cmd/caddy-mroki
+```
 
-# Or, to fetch the module directly (no clone needed):
+Prefer to build without cloning? You can still use
+[xcaddy](https://github.com/caddyserver/xcaddy)
+(`go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest`) to fetch and compile
+the module directly:
+
+```bash
 xcaddy build --with github.com/pedrobarco/mroki/pkg/caddymodule
 ```
 
@@ -35,6 +39,23 @@ Verify the module is included:
 ```
 
 You should see `http.handlers.mroki_gate` in the output.
+
+### Add mroki to an Existing Caddy
+
+`pkg/caddymodule` is a standard, importable Caddy plugin — it self-registers the
+`http.handlers.mroki_gate` handler and the `mroki_gate` Caddyfile directive — so you
+can fold it into your own custom Caddy build alongside any other plugins. Pin a
+released version and add as many `--with` flags as you need:
+
+```bash
+xcaddy build \
+    --with github.com/pedrobarco/mroki/pkg/caddymodule@v1.3.0 \
+    --with github.com/some/other-plugin
+```
+
+Omit the `@<version>` suffix to track the latest release. (The
+`--with ...=./pkg/caddymodule` form only applies when building from a local,
+uncommitted clone, and is not needed for published versions.)
 
 ## Step 2: Configure Your Caddyfile
 

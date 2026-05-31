@@ -32,6 +32,22 @@ standaloneMode:
 # -- Additional environment variables
 extraEnv: []
 
+# -- Pod-level security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
 serviceAccount:
   # -- Create a ServiceAccount
   create: true

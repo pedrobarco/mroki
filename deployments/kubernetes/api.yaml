@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: mroki-api
-        image: mroki-api:v1.0.0
+        image: mroki-api:1.0.0
         ports:
         - containerPort: 8090
         env:
