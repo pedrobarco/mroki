@@ -38,6 +38,23 @@ Schema migrations are applied by the `mroki-db-migrator` image (Atlas), not the 
     --set api.migration.baseline=20260328015306
   ```
 
+#### GitOps consumers (`helm template` + `kubectl apply`)
+
+Consumers that render the chart with `helm template` and apply it declaratively (Kustomize `helmCharts` with `--enable-helm`, Argo CD / Flux in template mode) do **not** run Helm's hook engine. With the default static Job name and inert `helm.sh/hook*` annotations, every upgrade fails because a Job `spec` is immutable. Set `api.migration.asHook=false` to emit the migration Job as a plain, declaratively-managed resource instead:
+
+```bash
+helm template mroki oci://ghcr.io/pedrobarco/mroki/charts/mroki \
+  --set api.migration.asHook=false \
+  --set api.migration.ttlSecondsAfterFinished=300 \
+  | kubectl apply -f -
+```
+
+- `api.migration.asHook` (default `true`) — when `false`, the `helm.sh/hook*` annotations are dropped.
+- The Job name is suffixed with the chart appVersion (override with `api.migration.nameSuffix`) so each version produces a fresh Job rather than mutating an immutable one on `kubectl apply`.
+- `api.migration.ttlSecondsAfterFinished` — sets `Job.spec.ttlSecondsAfterFinished` so completed Jobs are garbage-collected automatically. Applies in both modes; leave null to keep finished Jobs.
+
+The default (`asHook=true`) is unchanged for native `helm install`/`helm upgrade` users.
+
 ## Raw Manifests
 
 Apply manifests from [`deployments/kubernetes/`](../../deployments/kubernetes/):

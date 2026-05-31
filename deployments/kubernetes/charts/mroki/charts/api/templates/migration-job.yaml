@@ -1,17 +1,29 @@
 {{- if and .Values.migration.enabled (or .Values.existingSecret .Values.database.passwordSecret) }}
+{{- $jobName := printf "%s-migrate" (include "api.fullname" .) -}}
+{{- if not .Values.migration.asHook -}}
+{{- $suffix := .Values.migration.nameSuffix | default .Chart.AppVersion -}}
+{{- if $suffix -}}
+{{- $jobName = printf "%s-migrate-%s" (include "api.fullname" .) $suffix | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "api.fullname" . }}-migrate
+  name: {{ $jobName }}
   labels:
     {{- include "api.labels" . | nindent 4 }}
     app.kubernetes.io/component: db-migrator
+  {{- if .Values.migration.asHook }}
   annotations:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "-5"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  {{- end }}
 spec:
   backoffLimit: {{ .Values.migration.backoffLimit }}
+  {{- if not (kindIs "invalid" .Values.migration.ttlSecondsAfterFinished) }}
+  ttlSecondsAfterFinished: {{ .Values.migration.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       labels:

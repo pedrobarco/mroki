@@ -30,6 +30,18 @@ migration:
   baseline: ""
   # -- Number of retries before the migration Job is considered failed
   backoffLimit: 3
+  # -- Run the migration Job as a Helm pre-install/pre-upgrade hook. Set to false
+  # for GitOps / template-mode consumers (`helm template` + `kubectl apply`): the
+  # `helm.sh/hook*` annotations are dropped and the Job is emitted as a plain,
+  # declaratively-managed resource.
+  asHook: true
+  # -- Suffix appended to the migration Job name when `asHook` is false, so each
+  # version produces a fresh Job instead of mutating an immutable Job spec on
+  # `kubectl apply`. Defaults to the chart appVersion when left empty.
+  nameSuffix: ""
+  # -- Auto-clean completed migration Jobs after this many seconds
+  # (`Job.spec.ttlSecondsAfterFinished`). Leave null to keep finished Jobs.
+  ttlSecondsAfterFinished: null
   # -- Resource requests/limits for the migration Job
   resources: {}
 
