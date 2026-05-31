@@ -201,17 +201,19 @@ test.describe('Request Detail Page', () => {
       `https://sort-badge-shadow-${suffix}.example.com`
     )
 
-    // Enable sort_arrays on the gate
+    // Configure every diff setting away from its default so the snapshot
+    // exercises each branch of the popover (sort arrays, float tolerance,
+    // ignored fields, included fields).
     await api.updateGate(gate.id, {
       diff_config: {
-        ignored_fields: [],
-        included_fields: [],
-        float_tolerance: 0,
+        ignored_fields: ['timestamp', 'trace_id'],
+        included_fields: ['body.user'],
+        float_tolerance: 0.01,
         sort_arrays: true,
       },
     })
 
-    // Seed a request — the diff config snapshot will include sort_arrays: true
+    // Seed a request — the diff config snapshot captures the non-default config.
     const req = await api.seedRequest(gate.id, {
       method: 'GET',
       path: '/api/sorted-test',
@@ -225,11 +227,18 @@ test.describe('Request Detail Page', () => {
     await page.goto(`/gates/${gate.id}/requests/${req.id}`)
 
     // The config snapshot icon is always available; opening it reveals the
-    // captured settings, with the non-default Sort arrays = On.
+    // captured settings with every non-default value surfaced. Scope the
+    // assertions to the popover so field names don't collide with labels
+    // elsewhere on the page (e.g. the "Timestamp" request metadata field).
     await page.getByRole('button', { name: 'Diff configuration' }).click()
-    await expect(page.getByText('Snapshot used to compute this diff')).toBeVisible()
-    await expect(page.getByText('Sort arrays')).toBeVisible()
-    await expect(page.getByText('On', { exact: true })).toBeVisible()
+    const popover = page.locator('[data-slot="popover-content"]')
+    await expect(popover.getByText('Snapshot used to compute this diff')).toBeVisible()
+    await expect(popover.getByText('Sort arrays')).toBeVisible()
+    await expect(popover.getByText('On', { exact: true })).toBeVisible()
+    await expect(popover.getByText('±0.01')).toBeVisible()
+    await expect(popover.getByText('timestamp')).toBeVisible()
+    await expect(popover.getByText('trace_id')).toBeVisible()
+    await expect(popover.getByText('body.user')).toBeVisible()
   })
 
   test('config snapshot shows defaults when config is all-default', async ({ page, api }) => {
@@ -255,9 +264,10 @@ test.describe('Request Detail Page', () => {
     // The config snapshot icon is always available, even with all-default
     // config; opening it shows the default values.
     await page.getByRole('button', { name: 'Diff configuration' }).click()
-    await expect(page.getByText('Snapshot used to compute this diff')).toBeVisible()
-    await expect(page.getByText('Off', { exact: true })).toBeVisible()
-    await expect(page.getByText('Exact', { exact: true })).toBeVisible()
+    const popover = page.locator('[data-slot="popover-content"]')
+    await expect(popover.getByText('Snapshot used to compute this diff')).toBeVisible()
+    await expect(popover.getByText('Off', { exact: true })).toBeVisible()
+    await expect(popover.getByText('Exact', { exact: true })).toBeVisible()
   })
 
   test('export JSON downloads request data', async ({ page, api }) => {
