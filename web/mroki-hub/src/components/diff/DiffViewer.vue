@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch, onMounted, onUnmounted } from 'vue'
-import type { Response, PatchOp } from '@/api'
+import type { Response, PatchOp, DiffConfig } from '@/api'
 import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from '@/lib/json-diff'
 import type { DiffLine, Token, TokenType } from '@/lib/json-diff'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { WrapText } from 'lucide-vue-next'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { WrapText, SlidersHorizontal } from 'lucide-vue-next'
 
 type ViewMode = 'unified' | 'split'
 const MD_BREAKPOINT = 768
@@ -45,10 +46,16 @@ interface Props {
   liveResponse: Response
   shadowResponse: Response
   diffContent: PatchOp[] | null
-  sortArrays?: boolean
+  diffConfig?: DiffConfig | null
 }
 
 const props = defineProps<Props>()
+
+// --- Diff config snapshot (settings used to compute this diff) ---
+const sortArrays = computed(() => props.diffConfig?.sort_arrays ?? false)
+const floatTolerance = computed(() => props.diffConfig?.float_tolerance ?? 0)
+const ignoredFields = computed(() => props.diffConfig?.ignored_fields ?? [])
+const includedFields = computed(() => props.diffConfig?.included_fields ?? [])
 
 function tryParseJson(str: string): unknown | null {
   try {
@@ -212,16 +219,10 @@ function tokenClass(token: Token): string {
     <div class="bg-card border border-border rounded-xl overflow-hidden">
       <!-- Card Header -->
       <div class="flex items-center justify-between px-5 py-3.5 border-b border-border">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <h3 class="text-sm font-semibold">Response Comparison</h3>
           <span class="text-xs text-dim bg-accent px-2 py-0.5 rounded-md font-mono">
             {{ isJson ? 'json' : 'text' }}
-          </span>
-          <span
-            v-if="sortArrays"
-            class="text-xs px-2 py-0.5 rounded-md font-mono bg-sky-500/15 text-sky-400"
-          >
-            arrays sorted
           </span>
           <span
             v-if="diffCount > 0"
@@ -300,6 +301,82 @@ function tokenClass(token: Token): string {
               Unified
             </button>
           </div>
+          <!-- Diff config snapshot (settings used to compute this diff) -->
+          <Popover>
+            <PopoverTrigger as-child>
+              <button
+                class="inline-flex items-center justify-center size-[26px] rounded-md border border-border text-dim hover:text-foreground hover:bg-accent data-[state=open]:bg-accent data-[state=open]:text-foreground transition-colors"
+                aria-label="Diff configuration"
+              >
+                <SlidersHorizontal class="size-3.5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" :side-offset="6" class="w-80 p-0 overflow-hidden">
+              <div class="px-4 py-3 border-b border-border">
+                <div class="text-sm font-semibold text-foreground">Diff configuration</div>
+                <div class="text-xs text-muted-foreground mt-0.5">
+                  Snapshot used to compute this diff
+                </div>
+              </div>
+              <div class="px-4 py-3 space-y-3 text-xs">
+                <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Sort arrays</span>
+                  <span
+                    v-if="sortArrays"
+                    class="px-2 py-0.5 rounded-md font-mono border border-border bg-accent/40 text-foreground"
+                  >
+                    On
+                  </span>
+                  <span v-else class="text-dim font-mono">Off</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-muted-foreground">Float tolerance</span>
+                  <span
+                    v-if="floatTolerance > 0"
+                    class="px-2 py-0.5 rounded-md font-mono border border-border bg-accent/40 text-foreground"
+                  >
+                    ±{{ floatTolerance }}
+                  </span>
+                  <span v-else class="text-dim font-mono">Exact</span>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-muted-foreground">Ignored fields</span>
+                    <span class="text-dim font-mono">{{ ignoredFields.length }}</span>
+                  </div>
+                  <div
+                    v-if="ignoredFields.length > 0"
+                    class="rounded-md border border-border bg-accent/40 divide-y divide-border/60 font-mono text-muted-foreground"
+                  >
+                    <div v-for="(field, i) in ignoredFields" :key="i" class="px-2.5 py-1 truncate">
+                      {{ field }}
+                    </div>
+                  </div>
+                  <span v-else class="text-dim font-mono">None</span>
+                </div>
+                <div v-if="includedFields.length > 0">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-muted-foreground">Included fields</span>
+                    <span class="text-dim font-mono">{{ includedFields.length }}</span>
+                  </div>
+                  <div
+                    class="rounded-md border border-border bg-accent/40 divide-y divide-border/60 font-mono text-muted-foreground"
+                  >
+                    <div v-for="(field, i) in includedFields" :key="i" class="px-2.5 py-1 truncate">
+                      {{ field }}
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="flex items-center justify-between">
+                  <span class="text-dim">Included fields</span>
+                  <span class="text-dim">All fields <span class="font-mono">(default)</span></span>
+                </div>
+              </div>
+              <div class="px-4 py-2 border-t border-border text-[10px] text-muted-foreground">
+                Captured from gate config · may differ from current
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
