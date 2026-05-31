@@ -375,7 +375,7 @@ func TestGetRequestByID_Success(t *testing.T) {
 		time.Now(),
 	)
 
-	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{{Op: "replace", Path: "/status", Value: "error"}}, traffictesting.DefaultDiffConfig())
+	d, _ := traffictesting.NewDiff([]diff.PatchOp{{Op: "replace", Path: "/status", Value: "error"}}, traffictesting.DefaultDiffConfig())
 	method, _ := traffictesting.NewHTTPMethod("GET")
 	path, _ := traffictesting.ParsePath("/test")
 	expectedRequest, _ := traffictesting.NewRequest(
@@ -484,7 +484,7 @@ func TestGetRequestByID_CustomDiffConfig(t *testing.T) {
 		0.01,
 		true,
 	)
-	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{{Op: "replace", Path: "/items"}}, customConfig)
+	d, _ := traffictesting.NewDiff([]diff.PatchOp{{Op: "replace", Path: "/items"}}, customConfig)
 	method, _ := traffictesting.NewHTTPMethod("POST")
 	path, _ := traffictesting.ParsePath("/api/data")
 	expectedRequest, _ := traffictesting.NewRequest(
@@ -909,7 +909,7 @@ func createTestRequest(gateID traffictesting.GateID) (*traffictesting.Request, e
 		time.Now(),
 	)
 
-	d, _ := traffictesting.NewDiff(liveResp.ID, shadowResp.ID, []diff.PatchOp{
+	d, _ := traffictesting.NewDiff([]diff.PatchOp{
 		{Op: "replace", Path: "/status", Value: "different"},
 	}, traffictesting.DefaultDiffConfig())
 	method, _ := traffictesting.NewHTTPMethod("GET")

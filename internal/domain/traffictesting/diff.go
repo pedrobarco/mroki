@@ -2,29 +2,21 @@ package traffictesting
 
 import (
 	"reflect"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
 type Diff struct {
-	FromResponseID uuid.UUID
-	ToResponseID   uuid.UUID
-	Content        []diff.PatchOp
-	Config         DiffConfig
-	CreatedAt      time.Time
+	Content []diff.PatchOp
+	Config  DiffConfig
 }
 
 type diffOption func(*Diff)
 
-func NewDiff(from, to uuid.UUID, content []diff.PatchOp, config DiffConfig, opts ...diffOption) (*Diff, error) {
+func NewDiff(content []diff.PatchOp, config DiffConfig, opts ...diffOption) (*Diff, error) {
 	d := &Diff{
-		FromResponseID: from,
-		ToResponseID:   to,
-		Content:        content,
-		Config:         config,
-		CreatedAt:      time.Now(),
+		Content: content,
+		Config:  config,
 	}
 
 	for _, o := range opts {
@@ -34,10 +26,11 @@ func NewDiff(from, to uuid.UUID, content []diff.PatchOp, config DiffConfig, opts
 	return d, nil
 }
 
-// IsZero returns true if the Diff is the zero value.
-// A zero Diff has nil FromResponseID and ToResponseID.
+// IsZero returns true if the Diff is the zero value (no diff present).
+// A Diff created via NewDiff always has non-nil Content, so a nil Content
+// distinguishes the zero value from an empty (identical-response) diff.
 func (d Diff) IsZero() bool {
-	return d.FromResponseID == uuid.Nil && d.ToResponseID == uuid.Nil
+	return d.Content == nil
 }
 
 // HasContent returns true if the Diff contains actual differences.
@@ -47,8 +40,6 @@ func (d Diff) HasContent() bool {
 }
 
 // Equals checks value equality by comparing Content and Config.
-// Fields like FromResponseID, ToResponseID, and CreatedAt are
-// entity/persistence concerns and not part of the value identity.
 func (d Diff) Equals(other Diff) bool {
 	if !reflect.DeepEqual(d.Content, other.Content) {
 		return false

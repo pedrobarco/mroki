@@ -105,17 +105,16 @@ func (r *requestRepository) saveDiff(ctx context.Context, tx *ent.Tx, req *traff
 
 	if _, err := tx.Diff.Create().
 		SetRequestID(req.ID.UUID()).
-		SetFromResponseID(req.Diff.FromResponseID).
-		SetToResponseID(req.Diff.ToResponseID).
+		SetFromResponseID(req.LiveResponse.ID).
+		SetToResponseID(req.ShadowResponse.ID).
 		SetContent(req.Diff.Content).
 		SetConfig(mapDiffConfigToPersistence(req.Diff.Config)).
-		SetCreatedAt(req.Diff.CreatedAt).
+		SetCreatedAt(time.Now()).
 		Save(ctx); err != nil {
 		return fmt.Errorf("failed to save diff: %w", err)
 	}
 	return nil
 }
-
 
 func (r *requestRepository) GetByID(ctx context.Context, id traffictesting.RequestID, gateID traffictesting.GateID) (*traffictesting.Request, error) {
 	raw, err := r.client.Request.Query().
