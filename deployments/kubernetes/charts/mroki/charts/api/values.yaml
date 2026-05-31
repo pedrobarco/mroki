@@ -56,6 +56,22 @@ database:
 # -- Additional environment variables
 extraEnv: []
 
+# -- Pod-level security context (applied to the Deployment and the migration Job)
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context (applied to the Deployment and the migration Job)
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
 serviceAccount:
   # -- Create a ServiceAccount
   create: true

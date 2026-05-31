@@ -21,10 +21,18 @@ spec:
     spec:
       serviceAccountName: {{ include "api.serviceAccountName" . }}
       restartPolicy: Never
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: db-migrator
           image: {{ include "api.migrationImage" . }}
           imagePullPolicy: {{ .Values.migration.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           args:
             - "--url"
             - "$(MROKI_APP_DATABASE_URL)"
