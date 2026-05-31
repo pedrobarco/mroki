@@ -5,7 +5,7 @@ import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from
 import type { DiffLine, Token, TokenType } from '@/lib/json-diff'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { WrapText, Settings } from 'lucide-vue-next'
+import { WrapText, SlidersHorizontal } from 'lucide-vue-next'
 
 type ViewMode = 'unified' | 'split'
 const viewMode = ref<ViewMode>('unified')
@@ -239,7 +239,7 @@ function tokenClass(token: Token): string {
           </span>
           <span
             v-if="hasActiveConfig"
-            class="text-xs px-2 py-0.5 rounded-md font-mono bg-sky-500/15 text-sky-400"
+            class="text-xs px-2 py-0.5 rounded-md font-mono bg-accent text-dim"
           >
             {{ configPillLabel }}
           </span>
@@ -324,10 +324,10 @@ function tokenClass(token: Token): string {
           <Popover v-if="hasActiveConfig">
             <PopoverTrigger as-child>
               <button
-                class="inline-flex items-center justify-center size-[26px] rounded-md border border-border text-sky-400 bg-sky-500/15 hover:bg-sky-500/25 transition-colors"
+                class="inline-flex items-center justify-center size-[26px] rounded-md border border-border text-dim hover:text-foreground hover:bg-accent data-[state=open]:bg-accent data-[state=open]:text-foreground transition-colors"
                 aria-label="Diff configuration"
               >
-                <Settings class="size-3.5" />
+                <SlidersHorizontal class="size-3.5" />
               </button>
             </PopoverTrigger>
             <PopoverContent align="end" :side-offset="6" class="w-80 p-0 overflow-hidden">
@@ -342,7 +342,7 @@ function tokenClass(token: Token): string {
                   <span class="text-muted-foreground">Sort arrays</span>
                   <span
                     v-if="sortArrays"
-                    class="px-2 py-0.5 rounded-md font-mono bg-sky-500/15 text-sky-400"
+                    class="px-2 py-0.5 rounded-md font-mono border border-border bg-accent/40 text-foreground"
                   >
                     On
                   </span>
@@ -352,7 +352,7 @@ function tokenClass(token: Token): string {
                   <span class="text-muted-foreground">Float tolerance</span>
                   <span
                     v-if="floatTolerance > 0"
-                    class="px-2 py-0.5 rounded-md font-mono bg-sky-500/15 text-sky-400"
+                    class="px-2 py-0.5 rounded-md font-mono border border-border bg-accent/40 text-foreground"
                   >
                     ±{{ floatTolerance }}
                   </span>
