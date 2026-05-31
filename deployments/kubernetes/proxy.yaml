@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: mroki-proxy
-        image: mroki-proxy:v1.0.0
+        image: mroki-proxy:1.0.0
         ports:
         - containerPort: 8080
         env:
