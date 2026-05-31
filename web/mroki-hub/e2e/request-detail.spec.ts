@@ -193,6 +193,68 @@ test.describe('Request Detail Page', () => {
     expect(content.raw_query).toBe('format=csv&fields=name,email')
   })
 
+  test('displays arrays sorted badge when sort_arrays is enabled', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `sort-badge-gate-${suffix}`,
+      `https://sort-badge-live-${suffix}.example.com`,
+      `https://sort-badge-shadow-${suffix}.example.com`
+    )
+
+    // Enable sort_arrays on the gate
+    await api.updateGate(gate.id, {
+      diff_config: {
+        ignored_fields: [],
+        included_fields: [],
+        float_tolerance: 0,
+        sort_arrays: true,
+      },
+    })
+
+    // Seed a request — the diff config snapshot will include sort_arrays: true
+    const req = await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/sorted-test',
+      liveBody: btoa(JSON.stringify({ items: ['b', 'a', 'c'] })),
+      shadowBody: btoa(JSON.stringify({ items: ['b', 'a', 'c'] })),
+      liveStatus: 200,
+      shadowStatus: 200,
+      diffContent: [],
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+
+    // The "arrays sorted" badge should be visible in the DiffViewer header
+    await expect(page.getByText('arrays sorted')).toBeVisible()
+  })
+
+  test('does not display arrays sorted badge when sort_arrays is disabled', async ({
+    page,
+    api,
+  }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `no-sort-badge-gate-${suffix}`,
+      `https://no-sort-live-${suffix}.example.com`,
+      `https://no-sort-shadow-${suffix}.example.com`
+    )
+
+    const req = await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/unsorted-test',
+      liveBody: btoa(JSON.stringify({ items: ['b', 'a', 'c'] })),
+      shadowBody: btoa(JSON.stringify({ items: ['b', 'a', 'c'] })),
+      liveStatus: 200,
+      shadowStatus: 200,
+      diffContent: [],
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+
+    // The badge should NOT be visible (sort_arrays defaults to false)
+    await expect(page.getByText('arrays sorted')).not.toBeVisible()
+  })
+
   test('export JSON downloads request data', async ({ page, api }) => {
     const suffix = Date.now()
     const gate = await api.createGate(

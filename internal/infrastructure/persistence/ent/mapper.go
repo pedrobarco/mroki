@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/ent"
+	"github.com/pedrobarco/mroki/ent/schema"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 )
 
@@ -39,7 +40,7 @@ func mapGateToDomain(raw *ent.Gate) (*traffictesting.Gate, error) {
 		includedFields = []string{}
 	}
 
-	diffConfig, err := traffictesting.NewDiffConfig(ignoredFields, includedFields, raw.DiffFloatTolerance)
+	diffConfig, err := traffictesting.NewDiffConfig(ignoredFields, includedFields, raw.DiffFloatTolerance, raw.DiffSortArrays)
 	if err != nil {
 		return nil, fmt.Errorf("invalid diff config in database: %w", err)
 	}
@@ -122,6 +123,33 @@ func mapDiffToDomain(raw *ent.Diff) traffictesting.Diff {
 		FromResponseID: raw.FromResponseID,
 		ToResponseID:   raw.ToResponseID,
 		Content:        raw.Content,
+		Config:         mapDiffConfigSnapshotToDomain(raw.Config),
 		CreatedAt:      raw.CreatedAt,
+	}
+}
+
+func mapDiffConfigToPersistence(cfg traffictesting.DiffConfig) schema.DiffConfigSnapshot {
+	return schema.DiffConfigSnapshot{
+		SortArrays:     cfg.SortArrays,
+		IgnoredFields:  cfg.IgnoredFields,
+		IncludedFields: cfg.IncludedFields,
+		FloatTolerance: cfg.FloatTolerance,
+	}
+}
+
+func mapDiffConfigSnapshotToDomain(s schema.DiffConfigSnapshot) traffictesting.DiffConfig {
+	ignoredFields := s.IgnoredFields
+	if ignoredFields == nil {
+		ignoredFields = []string{}
+	}
+	includedFields := s.IncludedFields
+	if includedFields == nil {
+		includedFields = []string{}
+	}
+	return traffictesting.DiffConfig{
+		SortArrays:     s.SortArrays,
+		IgnoredFields:  ignoredFields,
+		IncludedFields: includedFields,
+		FloatTolerance: s.FloatTolerance,
 	}
 }

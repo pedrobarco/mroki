@@ -152,7 +152,7 @@ func TestJSON_SortArrays_Numbers(t *testing.T) {
 	a := `{"items": [1, 2, 3]}`
 	b := `{"items": [3, 1, 2]}`
 
-	ops, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b, diff.WithSortArrays(true))
 	assert.NoError(t, err)
 	assert.Empty(t, ops, "number arrays with same elements in different order should be equal")
 }
@@ -161,7 +161,7 @@ func TestJSON_SortArrays_Strings(t *testing.T) {
 	a := `{"tags": ["alpha", "beta", "gamma"]}`
 	b := `{"tags": ["gamma", "alpha", "beta"]}`
 
-	ops, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b, diff.WithSortArrays(true))
 	assert.NoError(t, err)
 	assert.Empty(t, ops, "string arrays with same elements in different order should be equal")
 }
@@ -170,7 +170,7 @@ func TestJSON_SortArrays_Objects(t *testing.T) {
 	a := `{"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]}`
 	b := `{"users": [{"name": "Bob", "age": 25}, {"name": "Alice", "age": 30}]}`
 
-	ops, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b, diff.WithSortArrays(true))
 	assert.NoError(t, err)
 	assert.Empty(t, ops, "arrays of objects with same elements in different order should be equal")
 }
@@ -179,7 +179,7 @@ func TestJSON_SortArrays_ObjectsDifferentKeyOrder(t *testing.T) {
 	a := `{"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]}`
 	b := `{"users": [{"age": 25, "name": "Bob"}, {"age": 30, "name": "Alice"}]}`
 
-	ops, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b, diff.WithSortArrays(true))
 	assert.NoError(t, err)
 	assert.Empty(t, ops, "arrays of objects with different key order and array order should be equal")
 }
@@ -188,7 +188,7 @@ func TestJSON_SortArrays_NestedArrays(t *testing.T) {
 	a := `{"matrix": [[1, 2], [3, 4]]}`
 	b := `{"matrix": [[3, 4], [1, 2]]}`
 
-	ops, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b, diff.WithSortArrays(true))
 	assert.NoError(t, err)
 	assert.Empty(t, ops, "nested arrays with same elements in different order should be equal")
 }
@@ -197,9 +197,34 @@ func TestJSON_SortArrays_ActualDifference(t *testing.T) {
 	a := `{"items": [1, 2, 3]}`
 	b := `{"items": [1, 2, 4]}`
 
-	ops, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b, diff.WithSortArrays(true))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ops, "arrays with genuinely different elements should produce a diff")
+}
+
+func TestJSON_DefaultNoSort_PositionalDiff(t *testing.T) {
+	a := `{"items": [1, 2, 3]}`
+	b := `{"items": [3, 1, 2]}`
+
+	ops, err := diff.JSON(a, b)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, ops, "without sort_arrays, reordered arrays should produce diffs (positional comparison)")
+}
+
+func TestJSON_SortArrays_IndicesMatchSortedData(t *testing.T) {
+	// Verify that patch op indices correspond to sorted array positions,
+	// avoiding mismatching array indices between backend and frontend.
+	a := `{"items": [3, 1, 2]}`
+	b := `{"items": [3, 1, 4]}`
+
+	// Sorted: [1, 2, 3] vs [1, 3, 4] → index 1: 2→3, index 2: 3→4
+	ops, err := diff.JSON(a, b, diff.WithSortArrays(true))
+	assert.NoError(t, err)
+	require.Len(t, ops, 2)
+	assert.Equal(t, "/items/1", ops[0].Path)
+	assert.Equal(t, float64(3), ops[0].Value)
+	assert.Equal(t, "/items/2", ops[1].Path)
+	assert.Equal(t, float64(4), ops[1].Value)
 }
 
 func TestJSON_ObjectKeyOrder_NoDiff(t *testing.T) {
@@ -384,6 +409,85 @@ func TestParsed_with_included_fields(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Empty(t, ops, "should have no diff when only matching fields are included")
+}
+
+func TestParsed_with_sort_arrays(t *testing.T) {
+	a := map[string]any{"items": []any{float64(3), float64(1), float64(2)}}
+	b := map[string]any{"items": []any{float64(2), float64(3), float64(1)}}
+
+	ops, err := diff.Parsed(a, b, diff.WithSortArrays(true))
+
+	require.NoError(t, err)
+	assert.Empty(t, ops, "sorted arrays with same elements should produce no diff")
+}
+
+func TestParsed_without_sort_arrays(t *testing.T) {
+	a := map[string]any{"items": []any{float64(3), float64(1), float64(2)}}
+	b := map[string]any{"items": []any{float64(2), float64(3), float64(1)}}
+
+	ops, err := diff.Parsed(a, b)
+
+	require.NoError(t, err)
+	assert.NotEmpty(t, ops, "without sort_arrays, reordered arrays should produce diffs")
+}
+
+func TestSortArraysInTree_sorts_flat_array(t *testing.T) {
+	v := map[string]any{"items": []any{float64(3), float64(1), float64(2)}}
+	result := diff.SortArraysInTree(v)
+
+	sorted := result.(map[string]any)["items"].([]any)
+	assert.Equal(t, []any{float64(1), float64(2), float64(3)}, sorted)
+}
+
+func TestSortArraysInTree_sorts_string_array(t *testing.T) {
+	v := []any{"cherry", "apple", "banana"}
+	result := diff.SortArraysInTree(v)
+
+	assert.Equal(t, []any{"apple", "banana", "cherry"}, result)
+}
+
+func TestSortArraysInTree_sorts_nested_arrays(t *testing.T) {
+	v := map[string]any{
+		"matrix": []any{
+			[]any{float64(3), float64(1)},
+			[]any{float64(1), float64(2)},
+		},
+	}
+	result := diff.SortArraysInTree(v)
+
+	matrix := result.(map[string]any)["matrix"].([]any)
+	// Inner arrays sorted first: [3,1]→[1,3] and [1,2]→[1,2]
+	// Then outer sorted by canonical JSON key: [1,2] < [1,3]
+	assert.Equal(t, []any{float64(1), float64(2)}, matrix[0])
+	assert.Equal(t, []any{float64(1), float64(3)}, matrix[1])
+}
+
+func TestSortArraysInTree_preserves_non_array_values(t *testing.T) {
+	v := map[string]any{
+		"name":   "test",
+		"count":  float64(42),
+		"active": true,
+		"data":   nil,
+	}
+	result := diff.SortArraysInTree(v)
+
+	m := result.(map[string]any)
+	assert.Equal(t, "test", m["name"])
+	assert.Equal(t, float64(42), m["count"])
+	assert.Equal(t, true, m["active"])
+	assert.Nil(t, m["data"])
+}
+
+func TestSortArraysInTree_sorts_arrays_inside_objects_in_arrays(t *testing.T) {
+	v := []any{
+		map[string]any{"tags": []any{"b", "a"}},
+		map[string]any{"tags": []any{"d", "c"}},
+	}
+	diff.SortArraysInTree(v)
+
+	// Inner arrays should be sorted
+	assert.Equal(t, []any{"a", "b"}, v[0].(map[string]any)["tags"])
+	assert.Equal(t, []any{"c", "d"}, v[1].(map[string]any)["tags"])
 }
 
 // TestBuildEnvelope_MatchesJsonPath verifies that BuildEnvelope produces the

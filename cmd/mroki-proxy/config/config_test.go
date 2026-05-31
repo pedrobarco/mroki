@@ -238,6 +238,19 @@ func TestValidate_diff_float_tolerance(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 }
 
+func TestValidate_diff_sort_arrays(t *testing.T) {
+	// Default is false
+	cfg := validStandaloneConfig()
+	assert.False(t, cfg.App.DiffSortArrays)
+	require.NoError(t, cfg.Validate())
+
+	// Explicitly set to true is valid
+	cfg = validStandaloneConfig()
+	cfg.App.DiffSortArrays = true
+	require.NoError(t, cfg.Validate())
+}
+
+
 func TestValidate_invalid_server_timeouts(t *testing.T) {
 	cfg := validStandaloneConfig()
 	cfg.App.ReadTimeout = 0

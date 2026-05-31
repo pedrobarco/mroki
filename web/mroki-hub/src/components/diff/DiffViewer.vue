@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch, onMounted, onUnmounted } from 'vue'
 import type { Response, PatchOp } from '@/api'
-import { buildDiffLines, buildSplitRows, stripPathPrefix, expandCollapsed } from '@/lib/json-diff'
+import {
+  buildDiffLines,
+  buildSplitRows,
+  stripPathPrefix,
+  expandCollapsed,
+  sortArraysInTree,
+} from '@/lib/json-diff'
 import type { DiffLine, Token, TokenType } from '@/lib/json-diff'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { WrapText } from 'lucide-vue-next'
@@ -45,6 +51,7 @@ interface Props {
   liveResponse: Response
   shadowResponse: Response
   diffContent: PatchOp[] | null
+  sortArrays?: boolean
 }
 
 const props = defineProps<Props>()
@@ -68,8 +75,18 @@ const isBinary = computed(
     (liveBody.value !== null && isBinaryContent(liveBody.value)) ||
     (shadowBody.value !== null && isBinaryContent(shadowBody.value))
 )
-const liveJson = computed(() => (liveBody.value ? tryParseJson(liveBody.value) : null))
-const shadowJson = computed(() => (shadowBody.value ? tryParseJson(shadowBody.value) : null))
+const liveJsonRaw = computed(() => (liveBody.value ? tryParseJson(liveBody.value) : null))
+const shadowJsonRaw = computed(() => (shadowBody.value ? tryParseJson(shadowBody.value) : null))
+const liveJson = computed(() =>
+  props.sortArrays && liveJsonRaw.value !== null
+    ? sortArraysInTree(liveJsonRaw.value)
+    : liveJsonRaw.value
+)
+const shadowJson = computed(() =>
+  props.sortArrays && shadowJsonRaw.value !== null
+    ? sortArraysInTree(shadowJsonRaw.value)
+    : shadowJsonRaw.value
+)
 const isJson = computed(() => liveJson.value !== null && shadowJson.value !== null)
 
 const liveCombined = computed(() =>
@@ -215,6 +232,12 @@ function tokenClass(token: Token): string {
           <h3 class="text-sm font-semibold">Response Comparison</h3>
           <span class="text-xs text-dim bg-accent px-2 py-0.5 rounded-md font-mono">
             {{ isJson ? 'json' : 'text' }}
+          </span>
+          <span
+            v-if="sortArrays"
+            class="text-xs px-2 py-0.5 rounded-md font-mono bg-sky-500/15 text-sky-400"
+          >
+            arrays sorted
           </span>
           <span
             v-if="diffCount > 0"

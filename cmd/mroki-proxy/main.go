@@ -134,6 +134,10 @@ func main() {
 		diffOpts = append(diffOpts, diff.WithFloatTolerance(cfg.App.DiffFloatTolerance))
 	}
 
+	if cfg.App.DiffSortArrays {
+		diffOpts = append(diffOpts, diff.WithSortArrays(true))
+	}
+
 	// Build redactor from config (adds to default redacted list)
 	redactedFieldsCfg, err := traffictesting.NewRedactedFields(cfg.App.RedactedFields)
 	if err != nil {
@@ -151,6 +155,7 @@ func main() {
 		"ignored_fields", cfg.App.DiffIgnoredFields,
 		"included_fields", cfg.App.DiffIncludedFields,
 		"float_tolerance", cfg.App.DiffFloatTolerance,
+		"sort_arrays", cfg.App.DiffSortArrays,
 	)
 
 	// Configure proxy handler

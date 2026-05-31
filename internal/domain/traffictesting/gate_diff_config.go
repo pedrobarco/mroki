@@ -12,11 +12,12 @@ type DiffConfig struct {
 	IgnoredFields  []string
 	IncludedFields []string
 	FloatTolerance float64
+	SortArrays     bool
 }
 
 // NewDiffConfig creates a validated DiffConfig.
 // Input slices are copied — the caller's slices are never mutated.
-func NewDiffConfig(ignoredFields, includedFields []string, floatTolerance float64) (DiffConfig, error) {
+func NewDiffConfig(ignoredFields, includedFields []string, floatTolerance float64, sortArrays bool) (DiffConfig, error) {
 	if floatTolerance < 0 {
 		return DiffConfig{}, fmt.Errorf("%w: float_tolerance must be non-negative", ErrInvalidDiffConfig)
 	}
@@ -43,15 +44,17 @@ func NewDiffConfig(ignoredFields, includedFields []string, floatTolerance float6
 		IgnoredFields:  cleanedIgnored,
 		IncludedFields: cleanedIncluded,
 		FloatTolerance: floatTolerance,
+		SortArrays:     sortArrays,
 	}, nil
 }
 
-// DefaultDiffConfig returns the zero-value config (no filtering, no tolerance).
+// DefaultDiffConfig returns the zero-value config (no filtering, no tolerance, no sorting).
 func DefaultDiffConfig() DiffConfig {
 	return DiffConfig{
 		IgnoredFields:  []string{},
 		IncludedFields: []string{},
 		FloatTolerance: 0,
+		SortArrays:     false,
 	}
 }
 
@@ -71,5 +74,9 @@ func (c DiffConfig) ToDiffOptions() []diff.Option {
 		opts = append(opts, diff.WithFloatTolerance(c.FloatTolerance))
 	}
 
+	opts = append(opts, diff.WithSortArrays(c.SortArrays))
+
 	return opts
 }
+
+

@@ -21,6 +21,7 @@ type UpdateDiffConfigProps struct {
 	IgnoredFields  []string
 	IncludedFields []string
 	FloatTolerance float64
+	SortArrays     bool
 }
 
 // UpdateRedactedFieldsProps holds the redacted fields configuration for update.
@@ -67,6 +68,7 @@ func (h *UpdateGateHandler) Handle(ctx context.Context, cmd UpdateGateCommand) (
 			cmd.DiffConfig.IgnoredFields,
 			cmd.DiffConfig.IncludedFields,
 			cmd.DiffConfig.FloatTolerance,
+			cmd.DiffConfig.SortArrays,
 		)
 		if err != nil {
 			return nil, err

@@ -45,14 +45,14 @@ func TestPatchReporter_nested_objects(t *testing.T) {
 }
 
 func TestPatchReporter_arrays(t *testing.T) {
-	// Arrays are always sorted before comparison.
+	// With sort_arrays enabled, arrays are sorted before comparison.
 	// a sorted: ["apple","banana","cherry"]
 	// b sorted: ["apple","cherry","orange"]
 	// Produces 2 replacements: banana→cherry at /items/1, cherry→orange at /items/2
 	a := `{"items":["apple","banana","cherry"]}`
 	b := `{"items":["apple","orange","cherry"]}`
 
-	ops, err := diff.JSON(a, b)
+	ops, err := diff.JSON(a, b, diff.WithSortArrays(true))
 
 	require.NoError(t, err)
 	assert.Len(t, ops, 2)
@@ -62,6 +62,21 @@ func TestPatchReporter_arrays(t *testing.T) {
 	assert.Equal(t, "replace", ops[1].Op)
 	assert.Equal(t, "/items/2", ops[1].Path)
 	assert.Equal(t, "orange", ops[1].Value)
+}
+
+func TestPatchReporter_arrays_positional(t *testing.T) {
+	// Default (no sort): positional comparison.
+	// index 1 differs: "banana" vs "orange"
+	a := `{"items":["apple","banana","cherry"]}`
+	b := `{"items":["apple","orange","cherry"]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	assert.Len(t, ops, 1)
+	assert.Equal(t, "replace", ops[0].Op)
+	assert.Equal(t, "/items/1", ops[0].Path)
+	assert.Equal(t, "orange", ops[0].Value)
 }
 
 func TestPatchReporter_mixed_types(t *testing.T) {

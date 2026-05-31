@@ -20,7 +20,7 @@ func init() {
 	entdiffFields := schema.Diff{}.Fields()
 	_ = entdiffFields
 	// entdiffDescCreatedAt is the schema descriptor for created_at field.
-	entdiffDescCreatedAt := entdiffFields[5].Descriptor()
+	entdiffDescCreatedAt := entdiffFields[6].Descriptor()
 	// entdiff.DefaultCreatedAt holds the default value on creation for the created_at field.
 	entdiff.DefaultCreatedAt = entdiffDescCreatedAt.Default.(func() time.Time)
 	// entdiffDescID is the schema descriptor for id field.
@@ -45,6 +45,10 @@ func init() {
 	gateDescCreatedAt := gateFields[4].Descriptor()
 	// gate.DefaultCreatedAt holds the default value on creation for the created_at field.
 	gate.DefaultCreatedAt = gateDescCreatedAt.Default.(func() time.Time)
+	// gateDescDiffSortArrays is the schema descriptor for diff_sort_arrays field.
+	gateDescDiffSortArrays := gateFields[8].Descriptor()
+	// gate.DefaultDiffSortArrays holds the default value on creation for the diff_sort_arrays field.
+	gate.DefaultDiffSortArrays = gateDescDiffSortArrays.Default.(bool)
 	// gateDescID is the schema descriptor for id field.
 	gateDescID := gateFields[0].Descriptor()
 	// gate.DefaultID holds the default value on creation for the id field.

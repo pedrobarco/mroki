@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>mroki hub — Gate Settings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['SF Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#09090b', card: '#111113', hover: '#18181b', border: '#27272a', subtle: '#1c1c1f' },
+        fg: { DEFAULT: '#fafafa', muted: '#a1a1aa', dim: '#71717a', accent: '#e4e4e7' },
+        accent: { green: '#22c55e', greenDim: '#166534', blue: '#3b82f6', blueDim: '#1e3a5f', amber: '#f59e0b', red: '#ef4444', redDim: '#7f1d1d' },
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background: #09090b; color: #fafafa; font-family: system-ui, -apple-system, sans-serif; }
+  .dot-pulse { width: 6px; height: 6px; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  ::selection { background: #3b82f6; color: white; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+
+<!-- Top Nav -->
+<header class="border-b border-bg-border sticky top-0 z-50 bg-bg/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between h-14 px-6">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-fg">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="font-semibold text-[15px] tracking-tight text-fg">mroki hub</span>
+      </div>
+      <nav class="flex items-center gap-1 text-[13px]">
+        <a href="#" class="px-3 py-1.5 rounded-md bg-bg-hover text-fg font-medium">Gates</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Agents</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Requests</a>
+        <a href="#" class="px-3 py-1.5 rounded-md text-fg-muted hover:text-fg-accent">Settings</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5 text-[12px] text-accent-green bg-accent-greenDim/30 px-2.5 py-1 rounded-full">
+        <span class="dot-pulse bg-accent-green"></span><span>API Connected</span>
+      </div>
+      <div class="w-7 h-7 rounded-full bg-bg-hover border border-bg-border flex items-center justify-center text-[11px] font-medium text-fg-muted">DK</div>
+    </div>
+  </div>
+</header>
+
+<!-- Page Content -->
+<main class="max-w-6xl mx-auto px-6 py-6">
+  <!-- Back link -->
+  <a href="#" class="inline-flex items-center gap-1.5 text-[13px] text-fg-muted hover:text-fg transition-colors mb-5">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Gate
+  </a>
+
+  <!-- Page Title -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-[20px] font-semibold tracking-tight mb-1">Gate Settings</h1>
+      <div class="flex items-center gap-2 text-[13px] text-fg-dim">
+        <span class="font-medium text-fg-muted">checkout-api</span>
+        <span class="text-fg-dim/50">&middot;</span>
+        <code class="text-[11px] font-mono">a3f8c1d2-94e7-4b1a-af62-8d3c0e5f19b7</code>
+      </div>
+    </div>
+    <button class="inline-flex items-center gap-2 text-[13px] font-medium text-fg bg-fg/10 hover:bg-fg/15 border border-bg-border rounded-lg px-4 py-2 transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save Changes
+    </button>
+  </div>
+
+  <!-- Settings Grid -->
+  <div class="space-y-6">
+
+    <!-- Section: Header Scrubbing -->
+    <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-bg-border/50">
+        <div class="flex items-center gap-2 mb-1">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-amber">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <h2 class="text-[15px] font-semibold tracking-tight">Header Scrubbing</h2>
+        </div>
+        <p class="text-[12px] text-fg-dim leading-relaxed">Sensitive header values are replaced with <code class="text-[11px] font-mono bg-bg-hover px-1.5 py-0.5 rounded text-accent-amber">[REDACTED]</code> before data is stored or compared. Fields use <a href="#" class="text-accent-blue hover:underline">gjson path notation</a>.</p>
+      </div>
+
+      <div class="p-5 space-y-5">
+        <!-- Default Fields (read-only) -->
+        <div>
+          <div class="flex items-center gap-2 mb-2.5">
+            <h3 class="text-[13px] font-medium text-fg-accent">Default Fields</h3>
+            <span class="text-[10px] uppercase tracking-widest text-fg-dim bg-bg-hover px-2 py-0.5 rounded-full">Always active</span>
+          </div>
+          <p class="text-[11px] text-fg-dim mb-3">These fields are always scrubbed and cannot be removed. They protect common sensitive headers across all gates.</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="inline-flex items-center gap-1.5 text-[12px] font-mono bg-bg/60 border border-bg-border/50 text-fg-muted px-3 py-1.5 rounded-lg">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-accent-green shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+              headers.Authorization
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-[12px] font-mono bg-bg/60 border border-bg-border/50 text-fg-muted px-3 py-1.5 rounded-lg">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-accent-green shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+              headers.Cookie
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-[12px] font-mono bg-bg/60 border border-bg-border/50 text-fg-muted px-3 py-1.5 rounded-lg">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-accent-green shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+              headers.Set-Cookie
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-[12px] font-mono bg-bg/60 border border-bg-border/50 text-fg-muted px-3 py-1.5 rounded-lg">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-accent-green shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+              headers.X-Api-Key
+            </span>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-t border-bg-border/50"></div>
+
+        <!-- Additional Fields (editable) -->
+        <div>
+          <div class="flex items-center gap-2 mb-2.5">
+            <h3 class="text-[13px] font-medium text-fg-accent">Additional Fields</h3>
+            <span class="text-[10px] uppercase tracking-widest text-fg-dim bg-bg-hover px-2 py-0.5 rounded-full">Per-gate</span>
+          </div>
+          <p class="text-[11px] text-fg-dim mb-3">Add extra fields to scrub for this gate. These are merged with the defaults at runtime.</p>
+
+          <!-- Existing additional fields -->
+          <div class="space-y-2 mb-3" id="additional-fields">
+            <div class="flex items-center gap-2 group">
+              <div class="flex-1 bg-bg/60 border border-bg-border/50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <code class="text-[12px] font-mono text-fg-muted">headers.X-Internal-Token</code>
+              </div>
+              <button class="w-7 h-7 flex items-center justify-center rounded-lg border border-bg-border/50 bg-bg/60 text-fg-dim hover:text-accent-red hover:border-accent-red/30 hover:bg-accent-redDim/10 transition-colors opacity-0 group-hover:opacity-100">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="flex items-center gap-2 group">
+              <div class="flex-1 bg-bg/60 border border-bg-border/50 rounded-lg px-3 py-2 flex items-center justify-between">
+                <code class="text-[12px] font-mono text-fg-muted">headers.X-Secret-Key</code>
+              </div>
+              <button class="w-7 h-7 flex items-center justify-center rounded-lg border border-bg-border/50 bg-bg/60 text-fg-dim hover:text-accent-red hover:border-accent-red/30 hover:bg-accent-redDim/10 transition-colors opacity-0 group-hover:opacity-100">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Add new field -->
+          <div class="flex items-center gap-2">
+            <div class="relative flex-1">
+              <input type="text" placeholder="e.g. headers.X-Custom-Auth" class="w-full bg-bg border border-bg-border rounded-lg px-3 py-2 text-[12px] font-mono text-fg placeholder:text-fg-dim/50 focus:outline-none focus:border-[#3f3f46] focus:ring-1 focus:ring-[#3f3f46]">
+            </div>
+            <button class="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted border border-bg-border rounded-lg px-3 py-2 bg-bg-card hover:bg-bg-hover hover:text-fg transition-colors">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Diff Configuration -->
+    <div class="bg-bg-card border border-bg-border rounded-xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-bg-border/50">
+        <div class="flex items-center gap-2 mb-1">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-blue">
+            <path d="M16 3h5v5"/><line x1="4" y1="20" x2="21" y2="3"/><path d="M21 16v5h-5"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>
+          </svg>
+          <h2 class="text-[15px] font-semibold tracking-tight">Diff Configuration</h2>
+        </div>
+        <p class="text-[12px] text-fg-dim leading-relaxed">Control how live vs. shadow JSON responses are compared. Fields use <a href="#" class="text-accent-blue hover:underline">gjson path notation</a>.</p>
+      </div>
+
+      <div class="p-5 space-y-5">
+        <!-- Ignored Fields -->
+        <div>
+          <div class="flex items-center gap-2 mb-2.5">
+            <h3 class="text-[13px] font-medium text-fg-accent">Ignored Fields</h3>
+          </div>
+          <p class="text-[11px] text-fg-dim mb-3">Fields excluded from diff computation. Use for volatile values like timestamps or request IDs.</p>
+          <div class="space-y-2 mb-3">
+            <div class="flex items-center gap-2 group">
+              <div class="flex-1 bg-bg/60 border border-bg-border/50 rounded-lg px-3 py-2">
+                <code class="text-[12px] font-mono text-fg-muted">timestamp</code>
+              </div>
+              <button class="w-7 h-7 flex items-center justify-center rounded-lg border border-bg-border/50 bg-bg/60 text-fg-dim hover:text-accent-red hover:border-accent-red/30 hover:bg-accent-redDim/10 transition-colors opacity-0 group-hover:opacity-100">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="flex items-center gap-2 group">
+              <div class="flex-1 bg-bg/60 border border-bg-border/50 rounded-lg px-3 py-2">
+                <code class="text-[12px] font-mono text-fg-muted">request_id</code>
+              </div>
+              <button class="w-7 h-7 flex items-center justify-center rounded-lg border border-bg-border/50 bg-bg/60 text-fg-dim hover:text-accent-red hover:border-accent-red/30 hover:bg-accent-redDim/10 transition-colors opacity-0 group-hover:opacity-100">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="text" placeholder="e.g. response.trace_id" class="flex-1 bg-bg border border-bg-border rounded-lg px-3 py-2 text-[12px] font-mono text-fg placeholder:text-fg-dim/50 focus:outline-none focus:border-[#3f3f46] focus:ring-1 focus:ring-[#3f3f46]">
+            <button class="inline-flex items-center gap-1.5 text-[12px] font-medium text-fg-muted border border-bg-border rounded-lg px-3 py-2 bg-bg-card hover:bg-bg-hover hover:text-fg transition-colors">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add
+            </button>
+          </div>
+        </div>
+
+        <div class="border-t border-bg-border/50"></div>
+
+        <!-- Included Fields -->
+        <div>
+          <div class="flex items-center gap-2 mb-2.5">
+            <h3 class="text-[13px] font-medium text-fg-accent">Included Fields</h3>
+            <span class="text-[10px] uppercase tracking-widest text-fg-dim bg-bg-hover px-2 py-0.5 rounded-full">Whitelist</span>
+          </div>
+          <p class="text-[11px] text-fg-dim mb-3">When set, <em>only</em> these fields are compared (ignored fields still apply on top).</p>
+          <div class="flex items-center gap-3 px-3 py-3 bg-bg/60 border border-bg-border/30 rounded-lg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fg-dim shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span class="text-[12px] text-fg-dim">No included fields configured — all fields are compared.</span>
+          </div>
+        </div>
+
+        <div class="border-t border-bg-border/50"></div>
+
+        <!-- Float Tolerance -->
+        <div>
+          <div class="flex items-center gap-2 mb-2.5">
+            <h3 class="text-[13px] font-medium text-fg-accent">Float Tolerance</h3>
+          </div>
+          <p class="text-[11px] text-fg-dim mb-3">Absolute tolerance for floating-point comparisons. Values within this tolerance are treated as equal.</p>
+          <div class="flex items-center gap-3">
+            <input type="number" value="0.001" step="0.0001" min="0" class="w-[180px] bg-bg border border-bg-border rounded-lg px-3 py-2 text-[12px] font-mono text-fg focus:outline-none focus:border-[#3f3f46] focus:ring-1 focus:ring-[#3f3f46]">
+            <span class="text-[11px] text-fg-dim">0 = exact comparison</span>
+          </div>
+        </div>
+
+        <div class="border-t border-bg-border/50"></div>
+
+        <!-- Array Order -->
+        <div>
+          <div class="flex items-center gap-2 mb-2.5">
+            <h3 class="text-[13px] font-medium text-fg-accent">Array Order</h3>
+          </div>
+          <p class="text-[11px] text-fg-dim mb-3">Arrays are sorted before diffing so reordered elements aren't flagged as changes.</p>
+
+          <!-- Toggle switch -->
+          <div class="flex items-center gap-3 mb-3">
+            <button class="relative w-10 h-[22px] rounded-full bg-accent-blue transition-colors cursor-pointer" aria-checked="true">
+              <span class="absolute top-[3px] left-[21px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform"></span>
+            </button>
+            <span class="text-[12px] text-fg-muted">Ignore array element order</span>
+          </div>
+
+          <!-- Info box -->
+          <div class="flex items-start gap-2.5 px-3 py-2.5 bg-bg/60 border border-bg-border/30 rounded-lg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fg-dim shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span class="text-[11px] text-fg-dim leading-relaxed">When enabled, arrays are recursively sorted in both responses before comparison. Reported diff indices reflect sorted order, not original order. Changes to this setting do not reprocess past diffs.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Danger Zone -->
+    <div class="bg-bg-card border border-accent-red/20 rounded-xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-accent-red/10">
+        <div class="flex items-center gap-2 mb-1">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-accent-red">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <h2 class="text-[15px] font-semibold tracking-tight text-accent-red">Danger Zone</h2>
+        </div>
+      </div>
+      <div class="p-5 flex items-center justify-between">
+        <div>
+          <h3 class="text-[13px] font-medium text-fg mb-0.5">Delete this gate</h3>
+          <p class="text-[11px] text-fg-dim">Permanently remove this gate and all its captured requests. This action cannot be undone.</p>
+        </div>
+        <button class="inline-flex items-center gap-1.5 text-[12px] font-medium text-accent-red border border-accent-red/30 rounded-lg px-4 py-2 bg-accent-redDim/10 hover:bg-accent-redDim/20 transition-colors">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Delete Gate
+        </button>
+      </div>
+    </div>
+
+  </div>
+</main>
+</body>
+</html>

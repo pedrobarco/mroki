@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import {
   AlertDialog,
@@ -53,6 +54,7 @@ const redactedAdditionalFields = ref<string[]>([])
 const diffIgnoredFields = ref<string[]>([])
 const diffIncludedFields = ref<string[]>([])
 const floatTolerance = ref('')
+const sortArrays = ref(false)
 
 // Default redacted fields (mirrors domain DefaultRedactedFields)
 const defaultRedactedFields = [
@@ -70,6 +72,7 @@ function populateForm(g: Gate) {
   floatTolerance.value = g.diff_config?.float_tolerance
     ? g.diff_config.float_tolerance.toString()
     : ''
+  sortArrays.value = g.diff_config?.sort_arrays ?? false
 }
 
 async function loadGate() {
@@ -110,6 +113,7 @@ async function handleSave() {
         ignored_fields: diffIgnoredFields.value,
         included_fields: diffIncludedFields.value,
         float_tolerance: floatTolerance.value ? parseFloat(floatTolerance.value) : 0,
+        sort_arrays: sortArrays.value,
       },
       redacted_fields: redactedAdditionalFields.value,
     })
@@ -360,6 +364,30 @@ onMounted(() => {
                   :disabled="saving"
                 />
                 <span class="text-xs text-dim">0 = exact comparison</span>
+              </div>
+            </div>
+
+            <Separator />
+
+            <!-- Array Order -->
+            <div>
+              <h3 class="text-xs font-medium text-accent-foreground mb-2.5">Array Order</h3>
+              <p class="text-xs text-dim mb-3">
+                Arrays are sorted before diffing so reordered elements aren't flagged as changes.
+              </p>
+              <div class="flex items-center gap-3">
+                <Switch v-model="sortArrays" :disabled="saving" />
+                <span class="text-xs text-muted-foreground">Ignore array element order</span>
+              </div>
+              <div
+                class="flex items-start gap-3 px-3 py-3 bg-background/60 border border-border/30 rounded-lg mt-3"
+              >
+                <Info class="h-3.5 w-3.5 text-dim shrink-0 mt-0.5" />
+                <span class="text-xs text-dim leading-relaxed">
+                  When enabled, arrays are recursively sorted in both responses before comparison.
+                  Reported diff indices reflect sorted order, not original order. Changes to this
+                  setting do not reprocess past diffs.
+                </span>
               </div>
             </div>
           </div>

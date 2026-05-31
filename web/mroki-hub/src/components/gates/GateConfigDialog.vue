@@ -63,6 +63,7 @@ async function handleSubmit() {
         ignored_fields: parseCommaSeparated(ignoredFields.value),
         included_fields: parseCommaSeparated(includedFields.value),
         float_tolerance: floatTolerance.value ? parseFloat(floatTolerance.value) : 0,
+        sort_arrays: props.gate.diff_config?.sort_arrays ?? false,
       },
     })
 
