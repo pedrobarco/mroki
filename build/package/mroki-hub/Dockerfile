@@ -28,6 +28,13 @@ COPY --from=builder /app/dist /srv
 COPY build/package/mroki-hub/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+# Create a non-root user and grant it ownership of the serving directory so the
+# entrypoint can write /srv/config.js when running with runAsNonRoot.
+RUN addgroup -g 1000 mroki \
+	&& adduser -u 1000 -G mroki -D mroki \
+	&& chown -R mroki:mroki /srv
+USER 1000
+
 # Expose default port
 EXPOSE 80
 
