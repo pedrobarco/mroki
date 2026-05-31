@@ -20,6 +20,25 @@ apiBaseUrl: ""
 # -- Additional environment variables
 extraEnv: []
 
+# -- Pod-level security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context. The hub serves on port 80, so
+# NET_BIND_SERVICE is added back after dropping all capabilities.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+    add:
+      - NET_BIND_SERVICE
+
 serviceAccount:
   # -- Create a ServiceAccount
   create: true
