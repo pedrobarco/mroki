@@ -40,6 +40,23 @@ Verify the module is included:
 
 You should see `http.handlers.mroki_gate` in the output.
 
+### Add mroki to an Existing Caddy
+
+`pkg/caddymodule` is a standard, importable Caddy plugin — it self-registers the
+`http.handlers.mroki_gate` handler and the `mroki_gate` Caddyfile directive — so you
+can fold it into your own custom Caddy build alongside any other plugins. Pin a
+released version and add as many `--with` flags as you need:
+
+```bash
+xcaddy build \
+    --with github.com/pedrobarco/mroki/pkg/caddymodule@v1.3.0 \
+    --with github.com/some/other-plugin
+```
+
+Omit the `@<version>` suffix to track the latest release. (The
+`--with ...=./pkg/caddymodule` form only applies when building from a local,
+uncommitted clone, and is not needed for published versions.)
+
 ## Step 2: Configure Your Caddyfile
 
 ### Directive Syntax
