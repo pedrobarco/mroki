@@ -7,7 +7,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { WrapText } from 'lucide-vue-next'
 
 type ViewMode = 'unified' | 'split'
-const viewMode = ref<ViewMode>('unified')
+const MD_BREAKPOINT = 768
+const isMdScreen = ref(window.innerWidth >= MD_BREAKPOINT)
+// Default to split view on desktop; auto-fall back to unified below the breakpoint.
+const viewMode = ref<ViewMode>(isMdScreen.value ? 'split' : 'unified')
 const wrapLines = ref(false)
 
 // Synchronized horizontal scroll for split view panes
@@ -27,9 +30,6 @@ function onSplitScroll(source: 'left' | 'right') {
     isSyncingScroll = false
   })
 }
-
-const MD_BREAKPOINT = 768
-const isMdScreen = ref(window.innerWidth >= MD_BREAKPOINT)
 
 function onResize() {
   isMdScreen.value = window.innerWidth >= MD_BREAKPOINT
@@ -280,17 +280,6 @@ function tokenClass(token: Token): string {
             <button
               class="px-2 py-0.5 text-xs rounded-l-md transition-colors"
               :class="
-                viewMode === 'unified'
-                  ? 'bg-accent text-foreground'
-                  : 'text-dim hover:text-foreground'
-              "
-              @click="viewMode = 'unified'"
-            >
-              Unified
-            </button>
-            <button
-              class="px-2 py-0.5 text-xs rounded-r-md transition-colors border-l border-border"
-              :class="
                 viewMode === 'split'
                   ? 'bg-accent text-foreground'
                   : 'text-dim hover:text-foreground'
@@ -298,6 +287,17 @@ function tokenClass(token: Token): string {
               @click="viewMode = 'split'"
             >
               Split
+            </button>
+            <button
+              class="px-2 py-0.5 text-xs rounded-r-md transition-colors border-l border-border"
+              :class="
+                viewMode === 'unified'
+                  ? 'bg-accent text-foreground'
+                  : 'text-dim hover:text-foreground'
+              "
+              @click="viewMode = 'unified'"
+            >
+              Unified
             </button>
           </div>
         </div>
