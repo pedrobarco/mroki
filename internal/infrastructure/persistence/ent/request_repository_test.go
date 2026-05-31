@@ -86,10 +86,7 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 			CreatedAt:  time.Now(),
 		},
 		Diff: traffictesting.Diff{
-			FromResponseID: liveRespID,
-			ToResponseID:   shadowRespID,
-			Content:        []diff.PatchOp{},
-			CreatedAt:      time.Now(),
+			Content: []diff.PatchOp{},
 		},
 	}
 }

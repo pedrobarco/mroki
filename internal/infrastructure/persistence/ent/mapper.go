@@ -120,11 +120,8 @@ func mapDiffToDomain(raw *ent.Diff) traffictesting.Diff {
 		return traffictesting.Diff{}
 	}
 	return traffictesting.Diff{
-		FromResponseID: raw.FromResponseID,
-		ToResponseID:   raw.ToResponseID,
-		Content:        raw.Content,
-		Config:         mapDiffConfigSnapshotToDomain(raw.Config),
-		CreatedAt:      raw.CreatedAt,
+		Content: raw.Content,
+		Config:  mapDiffConfigSnapshotToDomain(raw.Config),
 	}
 }
 
