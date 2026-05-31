@@ -213,7 +213,8 @@ curl -H "Authorization: Bearer your-api-key" \
     "diff_config": {
       "ignored_fields": [],
       "included_fields": [],
-      "float_tolerance": 0
+      "float_tolerance": 0,
+      "sort_arrays": false
     },
     "redacted_fields": [],
     "created_at": "2026-03-29T09:00:00Z",
@@ -297,7 +298,8 @@ curl -X POST http://localhost:8090/gates \
     "diff_config": {
       "ignored_fields": ["timestamp", "request_id"],
       "included_fields": [],
-      "float_tolerance": 0.001
+      "float_tolerance": 0.001,
+      "sort_arrays": true
     },
     "redacted_fields": ["headers.X-Internal-Token"],
     "created_at": "2026-03-29T09:00:00Z",
@@ -318,6 +320,7 @@ curl -X POST http://localhost:8090/gates \
 | `ignored_fields` | `string[]` | JSON field paths to exclude from diff computation (supports wildcards) |
 | `included_fields` | `string[]` | JSON field paths to include exclusively in diff computation (supports wildcards) |
 | `float_tolerance` | `float64` | Absolute tolerance for floating-point comparisons (`0` = exact match) |
+| `sort_arrays` | `boolean` | Sort arrays before comparison so element order does not produce diffs (`false` = positional comparison) |
 
 **Stats fields:**
 
@@ -369,7 +372,8 @@ curl -H "Authorization: Bearer your-api-key" \
       "diff_config": {
         "ignored_fields": ["timestamp"],
         "included_fields": [],
-        "float_tolerance": 0.001
+        "float_tolerance": 0.001,
+        "sort_arrays": true
       },
       "redacted_fields": ["headers.X-Internal-Token"],
       "created_at": "2026-03-29T09:00:00Z",
@@ -388,7 +392,8 @@ curl -H "Authorization: Bearer your-api-key" \
       "diff_config": {
         "ignored_fields": [],
         "included_fields": [],
-        "float_tolerance": 0
+        "float_tolerance": 0,
+        "sort_arrays": false
       },
       "redacted_fields": [],
       "created_at": "2026-03-28T14:30:00Z",
@@ -448,7 +453,8 @@ curl -H "Authorization: Bearer your-api-key" \
   "diff_config": {
     "ignored_fields": ["timestamp", "request_id"],
     "included_fields": [],
-    "float_tolerance": 0.001
+    "float_tolerance": 0.001,
+    "sort_arrays": true
   },
   "redacted_fields": ["headers.X-Internal-Token", "headers.X-Session-Id"]
 }
@@ -459,6 +465,7 @@ curl -H "Authorization: Bearer your-api-key" \
 - `diff_config.ignored_fields` entries must be non-empty strings (supports wildcards)
 - `diff_config.included_fields` entries must be non-empty strings (supports wildcards)
 - `diff_config.float_tolerance` must be non-negative
+- `diff_config.sort_arrays` must be a boolean
 - `redacted_fields` entries must be non-empty strings prefixed with `headers.` (for HTTP headers, e.g. `headers.X-Internal-Token`) or `body.` (for JSON body paths, e.g. `body.user.password`)
 
 **Response:**
@@ -478,7 +485,8 @@ curl -H "Authorization: Bearer your-api-key" \
     "diff_config": {
       "ignored_fields": ["timestamp", "request_id"],
       "included_fields": [],
-      "float_tolerance": 0.001
+      "float_tolerance": 0.001,
+      "sort_arrays": true
     },
     "redacted_fields": ["headers.X-Internal-Token", "headers.X-Session-Id"],
     "created_at": "2026-03-29T09:00:00Z",
@@ -531,7 +539,8 @@ curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
     "diff_config": {
       "ignored_fields": ["timestamp"],
       "included_fields": [],
-      "float_tolerance": 0.001
+      "float_tolerance": 0.001,
+      "sort_arrays": true
     }
   }'
 ```
@@ -709,14 +718,21 @@ curl -X POST http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/re
       "latency_ms": 187,
       "created_at": "2026-01-31T20:00:01Z"
     },
-  "diff": {
-    "content": [
-      {
-        "op": "replace",
-        "path": "/id",
-        "value": 456
+    "diff": {
+      "content": [
+        {
+          "op": "replace",
+          "path": "/id",
+          "value": 456
+        }
+      ],
+      "config": {
+        "ignored_fields": [],
+        "included_fields": [],
+        "float_tolerance": 0,
+        "sort_arrays": false
       }
-    ]
+    }
   }
 }
 }
