@@ -193,10 +193,7 @@ test.describe('Request Detail Page', () => {
     expect(content.raw_query).toBe('format=csv&fields=name,email')
   })
 
-  test('displays diff settings indicator and config snapshot when config is non-default', async ({
-    page,
-    api,
-  }) => {
+  test('config snapshot reflects non-default settings', async ({ page, api }) => {
     const suffix = Date.now()
     const gate = await api.createGate(
       `sort-badge-gate-${suffix}`,
@@ -227,19 +224,15 @@ test.describe('Request Detail Page', () => {
 
     await page.goto(`/gates/${gate.id}/requests/${req.id}`)
 
-    // The summary pill should be visible (one non-default setting: sort_arrays)
-    await expect(page.getByText('1 diff setting', { exact: true })).toBeVisible()
-
-    // Opening the gear panel reveals the config snapshot with Sort arrays = On
+    // The config snapshot icon is always available; opening it reveals the
+    // captured settings, with the non-default Sort arrays = On.
     await page.getByRole('button', { name: 'Diff configuration' }).click()
     await expect(page.getByText('Snapshot used to compute this diff')).toBeVisible()
     await expect(page.getByText('Sort arrays')).toBeVisible()
+    await expect(page.getByText('On', { exact: true })).toBeVisible()
   })
 
-  test('does not display diff settings indicator when config is all-default', async ({
-    page,
-    api,
-  }) => {
+  test('config snapshot shows defaults when config is all-default', async ({ page, api }) => {
     const suffix = Date.now()
     const gate = await api.createGate(
       `no-sort-badge-gate-${suffix}`,
@@ -259,9 +252,12 @@ test.describe('Request Detail Page', () => {
 
     await page.goto(`/gates/${gate.id}/requests/${req.id}`)
 
-    // Neither the summary pill nor the gear button should be visible (all defaults)
-    await expect(page.getByText(/^\d+ diff settings?$/)).not.toBeVisible()
-    await expect(page.getByRole('button', { name: 'Diff configuration' })).not.toBeVisible()
+    // The config snapshot icon is always available, even with all-default
+    // config; opening it shows the default values.
+    await page.getByRole('button', { name: 'Diff configuration' }).click()
+    await expect(page.getByText('Snapshot used to compute this diff')).toBeVisible()
+    await expect(page.getByText('Off', { exact: true })).toBeVisible()
+    await expect(page.getByText('Exact', { exact: true })).toBeVisible()
   })
 
   test('export JSON downloads request data', async ({ page, api }) => {
