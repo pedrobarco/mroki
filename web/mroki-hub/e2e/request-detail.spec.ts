@@ -193,7 +193,10 @@ test.describe('Request Detail Page', () => {
     expect(content.raw_query).toBe('format=csv&fields=name,email')
   })
 
-  test('displays arrays sorted badge when sort_arrays is enabled', async ({ page, api }) => {
+  test('displays diff settings indicator and config snapshot when config is non-default', async ({
+    page,
+    api,
+  }) => {
     const suffix = Date.now()
     const gate = await api.createGate(
       `sort-badge-gate-${suffix}`,
@@ -224,11 +227,16 @@ test.describe('Request Detail Page', () => {
 
     await page.goto(`/gates/${gate.id}/requests/${req.id}`)
 
-    // The "arrays sorted" badge should be visible in the DiffViewer header
-    await expect(page.getByText('arrays sorted')).toBeVisible()
+    // The summary pill should be visible (one non-default setting: sort_arrays)
+    await expect(page.getByText('1 diff setting', { exact: true })).toBeVisible()
+
+    // Opening the gear panel reveals the config snapshot with Sort arrays = On
+    await page.getByRole('button', { name: 'Diff configuration' }).click()
+    await expect(page.getByText('Snapshot used to compute this diff')).toBeVisible()
+    await expect(page.getByText('Sort arrays')).toBeVisible()
   })
 
-  test('does not display arrays sorted badge when sort_arrays is disabled', async ({
+  test('does not display diff settings indicator when config is all-default', async ({
     page,
     api,
   }) => {
@@ -251,8 +259,9 @@ test.describe('Request Detail Page', () => {
 
     await page.goto(`/gates/${gate.id}/requests/${req.id}`)
 
-    // The badge should NOT be visible (sort_arrays defaults to false)
-    await expect(page.getByText('arrays sorted')).not.toBeVisible()
+    // Neither the summary pill nor the gear button should be visible (all defaults)
+    await expect(page.getByText(/^\d+ diff settings?$/)).not.toBeVisible()
+    await expect(page.getByRole('button', { name: 'Diff configuration' })).not.toBeVisible()
   })
 
   test('export JSON downloads request data', async ({ page, api }) => {

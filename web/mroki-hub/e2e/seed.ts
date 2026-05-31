@@ -156,6 +156,18 @@ export async function seedScreenshotData(api: ApiHelper): Promise<{
   const usersGateData = await api.createGate(gates.users.name, gates.users.liveUrl, gates.users.shadowUrl)
   const paymentsGateData = await api.createGate(gates.payments.name, gates.payments.liveUrl, gates.payments.shadowUrl)
 
+  // Configure the orders gate with realistic diff + redaction settings *before*
+  // seeding its requests, so each request's diff config snapshot reflects these
+  // non-default settings (the API snapshots the gate config at creation time).
+  const configuredOrdersGate = await api.updateGate(ordersGateData.id, {
+    diff_config: {
+      ignored_fields: ['timestamp', 'request_id', 'trace_id'],
+      included_fields: [],
+      float_tolerance: 0.001,
+    },
+    redacted_fields: ['headers.X-Internal-Token', 'headers.X-Session-Id'],
+  })
+
   // Seed requests for the orders gate (the one we use for detail screenshots)
   const seededRequests = []
   for (const req of ordersRequests) {
@@ -172,16 +184,6 @@ export async function seedScreenshotData(api: ApiHelper): Promise<{
       }),
     )
   }
-
-  // Configure the orders gate with realistic diff + redaction settings
-  const configuredOrdersGate = await api.updateGate(ordersGateData.id, {
-    diff_config: {
-      ignored_fields: ['timestamp', 'request_id', 'trace_id'],
-      included_fields: [],
-      float_tolerance: 0.001,
-    },
-    redacted_fields: ['headers.X-Internal-Token', 'headers.X-Session-Id'],
-  })
 
   return {
     ordersGate: { gate: configuredOrdersGate, requests: seededRequests },
