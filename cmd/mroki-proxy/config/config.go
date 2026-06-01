@@ -29,6 +29,18 @@ type Config config.Config[struct {
 	WriteTimeout  time.Duration `env:"WRITE_TIMEOUT, default=60s"`
 	IdleTimeout   time.Duration `env:"IDLE_TIMEOUT, default=120s"`
 
+	// Outbound HTTP client connection-pool tuning. These defaults suit most
+	// deployments; raise them when a single proxy must sustain high connection
+	// concurrency to live + shadow. A value of 0 follows net/http semantics (no
+	// limit, or no timeout for IdleConnTimeout). The config layer is the sole
+	// owner of these operational defaults; pkg/proxy holds none.
+	HTTPClient struct {
+		MaxIdleConns        int           `env:"MAX_IDLE_CONNS, default=100"`
+		MaxIdleConnsPerHost int           `env:"MAX_IDLE_CONNS_PER_HOST, default=10"`
+		MaxConnsPerHost     int           `env:"MAX_CONNS_PER_HOST, default=100"`
+		IdleConnTimeout     time.Duration `env:"IDLE_CONN_TIMEOUT, default=90s"`
+	} `env:", prefix=HTTP_CLIENT_"`
+
 	// API integration (optional - if not set, proxy runs in standalone mode)
 	APIURL     *url.URL      `env:"API_URL"`
 	APIKey     string        `env:"API_KEY"`
@@ -178,6 +190,22 @@ func (c Config) Validate() error {
 		verr.Add(config.SeverityError, fmt.Sprintf("max_body_size must be non-negative (0=unlimited), got %d", c.App.MaxBodySize))
 	}
 
+	// Validate HTTP client connection-pool settings. Zero is valid and follows
+	// net/http.Transport semantics (no limit, or no timeout for
+	// idle_conn_timeout), so only negative values are rejected.
+	if c.App.HTTPClient.MaxIdleConns < 0 {
+		verr.Add(config.SeverityError, fmt.Sprintf("http_client max_idle_conns must be non-negative (0=unlimited), got %d", c.App.HTTPClient.MaxIdleConns))
+	}
+	if c.App.HTTPClient.MaxIdleConnsPerHost < 0 {
+		verr.Add(config.SeverityError, fmt.Sprintf("http_client max_idle_conns_per_host must be non-negative (0=Go default of 2), got %d", c.App.HTTPClient.MaxIdleConnsPerHost))
+	}
+	if c.App.HTTPClient.MaxConnsPerHost < 0 {
+		verr.Add(config.SeverityError, fmt.Sprintf("http_client max_conns_per_host must be non-negative (0=unlimited), got %d", c.App.HTTPClient.MaxConnsPerHost))
+	}
+	if c.App.HTTPClient.IdleConnTimeout < 0 {
+		verr.Add(config.SeverityError, fmt.Sprintf("http_client idle_conn_timeout must be non-negative (0=no timeout), got %s", c.App.HTTPClient.IdleConnTimeout))
+	}
+
 	// Validate sampling rate
 	if c.App.SamplingRate < 0 || c.App.SamplingRate > 1 {
 		verr.Add(config.SeverityError, fmt.Sprintf("sampling_rate must be between 0.0 and 1.0, got %f", c.App.SamplingRate))
@@ -198,7 +226,7 @@ func (c Config) Validate() error {
 	// --- Warnings (non-fatal) ---
 
 	// tlsHandshakeTimeout is the hardcoded TLS handshake safety net used in
-	// pkg/proxy.newDefaultHTTPClient.
+	// pkg/proxy.NewHTTPClient.
 	const tlsHandshakeTimeout = 5 * time.Second
 
 	// Warn if live timeout is shorter than the hardcoded TLS handshake

@@ -193,11 +193,17 @@ func main() {
 		MaxBodySize:   cfg.App.MaxBodySize,
 		SamplingRate:  samplingRate,
 		ShadowRules:   shadowRules,
-		Logger:        log,
-		APIClient:     apiClient,          // nil if standalone mode
-		APITimeout:    cfg.App.APITimeout, // overall deadline for API calls
-		DiffOptions:   diffOpts,           // Only used in standalone mode
-		Redactor:      redactor,           // Only used in standalone mode
+		HTTPClient: proxy.HTTPClientConfig{
+			MaxIdleConns:        cfg.App.HTTPClient.MaxIdleConns,
+			MaxIdleConnsPerHost: cfg.App.HTTPClient.MaxIdleConnsPerHost,
+			MaxConnsPerHost:     cfg.App.HTTPClient.MaxConnsPerHost,
+			IdleConnTimeout:     cfg.App.HTTPClient.IdleConnTimeout,
+		},
+		Logger:      log,
+		APIClient:   apiClient,          // nil if standalone mode
+		APITimeout:  cfg.App.APITimeout, // overall deadline for API calls
+		DiffOptions: diffOpts,           // Only used in standalone mode
+		Redactor:    redactor,           // Only used in standalone mode
 	}
 
 	mux := http.NewServeMux()

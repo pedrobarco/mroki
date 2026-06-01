@@ -54,6 +54,10 @@ The proxy supports two mutually exclusive operating modes: **API mode** and **St
 | `MROKI_APP_READ_TIMEOUT` | No | `30s` | Server read timeout |
 | `MROKI_APP_WRITE_TIMEOUT` | No | `60s` | Server write timeout (must be ≥ live timeout) |
 | `MROKI_APP_IDLE_TIMEOUT` | No | `120s` | Server idle timeout |
+| `MROKI_APP_HTTP_CLIENT_MAX_IDLE_CONNS` | No | `100` | Outbound idle connection pool size across all hosts (`0` = unlimited) |
+| `MROKI_APP_HTTP_CLIENT_MAX_IDLE_CONNS_PER_HOST` | No | `10` | Outbound idle connections kept per host (`0` = Go default of 2) |
+| `MROKI_APP_HTTP_CLIENT_MAX_CONNS_PER_HOST` | No | `100` | Limit on total outbound connections per host (`0` = unlimited) |
+| `MROKI_APP_HTTP_CLIENT_IDLE_CONN_TIMEOUT` | No | `90s` | How long an idle outbound connection is kept before closing (`0` = no timeout) |
 
 #### Health endpoints
 
