@@ -27,6 +27,10 @@ type ProxyConfig struct {
 	SamplingRate  *proxy.SamplingRate // always set, default 1.0
 	ShadowRules   []proxy.ShadowRule  // shadow matching rules
 
+	// MaxConcurrentCallbacks bounds concurrent background callback goroutines
+	// (0 = unbounded). Passed through to proxy.WithMaxConcurrentCallbacks.
+	MaxConcurrentCallbacks int
+
 	// HTTPClient holds outbound connection-pool tuning. When non-zero, the
 	// proxy is built with a client from these values; the zero value falls back
 	// to NewProxy's default client (net/http pool semantics, since pkg/proxy
@@ -49,6 +53,7 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 	opts := []proxy.Option{
 		proxy.WithLiveTimeout(cfg.LiveTimeout),
 		proxy.WithShadowTimeout(cfg.ShadowTimeout),
+		proxy.WithMaxConcurrentCallbacks(cfg.MaxConcurrentCallbacks),
 	}
 
 	if cfg.Logger != nil {

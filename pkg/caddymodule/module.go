@@ -37,6 +37,12 @@ const (
 	defaultIdleConnTimeout     = 90 * time.Second
 )
 
+// defaultMaxConcurrentCallbacks bounds concurrent background callback
+// goroutines unless overridden in the Caddyfile. The module owns this
+// operational default (pkg/proxy is unopinionated); it matches the proxy
+// binary's MROKI_APP_MAX_CONCURRENT_CALLBACKS default.
+const defaultMaxConcurrentCallbacks = 200
+
 func init() {
 	caddy.RegisterModule(MrokiGate{})
 	httpcaddyfile.RegisterHandlerDirective("mroki_gate", parseCaddyfile)
@@ -53,6 +59,11 @@ type MrokiGate struct {
 	RawShadowTimeout *string `json:"shadow_timeout,omitempty"`
 	RawMaxBodySize   *string `json:"max_body_size,omitempty"`
 	RawShadowRules   *string `json:"shadow_rules,omitempty"`
+
+	// RawMaxConcurrentCallbacks bounds concurrent background callback
+	// goroutines (0 = unbounded). A nil pointer means the module default
+	// (defaultMaxConcurrentCallbacks) applies.
+	RawMaxConcurrentCallbacks *string `json:"max_concurrent_callbacks,omitempty"`
 
 	// Outbound HTTP client connection-pool tuning (optional). Grouped under the
 	// http_client block to mirror the proxy binary's MROKI_APP_HTTP_CLIENT_*
@@ -194,6 +205,21 @@ func (m *MrokiGate) Validate() error {
 		return err
 	}
 	opts = append(opts, proxy.WithHTTPClient(proxy.NewHTTPClient(clientCfg)))
+
+	// Bounded callback concurrency. The module default applies unless overridden;
+	// 0 disables the limit (unbounded).
+	maxCallbacks := defaultMaxConcurrentCallbacks
+	if m.RawMaxConcurrentCallbacks != nil {
+		v, err := strconv.Atoi(*m.RawMaxConcurrentCallbacks)
+		if err != nil {
+			return fmt.Errorf("invalid max_concurrent_callbacks: %w", err)
+		}
+		if v < 0 {
+			return fmt.Errorf("max_concurrent_callbacks must be non-negative (0=unbounded), got %d", v)
+		}
+		maxCallbacks = v
+	}
+	opts = append(opts, proxy.WithMaxConcurrentCallbacks(maxCallbacks))
 
 	// Bridge Caddy's zap logger to slog for the proxy
 	var logger *slog.Logger
@@ -425,6 +451,7 @@ func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp
 //	    [shadow_timeout      <duration>]
 //	    [max_body_size       <bytes>]
 //	    [shadow_rules        <comma-separated ACTION METHOD:path>]
+//	    [max_concurrent_callbacks <int>]
 //	    [http_client {
 //	        [max_idle_conns          <int>]
 //	        [max_idle_conns_per_host <int>]
@@ -482,6 +509,12 @@ func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			}
 			val := d.Val()
 			m.RawShadowRules = &val
+		case "max_concurrent_callbacks":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.RawMaxConcurrentCallbacks = &val
 		case "http_client":
 			if m.HTTPClient == nil {
 				m.HTTPClient = &HTTPClientOptions{}

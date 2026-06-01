@@ -37,6 +37,7 @@ func validStandaloneConfig() config.Config {
 	cfg.App.HTTPClient.MaxIdleConnsPerHost = 10
 	cfg.App.HTTPClient.MaxConnsPerHost = 100
 	cfg.App.HTTPClient.IdleConnTimeout = 90 * time.Second
+	cfg.App.MaxConcurrentCallbacks = 200
 	return cfg
 }
 
@@ -64,6 +65,7 @@ func validAPIConfig() config.Config {
 	cfg.App.HTTPClient.MaxIdleConnsPerHost = 10
 	cfg.App.HTTPClient.MaxConnsPerHost = 100
 	cfg.App.HTTPClient.IdleConnTimeout = 90 * time.Second
+	cfg.App.MaxConcurrentCallbacks = 200
 	return cfg
 }
 
@@ -398,6 +400,42 @@ func TestValidate_http_client_pool(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "idle_conn_timeout must be non-negative")
 	})
+}
+
+func TestValidate_max_concurrent_callbacks(t *testing.T) {
+	t.Run("zero is valid (unbounded)", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.MaxConcurrentCallbacks = 0
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("positive is valid", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.MaxConcurrentCallbacks = 50
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("negative rejected", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.MaxConcurrentCallbacks = -1
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_concurrent_callbacks must be non-negative")
+	})
+}
+
+// TestDefaults_max_concurrent_callbacks guards the MAX_CONCURRENT_CALLBACKS
+// `default=` env tag. The config layer owns this operational default
+// (pkg/proxy holds none), so this literal is the source of truth.
+func TestDefaults_max_concurrent_callbacks(t *testing.T) {
+	var cfg config.Config
+	err := envconfig.ProcessWith(context.Background(), &envconfig.Config{
+		Lookuper: envconfig.MapLookuper(map[string]string{}),
+		Target:   &cfg,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, 200, cfg.App.MaxConcurrentCallbacks)
 }
 
 // TestDefaults_http_client_pool guards the config layer's connection-pool

@@ -70,6 +70,7 @@ mroki_gate {
     [shadow_timeout <duration>]
     [max_body_size <bytes>]
     [shadow_rules <comma-separated "ACTION METHOD:path">]
+    [max_concurrent_callbacks <int>]
     [http_client {
         [max_idle_conns <int>]
         [max_idle_conns_per_host <int>]
@@ -95,6 +96,7 @@ mroki_gate {
 | `shadow_timeout` | | `10s` | Timeout for the shadow request |
 | `max_body_size` | | `0` | Skip shadow for requests above this size in bytes (0 = unlimited) |
 | `shadow_rules` | | — | Comma-separated allow/deny rules controlling which requests are shadowed (see below) |
+| `max_concurrent_callbacks` | | `200` | Max concurrent background shadow-comparison callbacks (`0` = unbounded). When full, comparisons are dropped with a warning; live traffic is unaffected |
 | `diff_ignored_fields` | | — | Comma-separated fields to ignore in diff (gjson syntax) |
 | `diff_included_fields` | | — | Comma-separated fields to include in diff (whitelist mode) |
 | `diff_float_tolerance` | | — | Float comparison tolerance |

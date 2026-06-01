@@ -25,9 +25,16 @@ type Config config.Config[struct {
 	SamplingRate  float64       `env:"SAMPLING_RATE, default=1.0"`      // 0.0-1.0, default=1.0 (100%)
 	LiveTimeout   time.Duration `env:"LIVE_TIMEOUT, default=5s"`
 	ShadowTimeout time.Duration `env:"SHADOW_TIMEOUT, default=10s"`
-	ReadTimeout   time.Duration `env:"READ_TIMEOUT, default=30s"`
-	WriteTimeout  time.Duration `env:"WRITE_TIMEOUT, default=60s"`
-	IdleTimeout   time.Duration `env:"IDLE_TIMEOUT, default=120s"`
+
+	// MaxConcurrentCallbacks bounds the number of background shadow-comparison
+	// callback goroutines that may run at once. When the limit is reached,
+	// further shadow comparisons are dropped (with a warning) so the proxy
+	// never leaks unbounded goroutines under load; the live response is
+	// unaffected. A value of 0 disables the limit (unbounded).
+	MaxConcurrentCallbacks int           `env:"MAX_CONCURRENT_CALLBACKS, default=200"`
+	ReadTimeout            time.Duration `env:"READ_TIMEOUT, default=30s"`
+	WriteTimeout           time.Duration `env:"WRITE_TIMEOUT, default=60s"`
+	IdleTimeout            time.Duration `env:"IDLE_TIMEOUT, default=120s"`
 
 	// Outbound HTTP client connection-pool tuning. These defaults suit most
 	// deployments; raise them when a single proxy must sustain high connection
@@ -204,6 +211,12 @@ func (c Config) Validate() error {
 	}
 	if c.App.HTTPClient.IdleConnTimeout < 0 {
 		verr.Add(config.SeverityError, fmt.Sprintf("http_client idle_conn_timeout must be non-negative (0=no timeout), got %s", c.App.HTTPClient.IdleConnTimeout))
+	}
+
+	// Validate max concurrent callbacks. Zero is valid and disables the limit
+	// (unbounded), so only negative values are rejected.
+	if c.App.MaxConcurrentCallbacks < 0 {
+		verr.Add(config.SeverityError, fmt.Sprintf("max_concurrent_callbacks must be non-negative (0=unbounded), got %d", c.App.MaxConcurrentCallbacks))
 	}
 
 	// Validate sampling rate
