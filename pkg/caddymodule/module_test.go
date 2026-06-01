@@ -1,7 +1,12 @@
 package caddymodule_test
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/pedrobarco/mroki/pkg/caddymodule"
@@ -454,4 +459,107 @@ func TestMrokiGate_Validate_shadow_rules_invalid(t *testing.T) {
 	err := m.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid shadow_rules")
+}
+
+func TestUnmarshalCaddyfile_http_client_unknown_key(t *testing.T) {
+	input := `mroki_gate {
+		live http://live:8080
+		shadow http://shadow:8080
+		http_client {
+			bogus_key 5
+		}
+	}`
+
+	d := caddyfile.NewTestDispenser(input)
+	var m caddymodule.MrokiGate
+	err := m.UnmarshalCaddyfile(d)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown http_client property")
+}
+
+// serveGate validates the gate (which builds the inner proxy) and serves a
+// single request, reporting whether the shadow service was hit. It mirrors the
+// atomic.Bool + brief-sleep convention used by the pkg/proxy ServeHTTP tests,
+// since shadowed requests are dispatched asynchronously.
+func serveGate(t *testing.T, m caddymodule.MrokiGate, method, path, body string) {
+	t.Helper()
+	require.NoError(t, m.Validate())
+
+	var reqBody *strings.Reader
+	if body != "" {
+		reqBody = strings.NewReader(body)
+	} else {
+		reqBody = strings.NewReader("")
+	}
+	req := httptest.NewRequest(method, path, reqBody)
+	rec := httptest.NewRecorder()
+
+	require.NoError(t, m.ServeHTTP(rec, req, nil))
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Shadow dispatch is asynchronous when allowed; give it time to land.
+	time.Sleep(50 * time.Millisecond)
+}
+
+func TestMrokiGate_ServeHTTP_default_write_protection(t *testing.T) {
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer liveServer.Close()
+
+	var shadowCalled atomic.Bool
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		shadowCalled.Store(true)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer shadowServer.Close()
+
+	t.Run("POST is not shadowed by default", func(t *testing.T) {
+		shadowCalled.Store(false)
+		m := caddymodule.MrokiGate{RawLive: liveServer.URL, RawShadow: shadowServer.URL}
+		serveGate(t, m, http.MethodPost, "/api/orders", `{"x":1}`)
+		assert.False(t, shadowCalled.Load(), "POST must not be shadowed under default write-protection")
+	})
+
+	t.Run("GET is shadowed by default", func(t *testing.T) {
+		shadowCalled.Store(false)
+		m := caddymodule.MrokiGate{RawLive: liveServer.URL, RawShadow: shadowServer.URL}
+		serveGate(t, m, http.MethodGet, "/api/orders", "")
+		assert.True(t, shadowCalled.Load(), "GET should be shadowed by default")
+	})
+}
+
+func TestMrokiGate_ServeHTTP_shadow_rules_allow_override(t *testing.T) {
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer liveServer.Close()
+
+	var shadowCalled atomic.Bool
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		shadowCalled.Store(true)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer shadowServer.Close()
+
+	rules := "allow POST:/api/v1/search"
+
+	t.Run("allowed POST path is shadowed", func(t *testing.T) {
+		shadowCalled.Store(false)
+		m := caddymodule.MrokiGate{RawLive: liveServer.URL, RawShadow: shadowServer.URL, RawShadowRules: &rules}
+		serveGate(t, m, http.MethodPost, "/api/v1/search", `{"q":"x"}`)
+		assert.True(t, shadowCalled.Load(), "POST to an explicitly allowed path should be shadowed")
+	})
+
+	t.Run("other POST path stays write-protected", func(t *testing.T) {
+		shadowCalled.Store(false)
+		m := caddymodule.MrokiGate{RawLive: liveServer.URL, RawShadow: shadowServer.URL, RawShadowRules: &rules}
+		serveGate(t, m, http.MethodPost, "/api/v1/orders", `{"x":1}`)
+		assert.False(t, shadowCalled.Load(), "POST outside the allow rule must remain denied by base rules")
+	})
 }
