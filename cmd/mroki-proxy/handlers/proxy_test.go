@@ -126,6 +126,48 @@ func TestCreateStandaloneCallback_nil_redactor_preserves_all(t *testing.T) {
 	assert.Equal(t, []string{"session=xyz"}, shadow.Response.Header["Set-Cookie"])
 }
 
+func TestCreateStandaloneCallback_redacts_body_before_diffing(t *testing.T) {
+	logs := &syncBuffer{}
+	cfg := ProxyConfig{
+		Redactor: traffictesting.NewRedactor([]string{"body.secret"}),
+		Logger:   slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
+	}
+
+	callback := createStandaloneCallback(cfg)
+
+	req := proxy.ProxyRequest{
+		Method:  "GET",
+		Path:    "/api/test",
+		Headers: http.Header{"X-Request-ID": {"req-789"}},
+		Body:    []byte(`{}`),
+	}
+
+	// Identical status and headers; the bodies differ ONLY in the redacted
+	// "secret" field. The body is reassigned on a value copy inside the
+	// callback, so it cannot be inspected directly here. Instead we assert the
+	// observable effect: redaction collapses both secrets to [REDACTED], so the
+	// only field that differed becomes identical and the diff finds no changes.
+	// Were the body not redacted before diffing, the differing secret would log
+	// "response diff detected" instead.
+	header := http.Header{"Content-Type": {"application/json"}}
+	live := proxy.ProxyResponse{
+		StatusCode: 200,
+		Response:   &http.Response{StatusCode: 200, Header: header.Clone()},
+		Body:       []byte(`{"secret":"live-value","status":"ok"}`),
+	}
+	shadow := proxy.ProxyResponse{
+		StatusCode: 200,
+		Response:   &http.Response{StatusCode: 200, Header: header.Clone()},
+		Body:       []byte(`{"secret":"shadow-value","status":"ok"}`),
+	}
+
+	err := callback(req, live, shadow)
+	require.NoError(t, err)
+
+	assert.Contains(t, logs.String(), "responses match",
+		"expected body.secret to be redacted on both sides before diffing")
+}
+
 // liveResponseBody is the body returned by both fake backends in the wiring
 // harness. Live and shadow return identical payloads so the standalone diff
 // callback finds no differences and stays quiet during tests.
@@ -370,6 +412,38 @@ func TestProxy_wiring_api_mode_callback_sends_to_api(t *testing.T) {
 	}
 }
 
+func TestProxy_wiring_api_timeout_is_honored(t *testing.T) {
+	logs := &syncBuffer{}
+	logger := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	// The API server is slower than APITimeout, so the client-side context
+	// deadline must fire and the callback logs a send failure rather than
+	// success. With APITimeout unset (default 30s) the call would succeed.
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	t.Cleanup(apiServer.Close)
+
+	apiURL, err := url.Parse(apiServer.URL)
+	require.NoError(t, err)
+	apiClient := client.NewMrokiClient(apiURL, "gate-test")
+
+	handler, _ := newWiringHarness(t, ProxyConfig{
+		APIClient:  apiClient,
+		APITimeout: 20 * time.Millisecond,
+		Logger:     logger,
+	})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest("GET", "/test", nil))
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	assert.Eventually(t, func() bool {
+		return strings.Contains(logs.String(), "failed to send request to API")
+	}, time.Second, 10*time.Millisecond, "expected APITimeout to abort the slow API call")
+}
+
 func TestProxy_wiring_standalone_mode_callback_runs_diff(t *testing.T) {
 	logs := &syncBuffer{}
 	logger := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -381,11 +455,12 @@ func TestProxy_wiring_standalone_mode_callback_runs_diff(t *testing.T) {
 	handler.ServeHTTP(rec, httptest.NewRequest("GET", "/test", nil))
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	// The standalone diff callback runs in the background; only it emits these
-	// log lines, so their presence proves the standalone branch was selected.
+	// The standalone diff callback runs in the background and only it emits this
+	// log line. The harness's live and shadow backends return identical
+	// responses, so the local diff finds no changes and logs "responses match",
+	// proving the standalone branch was selected and ran the diff.
 	assert.Eventually(t, func() bool {
-		s := logs.String()
-		return strings.Contains(s, "responses match") || strings.Contains(s, "response diff detected")
+		return strings.Contains(logs.String(), "responses match")
 	}, time.Second, 10*time.Millisecond, "expected standalone diff callback to run")
 }
 
