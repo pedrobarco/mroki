@@ -481,6 +481,9 @@ func TestUnmarshalCaddyfile_max_concurrent_callbacks(t *testing.T) {
 	assert.Equal(t, "50", *m.RawMaxConcurrentCallbacks)
 }
 
+// TestMrokiGate_Validate_max_concurrent_callbacks_valid asserts only that these
+// values pass validation. The resulting semaphore state (0 => unbounded/nil) is
+// covered at the pkg/proxy layer, which owns that invariant.
 func TestMrokiGate_Validate_max_concurrent_callbacks_valid(t *testing.T) {
 	for _, v := range []string{"0", "50", "200"} {
 		max := v

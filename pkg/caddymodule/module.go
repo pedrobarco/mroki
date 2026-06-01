@@ -215,7 +215,7 @@ func (m *MrokiGate) Validate() error {
 			return fmt.Errorf("invalid max_concurrent_callbacks: %w", err)
 		}
 		if v < 0 {
-			return fmt.Errorf("max_concurrent_callbacks must be non-negative, got %d", v)
+			return fmt.Errorf("max_concurrent_callbacks must be non-negative (0=unbounded), got %d", v)
 		}
 		maxCallbacks = v
 	}

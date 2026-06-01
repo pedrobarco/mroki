@@ -709,6 +709,7 @@ func TestProxy_ServeHTTP_bounds_callback_concurrency(t *testing.T) {
 	// semaphore is guaranteed full for the duration of the second request.
 	var callbackCount atomic.Int32
 	callbackStarted := make(chan struct{}, 1)
+	callbackDone := make(chan struct{}, 1)
 	release := make(chan struct{})
 
 	// Capture proxy logs to assert the drop warning is emitted. slog's handlers
@@ -727,6 +728,7 @@ func TestProxy_ServeHTTP_bounds_callback_concurrency(t *testing.T) {
 			callbackCount.Add(1)
 			callbackStarted <- struct{}{}
 			<-release
+			callbackDone <- struct{}{}
 			return nil
 		}),
 	)
@@ -752,8 +754,15 @@ func TestProxy_ServeHTTP_bounds_callback_concurrency(t *testing.T) {
 	assert.Contains(t, rec2.Body.String(), `"source":"live"`)
 	assert.Contains(t, logBuf.String(), "callback semaphore full, dropping shadow comparison")
 
-	// Release the first callback and confirm only one callback ever ran.
+	// Release the first callback and wait for it to finish so its slot release
+	// is observed (rather than racing test teardown), then confirm only one
+	// callback ever ran.
 	close(release)
+	select {
+	case <-callbackDone:
+	case <-time.After(time.Second):
+		t.Fatal("first callback did not finish after release")
+	}
 	assert.Equal(t, int32(1), callbackCount.Load(), "second shadow comparison should have been dropped, not queued")
 }
 
@@ -804,6 +813,60 @@ func TestProxy_ServeHTTP_unbounded_callbacks_when_unset(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		close(releaseAll)
 		t.Fatal("not all callbacks ran concurrently when unbounded")
+	}
+	close(releaseAll)
+}
+
+// TestProxy_ServeHTTP_unbounded_callbacks_with_zero is the explicit companion to
+// the "unset" case above: WithMaxConcurrentCallbacks(0) documents 0 as unbounded,
+// so every callback must still run concurrently. This guards the n>0 allocation
+// guard in NewProxy against an accidental n>=0 regression.
+func TestProxy_ServeHTTP_unbounded_callbacks_with_zero(t *testing.T) {
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"source":"live"}`))
+	}))
+	defer liveServer.Close()
+
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer shadowServer.Close()
+
+	const n = 5
+	var wg sync.WaitGroup
+	wg.Add(n)
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+	releaseAll := make(chan struct{})
+	p := proxy.NewProxy(
+		liveURL,
+		shadowURL,
+		proxy.WithMaxConcurrentCallbacks(0), // 0 = unbounded, same as not setting the option
+		proxy.WithCallbackFn(func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+			wg.Done()
+			<-releaseAll
+			return nil
+		}),
+	)
+
+	for i := 0; i < n; i++ {
+		rec := httptest.NewRecorder()
+		p.ServeHTTP(rec, httptest.NewRequest("GET", "/x", nil))
+		require.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		close(releaseAll)
+		t.Fatal("not all callbacks ran concurrently when limit set to 0 (unbounded)")
 	}
 	close(releaseAll)
 }
