@@ -27,6 +27,12 @@ type ProxyConfig struct {
 	SamplingRate  *proxy.SamplingRate // always set, default 1.0
 	ShadowRules   []proxy.ShadowRule  // shadow matching rules
 
+	// HTTPClient holds outbound connection-pool tuning. When non-zero, the
+	// proxy is built with a client from these values; the zero value falls back
+	// to NewProxy's default client (net/http pool semantics, since pkg/proxy
+	// holds no operational defaults).
+	HTTPClient proxy.HTTPClientConfig
+
 	// API integration (optional)
 	APIClient  *client.MrokiClient
 	APITimeout time.Duration // overall deadline for API calls (incl. retries)
@@ -47,6 +53,10 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 
 	if cfg.Logger != nil {
 		opts = append(opts, proxy.WithLogger(cfg.Logger))
+	}
+
+	if cfg.HTTPClient != (proxy.HTTPClientConfig{}) {
+		opts = append(opts, proxy.WithHTTPClient(proxy.NewHTTPClient(cfg.HTTPClient)))
 	}
 
 	// Add shadow proxy checks

@@ -1,11 +1,13 @@
 package config_test
 
 import (
+	"context"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/pedrobarco/mroki/cmd/mroki-proxy/config"
+	"github.com/sethvargo/go-envconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,6 +33,10 @@ func validStandaloneConfig() config.Config {
 	cfg.App.ReadTimeout = 30 * time.Second
 	cfg.App.WriteTimeout = 60 * time.Second
 	cfg.App.IdleTimeout = 120 * time.Second
+	cfg.App.HTTPClient.MaxIdleConns = 100
+	cfg.App.HTTPClient.MaxIdleConnsPerHost = 10
+	cfg.App.HTTPClient.MaxConnsPerHost = 100
+	cfg.App.HTTPClient.IdleConnTimeout = 90 * time.Second
 	return cfg
 }
 
@@ -54,6 +60,10 @@ func validAPIConfig() config.Config {
 	cfg.App.ReadTimeout = 30 * time.Second
 	cfg.App.WriteTimeout = 60 * time.Second
 	cfg.App.IdleTimeout = 120 * time.Second
+	cfg.App.HTTPClient.MaxIdleConns = 100
+	cfg.App.HTTPClient.MaxIdleConnsPerHost = 10
+	cfg.App.HTTPClient.MaxConnsPerHost = 100
+	cfg.App.HTTPClient.IdleConnTimeout = 90 * time.Second
 	return cfg
 }
 
@@ -345,6 +355,68 @@ func TestValidate_server_timeout_ordering(t *testing.T) {
 	err = cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "read_timeout (30s) must be less than write_timeout (30s)")
+}
+
+func TestValidate_http_client_pool(t *testing.T) {
+	t.Run("zero values are valid (net/http semantics)", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.HTTPClient.MaxIdleConns = 0
+		cfg.App.HTTPClient.MaxIdleConnsPerHost = 0
+		cfg.App.HTTPClient.MaxConnsPerHost = 0
+		cfg.App.HTTPClient.IdleConnTimeout = 0
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("negative max_idle_conns rejected", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.HTTPClient.MaxIdleConns = -1
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_idle_conns must be non-negative")
+	})
+
+	t.Run("negative max_idle_conns_per_host rejected", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.HTTPClient.MaxIdleConnsPerHost = -1
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_idle_conns_per_host must be non-negative")
+	})
+
+	t.Run("negative max_conns_per_host rejected", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.HTTPClient.MaxConnsPerHost = -1
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_conns_per_host must be non-negative")
+	})
+
+	t.Run("negative idle_conn_timeout rejected", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.HTTPClient.IdleConnTimeout = -1 * time.Second
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "idle_conn_timeout must be non-negative")
+	})
+}
+
+// TestDefaults_http_client_pool guards the config layer's connection-pool
+// `default=` env tags. The config layer is the sole owner of these operational
+// defaults (pkg/proxy holds none), so these literals are the source of truth.
+// It loads the config with an empty environment so only the struct-tag defaults
+// apply.
+func TestDefaults_http_client_pool(t *testing.T) {
+	var cfg config.Config
+	err := envconfig.ProcessWith(context.Background(), &envconfig.Config{
+		Lookuper: envconfig.MapLookuper(map[string]string{}),
+		Target:   &cfg,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, 100, cfg.App.HTTPClient.MaxIdleConns)
+	assert.Equal(t, 10, cfg.App.HTTPClient.MaxIdleConnsPerHost)
+	assert.Equal(t, 100, cfg.App.HTTPClient.MaxConnsPerHost)
+	assert.Equal(t, 90*time.Second, cfg.App.HTTPClient.IdleConnTimeout)
 }
 
 func asValidationError(t *testing.T, err error) *config.ValidationError {

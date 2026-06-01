@@ -100,18 +100,36 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// newDefaultHTTPClient creates an HTTP client with sensible defaults
-// for connection pooling and timeouts
-func newDefaultHTTPClient() *http.Client {
+// HTTPClientConfig holds the tunable connection-pool settings for the proxy's
+// HTTP client. Values are applied verbatim by NewHTTPClient — net/http's zero
+// semantics apply (0 means "no limit", or for IdleConnTimeout "no timeout").
+// This package is intentionally unopinionated: it holds no operational
+// defaults. Callers that need tuned pool sizes (e.g. the proxy binary's config
+// layer) own those defaults and pass them in.
+type HTTPClientConfig struct {
+	// MaxIdleConns is the maximum number of idle connections across all hosts.
+	MaxIdleConns int
+	// MaxIdleConnsPerHost is the maximum number of idle connections per host.
+	MaxIdleConnsPerHost int
+	// MaxConnsPerHost limits the total number of connections per host.
+	MaxConnsPerHost int
+	// IdleConnTimeout is how long an idle connection is kept before closing.
+	IdleConnTimeout time.Duration
+}
+
+// NewHTTPClient builds an HTTP client for proxying live and shadow traffic. The
+// connection-pool fields from cfg are applied verbatim; the remaining transport
+// settings (timeouts, keep-alive, HTTP/2) are fixed and not configurable.
+func NewHTTPClient(cfg HTTPClientConfig) *http.Client {
 	return &http.Client{
 		// No client-level timeout - we use context timeouts
 		Timeout: 0,
 		Transport: &http.Transport{
-			// Connection pool settings
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			MaxConnsPerHost:     100,
-			IdleConnTimeout:     90 * time.Second,
+			// Connection pool settings (configurable)
+			MaxIdleConns:        cfg.MaxIdleConns,
+			MaxIdleConnsPerHost: cfg.MaxIdleConnsPerHost,
+			MaxConnsPerHost:     cfg.MaxConnsPerHost,
+			IdleConnTimeout:     cfg.IdleConnTimeout,
 
 			// Timeout settings
 			// TLSHandshakeTimeout should not exceed the default live request
@@ -138,7 +156,9 @@ func NewProxy(live, shadow *url.URL, opts ...Option) *Proxy {
 		checks:        []CheckFunc{},
 		callbackFn:    defaultCallbackFn(),
 		logger:        slog.Default(),
-		client:        newDefaultHTTPClient(),
+		// Zero-config client: net/http pool semantics. Callers that need tuned
+		// pool sizes pass a client built via NewHTTPClient using WithHTTPClient.
+		client: NewHTTPClient(HTTPClientConfig{}),
 	}
 
 	for _, o := range opts {

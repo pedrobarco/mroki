@@ -69,6 +69,10 @@ mroki_gate {
     [live_timeout <duration>]
     [shadow_timeout <duration>]
     [max_body_size <bytes>]
+    [max_idle_conns <int>]
+    [max_idle_conns_per_host <int>]
+    [max_conns_per_host <int>]
+    [idle_conn_timeout <duration>]
     [diff_ignored_fields <comma-separated>]
     [diff_included_fields <comma-separated>]
     [diff_float_tolerance <float>]
@@ -86,6 +90,10 @@ mroki_gate {
 | `live_timeout` | | `5s` | Timeout for the live request |
 | `shadow_timeout` | | `10s` | Timeout for the shadow request |
 | `max_body_size` | | `0` | Skip shadow for requests above this size in bytes (0 = unlimited) |
+| `max_idle_conns` | | `100` | Outbound idle connection pool size across all hosts (0 = unlimited) |
+| `max_idle_conns_per_host` | | `10` | Outbound idle connections kept per host (0 = Go default of 2) |
+| `max_conns_per_host` | | `100` | Limit on total outbound connections per host (0 = unlimited) |
+| `idle_conn_timeout` | | `90s` | How long an idle outbound connection is kept before closing (0 = no timeout) |
 | `diff_ignored_fields` | | — | Comma-separated fields to ignore in diff (gjson syntax) |
 | `diff_included_fields` | | — | Comma-separated fields to include in diff (whitelist mode) |
 | `diff_float_tolerance` | | — | Float comparison tolerance |

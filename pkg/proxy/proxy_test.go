@@ -50,6 +50,42 @@ func TestNewProxy_with_sampling_rate(t *testing.T) {
 	assert.NotNil(t, p)
 }
 
+func TestNewHTTPClient_applies_config_verbatim(t *testing.T) {
+	cfg := proxy.HTTPClientConfig{
+		MaxIdleConns:        7,
+		MaxIdleConnsPerHost: 3,
+		MaxConnsPerHost:     11,
+		IdleConnTimeout:     42 * time.Second,
+	}
+
+	client := proxy.NewHTTPClient(cfg)
+	require.NotNil(t, client)
+
+	tr, ok := client.Transport.(*http.Transport)
+	require.True(t, ok, "transport should be *http.Transport")
+
+	// Configurable fields are applied verbatim (no clamping or fallback).
+	assert.Equal(t, 7, tr.MaxIdleConns)
+	assert.Equal(t, 3, tr.MaxIdleConnsPerHost)
+	assert.Equal(t, 11, tr.MaxConnsPerHost)
+	assert.Equal(t, 42*time.Second, tr.IdleConnTimeout)
+
+	// Zero values are passed through as-is (net/http semantics), not defaulted.
+	zero := proxy.NewHTTPClient(proxy.HTTPClientConfig{})
+	ztr, ok := zero.Transport.(*http.Transport)
+	require.True(t, ok)
+	assert.Equal(t, 0, ztr.MaxIdleConns)
+	assert.Equal(t, 0, ztr.MaxIdleConnsPerHost)
+	assert.Equal(t, 0, ztr.MaxConnsPerHost)
+	assert.Equal(t, time.Duration(0), ztr.IdleConnTimeout)
+
+	// Non-tunable transport settings are fixed regardless of config.
+	assert.Equal(t, 5*time.Second, tr.TLSHandshakeTimeout)
+	assert.Equal(t, 1*time.Second, tr.ExpectContinueTimeout)
+	assert.True(t, tr.ForceAttemptHTTP2)
+	assert.Zero(t, client.Timeout, "client uses context timeouts, not a client-level timeout")
+}
+
 func TestProxy_ServeHTTP_returns_live_response(t *testing.T) {
 	// Create mock live server
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

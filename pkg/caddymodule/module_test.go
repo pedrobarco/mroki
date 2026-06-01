@@ -218,6 +218,10 @@ func TestUnmarshalCaddyfile_minimal(t *testing.T) {
 	assert.Nil(t, m.RawLiveTimeout)
 	assert.Nil(t, m.RawShadowTimeout)
 	assert.Nil(t, m.RawMaxBodySize)
+	assert.Nil(t, m.RawMaxIdleConns)
+	assert.Nil(t, m.RawMaxIdleConnsPerHost)
+	assert.Nil(t, m.RawMaxConnsPerHost)
+	assert.Nil(t, m.RawIdleConnTimeout)
 	assert.Nil(t, m.DiffIgnoredFields)
 	assert.Nil(t, m.DiffIncludedFields)
 	assert.Nil(t, m.DiffFloatTolerance)
@@ -299,4 +303,111 @@ func TestMrokiGate_Validate_default_redaction_always_applied(t *testing.T) {
 	require.NoError(t, err)
 	// Validate succeeds and proxy is created — redactor is always initialized
 	// with default fields even without explicit redacted_fields config.
+}
+
+func TestUnmarshalCaddyfile_http_client_pool(t *testing.T) {
+	input := `mroki_gate {
+		live http://live:8080
+		shadow http://shadow:8080
+		max_idle_conns 250
+		max_idle_conns_per_host 25
+		max_conns_per_host 250
+		idle_conn_timeout 45s
+	}`
+
+	d := caddyfile.NewTestDispenser(input)
+	var m caddymodule.MrokiGate
+	err := m.UnmarshalCaddyfile(d)
+
+	require.NoError(t, err)
+	require.NotNil(t, m.RawMaxIdleConns)
+	assert.Equal(t, "250", *m.RawMaxIdleConns)
+	require.NotNil(t, m.RawMaxIdleConnsPerHost)
+	assert.Equal(t, "25", *m.RawMaxIdleConnsPerHost)
+	require.NotNil(t, m.RawMaxConnsPerHost)
+	assert.Equal(t, "250", *m.RawMaxConnsPerHost)
+	require.NotNil(t, m.RawIdleConnTimeout)
+	assert.Equal(t, "45s", *m.RawIdleConnTimeout)
+}
+
+func TestMrokiGate_Validate_http_client_pool_valid(t *testing.T) {
+	maxIdle := "250"
+	perHost := "25"
+	maxConns := "250"
+	idleTimeout := "45s"
+	m := caddymodule.MrokiGate{
+		RawLive:                "http://live:8080",
+		RawShadow:              "http://shadow:8080",
+		RawMaxIdleConns:        &maxIdle,
+		RawMaxIdleConnsPerHost: &perHost,
+		RawMaxConnsPerHost:     &maxConns,
+		RawIdleConnTimeout:     &idleTimeout,
+	}
+	err := m.Validate()
+	require.NoError(t, err)
+}
+
+func TestMrokiGate_Validate_http_client_pool_zero_valid(t *testing.T) {
+	zero := "0"
+	zeroDur := "0s"
+	m := caddymodule.MrokiGate{
+		RawLive:                "http://live:8080",
+		RawShadow:              "http://shadow:8080",
+		RawMaxIdleConns:        &zero,
+		RawMaxIdleConnsPerHost: &zero,
+		RawMaxConnsPerHost:     &zero,
+		RawIdleConnTimeout:     &zeroDur,
+	}
+	err := m.Validate()
+	require.NoError(t, err)
+}
+
+func TestMrokiGate_Validate_http_client_pool_invalid(t *testing.T) {
+	t.Run("non-numeric max_idle_conns", func(t *testing.T) {
+		val := "abc"
+		m := caddymodule.MrokiGate{
+			RawLive:         "http://live:8080",
+			RawShadow:       "http://shadow:8080",
+			RawMaxIdleConns: &val,
+		}
+		err := m.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid max_idle_conns")
+	})
+
+	t.Run("negative max_conns_per_host", func(t *testing.T) {
+		val := "-1"
+		m := caddymodule.MrokiGate{
+			RawLive:            "http://live:8080",
+			RawShadow:          "http://shadow:8080",
+			RawMaxConnsPerHost: &val,
+		}
+		err := m.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_conns_per_host must be non-negative")
+	})
+
+	t.Run("invalid idle_conn_timeout", func(t *testing.T) {
+		val := "not-a-duration"
+		m := caddymodule.MrokiGate{
+			RawLive:            "http://live:8080",
+			RawShadow:          "http://shadow:8080",
+			RawIdleConnTimeout: &val,
+		}
+		err := m.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid idle_conn_timeout")
+	})
+
+	t.Run("negative idle_conn_timeout", func(t *testing.T) {
+		val := "-1s"
+		m := caddymodule.MrokiGate{
+			RawLive:            "http://live:8080",
+			RawShadow:          "http://shadow:8080",
+			RawIdleConnTimeout: &val,
+		}
+		err := m.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "idle_conn_timeout must be non-negative")
+	})
 }

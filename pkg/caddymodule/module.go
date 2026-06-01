@@ -27,6 +27,16 @@ var (
 	ErrRequiredShadowURL = errors.New("shadow URL is required")
 )
 
+// Default outbound HTTP client connection-pool settings. The Caddy module owns
+// these operational defaults (pkg/proxy is unopinionated); they match the
+// proxy binary's config defaults and apply unless overridden in the Caddyfile.
+const (
+	defaultMaxIdleConns        = 100
+	defaultMaxIdleConnsPerHost = 10
+	defaultMaxConnsPerHost     = 100
+	defaultIdleConnTimeout     = 90 * time.Second
+)
+
 func init() {
 	caddy.RegisterModule(MrokiGate{})
 	httpcaddyfile.RegisterHandlerDirective("mroki_gate", parseCaddyfile)
@@ -42,6 +52,12 @@ type MrokiGate struct {
 	RawLiveTimeout   *string `json:"live_timeout,omitempty"`
 	RawShadowTimeout *string `json:"shadow_timeout,omitempty"`
 	RawMaxBodySize   *string `json:"max_body_size,omitempty"`
+
+	// Outbound HTTP client connection-pool tuning (optional, defaults applied)
+	RawMaxIdleConns        *string `json:"max_idle_conns,omitempty"`
+	RawMaxIdleConnsPerHost *string `json:"max_idle_conns_per_host,omitempty"`
+	RawMaxConnsPerHost     *string `json:"max_conns_per_host,omitempty"`
+	RawIdleConnTimeout     *string `json:"idle_conn_timeout,omitempty"`
 
 	// Diff options
 	DiffIgnoredFields  *string `json:"diff_ignored_fields,omitempty"`
@@ -145,6 +161,14 @@ func (m *MrokiGate) Validate() error {
 		opts = append(opts, proxy.WithShadowTimeout(timeout))
 	}
 
+	// Outbound HTTP client connection-pool tuning (module defaults applied when
+	// directives are unset).
+	clientCfg, err := m.buildHTTPClientConfig()
+	if err != nil {
+		return err
+	}
+	opts = append(opts, proxy.WithHTTPClient(proxy.NewHTTPClient(clientCfg)))
+
 	// Bridge Caddy's zap logger to slog for the proxy
 	var logger *slog.Logger
 	if m.logger != nil {
@@ -228,6 +252,55 @@ func (m *MrokiGate) Validate() error {
 
 	m.proxy = proxy.NewProxy(live, shadow, opts...)
 	return nil
+}
+
+// buildHTTPClientConfig returns the outbound HTTP client connection-pool config,
+// starting from the module's defaults and overriding with any values set in the
+// Caddyfile. Negative values are rejected; 0 follows net/http semantics.
+func (m *MrokiGate) buildHTTPClientConfig() (proxy.HTTPClientConfig, error) {
+	cfg := proxy.HTTPClientConfig{
+		MaxIdleConns:        defaultMaxIdleConns,
+		MaxIdleConnsPerHost: defaultMaxIdleConnsPerHost,
+		MaxConnsPerHost:     defaultMaxConnsPerHost,
+		IdleConnTimeout:     defaultIdleConnTimeout,
+	}
+
+	parseConn := func(name string, raw *string, dst *int) error {
+		if raw == nil {
+			return nil
+		}
+		v, err := strconv.Atoi(*raw)
+		if err != nil {
+			return fmt.Errorf("invalid %s: %w", name, err)
+		}
+		if v < 0 {
+			return fmt.Errorf("%s must be non-negative, got %d", name, v)
+		}
+		*dst = v
+		return nil
+	}
+
+	if err := parseConn("max_idle_conns", m.RawMaxIdleConns, &cfg.MaxIdleConns); err != nil {
+		return cfg, err
+	}
+	if err := parseConn("max_idle_conns_per_host", m.RawMaxIdleConnsPerHost, &cfg.MaxIdleConnsPerHost); err != nil {
+		return cfg, err
+	}
+	if err := parseConn("max_conns_per_host", m.RawMaxConnsPerHost, &cfg.MaxConnsPerHost); err != nil {
+		return cfg, err
+	}
+	if m.RawIdleConnTimeout != nil {
+		d, err := time.ParseDuration(*m.RawIdleConnTimeout)
+		if err != nil {
+			return cfg, fmt.Errorf("invalid idle_conn_timeout: %w", err)
+		}
+		if d < 0 {
+			return cfg, fmt.Errorf("idle_conn_timeout must be non-negative, got %s", d)
+		}
+		cfg.IdleConnTimeout = d
+	}
+
+	return cfg, nil
 }
 
 // createDiffCallback builds a callback that computes and prints diffs locally.
@@ -320,6 +393,10 @@ func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp
 //	    [live_timeout        <duration>]
 //	    [shadow_timeout      <duration>]
 //	    [max_body_size       <bytes>]
+//	    [max_idle_conns          <int>]
+//	    [max_idle_conns_per_host <int>]
+//	    [max_conns_per_host      <int>]
+//	    [idle_conn_timeout       <duration>]
 //	    [diff_ignored_fields  <comma-separated>]
 //	    [diff_included_fields <comma-separated>]
 //	    [diff_float_tolerance <float>]
@@ -365,6 +442,30 @@ func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			}
 			val := d.Val()
 			m.RawMaxBodySize = &val
+		case "max_idle_conns":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.RawMaxIdleConns = &val
+		case "max_idle_conns_per_host":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.RawMaxIdleConnsPerHost = &val
+		case "max_conns_per_host":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.RawMaxConnsPerHost = &val
+		case "idle_conn_timeout":
+			if !d.NextArg() {
+				return d.ArgErr()
+			}
+			val := d.Val()
+			m.RawIdleConnTimeout = &val
 		case "diff_ignored_fields":
 			if !d.NextArg() {
 				return d.ArgErr()
