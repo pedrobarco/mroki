@@ -186,13 +186,14 @@ func main() {
 	log.Info("Sampling rate configured", slog.Float64("rate", cfg.App.SamplingRate))
 
 	proxyConfig := handlers.ProxyConfig{
-		Live:          liveURL,
-		Shadow:        shadowURL,
-		LiveTimeout:   cfg.App.LiveTimeout,
-		ShadowTimeout: cfg.App.ShadowTimeout,
-		MaxBodySize:   cfg.App.MaxBodySize,
-		SamplingRate:  samplingRate,
-		ShadowRules:   shadowRules,
+		Live:                   liveURL,
+		Shadow:                 shadowURL,
+		LiveTimeout:            cfg.App.LiveTimeout,
+		ShadowTimeout:          cfg.App.ShadowTimeout,
+		MaxBodySize:            cfg.App.MaxBodySize,
+		SamplingRate:           samplingRate,
+		ShadowRules:            shadowRules,
+		MaxConcurrentCallbacks: cfg.App.MaxConcurrentCallbacks,
 		HTTPClient: proxy.HTTPClientConfig{
 			MaxIdleConns:        cfg.App.HTTPClient.MaxIdleConns,
 			MaxIdleConnsPerHost: cfg.App.HTTPClient.MaxIdleConnsPerHost,

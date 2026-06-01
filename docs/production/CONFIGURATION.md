@@ -51,6 +51,7 @@ The proxy supports two mutually exclusive operating modes: **API mode** and **St
 | `MROKI_APP_MAX_BODY_SIZE` | No | `10485760` | Skip shadow for requests above this size in bytes (`0` = unlimited) |
 | `MROKI_APP_SAMPLING_RATE` | No | `1.0` | Shadow traffic sampling rate (`0.0`–`1.0`, `1.0` = 100%) |
 | `MROKI_APP_SHADOW_RULES` | No | _(deny non-idempotent)_ | Shadow matching rules — see [Shadow Matching Rules](#shadow-matching-rules) |
+| `MROKI_APP_MAX_CONCURRENT_CALLBACKS` | No | `200` | Max concurrent background shadow-comparison callbacks. When full, comparisons are dropped with a warning (live traffic unaffected); `0` = unbounded |
 | `MROKI_APP_READ_TIMEOUT` | No | `30s` | Server read timeout |
 | `MROKI_APP_WRITE_TIMEOUT` | No | `60s` | Server write timeout (must be ≥ live timeout) |
 | `MROKI_APP_IDLE_TIMEOUT` | No | `120s` | Server idle timeout |
@@ -187,6 +188,7 @@ mroki_gate {
     [live_timeout <duration>]
     [shadow_timeout <duration>]
     [max_body_size <bytes>]
+    [max_concurrent_callbacks <int>]
     [diff_ignored_fields <comma-separated>]
     [diff_included_fields <comma-separated>]
     [diff_float_tolerance <float>]
@@ -203,6 +205,7 @@ mroki_gate {
 | `live_timeout` | No | `5s` | Live request timeout |
 | `shadow_timeout` | No | `10s` | Shadow request timeout |
 | `max_body_size` | No | _(unlimited)_ | Skip shadow for requests above this size in bytes (`0` = unlimited) |
+| `max_concurrent_callbacks` | No | `200` | Max concurrent background shadow-comparison callbacks (`0` = unbounded). When full, comparisons are dropped with a warning |
 | `diff_ignored_fields` | No | _(none)_ | Comma-separated fields to ignore in diff (gjson syntax) |
 | `diff_included_fields` | No | _(none)_ | Comma-separated fields to include in diff (whitelist) |
 | `diff_float_tolerance` | No | _(exact)_ | Float comparison tolerance |

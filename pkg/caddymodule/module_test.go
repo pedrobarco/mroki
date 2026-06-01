@@ -98,6 +98,7 @@ func TestUnmarshalCaddyfile_all_directives(t *testing.T) {
 		live_timeout 3s
 		shadow_timeout 10s
 		max_body_size 1048576
+		max_concurrent_callbacks 50
 		diff_ignored_fields timestamp,created_at
 		diff_included_fields user,order
 		diff_float_tolerance 0.001
@@ -120,6 +121,8 @@ func TestUnmarshalCaddyfile_all_directives(t *testing.T) {
 	assert.Equal(t, "10s", *m.RawShadowTimeout)
 	require.NotNil(t, m.RawMaxBodySize)
 	assert.Equal(t, "1048576", *m.RawMaxBodySize)
+	require.NotNil(t, m.RawMaxConcurrentCallbacks)
+	assert.Equal(t, "50", *m.RawMaxConcurrentCallbacks)
 	require.NotNil(t, m.DiffIgnoredFields)
 	assert.Equal(t, "timestamp,created_at", *m.DiffIgnoredFields)
 	require.NotNil(t, m.DiffIncludedFields)
@@ -224,6 +227,7 @@ func TestUnmarshalCaddyfile_minimal(t *testing.T) {
 	assert.Nil(t, m.RawShadowTimeout)
 	assert.Nil(t, m.RawMaxBodySize)
 	assert.Nil(t, m.RawShadowRules)
+	assert.Nil(t, m.RawMaxConcurrentCallbacks)
 	assert.Nil(t, m.HTTPClient)
 	assert.Nil(t, m.DiffIgnoredFields)
 	assert.Nil(t, m.DiffIncludedFields)
@@ -459,6 +463,60 @@ func TestMrokiGate_Validate_shadow_rules_invalid(t *testing.T) {
 	err := m.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid shadow_rules")
+}
+
+func TestUnmarshalCaddyfile_max_concurrent_callbacks(t *testing.T) {
+	input := `mroki_gate {
+		live http://live:8080
+		shadow http://shadow:8080
+		max_concurrent_callbacks 50
+	}`
+
+	d := caddyfile.NewTestDispenser(input)
+	var m caddymodule.MrokiGate
+	err := m.UnmarshalCaddyfile(d)
+
+	require.NoError(t, err)
+	require.NotNil(t, m.RawMaxConcurrentCallbacks)
+	assert.Equal(t, "50", *m.RawMaxConcurrentCallbacks)
+}
+
+func TestMrokiGate_Validate_max_concurrent_callbacks_valid(t *testing.T) {
+	for _, v := range []string{"0", "50", "200"} {
+		max := v
+		m := caddymodule.MrokiGate{
+			RawLive:                   "http://live:8080",
+			RawShadow:                 "http://shadow:8080",
+			RawMaxConcurrentCallbacks: &max,
+		}
+		require.NoError(t, m.Validate(), "max_concurrent_callbacks %q should be valid", v)
+	}
+}
+
+func TestMrokiGate_Validate_max_concurrent_callbacks_invalid(t *testing.T) {
+	t.Run("non-numeric", func(t *testing.T) {
+		max := "lots"
+		m := caddymodule.MrokiGate{
+			RawLive:                   "http://live:8080",
+			RawShadow:                 "http://shadow:8080",
+			RawMaxConcurrentCallbacks: &max,
+		}
+		err := m.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid max_concurrent_callbacks")
+	})
+
+	t.Run("negative", func(t *testing.T) {
+		max := "-1"
+		m := caddymodule.MrokiGate{
+			RawLive:                   "http://live:8080",
+			RawShadow:                 "http://shadow:8080",
+			RawMaxConcurrentCallbacks: &max,
+		}
+		err := m.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_concurrent_callbacks must be non-negative")
+	})
 }
 
 func TestUnmarshalCaddyfile_http_client_unknown_key(t *testing.T) {

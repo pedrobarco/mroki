@@ -49,6 +49,12 @@ type Proxy struct {
 	callbackFn    CallbackFunc
 	logger        *slog.Logger
 	client        *http.Client
+	// callbackSem bounds the number of concurrent background callback
+	// goroutines. A nil semaphore means unbounded — this package is
+	// intentionally unopinionated and holds no operational default; callers
+	// that want a limit (e.g. the proxy binary's config layer) set one via
+	// WithMaxConcurrentCallbacks.
+	callbackSem chan struct{}
 }
 
 var (
@@ -97,6 +103,20 @@ func WithHTTPClient(client *http.Client) Option {
 func WithLogger(logger *slog.Logger) Option {
 	return func(p *Proxy) {
 		p.logger = logger
+	}
+}
+
+// WithMaxConcurrentCallbacks bounds the number of background callback
+// goroutines that may run concurrently. When the limit is reached, further
+// shadow comparisons are dropped (with a warning) instead of spawning unbounded
+// goroutines under load — the live response is unaffected. A value <= 0 leaves
+// the limit unset (unbounded); this package holds no default, so the limit is
+// owned by the caller's config layer.
+func WithMaxConcurrentCallbacks(n int) Option {
+	return func(p *Proxy) {
+		if n > 0 {
+			p.callbackSem = make(chan struct{}, n)
+		}
 	}
 }
 
@@ -202,6 +222,30 @@ func (p *Proxy) shouldProxyToShadow(r *http.Request) bool {
 	}
 
 	return true
+}
+
+// acquireCallbackSlot reserves a slot for a background callback goroutine. It
+// returns true immediately when no limit is configured (nil semaphore) or when
+// a slot is free, and false without blocking when the limit is reached.
+func (p *Proxy) acquireCallbackSlot() bool {
+	if p.callbackSem == nil {
+		return true
+	}
+	select {
+	case p.callbackSem <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+// releaseCallbackSlot returns a previously acquired callback slot. It is a no-op
+// when no limit is configured.
+func (p *Proxy) releaseCallbackSlot() {
+	if p.callbackSem == nil {
+		return
+	}
+	<-p.callbackSem
 }
 
 // ServeHTTP implements the http.Handler interface for proxying requests.
@@ -347,10 +391,24 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Wait for shadow and compare in background
+	// Wait for shadow and compare in background, bounded by the optional
+	// callback semaphore. When the limit is reached we drop this shadow
+	// comparison rather than spawn an unbounded goroutine under load — the
+	// live response has already been returned to the client, so only the
+	// comparison is lost. The in-flight shadow request is cancelled so it
+	// does not outlive the dropped comparison.
+	if !p.acquireCallbackSlot() {
+		shadowCancel()
+		reqLogger.Warn("callback semaphore full, dropping shadow comparison",
+			slog.Int("max_concurrent_callbacks", cap(p.callbackSem)))
+		return
+	}
+
 	go func(liveBody []byte) {
-		// Cancel shadow context when this goroutine completes
-		// This ensures context is not cancelled before we read from shadowCh
+		// Release the callback slot and cancel the shadow context when this
+		// goroutine completes. Cancelling here ensures the context is not
+		// cancelled before we read from shadowCh.
+		defer p.releaseCallbackSlot()
 		defer shadowCancel()
 
 		select {
