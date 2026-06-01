@@ -50,6 +50,7 @@ The proxy supports two mutually exclusive operating modes: **API mode** and **St
 | `MROKI_APP_SHADOW_TIMEOUT` | No | `10s` | Shadow request timeout — does not block client |
 | `MROKI_APP_MAX_BODY_SIZE` | No | `10485760` | Skip shadow for requests above this size in bytes (`0` = unlimited) |
 | `MROKI_APP_SAMPLING_RATE` | No | `1.0` | Shadow traffic sampling rate (`0.0`–`1.0`, `1.0` = 100%) |
+| `MROKI_APP_SHADOW_RULES` | No | _(deny non-idempotent)_ | Shadow matching rules — see [Shadow Matching Rules](#shadow-matching-rules) |
 | `MROKI_APP_READ_TIMEOUT` | No | `30s` | Server read timeout |
 | `MROKI_APP_WRITE_TIMEOUT` | No | `60s` | Server write timeout (must be ≥ live timeout) |
 | `MROKI_APP_IDLE_TIMEOUT` | No | `120s` | Server idle timeout |
@@ -97,6 +98,42 @@ Sensitive field values (headers and JSON body) are replaced with `[REDACTED]` be
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `MROKI_APP_REDACTED_FIELDS` | No | _(none)_ | Comma-separated additional fields to redact (gjson path notation). Redacted fields are also excluded from diff computation. |
+
+### Shadow Matching Rules
+
+Selectively shadow requests based on HTTP method and path. By default the proxy mirrors every request to the shadow service, including infrastructure routes (`/metrics`, `/health`) and non-idempotent requests that may cause side effects.
+
+`MROKI_APP_SHADOW_RULES` is a comma-separated list of `ACTION METHOD:path` entries:
+
+- **ACTION** — `allow` (shadow it) or `deny` (skip shadow, live-only)
+- **METHOD** — an HTTP method (e.g. `POST`) or `*` for any method
+- **path** — a path pattern (e.g. `/health/*`, `*.json`, `*`)
+
+Path patterns use the same semantics as Caddy's [`path` matcher](https://caddyserver.com/docs/caddyfile/matchers#path), so the standalone proxy and the `caddy-mroki` module behave identically. The meaning of the `*` wildcard depends on where it sits:
+
+- A bare `*` matches **any** path.
+- A **trailing** `*` (the only wildcard) is a recursive **prefix** match that crosses `/`. For example, `/admin/*` matches `/admin/users` and `/admin/users/42`.
+- A **leading** `*` (the only wildcard) is a **suffix** match that crosses `/`. For example, `*.json` matches `/api/data.json`.
+- A **leading and trailing** `*` (exactly two wildcards) is a **substring** match. For example, `*/admin/*` matches any path containing `/admin/`.
+- Any other `*` (mid-pattern or multiple) matches a **single path segment** and does **not** cross `/` (via Go's `path.Match`). For example, `/gates/*/requests/*/details` matches `/gates/abc/requests/def/details` but not `/gates/a/b/requests/c/details`.
+
+Matching is **case-insensitive**, and doubled slashes in the request path are merged before matching (unless the pattern itself contains `//`).
+
+Rules are evaluated in definition order; the **first match wins**. Requests that match no rule are shadowed.
+
+A set of **base rules** is **always** appended as the final, catch-all entries: deny `POST`, `PUT`, `DELETE`, and `PATCH` (so only `GET`, `HEAD`, and `OPTIONS` are shadowed by default). Your `MROKI_APP_SHADOW_RULES` are evaluated **before** the base rules — so you can **override** them per pattern (e.g. `allow POST:/api/v1/search`), but you cannot accidentally drop the write-protection by configuring custom rules. To shadow all writes, add explicit `allow` rules for those methods.
+
+```bash
+# Deny everything under /health and /admin, allow one search endpoint;
+# base rules still deny all other writes
+MROKI_APP_SHADOW_RULES="deny *:/health/*,deny *:/admin/*,allow POST:/api/v1/search"
+```
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MROKI_APP_SHADOW_RULES` | No | _(none — base rules deny POST/PUT/DELETE/PATCH)_ | Comma-separated `ACTION METHOD:path` rules. First match wins; unmatched requests are shadowed. Evaluated before the always-present base rules. |
+
+> **Note:** Not needed for the Caddy module — Caddy's native route matchers already handle selective shadowing.
 
 ### Diff Options
 

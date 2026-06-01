@@ -158,6 +158,25 @@ func main() {
 		"sort_arrays", cfg.App.DiffSortArrays,
 	)
 
+	// Parse shadow rules. User-supplied rules (if any) are evaluated first; the
+	// base rules (deny non-idempotent methods) are always appended as the final
+	// catch-all so the write-protection cannot be accidentally dropped.
+	var userShadowRules []proxy.ShadowRule
+	if cfg.App.ShadowRules != "" {
+		userShadowRules, err = proxy.ParseShadowRules(cfg.App.ShadowRules)
+		if err != nil {
+			log.Error("Invalid SHADOW_RULES configuration", "error", err)
+			os.Exit(1)
+		}
+		log.Info("Custom shadow rules configured", slog.Int("count", len(userShadowRules)))
+	}
+	baseShadowRules := proxy.BaseShadowRules()
+	shadowRules := append(userShadowRules, baseShadowRules...)
+	log.Info("Shadow rules active",
+		slog.Int("user_rules", len(userShadowRules)),
+		slog.Int("base_rules", len(baseShadowRules)),
+	)
+
 	// Configure proxy handler
 	// Configure sampling rate
 	samplingRate, err := proxy.NewSamplingRate(cfg.App.SamplingRate)
@@ -173,6 +192,7 @@ func main() {
 		ShadowTimeout: cfg.App.ShadowTimeout,
 		MaxBodySize:   cfg.App.MaxBodySize,
 		SamplingRate:  samplingRate,
+		ShadowRules:   shadowRules,
 		Logger:        log,
 		APIClient:     apiClient,          // nil if standalone mode
 		APITimeout:    cfg.App.APITimeout, // overall deadline for API calls

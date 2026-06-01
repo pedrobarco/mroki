@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/internal/config"
+	"github.com/pedrobarco/mroki/pkg/proxy"
 )
 
 // ValidationError is a type alias for config.ValidationError so that
@@ -46,6 +47,11 @@ type Config config.Config[struct {
 	DiffIncludedFields []string `env:"DIFF_INCLUDED_FIELDS"` // Comma-separated
 	DiffFloatTolerance float64  `env:"DIFF_FLOAT_TOLERANCE, default=0"`
 	DiffSortArrays     bool     `env:"DIFF_SORT_ARRAYS, default=false"`
+
+	// Shadow matching rules (optional, comma-separated ACTION METHOD:path entries)
+	// Example: "deny *:/health/*,allow POST:/api/v1/search"
+	// Evaluated before the always-present BaseShadowRules catch-all.
+	ShadowRules string `env:"SHADOW_RULES"`
 
 	// Redacted fields (optional, gjson paths — adds to default redacted list)
 	RedactedFields []string `env:"REDACTED_FIELDS"` // Comma-separated, e.g. "headers.X-Internal-Token"
@@ -180,6 +186,13 @@ func (c Config) Validate() error {
 	// Validate diff float tolerance
 	if c.App.DiffFloatTolerance < 0 {
 		verr.Add(config.SeverityError, fmt.Sprintf("diff_float_tolerance must be non-negative, got %f", c.App.DiffFloatTolerance))
+	}
+
+	// Validate shadow rules
+	if c.App.ShadowRules != "" {
+		if _, err := proxy.ParseShadowRules(c.App.ShadowRules); err != nil {
+			verr.Add(config.SeverityError, fmt.Sprintf("invalid shadow_rules: %v", err))
+		}
 	}
 
 	// --- Warnings (non-fatal) ---

@@ -250,6 +250,43 @@ func TestValidate_diff_sort_arrays(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 }
 
+func TestValidate_shadow_rules(t *testing.T) {
+	t.Run("empty is valid (uses defaults)", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.ShadowRules = ""
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("valid rules", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.ShadowRules = "deny *:/health/*,allow POST:/api/v1/search,deny POST:*"
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("invalid rule format", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.ShadowRules = "deny POST"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid shadow_rules")
+	})
+
+	t.Run("invalid action", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.ShadowRules = "block POST:*"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid shadow_rules")
+	})
+
+	t.Run("invalid path pattern", func(t *testing.T) {
+		cfg := validStandaloneConfig()
+		cfg.App.ShadowRules = "deny GET:/api/["
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid shadow_rules")
+	})
+}
 
 func TestValidate_invalid_server_timeouts(t *testing.T) {
 	cfg := validStandaloneConfig()
