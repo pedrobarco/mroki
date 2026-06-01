@@ -417,8 +417,11 @@ func TestProxy_wiring_api_timeout_is_honored(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	// The API server is slower than APITimeout, so the client-side context
-	// deadline must fire and the callback logs a send failure rather than
-	// success. With APITimeout unset (default 30s) the call would succeed.
+	// deadline must fire and the callback (which runs asynchronously in a
+	// background goroutine) logs a send failure rather than success. With
+	// APITimeout unset (default 30s) the call would succeed. We poll with
+	// assert.Eventually since the callback's timing is not deterministic
+	// relative to the live response.
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(200 * time.Millisecond)
 		w.WriteHeader(http.StatusCreated)
