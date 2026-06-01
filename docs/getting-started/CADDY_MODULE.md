@@ -69,13 +69,17 @@ mroki_gate {
     [live_timeout <duration>]
     [shadow_timeout <duration>]
     [max_body_size <bytes>]
-    [max_idle_conns <int>]
-    [max_idle_conns_per_host <int>]
-    [max_conns_per_host <int>]
-    [idle_conn_timeout <duration>]
+    [shadow_rules <comma-separated "ACTION METHOD:path">]
+    [http_client {
+        [max_idle_conns <int>]
+        [max_idle_conns_per_host <int>]
+        [max_conns_per_host <int>]
+        [idle_conn_timeout <duration>]
+    }]
     [diff_ignored_fields <comma-separated>]
     [diff_included_fields <comma-separated>]
     [diff_float_tolerance <float>]
+    [diff_sort_arrays <bool>]
     [redacted_fields <comma-separated>]
 }
 ```
@@ -90,14 +94,38 @@ mroki_gate {
 | `live_timeout` | | `5s` | Timeout for the live request |
 | `shadow_timeout` | | `10s` | Timeout for the shadow request |
 | `max_body_size` | | `0` | Skip shadow for requests above this size in bytes (0 = unlimited) |
-| `max_idle_conns` | | `100` | Outbound idle connection pool size across all hosts (0 = unlimited) |
-| `max_idle_conns_per_host` | | `10` | Outbound idle connections kept per host (0 = Go default of 2) |
-| `max_conns_per_host` | | `100` | Limit on total outbound connections per host (0 = unlimited) |
-| `idle_conn_timeout` | | `90s` | How long an idle outbound connection is kept before closing (0 = no timeout) |
+| `shadow_rules` | | — | Comma-separated allow/deny rules controlling which requests are shadowed (see below) |
 | `diff_ignored_fields` | | — | Comma-separated fields to ignore in diff (gjson syntax) |
 | `diff_included_fields` | | — | Comma-separated fields to include in diff (whitelist mode) |
 | `diff_float_tolerance` | | — | Float comparison tolerance |
+| `diff_sort_arrays` | | `false` | Sort arrays before diffing so element order is ignored |
 | `redacted_fields` | | — | Comma-separated fields to redact from diff output |
+
+#### `http_client` block
+
+Outbound connection-pool tuning for the shared HTTP client. Grouped under an
+`http_client` block to mirror the proxy binary's `MROKI_APP_HTTP_CLIENT_*`
+environment variables. Omit the block to use the defaults.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_idle_conns` | `100` | Outbound idle connection pool size across all hosts (0 = unlimited) |
+| `max_idle_conns_per_host` | `10` | Outbound idle connections kept per host (0 = Go default of 2) |
+| `max_conns_per_host` | `100` | Limit on total outbound connections per host (0 = unlimited) |
+| `idle_conn_timeout` | `90s` | How long an idle outbound connection is kept before closing (0 = no timeout) |
+
+#### `shadow_rules` and write-protection
+
+Each rule has the form `ACTION METHOD:path`, where `ACTION` is `allow` or `deny`,
+`METHOD` is an HTTP method (or `*` for any), and `path` is a Caddy-style path
+pattern (e.g. `/api/v1/*`). Rules are comma-separated and evaluated in order;
+the first match wins.
+
+Like the proxy binary, the module **always denies non-idempotent methods**
+(`POST`, `PUT`, `DELETE`, `PATCH`) by default — these base rules are appended as
+the final catch-all and cannot be dropped. User rules are evaluated first, so you
+can opt specific endpoints back in, e.g. `allow POST:/api/v1/search`. `GET`,
+`HEAD`, and `OPTIONS` requests are shadowed by default.
 
 ### Basic Example
 
@@ -178,6 +206,27 @@ Sample only a percentage of traffic to reduce load on the shadow service:
         shadow_timeout 15s
         max_body_size 10485760
         diff_ignored_fields timestamp,created_at
+    }
+}
+```
+
+### With Shadow Rules and Connection-Pool Tuning
+
+```caddyfile
+:8080 {
+    mroki_gate {
+        live https://api.production.example.com
+        shadow https://api.shadow.example.com
+
+        # POST/PUT/DELETE/PATCH are denied by default; opt one endpoint back in.
+        shadow_rules "allow POST:/api/v1/search,deny GET:/health/*"
+
+        http_client {
+            max_idle_conns 200
+            max_idle_conns_per_host 20
+            max_conns_per_host 200
+            idle_conn_timeout 60s
+        }
     }
 }
 ```

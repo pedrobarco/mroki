@@ -31,10 +31,12 @@ func TestBuildHTTPClientConfig_defaults(t *testing.T) {
 // which is valid and follows net/http "unlimited" semantics).
 func TestBuildHTTPClientConfig_overrides(t *testing.T) {
 	m := &MrokiGate{
-		RawMaxIdleConns:        strptr("250"),
-		RawMaxIdleConnsPerHost: strptr("25"),
-		RawMaxConnsPerHost:     strptr("0"),
-		RawIdleConnTimeout:     strptr("45s"),
+		HTTPClient: &HTTPClientOptions{
+			RawMaxIdleConns:        strptr("250"),
+			RawMaxIdleConnsPerHost: strptr("25"),
+			RawMaxConnsPerHost:     strptr("0"),
+			RawIdleConnTimeout:     strptr("45s"),
+		},
 	}
 
 	cfg, err := m.buildHTTPClientConfig()
@@ -49,7 +51,7 @@ func TestBuildHTTPClientConfig_overrides(t *testing.T) {
 // TestBuildHTTPClientConfig_partial_override verifies that unset fields keep the
 // module defaults while only the provided field is overridden.
 func TestBuildHTTPClientConfig_partial_override(t *testing.T) {
-	m := &MrokiGate{RawMaxIdleConnsPerHost: strptr("50")}
+	m := &MrokiGate{HTTPClient: &HTTPClientOptions{RawMaxIdleConnsPerHost: strptr("50")}}
 
 	cfg, err := m.buildHTTPClientConfig()
 	require.NoError(t, err)
@@ -64,28 +66,28 @@ func TestBuildHTTPClientConfig_partial_override(t *testing.T) {
 // are not silently swallowed.
 func TestBuildHTTPClientConfig_invalid(t *testing.T) {
 	t.Run("non-numeric int", func(t *testing.T) {
-		m := &MrokiGate{RawMaxIdleConns: strptr("abc")}
+		m := &MrokiGate{HTTPClient: &HTTPClientOptions{RawMaxIdleConns: strptr("abc")}}
 		_, err := m.buildHTTPClientConfig()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid max_idle_conns")
 	})
 
 	t.Run("negative int", func(t *testing.T) {
-		m := &MrokiGate{RawMaxConnsPerHost: strptr("-1")}
+		m := &MrokiGate{HTTPClient: &HTTPClientOptions{RawMaxConnsPerHost: strptr("-1")}}
 		_, err := m.buildHTTPClientConfig()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "max_conns_per_host must be non-negative")
 	})
 
 	t.Run("invalid duration", func(t *testing.T) {
-		m := &MrokiGate{RawIdleConnTimeout: strptr("nope")}
+		m := &MrokiGate{HTTPClient: &HTTPClientOptions{RawIdleConnTimeout: strptr("nope")}}
 		_, err := m.buildHTTPClientConfig()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid idle_conn_timeout")
 	})
 
 	t.Run("negative duration", func(t *testing.T) {
-		m := &MrokiGate{RawIdleConnTimeout: strptr("-1s")}
+		m := &MrokiGate{HTTPClient: &HTTPClientOptions{RawIdleConnTimeout: strptr("-1s")}}
 		_, err := m.buildHTTPClientConfig()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "idle_conn_timeout must be non-negative")

@@ -52,12 +52,12 @@ type MrokiGate struct {
 	RawLiveTimeout   *string `json:"live_timeout,omitempty"`
 	RawShadowTimeout *string `json:"shadow_timeout,omitempty"`
 	RawMaxBodySize   *string `json:"max_body_size,omitempty"`
+	RawShadowRules   *string `json:"shadow_rules,omitempty"`
 
-	// Outbound HTTP client connection-pool tuning (optional, defaults applied)
-	RawMaxIdleConns        *string `json:"max_idle_conns,omitempty"`
-	RawMaxIdleConnsPerHost *string `json:"max_idle_conns_per_host,omitempty"`
-	RawMaxConnsPerHost     *string `json:"max_conns_per_host,omitempty"`
-	RawIdleConnTimeout     *string `json:"idle_conn_timeout,omitempty"`
+	// Outbound HTTP client connection-pool tuning (optional). Grouped under the
+	// http_client block to mirror the proxy binary's MROKI_APP_HTTP_CLIENT_*
+	// env namespace. A nil pointer means the module defaults apply.
+	HTTPClient *HTTPClientOptions `json:"http_client,omitempty"`
 
 	// Diff options
 	DiffIgnoredFields  *string `json:"diff_ignored_fields,omitempty"`
@@ -71,6 +71,17 @@ type MrokiGate struct {
 	proxy    *proxy.Proxy
 	redactor *traffictesting.Redactor
 	logger   *zap.Logger
+}
+
+// HTTPClientOptions holds the raw, unparsed outbound connection-pool directives
+// from the http_client block. Values are parsed and validated in
+// buildHTTPClientConfig; a value of 0 follows net/http semantics (no limit, or
+// no timeout for idle_conn_timeout).
+type HTTPClientOptions struct {
+	RawMaxIdleConns        *string `json:"max_idle_conns,omitempty"`
+	RawMaxIdleConnsPerHost *string `json:"max_idle_conns_per_host,omitempty"`
+	RawMaxConnsPerHost     *string `json:"max_conns_per_host,omitempty"`
+	RawIdleConnTimeout     *string `json:"idle_conn_timeout,omitempty"`
 }
 
 var (
@@ -139,6 +150,21 @@ func (m *MrokiGate) Validate() error {
 		}
 		checks = append(checks, proxy.MaxBodySizeCheck(maxBytes))
 	}
+
+	// Shadow matching rules. User-supplied rules (if any) are evaluated first;
+	// BaseShadowRules (deny non-idempotent methods) are always appended as the
+	// final catch-all so the write-protection cannot be accidentally dropped —
+	// matching the proxy binary's behavior.
+	var userShadowRules []proxy.ShadowRule
+	if m.RawShadowRules != nil {
+		parsed, err := proxy.ParseShadowRules(*m.RawShadowRules)
+		if err != nil {
+			return fmt.Errorf("invalid shadow_rules: %w", err)
+		}
+		userShadowRules = parsed
+	}
+	shadowRules := append(userShadowRules, proxy.BaseShadowRules()...)
+	checks = append(checks, proxy.ShadowRulesCheck(shadowRules))
 
 	if len(checks) > 0 {
 		opts = append(opts, proxy.WithShouldProxyToShadow(checks...))
@@ -265,6 +291,11 @@ func (m *MrokiGate) buildHTTPClientConfig() (proxy.HTTPClientConfig, error) {
 		IdleConnTimeout:     defaultIdleConnTimeout,
 	}
 
+	// No http_client block — the module defaults apply verbatim.
+	if m.HTTPClient == nil {
+		return cfg, nil
+	}
+
 	parseConn := func(name string, raw *string, dst *int) error {
 		if raw == nil {
 			return nil
@@ -280,17 +311,17 @@ func (m *MrokiGate) buildHTTPClientConfig() (proxy.HTTPClientConfig, error) {
 		return nil
 	}
 
-	if err := parseConn("max_idle_conns", m.RawMaxIdleConns, &cfg.MaxIdleConns); err != nil {
+	if err := parseConn("max_idle_conns", m.HTTPClient.RawMaxIdleConns, &cfg.MaxIdleConns); err != nil {
 		return cfg, err
 	}
-	if err := parseConn("max_idle_conns_per_host", m.RawMaxIdleConnsPerHost, &cfg.MaxIdleConnsPerHost); err != nil {
+	if err := parseConn("max_idle_conns_per_host", m.HTTPClient.RawMaxIdleConnsPerHost, &cfg.MaxIdleConnsPerHost); err != nil {
 		return cfg, err
 	}
-	if err := parseConn("max_conns_per_host", m.RawMaxConnsPerHost, &cfg.MaxConnsPerHost); err != nil {
+	if err := parseConn("max_conns_per_host", m.HTTPClient.RawMaxConnsPerHost, &cfg.MaxConnsPerHost); err != nil {
 		return cfg, err
 	}
-	if m.RawIdleConnTimeout != nil {
-		d, err := time.ParseDuration(*m.RawIdleConnTimeout)
+	if m.HTTPClient.RawIdleConnTimeout != nil {
+		d, err := time.ParseDuration(*m.HTTPClient.RawIdleConnTimeout)
 		if err != nil {
 			return cfg, fmt.Errorf("invalid idle_conn_timeout: %w", err)
 		}
@@ -393,10 +424,13 @@ func (m MrokiGate) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp
 //	    [live_timeout        <duration>]
 //	    [shadow_timeout      <duration>]
 //	    [max_body_size       <bytes>]
-//	    [max_idle_conns          <int>]
-//	    [max_idle_conns_per_host <int>]
-//	    [max_conns_per_host      <int>]
-//	    [idle_conn_timeout       <duration>]
+//	    [shadow_rules        <comma-separated ACTION METHOD:path>]
+//	    [http_client {
+//	        [max_idle_conns          <int>]
+//	        [max_idle_conns_per_host <int>]
+//	        [max_conns_per_host      <int>]
+//	        [idle_conn_timeout       <duration>]
+//	    }]
 //	    [diff_ignored_fields  <comma-separated>]
 //	    [diff_included_fields <comma-separated>]
 //	    [diff_float_tolerance <float>]
@@ -442,30 +476,46 @@ func (m *MrokiGate) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			}
 			val := d.Val()
 			m.RawMaxBodySize = &val
-		case "max_idle_conns":
+		case "shadow_rules":
 			if !d.NextArg() {
 				return d.ArgErr()
 			}
 			val := d.Val()
-			m.RawMaxIdleConns = &val
-		case "max_idle_conns_per_host":
-			if !d.NextArg() {
-				return d.ArgErr()
+			m.RawShadowRules = &val
+		case "http_client":
+			if m.HTTPClient == nil {
+				m.HTTPClient = &HTTPClientOptions{}
 			}
-			val := d.Val()
-			m.RawMaxIdleConnsPerHost = &val
-		case "max_conns_per_host":
-			if !d.NextArg() {
-				return d.ArgErr()
+			for nesting := d.Nesting(); d.NextBlock(nesting); {
+				switch d.Val() {
+				case "max_idle_conns":
+					if !d.NextArg() {
+						return d.ArgErr()
+					}
+					val := d.Val()
+					m.HTTPClient.RawMaxIdleConns = &val
+				case "max_idle_conns_per_host":
+					if !d.NextArg() {
+						return d.ArgErr()
+					}
+					val := d.Val()
+					m.HTTPClient.RawMaxIdleConnsPerHost = &val
+				case "max_conns_per_host":
+					if !d.NextArg() {
+						return d.ArgErr()
+					}
+					val := d.Val()
+					m.HTTPClient.RawMaxConnsPerHost = &val
+				case "idle_conn_timeout":
+					if !d.NextArg() {
+						return d.ArgErr()
+					}
+					val := d.Val()
+					m.HTTPClient.RawIdleConnTimeout = &val
+				default:
+					return d.Errf("unknown http_client property '%s'", d.Val())
+				}
 			}
-			val := d.Val()
-			m.RawMaxConnsPerHost = &val
-		case "idle_conn_timeout":
-			if !d.NextArg() {
-				return d.ArgErr()
-			}
-			val := d.Val()
-			m.RawIdleConnTimeout = &val
 		case "diff_ignored_fields":
 			if !d.NextArg() {
 				return d.ArgErr()
