@@ -620,6 +620,15 @@ describe('array reorder/insert/delete (issue #114)', () => {
     const removedLines = lines.filter((l) => l.type === 'removed')
     expect(patchRows.filter((r) => r.op === 'add')).toHaveLength(addedLines.length)
     expect(patchRows.filter((r) => r.op === 'remove')).toHaveLength(removedLines.length)
+    // Beyond counts, the reconstructed edit script must place the changes in
+    // document order: the moved element 'c' is added at the front (shadow index 0)
+    // and removed from the tail (live index 2), so the added line precedes the
+    // removed line and both carry the moved value.
+    expect(lineText(addedLines[0])).toContain('"c"')
+    expect(lineText(removedLines[0])).toContain('"c"')
+    const addedAt = lines.indexOf(addedLines[0]!)
+    const removedAt = lines.indexOf(removedLines[0]!)
+    expect(addedAt).toBeLessThan(removedAt)
   })
 
   // #5: a single change inside a large array stays linear and renders exactly

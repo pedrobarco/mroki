@@ -38,6 +38,11 @@ function walkMerged(
   lines: DiffLine[]
 ): void {
   const op = leafOp(ctx, path)
+  // The `!isCont` guard is load-bearing: an x-indexed `remove` and a y-indexed
+  // op can share the same numeric pointer, so `leafOp` may return the remove for
+  // an array slot we entered as a kept (container) element. Restricting the leaf
+  // branch to primitives keeps containers on the recursive path below; preserve
+  // this guard if `walkArray` is ever refactored.
   if (op && !isCont(live) && !isCont(shadow)) {
     if (op.op === 'replace') {
       lines.push({ tokens: valTok(live), type: 'replaced-old', indent, path })

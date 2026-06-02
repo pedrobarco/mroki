@@ -72,12 +72,17 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  *
  * A Patch row draws its two sides from different serialisations: the NEW value
  * comes from the diff content (stored as TEXT, produced by Go's `json.Marshal`,
- * which orders map keys alphabetically) while the OLD value is reconstructed
+ * which orders map keys by byte order) while the OLD value is reconstructed
  * from the live body (stored as JSONB, which Postgres reorders by key length
  * then byte order). The same logical object can therefore render with two
  * different key orders. Canonicalising both sides here keeps the inline tokens,
  * the expandable detail, and the hover title aligned. Purely cosmetic — the
  * stored diff and the API contract are unaffected.
+ *
+ * The order is JavaScript's default `Array.sort()` (UTF-16 code-unit order),
+ * which need not match Go's byte order for non-ASCII keys. That is fine: the
+ * goal is that the two sides of a single row agree, and since BOTH pass through
+ * this function they share whatever order it produces.
  *
  * Already-canonical input is returned by reference: a new container is
  * allocated lazily, and only at the levels whose keys are actually out of order
