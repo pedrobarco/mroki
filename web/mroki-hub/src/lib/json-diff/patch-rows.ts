@@ -78,13 +78,37 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  * different key orders. Canonicalising both sides here keeps the inline tokens,
  * the expandable detail, and the hover title aligned. Purely cosmetic — the
  * stored diff and the API contract are unaffected.
+ *
+ * Already-canonical input is returned by reference: a new container is
+ * allocated lazily, and only at the levels whose keys are actually out of order
+ * (or that contain a rebuilt child). The Go-sorted `add` side therefore costs
+ * nothing, and the JSONB-ordered old value is rebuilt only where it differs.
  */
 function canonicalizeKeys(v: unknown): unknown {
-  if (Array.isArray(v)) return v.map(canonicalizeKeys)
+  if (Array.isArray(v)) {
+    let out: unknown[] | null = null
+    for (let i = 0; i < v.length; i++) {
+      const c = canonicalizeKeys(v[i])
+      if (!out && c !== v[i]) out = v.slice(0, i)
+      out?.push(c)
+    }
+    return out ?? v
+  }
   if (isRecord(v)) {
-    const out: Record<string, unknown> = {}
-    for (const k of Object.keys(v).sort()) out[k] = canonicalizeKeys(v[k])
-    return out
+    const keys = Object.keys(v)
+    const inOrder = keys.every((k, i) => i === 0 || keys[i - 1]! <= k)
+    const order = inOrder ? keys : [...keys].sort()
+    let out: Record<string, unknown> | null = inOrder ? null : {}
+    for (let i = 0; i < order.length; i++) {
+      const k = order[i]!
+      const c = canonicalizeKeys(v[k])
+      if (!out && c !== v[k]) {
+        out = {}
+        for (let j = 0; j < i; j++) out[order[j]!] = v[order[j]!]
+      }
+      if (out) out[k] = c
+    }
+    return out ?? v
   }
   return v
 }
