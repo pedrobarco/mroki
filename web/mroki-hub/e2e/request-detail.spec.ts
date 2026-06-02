@@ -357,4 +357,59 @@ test.describe('Request Detail Page', () => {
     await expect(page.getByText('coupon')).toBeVisible()
     await expect(page.getByText('legacy_token')).not.toBeVisible()
   })
+
+  // Regression for #114: an array-of-objects reorder must render valid array
+  // indices in the Patch view (never the pre-fix [-1] sentinel), and the moved
+  // object must show one key order on both its add and remove rows even though
+  // the add value comes from the diff (Go's alphabetical json.Marshal) while the
+  // removed old value is reconstructed from the live body (Postgres JSONB, which
+  // reorders object keys by length then byte order).
+  test('renders array reorder with valid indices and canonical key order', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `reorder-gate-${suffix}`,
+      `https://reorder-live-${suffix}.example.com`,
+      `https://reorder-shadow-${suffix}.example.com`
+    )
+    const moved = { name: 'USB Cable', qty: 3, sku: 'CABLE-009' }
+    const widget = { name: 'Standard Widget', qty: 2, sku: 'WIDGET-001' }
+    const gadget = { name: 'Pro Gadget', qty: 1, sku: 'GADGET-042' }
+    const req = await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/reorder-test',
+      // Live keys are sent in a non-alphabetical order so the JSONB round-trip
+      // differs from the diff's Go-sorted add value.
+      liveBody: btoa(
+        JSON.stringify({
+          items: [
+            { qty: 2, sku: 'WIDGET-001', name: 'Standard Widget' },
+            { qty: 1, sku: 'GADGET-042', name: 'Pro Gadget' },
+            { qty: 3, sku: 'CABLE-009', name: 'USB Cable' },
+          ],
+        })
+      ),
+      shadowBody: btoa(JSON.stringify({ items: [moved, widget, gadget] })),
+      liveStatus: 200,
+      shadowStatus: 200,
+      diffContent: [
+        { op: 'add', path: '/body/items/0', value: moved },
+        { op: 'remove', path: '/body/items/2' },
+      ],
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+    await page.getByRole('button', { name: 'Patch' }).click()
+    await expect(page.getByText(/2 shown/)).toBeVisible()
+
+    // Valid array indices on both rows; the broken /-1 index never renders.
+    await expect(page.getByText('[0]')).toBeVisible()
+    await expect(page.getByText('[2]')).toBeVisible()
+    await expect(page.getByText('[-1]')).toHaveCount(0)
+
+    // The add row (new value from the diff) and the remove row (old value
+    // reconstructed from the live body) serialise the moved object with the same
+    // canonical key order, so the value div title matches on both rows.
+    const movedTitle = JSON.stringify(moved)
+    await expect(page.locator(`[title='${movedTitle}']`)).toHaveCount(2)
+  })
 })

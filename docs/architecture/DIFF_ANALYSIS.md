@@ -73,14 +73,18 @@ Diffs use the **RFC 6902 JSON Patch** format. Each operation describes a single 
 | `op` | Operation type: `add`, `remove`, or `replace` |
 | `path` | Location of the change as an RFC 6901 JSON Pointer |
 | `value` | New value (present for `add` and `replace`) |
-| `oldValue` | Previous value (present for `replace`) |
+
+The patch is **minimal by design** and carries no previous (`old`) value: a `replace`/`remove`
+only records where the change is and what the new value is. The hub reconstructs the old value
+client-side by resolving the path against the captured live response, so the stored diff stays a
+standard, lossless RFC 6902 document.
 
 **Example** — the shadow returned a different status code and a changed field in the body:
 
 ```json
 [
-  { "op": "replace", "path": "/statusCode", "value": 500, "oldValue": 200 },
-  { "op": "replace", "path": "/body/user/name", "value": "Bob", "oldValue": "Alice" },
+  { "op": "replace", "path": "/statusCode", "value": 500 },
+  { "op": "replace", "path": "/body/user/name", "value": "Bob" },
   { "op": "add", "path": "/body/user/role", "value": "admin" }
 ]
 ```
@@ -96,8 +100,15 @@ Diff behavior can be configured globally via environment variables or per gate i
 | Excluded fields | `MROKI_APP_DIFF_IGNORED_FIELDS` | `diff_config.ignored_fields` | Fields to exclude from comparison (blacklist) |
 | Included fields | `MROKI_APP_DIFF_INCLUDED_FIELDS` | `diff_config.included_fields` | Fields to include in comparison (whitelist) |
 | Float tolerance | `MROKI_APP_DIFF_FLOAT_TOLERANCE` | `diff_config.float_tolerance` | Tolerance for floating-point comparisons |
+| Sort arrays | `MROKI_APP_DIFF_SORT_ARRAYS` | `diff_config.sort_arrays` | Sort arrays before comparison so element order is ignored (`false` = positional comparison) |
 | Redacted fields | `MROKI_APP_REDACTED_FIELDS` | `redacted_fields` | Fields replaced with `[REDACTED]` before comparison |
 
 Field paths use **gjson syntax** — use `#` as an array wildcard (e.g., `users.#.email` matches the `email` field in every element of the `users` array).
+
+### Array ordering
+
+By default (`sort_arrays = false`) arrays are compared **positionally**, so reordering elements is a real difference: a moved element is reported as a `remove` at its old position paired with an `add` at its new position (RFC 6902 has no dedicated `move` for this engine). This is expected behavior, not a bug — an order-only change between two otherwise-identical arrays will surface as add/remove pairs in the Split, Unified, and Patch views alike. Presenting such pairs as a single "moved" affordance in the hub (without changing the stored diff) is tracked as a follow-up in [issue #120](https://github.com/pedrobarco/mroki/issues/120).
+
+Set `sort_arrays = true` to sort arrays before diffing; element order is then ignored and reorders produce no diff (only genuine value changes remain).
 
 Per-gate configuration overrides global defaults. See the [Configuration reference](../production/CONFIGURATION.md) for the full list of environment variables.

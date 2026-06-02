@@ -149,6 +149,7 @@ Configure how responses are compared. These options only apply in **Standalone m
 | `MROKI_APP_DIFF_IGNORED_FIELDS` | No | _(none)_ | Comma-separated field paths to ignore during comparison |
 | `MROKI_APP_DIFF_INCLUDED_FIELDS` | No | _(none)_ | Comma-separated field paths to include (whitelist mode). When set, only these fields are compared, then ignored fields are applied. |
 | `MROKI_APP_DIFF_FLOAT_TOLERANCE` | No | `0` | Tolerance for floating-point comparisons (`0` = exact) |
+| `MROKI_APP_DIFF_SORT_ARRAYS` | No | `false` | Sort arrays before comparison so element order is ignored. When `false`, arrays are compared positionally and a reorder surfaces as `remove`/`add` pairs. |
 
 ---
 
@@ -192,6 +193,7 @@ mroki_gate {
     [diff_ignored_fields <comma-separated>]
     [diff_included_fields <comma-separated>]
     [diff_float_tolerance <float>]
+    [diff_sort_arrays <bool>]
 }
 ```
 
@@ -209,6 +211,7 @@ mroki_gate {
 | `diff_ignored_fields` | No | _(none)_ | Comma-separated fields to ignore in diff (gjson syntax) |
 | `diff_included_fields` | No | _(none)_ | Comma-separated fields to include in diff (whitelist) |
 | `diff_float_tolerance` | No | _(exact)_ | Float comparison tolerance |
+| `diff_sort_arrays` | No | `false` | Sort arrays before comparison so element order is ignored (`false` = positional, reorders show as remove/add pairs) |
 
 ---
 

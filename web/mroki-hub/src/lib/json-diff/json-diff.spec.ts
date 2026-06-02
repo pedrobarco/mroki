@@ -8,6 +8,7 @@ import {
   buildPatchRows,
   resolvePointer,
 } from './index'
+import { buildContext, classifyArray } from './align'
 import type { DiffLine, Token } from './types'
 import type { PatchOp } from '@/api'
 
@@ -486,7 +487,11 @@ describe('buildPatchRows', () => {
   }
 
   it('derives old value from live and new value from op.value for replace', () => {
-    const rows = buildPatchRows([{ op: 'replace', path: '/body/status', value: 'completed' }], live)
+    const rows = buildPatchRows(
+      [{ op: 'replace', path: '/body/status', value: 'completed' }],
+      live,
+      live
+    )
     expect(rows).toHaveLength(1)
     const row = rows[0]
     expect(row.op).toBe('replace')
@@ -500,23 +505,407 @@ describe('buildPatchRows', () => {
   })
 
   it('marks add ops with only a new value', () => {
-    const rows = buildPatchRows([{ op: 'add', path: '/body/coupon', value: 'X1' }], live)
+    const rows = buildPatchRows([{ op: 'add', path: '/body/coupon', value: 'X1' }], live, live)
     expect(rows[0].hasOld).toBe(false)
     expect(rows[0].hasNew).toBe(true)
     expect(rows[0].newValue).toBe('X1')
   })
 
   it('marks remove ops with only the resolved old value', () => {
-    const rows = buildPatchRows([{ op: 'remove', path: '/body/legacy' }], live)
+    const rows = buildPatchRows([{ op: 'remove', path: '/body/legacy' }], live, live)
     expect(rows[0].hasOld).toBe(true)
     expect(rows[0].oldValue).toBe('old-token')
     expect(rows[0].hasNew).toBe(false)
   })
 
   it('formats array index leaves and flags complex values as expandable', () => {
-    const rows = buildPatchRows([{ op: 'remove', path: '/body/items/1' }], live)
+    const rows = buildPatchRows([{ op: 'remove', path: '/body/items/1' }], live, live)
     expect(rows[0].leafLabel).toBe('[1]')
     expect(rows[0].leafIsIndex).toBe(true)
     expect(rows[0].expandable).toBe(true)
+  })
+
+  // Issue #1: an insert shifts a later element that is also replaced. The
+  // replace op is y-indexed (/items/2), which is out of range in the live array;
+  // the old value must be recovered by mapping the shadow index back to live
+  // index 1 through the array alignment.
+  it('resolves the old value of a shifted replace via shadow alignment', () => {
+    const liveDoc = { items: ['keep', 'target'] }
+    const shadowDoc = { items: ['inserted', 'keep', 'TARGET'] }
+    const ops: PatchOp[] = [
+      { op: 'add', path: '/items/0', value: 'inserted' },
+      { op: 'replace', path: '/items/2', value: 'TARGET' },
+    ]
+    const rows = buildPatchRows(ops, liveDoc, shadowDoc)
+    const replaceRow = rows.find((r) => r.op === 'replace')!
+    expect(replaceRow.hasOld).toBe(true)
+    expect(replaceRow.oldValue).toBe('target')
+    expect(replaceRow.newValue).toBe('TARGET')
+  })
+
+  // Resolving a shadow (y) indexed replace pointer positionally against the live
+  // array falls out of range — the lossy behaviour #1 fixes by aligning through
+  // the shadow document. buildPatchRows now *requires* the shadow document, so
+  // this positional miss cannot happen via the public API; resolvePointer is the
+  // remaining positional primitive and demonstrates the underlying hazard.
+  it('positional pointer resolution misses a shifted replace (pre-#1 behaviour)', () => {
+    const liveDoc = { items: ['keep', 'target'] }
+    expect(resolvePointer(liveDoc, '/items/2')).toEqual({ found: false, value: undefined })
+  })
+})
+
+describe('array reorder/insert/delete (issue #114)', () => {
+  it('highlights a reordered element as added and removed in split/unified', () => {
+    // ['a','b','c'] -> ['c','a','b']: 'c' is removed at live x-index 2 and
+    // re-added at shadow y-index 0; 'a'/'b' stay equal.
+    const liveArr = ['a', 'b', 'c']
+    const shadowArr = ['c', 'a', 'b']
+    const ops: PatchOp[] = [
+      { op: 'add', path: '/0', value: 'c' },
+      { op: 'remove', path: '/2' },
+    ]
+    const lines = buildDiffLines(liveArr, shadowArr, ops)
+    const added = lines.filter((l) => l.type === 'added')
+    const removed = lines.filter((l) => l.type === 'removed')
+    expect(added).toHaveLength(1)
+    expect(removed).toHaveLength(1)
+    expect(lineText(added[0])).toContain('"c"')
+    expect(lineText(removed[0])).toContain('"c"')
+    // 'a' and 'b' are unchanged.
+    expect(lines.filter((l) => l.type === 'normal' && lineText(l).includes('"a"'))).toHaveLength(1)
+    expect(lines.filter((l) => l.type === 'normal' && lineText(l).includes('"b"'))).toHaveLength(1)
+
+    // Split: added 'c' is right-only, removed 'c' is left-only.
+    const rows = buildSplitRows(lines)
+    const addedRow = rows.find((r) => r.right?.type === 'added')!
+    const removedRow = rows.find((r) => r.left?.type === 'removed')!
+    expect(addedRow.left).toBeNull()
+    expect(removedRow.right).toBeNull()
+  })
+
+  it('renders an inserted array element as a single added line', () => {
+    const liveArr = ['a', 'b']
+    const shadowArr = ['a', 'x', 'b']
+    const ops: PatchOp[] = [{ op: 'add', path: '/1', value: 'x' }]
+    const lines = buildDiffLines(liveArr, shadowArr, ops)
+    const added = lines.filter((l) => l.type === 'added')
+    expect(added).toHaveLength(1)
+    expect(lineText(added[0])).toContain('"x"')
+    expect(lines.filter((l) => l.type === 'removed')).toHaveLength(0)
+  })
+
+  it('renders a deleted array element as a single removed line', () => {
+    const liveArr = ['a', 'x', 'b']
+    const shadowArr = ['a', 'b']
+    const ops: PatchOp[] = [{ op: 'remove', path: '/1' }]
+    const lines = buildDiffLines(liveArr, shadowArr, ops)
+    const removed = lines.filter((l) => l.type === 'removed')
+    expect(removed).toHaveLength(1)
+    expect(lineText(removed[0])).toContain('"x"')
+    expect(lines.filter((l) => l.type === 'added')).toHaveLength(0)
+  })
+
+  // #3: the Patch view (op count) and the Split/Unified view (highlighted lines)
+  // must agree on the set of changes for a reorder — one add and one remove.
+  it('keeps Split/Unified change counts in parity with the Patch view (#3)', () => {
+    const liveDoc = { items: ['a', 'b', 'c'] }
+    const shadowDoc = { items: ['c', 'a', 'b'] }
+    const ops: PatchOp[] = [
+      { op: 'add', path: '/items/0', value: 'c' },
+      { op: 'remove', path: '/items/2' },
+    ]
+    const patchRows = buildPatchRows(ops, liveDoc, shadowDoc)
+    const lines = buildDiffLines(liveDoc, shadowDoc, ops)
+    const addedLines = lines.filter((l) => l.type === 'added')
+    const removedLines = lines.filter((l) => l.type === 'removed')
+    expect(patchRows.filter((r) => r.op === 'add')).toHaveLength(addedLines.length)
+    expect(patchRows.filter((r) => r.op === 'remove')).toHaveLength(removedLines.length)
+    // Beyond counts, the reconstructed edit script must place the changes in
+    // document order: the moved element 'c' is added at the front (shadow index 0)
+    // and removed from the tail (live index 2), so the added line precedes the
+    // removed line and both carry the moved value.
+    expect(lineText(addedLines[0])).toContain('"c"')
+    expect(lineText(removedLines[0])).toContain('"c"')
+    const addedAt = lines.indexOf(addedLines[0]!)
+    const removedAt = lines.indexOf(removedLines[0]!)
+    expect(addedAt).toBeLessThan(removedAt)
+  })
+
+  // #5: a single change inside a large array stays linear and renders exactly
+  // one highlighted line, leaving the remaining elements as normal lines.
+  it('handles a large array with a single change in linear fashion (#5)', () => {
+    const n = 1000
+    const liveArr = Array.from({ length: n }, (_, i) => i)
+    const shadowArr = liveArr.slice()
+    shadowArr[500] = -1
+    const ops: PatchOp[] = [{ op: 'replace', path: '/500', value: -1 }]
+    const lines = buildDiffLines(liveArr, shadowArr, ops)
+    expect(lines.filter((l) => l.type === 'replaced-old')).toHaveLength(1)
+    expect(lines.filter((l) => l.type === 'replaced-new')).toHaveLength(1)
+    // The other 999 elements are unchanged normal lines (plus the [ and ] lines).
+    expect(lines.filter((l) => l.type === 'normal')).toHaveLength(n - 1 + 2)
+  })
+})
+
+describe('array alignment coverage (#114 follow-ups)', () => {
+  // C6: a deeper field replace/remove under a reordered array element. The
+  // intermediate index is shadow (y) indexed and must be translated back to the
+  // live (x) element to read the correct old value (#1).
+  it('resolves a nested-field replace old value under a reordered element', () => {
+    const liveDoc = {
+      items: [
+        { id: 1, v: 'a' },
+        { id: 2, v: 'b' },
+      ],
+    }
+    const shadowDoc = {
+      items: [
+        { id: 2, v: 'B' },
+        { id: 1, v: 'a' },
+      ],
+    }
+    // go-cmp output for this reorder + deeper change.
+    const ops: PatchOp[] = [
+      { op: 'remove', path: '/items/0' },
+      { op: 'replace', path: '/items/0/v', value: 'B' },
+      { op: 'add', path: '/items/1', value: { id: 1, v: 'a' } },
+    ]
+    const rows = buildPatchRows(ops, liveDoc, shadowDoc)
+    const replaceRow = rows.find((r) => r.op === 'replace')!
+    expect(replaceRow.oldValue).toBe('b')
+    expect(replaceRow.newValue).toBe('B')
+  })
+
+  it('resolves a nested-field remove old value under a reordered element', () => {
+    const liveDoc = {
+      items: [
+        { id: 1, v: 'a' },
+        { id: 2, v: 'b', extra: 'gone' },
+      ],
+    }
+    const shadowDoc = {
+      items: [
+        { id: 2, v: 'b' },
+        { id: 1, v: 'a' },
+      ],
+    }
+    const ops: PatchOp[] = [
+      { op: 'remove', path: '/items/0' },
+      { op: 'remove', path: '/items/0/extra' },
+      { op: 'add', path: '/items/1', value: { id: 1, v: 'a' } },
+    ]
+    const rows = buildPatchRows(ops, liveDoc, shadowDoc)
+    const nested = rows.find((r) => r.path === '/items/0/extra')!
+    expect(nested.hasOld).toBe(true)
+    expect(nested.oldValue).toBe('gone')
+    // The element-level remove reads its live x-index directly.
+    const elem = rows.find((r) => r.path === '/items/0')!
+    expect(elem.oldValue).toEqual({ id: 1, v: 'a' })
+  })
+
+  // C7: reordering an array of objects renders the moved object as an added and
+  // a removed container block, with the untouched objects collapsed.
+  it('renders an array-of-objects reorder as added/removed blocks + collapsed', () => {
+    const liveArr = [
+      { id: 1, name: 'a' },
+      { id: 2, name: 'b' },
+      { id: 3, name: 'c' },
+    ]
+    const shadowArr = [
+      { id: 3, name: 'c' },
+      { id: 1, name: 'a' },
+      { id: 2, name: 'b' },
+    ]
+    const ops: PatchOp[] = [
+      { op: 'add', path: '/0', value: { id: 3, name: 'c' } },
+      { op: 'remove', path: '/2' },
+    ]
+    const lines = buildDiffLines(liveArr, shadowArr, ops)
+    expect(lines.filter((l) => l.type === 'collapsed')).toHaveLength(2)
+    const added = lines.filter((l) => l.type === 'added')
+    const removed = lines.filter((l) => l.type === 'removed')
+    expect(added.length).toBeGreaterThan(0)
+    expect(removed.length).toBeGreaterThan(0)
+    expect(added.map(lineText).join('\n')).toContain('"c"')
+    expect(removed.map(lineText).join('\n')).toContain('"c"')
+  })
+
+  // C8: a reorder of an array with duplicate values still pairs one add with one
+  // remove and leaves the duplicates as unchanged normal lines.
+  it('handles a reorder with duplicate/equal values', () => {
+    const liveArr = ['a', 'a', 'b']
+    const shadowArr = ['b', 'a', 'a']
+    const ops: PatchOp[] = [
+      { op: 'add', path: '/0', value: 'b' },
+      { op: 'remove', path: '/2' },
+    ]
+    const lines = buildDiffLines(liveArr, shadowArr, ops)
+    expect(lines.filter((l) => l.type === 'added' && lineText(l).includes('"b"'))).toHaveLength(1)
+    expect(lines.filter((l) => l.type === 'removed' && lineText(l).includes('"b"'))).toHaveLength(1)
+    expect(lines.filter((l) => l.type === 'normal' && lineText(l).includes('"a"'))).toHaveLength(2)
+  })
+
+  // C9: degenerate arrays — all removed, all added, and empty.
+  it('renders an all-removed array as only removed lines', () => {
+    const ops: PatchOp[] = [
+      { op: 'remove', path: '/0' },
+      { op: 'remove', path: '/1' },
+      { op: 'remove', path: '/2' },
+    ]
+    const lines = buildDiffLines(['a', 'b', 'c'], [], ops)
+    expect(lines.filter((l) => l.type === 'removed')).toHaveLength(3)
+    expect(lines.filter((l) => l.type === 'added')).toHaveLength(0)
+  })
+
+  it('renders an all-added array as only added lines', () => {
+    const ops: PatchOp[] = [
+      { op: 'add', path: '/0', value: 'a' },
+      { op: 'add', path: '/1', value: 'b' },
+      { op: 'add', path: '/2', value: 'c' },
+    ]
+    const lines = buildDiffLines([], ['a', 'b', 'c'], ops)
+    expect(lines.filter((l) => l.type === 'added')).toHaveLength(3)
+    expect(lines.filter((l) => l.type === 'removed')).toHaveLength(0)
+  })
+
+  it('renders two empty arrays as bare brackets', () => {
+    const lines = buildDiffLines([], [], [])
+    expect(lines).toHaveLength(2)
+    expect(lineText(lines[0])).toBe('[')
+    expect(lineText(lines[1])).toBe(']')
+  })
+
+  // C10: alignment recurses through arrays nested inside arrays.
+  it('aligns a reorder of nested arrays-in-arrays', () => {
+    const liveArr = [
+      [1, 2],
+      [3, 4],
+    ]
+    const shadowArr = [
+      [3, 4],
+      [1, 2],
+    ]
+    const ops: PatchOp[] = [
+      { op: 'remove', path: '/0' },
+      { op: 'add', path: '/1', value: [1, 2] },
+    ]
+    const lines = buildDiffLines(liveArr, shadowArr, ops)
+    // [3,4] is unchanged → collapsed; [1,2] is removed then re-added.
+    expect(lines.filter((l) => l.type === 'collapsed')).toHaveLength(1)
+    expect(lines.filter((l) => l.type === 'removed').length).toBeGreaterThan(0)
+    expect(lines.filter((l) => l.type === 'added').length).toBeGreaterThan(0)
+  })
+
+  // C11: a primitive replace inside an array pairs replaced-old/new in split view.
+  it('pairs a replaced array element in the split view', () => {
+    const ops: PatchOp[] = [{ op: 'replace', path: '/1', value: 'B' }]
+    const lines = buildDiffLines(['a', 'b'], ['a', 'B'], ops)
+    const rows = buildSplitRows(lines)
+    const replaced = rows.find(
+      (r) => r.left?.type === 'replaced-old' && r.right?.type === 'replaced-new'
+    )!
+    expect(replaced).toBeDefined()
+    expect(lineText(replaced.left!)).toContain('"b"')
+    expect(lineText(replaced.right!)).toContain('"B"')
+  })
+
+  // C12: an equal container that shifted position is collapsed using the LIVE
+  // value but addressed by its SHADOW index.
+  it('collapses an equal container at its shifted shadow index', () => {
+    const liveArr = [{ keep: 1 }]
+    const shadowArr = ['new', { keep: 1 }]
+    const ops: PatchOp[] = [{ op: 'add', path: '/0', value: 'new' }]
+    const lines = buildDiffLines(liveArr, shadowArr, ops)
+    const collapsed = lines.find((l) => l.type === 'collapsed')!
+    expect(collapsed.collapsedValue).toEqual({ keep: 1 })
+    expect(collapsed.path).toBe('/1')
+    expect(lines.filter((l) => l.type === 'added' && lineText(l).includes('"new"'))).toHaveLength(1)
+  })
+
+  // C13: classifyArray must not treat a bare (x-indexed) remove as a change of
+  // the shadow element sharing that numeric index.
+  it('does not mark a shadow element changed by a bare remove at the same index', () => {
+    const bareRemove = classifyArray(buildContext([{ op: 'remove', path: '/1' }]), '')
+    expect(bareRemove.removeX.has(1)).toBe(true)
+    expect(bareRemove.isChangedY(1)).toBe(false)
+
+    const replaced = classifyArray(buildContext([{ op: 'replace', path: '/1', value: 'x' }]), '')
+    expect(replaced.isChangedY(1)).toBe(true)
+
+    const deeper = classifyArray(buildContext([{ op: 'replace', path: '/1/x', value: 9 }]), '')
+    expect(deeper.isChangedY(1)).toBe(true)
+  })
+
+  // C14: a y-indexed array op whose live ancestor is not an array resolves to
+  // not-found rather than throwing or returning a wrong value.
+  it('reports not-found when the live ancestor is not an array', () => {
+    const rows = buildPatchRows(
+      [{ op: 'replace', path: '/items/0', value: 'X' }],
+      { items: { a: 1 } },
+      { items: ['x'] }
+    )
+    expect(rows[0].hasOld).toBe(false)
+  })
+
+  // C15: the last element of an array carries no trailing comma; preceding
+  // elements do — for add, remove, and replace alike.
+  it('omits the trailing comma on the last array element', () => {
+    const addLines = buildDiffLines(['a'], ['a', 'b'], [{ op: 'add', path: '/1', value: 'b' }])
+    const firstA = addLines.find((l) => l.type === 'normal' && lineText(l).includes('"a"'))!
+    const addedB = addLines.find((l) => l.type === 'added')!
+    expect(lineText(firstA)).toContain(',')
+    expect(lineText(addedB)).not.toContain(',')
+
+    const removeLines = buildDiffLines(['a', 'b'], ['a'], [{ op: 'remove', path: '/1' }])
+    const removedB = removeLines.find((l) => l.type === 'removed')!
+    expect(lineText(removedB)).not.toContain(',')
+
+    const replaceLines = buildDiffLines(
+      ['a', 'b'],
+      ['a', 'B'],
+      [{ op: 'replace', path: '/1', value: 'B' }]
+    )
+    const newB = replaceLines.find((l) => l.type === 'replaced-new')!
+    expect(lineText(newB)).not.toContain(',')
+  })
+
+  // Patch-view key canonicalisation: in an array-of-objects reorder the added
+  // object's value comes from the diff (Go's alphabetical `json.Marshal`) while
+  // the removed object's old value is reconstructed from the live body (JSONB
+  // key-length order). Both describe the same moved object, so the Patch view
+  // must render them with one stable key order instead of two different ones.
+  it('canonicalises object key order so a moved object lines up across rows', () => {
+    const liveDoc = {
+      items: [
+        { qty: 2, sku: 'WIDGET-001', name: 'Standard Widget' },
+        { qty: 1, sku: 'GADGET-042', name: 'Pro Gadget' },
+        { qty: 3, sku: 'CABLE-009', name: 'USB Cable' },
+      ],
+    }
+    const shadowDoc = {
+      items: [
+        { qty: 3, sku: 'CABLE-009', name: 'USB Cable' },
+        { qty: 2, sku: 'WIDGET-001', name: 'Standard Widget' },
+        { qty: 1, sku: 'GADGET-042', name: 'Pro Gadget' },
+      ],
+    }
+    const ops: PatchOp[] = [
+      { op: 'add', path: '/items/0', value: { name: 'USB Cable', qty: 3, sku: 'CABLE-009' } },
+      { op: 'remove', path: '/items/2' },
+    ]
+    const rows = buildPatchRows(ops, liveDoc, shadowDoc)
+    const addRow = rows.find((r) => r.op === 'add')!
+    const removeRow = rows.find((r) => r.op === 'remove')!
+    // Keys are sorted alphabetically on both sides regardless of source order.
+    expect(Object.keys(addRow.newValue as Record<string, unknown>)).toEqual(['name', 'qty', 'sku'])
+    expect(Object.keys(removeRow.oldValue as Record<string, unknown>)).toEqual([
+      'name',
+      'qty',
+      'sku',
+    ])
+    // The same moved object therefore serialises identically on both rows.
+    const newText = addRow.newInline.map((t) => t.text).join('')
+    const oldText = removeRow.oldInline.map((t) => t.text).join('')
+    expect(newText).toBe(oldText)
   })
 })

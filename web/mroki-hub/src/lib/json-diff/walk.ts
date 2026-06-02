@@ -13,17 +13,19 @@ import {
 } from './tokens'
 import { renderBlock } from './render'
 import { countLines } from './render'
-
-function hasOpsUnder(path: string, opMap: Map<string, PatchOp>): boolean {
-  for (const p of opMap.keys()) if (p === path || p.startsWith(path + '/')) return true
-  return false
-}
+import {
+  buildContext,
+  hasOpsUnder,
+  leafOp,
+  classifyArray,
+  alignArray,
+  type DiffContext,
+} from './align'
 
 export function buildDiffLines(live: unknown, shadow: unknown, ops: PatchOp[]): DiffLine[] {
-  const opMap = new Map<string, PatchOp>()
-  for (const op of ops) opMap.set(op.path, op)
+  const ctx = buildContext(ops)
   const lines: DiffLine[] = []
-  walkMerged(live, shadow, '', 0, opMap, lines)
+  walkMerged(live, shadow, '', 0, ctx, lines)
   return lines
 }
 
@@ -32,10 +34,15 @@ function walkMerged(
   shadow: unknown,
   path: string,
   indent: number,
-  opMap: Map<string, PatchOp>,
+  ctx: DiffContext,
   lines: DiffLine[]
 ): void {
-  const op = opMap.get(path)
+  const op = leafOp(ctx, path)
+  // The `!isCont` guard is load-bearing: an x-indexed `remove` and a y-indexed
+  // op can share the same numeric pointer, so `leafOp` may return the remove for
+  // an array slot we entered as a kept (container) element. Restricting the leaf
+  // branch to primitives keeps containers on the recursive path below; preserve
+  // this guard if `walkArray` is ever refactored.
   if (op && !isCont(live) && !isCont(shadow)) {
     if (op.op === 'replace') {
       lines.push({ tokens: valTok(live), type: 'replaced-old', indent, path })
@@ -48,11 +55,11 @@ function walkMerged(
     return
   }
   if (isObj(live) && isObj(shadow)) {
-    walkObject(live, shadow, path, indent, opMap, lines)
+    walkObject(live, shadow, path, indent, ctx, lines)
     return
   }
   if (Array.isArray(live) && Array.isArray(shadow)) {
-    walkArray(live, shadow, path, indent, opMap, lines)
+    walkArray(live, shadow, path, indent, ctx, lines)
     return
   }
   if (op) {
@@ -68,7 +75,7 @@ function walkObject(
   shadow: Record<string, unknown>,
   path: string,
   indent: number,
-  opMap: Map<string, PatchOp>,
+  ctx: DiffContext,
   lines: DiffLine[]
 ): void {
   const allKeys = [...new Set([...Object.keys(live), ...Object.keys(shadow)])]
@@ -79,13 +86,13 @@ function walkObject(
     const inL = key in live,
       inS = key in shadow
     if (inL && inS) {
-      if (hasOpsUnder(cp, opMap)) {
+      if (hasOpsUnder(ctx, cp)) {
         if (isCont(live[key]) && isCont(shadow[key])) {
           lines.push({ tokens: keyTok(key), type: 'normal', indent: indent + 1, path: cp })
-          walkMerged(live[key], shadow[key], cp, indent + 1, opMap, lines)
+          walkMerged(live[key], shadow[key], cp, indent + 1, ctx, lines)
           if (!last) appendComma(lines)
         } else {
-          const op = opMap.get(cp)
+          const op = leafOp(ctx, cp)
           if (op && op.op === 'replace') {
             if (isCont(live[key]) || isCont(shadow[key])) {
               lines.push({
@@ -119,7 +126,7 @@ function walkObject(
             }
           } else {
             lines.push({ tokens: keyTok(key), type: 'normal', indent: indent + 1, path: cp })
-            walkMerged(live[key], shadow[key], cp, indent + 1, opMap, lines)
+            walkMerged(live[key], shadow[key], cp, indent + 1, ctx, lines)
             if (!last) appendComma(lines)
           }
         }
@@ -178,64 +185,86 @@ function walkArray(
   shadow: unknown[],
   path: string,
   indent: number,
-  opMap: Map<string, PatchOp>,
+  ctx: DiffContext,
   lines: DiffLine[]
 ): void {
-  const max = Math.max(live.length, shadow.length)
+  // Align live (x) and shadow (y) via the edit script reconstructed from the
+  // ops, rather than walking by position — positional walking silently misses
+  // reordered/inserted/removed elements (issue #114).
+  const entries = alignArray(live.length, shadow.length, classifyArray(ctx, path))
   lines.push({ tokens: [br('[')], type: 'normal', indent, path })
-  for (let i = 0; i < max; i++) {
-    const cp = `${path}/${i}`
-    const last = i === max - 1
-    const inL = i < live.length,
-      inS = i < shadow.length
-    if (inL && inS) {
-      if (hasOpsUnder(cp, opMap)) {
-        walkMerged(live[i], shadow[i], cp, indent + 1, opMap, lines)
-        if (!last) appendComma(lines)
-      } else if (isCont(live[i])) {
-        // Unchanged container element → collapsed
+  entries.forEach((e, i) => {
+    const last = i === entries.length - 1
+    if (e.kind === 'equal') {
+      const v = live[e.liveIndex!]
+      const cp = `${path}/${e.shadowIndex}`
+      if (isCont(v)) {
         lines.push({
-          tokens: collapsedPreview(live[i]),
+          tokens: collapsedPreview(v),
           type: 'collapsed',
           indent: indent + 1,
           path: cp,
-          collapsedValue: live[i],
-          collapsedLineCount: countLines(live[i]),
+          collapsedValue: v,
+          collapsedLineCount: countLines(v),
           collapsedTrailingComma: !last,
         })
       } else {
         lines.push({
-          tokens: [...valTok(live[i]), ...(last ? [] : [comma()])],
+          tokens: [...valTok(v), ...(last ? [] : [comma()])],
           type: 'normal',
           indent: indent + 1,
           path: cp,
         })
       }
-    } else if (inL) {
-      if (isCont(live[i])) {
-        renderBlock(live[i], indent + 1, 'removed', cp, lines)
+    } else if (e.kind === 'replace') {
+      const lv = live[e.liveIndex!]
+      const sv = shadow[e.shadowIndex!]
+      const cp = `${path}/${e.shadowIndex}`
+      if (isCont(lv) && isCont(sv)) {
+        walkMerged(lv, sv, cp, indent + 1, ctx, lines)
+        if (!last) appendComma(lines)
+      } else if (isCont(lv) || isCont(sv)) {
+        renderBlock(lv, indent + 1, 'replaced-old', cp, lines)
+        renderBlock(sv, indent + 1, 'replaced-new', cp, lines)
+        if (!last) appendComma(lines)
+      } else {
+        lines.push({ tokens: valTok(lv), type: 'replaced-old', indent: indent + 1, path: cp })
+        lines.push({
+          tokens: [...valTok(sv), ...(last ? [] : [comma()])],
+          type: 'replaced-new',
+          indent: indent + 1,
+          path: cp,
+        })
+      }
+    } else if (e.kind === 'remove') {
+      const v = live[e.liveIndex!]
+      const cp = `${path}/${e.liveIndex}`
+      if (isCont(v)) {
+        renderBlock(v, indent + 1, 'removed', cp, lines)
         if (!last) appendComma(lines)
       } else {
         lines.push({
-          tokens: [...valTok(live[i]), ...(last ? [] : [comma()])],
+          tokens: [...valTok(v), ...(last ? [] : [comma()])],
           type: 'removed',
           indent: indent + 1,
           path: cp,
         })
       }
     } else {
-      if (isCont(shadow[i])) {
-        renderBlock(shadow[i], indent + 1, 'added', cp, lines)
+      const v = shadow[e.shadowIndex!]
+      const cp = `${path}/${e.shadowIndex}`
+      if (isCont(v)) {
+        renderBlock(v, indent + 1, 'added', cp, lines)
         if (!last) appendComma(lines)
       } else {
         lines.push({
-          tokens: [...valTok(shadow[i]), ...(last ? [] : [comma()])],
+          tokens: [...valTok(v), ...(last ? [] : [comma()])],
           type: 'added',
           indent: indent + 1,
           path: cp,
         })
       }
     }
-  }
+  })
   lines.push({ tokens: [br(']')], type: 'normal', indent, path })
 }

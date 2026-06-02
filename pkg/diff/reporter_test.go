@@ -79,6 +79,184 @@ func TestPatchReporter_arrays_positional(t *testing.T) {
 	assert.Equal(t, "orange", ops[0].Value)
 }
 
+func TestPatchReporter_array_reorder_emits_valid_indices(t *testing.T) {
+	// Pure reorder (default, no sort): go-cmp decomposes it into an insert and a
+	// delete. Both must use valid RFC 6901 indices, never "-1".
+	a := `{"items":["a","b","c"]}`
+	b := `{"items":["c","a","b"]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	for _, op := range ops {
+		assert.NotContains(t, op.Path, "-1", "array index must never be -1")
+	}
+
+	byOp := map[string]diff.PatchOp{}
+	for _, op := range ops {
+		byOp[op.Op] = op
+	}
+	require.Len(t, ops, 2)
+	require.Contains(t, byOp, "add")
+	require.Contains(t, byOp, "remove")
+	assert.Equal(t, "/items/0", byOp["add"].Path, "added element uses the y-index")
+	assert.Equal(t, "c", byOp["add"].Value)
+	assert.Equal(t, "/items/2", byOp["remove"].Path, "removed element uses the x-index")
+}
+
+func TestPatchReporter_array_insert_uses_y_index(t *testing.T) {
+	a := `{"items":["b","c"]}`
+	b := `{"items":["a","b","c"]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "add", ops[0].Op)
+	assert.Equal(t, "/items/0", ops[0].Path)
+	assert.Equal(t, "a", ops[0].Value)
+}
+
+func TestPatchReporter_array_delete_uses_x_index(t *testing.T) {
+	a := `{"items":["a","b","c"]}`
+	b := `{"items":["a","c"]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "remove", ops[0].Op)
+	assert.Equal(t, "/items/1", ops[0].Path)
+}
+
+func TestPatchReporter_array_reorder_with_value_change_has_valid_indices(t *testing.T) {
+	// Reorder combined with a deeper value change. go-cmp keeps the moved object
+	// {id:2} (live index 1) matched to shadow index 0 and emits a deeper replace
+	// addressed by the SHADOW (y) index (/items/0/v) — NOT its old live index
+	// (/items/1/v). The original {id:1} is removed by its LIVE (x) index and
+	// re-added at its new shadow index. Every index must be valid (never -1).
+	a := `{"items":[{"id":1,"v":"a"},{"id":2,"v":"b"}]}`
+	b := `{"items":[{"id":2,"v":"B"},{"id":1,"v":"a"}]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	assert.NotEmpty(t, ops)
+	for _, op := range ops {
+		assert.NotContains(t, op.Path, "-1", "array index must never be -1")
+	}
+
+	byKey := map[string]diff.PatchOp{}
+	for _, op := range ops {
+		byKey[op.Op+" "+op.Path] = op
+	}
+	// Deeper replace addressed by the y-index of the moved element — this is the
+	// path-translation case the frontend old-value resolution depends on (#1).
+	require.Contains(t, byKey, "replace /items/0/v")
+	assert.Equal(t, "B", byKey["replace /items/0/v"].Value)
+	// Original {id:1} removed by its live x-index, re-added at its shadow y-index.
+	require.Contains(t, byKey, "remove /items/0")
+	require.Contains(t, byKey, "add /items/1")
+	assert.Equal(t, map[string]any{"id": float64(1), "v": "a"}, byKey["add /items/1"].Value)
+}
+
+func TestPatchReporter_array_mixed_remove_replace_add_valid_indices(t *testing.T) {
+	// LCS keeps [b,c]: "a" is removed by its live (x) index, "d"→"e" is a replace
+	// addressed by the shadow (y) index, and "f" is added at its shadow index.
+	a := `{"items":["a","b","c","d"]}`
+	b := `{"items":["b","c","e","f"]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	for _, op := range ops {
+		assert.NotContains(t, op.Path, "-1", "array index must never be -1")
+	}
+
+	byKey := map[string]diff.PatchOp{}
+	for _, op := range ops {
+		byKey[op.Op+" "+op.Path] = op
+	}
+	require.Contains(t, byKey, "remove /items/0")
+	require.Contains(t, byKey, "replace /items/2")
+	assert.Equal(t, "e", byKey["replace /items/2"].Value)
+	require.Contains(t, byKey, "add /items/3")
+	assert.Equal(t, "f", byKey["add /items/3"].Value)
+}
+
+func TestPatchReporter_array_all_removed_uses_x_indices(t *testing.T) {
+	a := `{"items":["a","b","c"]}`
+	b := `{"items":[]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 3)
+	paths := map[string]bool{}
+	for _, op := range ops {
+		assert.Equal(t, "remove", op.Op)
+		assert.NotContains(t, op.Path, "-1", "array index must never be -1")
+		paths[op.Path] = true
+	}
+	assert.True(t, paths["/items/0"])
+	assert.True(t, paths["/items/1"])
+	assert.True(t, paths["/items/2"])
+}
+
+func TestPatchReporter_array_all_added_uses_y_indices(t *testing.T) {
+	a := `{"items":[]}`
+	b := `{"items":["a","b","c"]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 3)
+	paths := map[string]any{}
+	for _, op := range ops {
+		assert.Equal(t, "add", op.Op)
+		assert.NotContains(t, op.Path, "-1", "array index must never be -1")
+		paths[op.Path] = op.Value
+	}
+	assert.Equal(t, "a", paths["/items/0"])
+	assert.Equal(t, "b", paths["/items/1"])
+	assert.Equal(t, "c", paths["/items/2"])
+}
+
+func TestPatchReporter_array_empty_both_no_ops(t *testing.T) {
+	a := `{"items":[]}`
+	b := `{"items":[]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	assert.Empty(t, ops, "two empty arrays produce no ops")
+}
+
+func TestPatchReporter_array_of_objects_insert_uses_y_index(t *testing.T) {
+	a := `{"items":[{"id":2}]}`
+	b := `{"items":[{"id":1},{"id":2}]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "add", ops[0].Op)
+	assert.Equal(t, "/items/0", ops[0].Path)
+	assert.Equal(t, map[string]any{"id": float64(1)}, ops[0].Value)
+}
+
+func TestPatchReporter_array_of_objects_delete_uses_x_index(t *testing.T) {
+	a := `{"items":[{"id":1},{"id":2}]}`
+	b := `{"items":[{"id":2}]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "remove", ops[0].Op)
+	assert.Equal(t, "/items/0", ops[0].Path)
+}
+
 func TestPatchReporter_mixed_types(t *testing.T) {
 	a := `{"str":"hello","num":42,"bool":true,"null":null}`
 	b := `{"str":"world","num":99,"bool":false,"null":null}`

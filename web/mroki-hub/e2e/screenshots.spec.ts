@@ -93,11 +93,14 @@ test.describe('@screenshots', () => {
     await expect(page.getByRole('heading', { name: 'Request Detail' })).toBeVisible()
     await page.waitForTimeout(500)
 
-    const splitBtn = page.getByRole('button', { name: /split/i })
-    if (await splitBtn.isVisible()) {
-      await splitBtn.click()
-      await page.waitForTimeout(300)
-    }
+    // The DiffViewer defaults to split on desktop, but its initial viewMode
+    // depends on window.innerWidth at mount, which races in headless runs. Wait
+    // for the Split toggle, click it explicitly, then confirm the split view
+    // rendered (Live/Shadow panes) so we never capture the unified layout.
+    const splitBtn = page.getByRole('button', { name: 'Split', exact: true })
+    await expect(splitBtn).toBeVisible()
+    await splitBtn.click()
+    await expect(page.getByText('Shadow', { exact: true })).toBeVisible()
 
     await page.screenshot({
       path: path.join(ASSETS_DIR, 'hub-request-detail-split.png'),
