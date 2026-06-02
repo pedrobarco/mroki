@@ -3,7 +3,7 @@ import type { Token, DiffLine } from './types'
 export function valTok(v: unknown): Token[] {
   if (v === null) return [{ text: 'null', type: 'null' }]
   if (v === undefined) return [{ text: 'undefined', type: 'null' }]
-  if (typeof v === 'string') return [{ text: `"${v}"`, type: 'string' }]
+  if (typeof v === 'string') return [{ text: JSON.stringify(v), type: 'string' }]
   if (typeof v === 'number') return [{ text: String(v), type: 'number' }]
   if (typeof v === 'boolean') return [{ text: String(v), type: 'boolean' }]
   return [{ text: JSON.stringify(v), type: 'string' }]
@@ -11,7 +11,7 @@ export function valTok(v: unknown): Token[] {
 
 export function keyTok(k: string): Token[] {
   return [
-    { text: `"${k}"`, type: 'key' },
+    { text: JSON.stringify(k), type: 'key' },
     { text: ': ', type: 'punctuation' },
   ]
 }
