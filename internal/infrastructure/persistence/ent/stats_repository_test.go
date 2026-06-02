@@ -88,6 +88,28 @@ func TestStatsRepository_GetGlobalStats_no_diffs(t *testing.T) {
 	assert.Equal(t, float64(0), stats.TotalDiffRate)
 }
 
+func TestStatsRepository_GetGlobalStats_ignores_empty_diffs(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	gateRepo := ent.NewGateRepository(client)
+	reqRepo := ent.NewRequestRepository(client)
+	statsRepo := ent.NewStatsRepository(client)
+
+	gateID := setupGateWithURLs(t, gateRepo, "live.emptydiff.example.com", "shadow.emptydiff.example.com")
+
+	// One real diff plus two empty-content diff rows (identical responses).
+	require.NoError(t, reqRepo.Save(context.Background(), newTestRequest(t, gateID)))
+	require.NoError(t, reqRepo.Save(context.Background(), newTestRequestWithEmptyDiff(t, gateID)))
+	require.NoError(t, reqRepo.Save(context.Background(), newTestRequestWithEmptyDiff(t, gateID)))
+
+	stats, err := statsRepo.GetGlobalStats(context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(3), stats.TotalRequests24h)
+	// Only the request with non-empty content counts as a diff: 1 of 3.
+	assert.InDelta(t, 33.33, stats.TotalDiffRate, 0.1)
+}
 
 func TestStatsRepository_GetStatsByGateIDs_no_requests(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
@@ -134,6 +156,31 @@ func TestStatsRepository_GetStatsByGateIDs_with_requests_and_diffs(t *testing.T)
 	assert.Equal(t, int64(2), stats.DiffCount24h)
 	assert.InDelta(t, 66.66, stats.DiffRate, 0.1)
 	assert.NotNil(t, stats.LastActive)
+}
+
+func TestStatsRepository_GetStatsByGateIDs_ignores_empty_diffs(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	gateRepo := ent.NewGateRepository(client)
+	reqRepo := ent.NewRequestRepository(client)
+	statsRepo := ent.NewStatsRepository(client)
+
+	gateID := setupGateWithURLs(t, gateRepo, "live.emptygate.example.com", "shadow.emptygate.example.com")
+
+	// 1 real diff, 1 empty-content diff row, 1 no diff row.
+	require.NoError(t, reqRepo.Save(context.Background(), newTestRequest(t, gateID)))
+	require.NoError(t, reqRepo.Save(context.Background(), newTestRequestWithEmptyDiff(t, gateID)))
+	require.NoError(t, reqRepo.Save(context.Background(), newTestRequestWithoutDiff(t, gateID)))
+
+	result, err := statsRepo.GetStatsByGateIDs(context.Background(), []traffictesting.GateID{gateID})
+
+	assert.NoError(t, err)
+	stats := result[gateID]
+	assert.Equal(t, int64(3), stats.RequestCount24h)
+	// Only the non-empty-content diff counts.
+	assert.Equal(t, int64(1), stats.DiffCount24h)
+	assert.InDelta(t, 33.33, stats.DiffRate, 0.1)
 }
 
 func TestStatsRepository_GetStatsByGateIDs_multiple_gates(t *testing.T) {

@@ -763,7 +763,7 @@ curl -H "Authorization: Bearer your-api-key" \
 | `path` | string | — | Filter by path pattern, supports wildcards (e.g., `/api/users/*`) |
 | `from` | RFC3339 | — | Filter requests created on or after this timestamp |
 | `to` | RFC3339 | — | Filter requests created on or before this timestamp |
-| `has_diff` | boolean | — | Filter by diff existence (`true` = only with diffs, `false` = only without) |
+| `has_diff` | boolean | — | Filter by whether the responses differ (`true` = only requests with a non-empty diff, `false` = only requests whose responses are identical) |
 | `sort` | string | `created_at` | Sort field: `created_at`, `method`, or `path` |
 | `order` | string | `desc` | Sort direction: `asc` or `desc` |
 
@@ -792,7 +792,7 @@ curl -H "Authorization: Bearer your-api-key" \
       "path": "/api/users/123",
       "created_at": "2026-01-31T20:01:00Z",
       "live_response": { "status_code": 200, "latency_ms": 38 },
-      "shadow_response": { "status_code": 500, "latency_ms": 312 },
+      "shadow_response": { "status_code": 200, "latency_ms": 41 },
       "has_diff": false
     }
   ],
@@ -812,7 +812,7 @@ curl -H "Authorization: Bearer your-api-key" \
 | `raw_query` | `string?` | Raw URL query string, without the leading `?`. Omitted when empty |
 | `live_response` | `ResponseSummary?` | Live response summary (`null` if not yet received) |
 | `shadow_response` | `ResponseSummary?` | Shadow response summary (`null` if not yet received) |
-| `has_diff` | `bool` | Whether a diff exists between the live and shadow responses |
+| `has_diff` | `bool` | Whether the live and shadow responses differ (`true` when the computed diff is non-empty) |
 
 **ResponseSummary:**
 

@@ -86,9 +86,22 @@ func newTestRequest(t *testing.T, gateID traffictesting.GateID) *traffictesting.
 			CreatedAt:  time.Now(),
 		},
 		Diff: traffictesting.Diff{
-			Content: []diff.PatchOp{},
+			Content: []diff.PatchOp{
+				{Op: "replace", Path: "/body/status", Value: "changed"},
+			},
 		},
 	}
+}
+
+// newTestRequestWithEmptyDiff builds a request whose responses are identical,
+// so a diff row is persisted but its content is an empty (non-nil) slice. This
+// mirrors what the comparer produces for identical responses and is the case
+// that must NOT count as "has diff" in filters and stats.
+func newTestRequestWithEmptyDiff(t *testing.T, gateID traffictesting.GateID) *traffictesting.Request {
+	t.Helper()
+	req := newTestRequest(t, gateID)
+	req.Diff = traffictesting.Diff{Content: []diff.PatchOp{}}
+	return req
 }
 
 func setupGate(t *testing.T, repo traffictesting.GateRepository) traffictesting.GateID {
@@ -281,6 +294,45 @@ func TestRequestRepository_GetAllByGateID_with_method_filter(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, result.Items, 1)
 	assert.Equal(t, "GET", result.Items[0].Method.String())
+}
+
+func TestRequestRepository_GetAllByGateID_with_has_diff_filter(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	gateRepo := ent.NewGateRepository(client)
+	reqRepo := ent.NewRequestRepository(client)
+	gateID := setupGate(t, gateRepo)
+
+	// Real diff (non-empty content), empty-content diff row, and no diff row.
+	reqWithDiff := newTestRequest(t, gateID)
+	reqEmptyDiff := newTestRequestWithEmptyDiff(t, gateID)
+	reqNoDiff := newTestRequestWithoutDiff(t, gateID)
+	require.NoError(t, reqRepo.Save(context.Background(), reqWithDiff))
+	require.NoError(t, reqRepo.Save(context.Background(), reqEmptyDiff))
+	require.NoError(t, reqRepo.Save(context.Background(), reqNoDiff))
+
+	params, _ := pagination.NewParams(50, 0)
+	sort := traffictesting.DefaultRequestSort()
+
+	hasDiffTrue := true
+	filtersTrue := traffictesting.NewRequestFilters(nil, traffictesting.EmptyPathPattern(), traffictesting.EmptyDateRange(), &hasDiffTrue)
+	resultTrue, err := reqRepo.GetAllByGateID(context.Background(), gateID, filtersTrue, sort, params)
+	require.NoError(t, err)
+	require.Len(t, resultTrue.Items, 1, "has_diff=true must only return requests with non-empty diff content")
+	assert.Equal(t, reqWithDiff.ID, resultTrue.Items[0].ID)
+
+	hasDiffFalse := false
+	filtersFalse := traffictesting.NewRequestFilters(nil, traffictesting.EmptyPathPattern(), traffictesting.EmptyDateRange(), &hasDiffFalse)
+	resultFalse, err := reqRepo.GetAllByGateID(context.Background(), gateID, filtersFalse, sort, params)
+	require.NoError(t, err)
+	require.Len(t, resultFalse.Items, 2, "has_diff=false must return empty-content and no-diff requests")
+	ids := map[traffictesting.RequestID]bool{
+		resultFalse.Items[0].ID: true,
+		resultFalse.Items[1].ID: true,
+	}
+	assert.True(t, ids[reqEmptyDiff.ID], "empty-content diff request should be treated as no diff")
+	assert.True(t, ids[reqNoDiff.ID], "no-diff request should be treated as no diff")
 }
 
 func TestRequestRepository_DeleteOlderThan(t *testing.T) {
