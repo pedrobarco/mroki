@@ -67,6 +67,28 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
 }
 
+/**
+ * Recursively sort object keys into a single, stable order.
+ *
+ * A Patch row draws its two sides from different serialisations: the NEW value
+ * comes from the diff content (stored as TEXT, produced by Go's `json.Marshal`,
+ * which orders map keys alphabetically) while the OLD value is reconstructed
+ * from the live body (stored as JSONB, which Postgres reorders by key length
+ * then byte order). The same logical object can therefore render with two
+ * different key orders. Canonicalising both sides here keeps the inline tokens,
+ * the expandable detail, and the hover title aligned. Purely cosmetic — the
+ * stored diff and the API contract are unaffected.
+ */
+function canonicalizeKeys(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonicalizeKeys)
+  if (isRecord(v)) {
+    const out: Record<string, unknown> = {}
+    for (const k of Object.keys(v).sort()) out[k] = canonicalizeKeys(v[k])
+    return out
+  }
+  return v
+}
+
 /** Return (and memoize) the shadow-index → aligned-slot map for one array. */
 function alignmentFor(
   ctx: DiffContext,
@@ -185,14 +207,14 @@ export function buildPatchRows(ops: PatchOp[], liveDoc: unknown, shadowDoc: unkn
     const { pathPrefix, leafLabel, leafIsIndex } = splitPath(op.path)
 
     const hasNew = op.op === 'add' || op.op === 'replace'
-    const newValue = hasNew ? op.value : undefined
+    const newValue = hasNew ? canonicalizeKeys(op.value) : undefined
 
     const oldRes =
       op.op === 'add'
         ? { found: false, value: undefined }
         : resolveOldValue(op, liveDoc, shadowDoc, ctx, cache)
     const hasOld = oldRes.found
-    const oldValue = oldRes.value
+    const oldValue = canonicalizeKeys(oldRes.value)
 
     const valueTitle =
       op.op === 'replace'

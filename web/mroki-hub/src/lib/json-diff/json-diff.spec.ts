@@ -859,4 +859,44 @@ describe('array alignment coverage (#114 follow-ups)', () => {
     const newB = replaceLines.find((l) => l.type === 'replaced-new')!
     expect(lineText(newB)).not.toContain(',')
   })
+
+  // Patch-view key canonicalisation: in an array-of-objects reorder the added
+  // object's value comes from the diff (Go's alphabetical `json.Marshal`) while
+  // the removed object's old value is reconstructed from the live body (JSONB
+  // key-length order). Both describe the same moved object, so the Patch view
+  // must render them with one stable key order instead of two different ones.
+  it('canonicalises object key order so a moved object lines up across rows', () => {
+    const liveDoc = {
+      items: [
+        { qty: 2, sku: 'WIDGET-001', name: 'Standard Widget' },
+        { qty: 1, sku: 'GADGET-042', name: 'Pro Gadget' },
+        { qty: 3, sku: 'CABLE-009', name: 'USB Cable' },
+      ],
+    }
+    const shadowDoc = {
+      items: [
+        { qty: 3, sku: 'CABLE-009', name: 'USB Cable' },
+        { qty: 2, sku: 'WIDGET-001', name: 'Standard Widget' },
+        { qty: 1, sku: 'GADGET-042', name: 'Pro Gadget' },
+      ],
+    }
+    const ops: PatchOp[] = [
+      { op: 'add', path: '/items/0', value: { name: 'USB Cable', qty: 3, sku: 'CABLE-009' } },
+      { op: 'remove', path: '/items/2' },
+    ]
+    const rows = buildPatchRows(ops, liveDoc, shadowDoc)
+    const addRow = rows.find((r) => r.op === 'add')!
+    const removeRow = rows.find((r) => r.op === 'remove')!
+    // Keys are sorted alphabetically on both sides regardless of source order.
+    expect(Object.keys(addRow.newValue as Record<string, unknown>)).toEqual(['name', 'qty', 'sku'])
+    expect(Object.keys(removeRow.oldValue as Record<string, unknown>)).toEqual([
+      'name',
+      'qty',
+      'sku',
+    ])
+    // The same moved object therefore serialises identically on both rows.
+    const newText = addRow.newInline.map((t) => t.text).join('')
+    const oldText = removeRow.oldInline.map((t) => t.text).join('')
+    expect(newText).toBe(oldText)
+  })
 })
