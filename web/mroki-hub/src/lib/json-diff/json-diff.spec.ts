@@ -366,6 +366,97 @@ describe('tokenizeJson', () => {
   })
 })
 
+describe('JSON string/key escaping', () => {
+  it('escapes special characters in string values', () => {
+    const value = 'he said "hi"\n\tC:\\tmp'
+    const obj = { msg: value }
+    const lines = buildDiffLines(obj, obj, [])
+    const line = lines.find((l) => lineText(l).includes('"msg"'))
+    expect(line).toBeDefined()
+    // Rendered value must match JSON.stringify, not the raw unescaped string
+    expect(lineText(line!)).toContain(JSON.stringify(value))
+    expect(lineText(line!)).not.toContain('he said "hi"')
+  })
+
+  it('escapes special characters in object keys', () => {
+    const key = 'a"b\\c'
+    const obj = { [key]: 1 }
+    const lines = buildDiffLines(obj, obj, [])
+    const line = lines.find((l) => lineText(l).includes(JSON.stringify(key)))
+    expect(line).toBeDefined()
+    expect(lineText(line!)).not.toContain('"a"b\\c"')
+  })
+
+  it('escapes replaced values in split/unified lines', () => {
+    const live = { msg: 'plain' }
+    const shadow = { msg: 'he said "hi"' }
+    const ops: PatchOp[] = [{ op: 'replace', path: '/msg', value: 'he said "hi"' }]
+    const lines = buildDiffLines(live, shadow, ops)
+    const newLine = lines.find((l) => l.type === 'replaced-new')
+    expect(newLine).toBeDefined()
+    expect(lineText(newLine!)).toContain(JSON.stringify('he said "hi"'))
+    expect(lineText(newLine!)).not.toContain('he said "hi"')
+  })
+
+  it('renders the same escaped string as tokenizeJson (patch/split parity)', () => {
+    const value = 'tab\there'
+    const lines = buildDiffLines({ msg: value }, { msg: value }, [])
+    const line = lines.find((l) => lineText(l).includes('"msg"'))
+    expect(lineText(line!)).toContain(tokenText(tokenizeJson(value)))
+  })
+
+  it('escapes special characters when expanding a collapsed node', () => {
+    const value = 'he said "hi"'
+    const live = { meta: { msg: value }, name: 'alice' }
+    const shadow = { meta: { msg: value }, name: 'bob' }
+    const ops: PatchOp[] = [{ op: 'replace', path: '/name', value: 'bob' }]
+    const lines = buildDiffLines(live, shadow, ops)
+    const collapsedIdx = lines.findIndex((l) => l.type === 'collapsed')
+    expect(collapsedIdx).toBeGreaterThanOrEqual(0)
+    expandCollapsed(lines, collapsedIdx)
+    const line = lines.find((l) => lineText(l).includes('"msg"'))
+    expect(line).toBeDefined()
+    expect(lineText(line!)).toContain(JSON.stringify(value))
+    expect(lineText(line!)).not.toContain('he said "hi"')
+  })
+
+  it('escapes special characters in array element strings', () => {
+    const value = 'he said "hi"'
+    const lines = buildDiffLines([value], [value], [])
+    const line = lines.find((l) => lineText(l).includes('hi'))
+    expect(line).toBeDefined()
+    expect(lineText(line!)).toContain(JSON.stringify(value))
+    expect(lineText(line!)).not.toContain('he said "hi"')
+  })
+
+  it('escapes special characters in added and removed scalar lines', () => {
+    const value = 'he said "hi"'
+    const added = buildDiffLines({ msg: 'plain' }, { msg: 'plain', extra: value }, [
+      { op: 'add', path: '/extra', value },
+    ])
+    const addedLine = added.find((l) => l.type === 'added')
+    expect(addedLine).toBeDefined()
+    expect(lineText(addedLine!)).toContain(JSON.stringify(value))
+
+    const removed = buildDiffLines({ msg: 'plain', extra: value }, { msg: 'plain' }, [
+      { op: 'remove', path: '/extra' },
+    ])
+    const removedLine = removed.find((l) => l.type === 'removed')
+    expect(removedLine).toBeDefined()
+    expect(lineText(removedLine!)).toContain(JSON.stringify(value))
+  })
+
+  it('escapes special characters in keys/values of removed container blocks', () => {
+    const key = 'a"b'
+    const value = 'he said "hi"'
+    const lines = buildDiffLines({ data: { [key]: value } }, {}, [{ op: 'remove', path: '/data' }])
+    const text = lines.map(lineText).join('\n')
+    expect(text).toContain(JSON.stringify(key))
+    expect(text).toContain(JSON.stringify(value))
+    expect(text).not.toContain('he said "hi"')
+  })
+})
+
 describe('resolvePointer', () => {
   const doc = { body: { items: [{ price: 10 }, { price: 20 }], 'a/b': 1 }, headers: { x: ['v'] } }
 
