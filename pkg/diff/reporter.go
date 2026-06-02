@@ -99,7 +99,17 @@ func (r *patchReporter) stepToPointerToken(ps cmp.PathStep) string {
 		}
 		return fmt.Sprintf("%v", key.Interface())
 	case cmp.SliceIndex:
-		return fmt.Sprintf("%d", s.Key())
+		if k := s.Key(); k >= 0 {
+			return fmt.Sprintf("%d", k)
+		}
+		// Split state (insert/delete/move): Key() reports -1 because the x and y
+		// indices differ. SplitKeys never returns -1 for both sides, so use the
+		// valid one: the y-index for additions/moves, the x-index for removals.
+		ix, iy := s.SplitKeys()
+		if iy >= 0 {
+			return fmt.Sprintf("%d", iy)
+		}
+		return fmt.Sprintf("%d", ix)
 	case cmp.StructField:
 		return s.Name()
 	default:

@@ -170,7 +170,9 @@ const diffCount = computed(() => props.diffContent?.length ?? 0)
 type PatchFilter = 'all' | 'add' | 'remove' | 'replace'
 const patchFilter = ref<PatchFilter>('all')
 
-const patchRows = computed<PatchRow[]>(() => buildPatchRows(combinedOps.value, liveCombined.value))
+const patchRows = computed<PatchRow[]>(() =>
+  buildPatchRows(combinedOps.value, liveCombined.value, shadowCombined.value)
+)
 const patchCounts = computed(() => {
   const c = { all: patchRows.value.length, add: 0, remove: 0, replace: 0 }
   for (const r of patchRows.value) c[r.op]++
