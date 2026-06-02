@@ -52,9 +52,9 @@ func (r *statsRepository) GetGlobalStats(ctx context.Context) (*traffictesting.G
 		return nil, fmt.Errorf("failed to count requests: %w", err)
 	}
 
-	// Query 3: total diffs 24h
+	// Query 3: total diffs 24h (requests whose diff has non-empty content)
 	totalDiffs, err := r.client.Request.Query().
-		Where(request.CreatedAtGTE(since24h), request.HasDiff()).
+		Where(request.CreatedAtGTE(since24h), request.HasDiffWith(diffHasContent)).
 		Count(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count diffs: %w", err)
@@ -94,10 +94,10 @@ func (r *statsRepository) GetStatsByGateIDs(ctx context.Context, ids []trafficte
 		return nil, fmt.Errorf("failed to query request counts: %w", err)
 	}
 
-	// Query 2: diff_count_24h per gate (requests that have a diff)
+	// Query 2: diff_count_24h per gate (requests whose diff has non-empty content)
 	var diffCounts []gateStatRow
 	err = r.client.Request.Query().
-		Where(request.GateIDIn(uuids...), request.CreatedAtGTE(since24h), request.HasDiff()).
+		Where(request.GateIDIn(uuids...), request.CreatedAtGTE(since24h), request.HasDiffWith(diffHasContent)).
 		GroupBy(request.FieldGateID).
 		Aggregate(ent.Count()).
 		Scan(ctx, &diffCounts)
