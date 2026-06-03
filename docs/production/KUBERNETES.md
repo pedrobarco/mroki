@@ -50,7 +50,7 @@ helm template mroki oci://ghcr.io/pedrobarco/mroki/charts/mroki \
 ```
 
 - `api.migration.asHook` (default `true`) — when `false`, the `helm.sh/hook*` annotations are dropped.
-- The Job name is suffixed with the chart appVersion (override with `api.migration.nameSuffix`) so each version produces a fresh Job rather than mutating an immutable one on `kubectl apply`.
+- The Job name is suffixed with the chart appVersion (override with `api.migration.nameSuffix`) so each version produces a fresh Job rather than mutating an immutable one on `kubectl apply`. The suffix is sanitized to a valid DNS-1123 label (e.g. `mroki-api-migrate-1-6-0`), so `kubectl apply` does not emit a "must not contain dots" warning.
 - `api.migration.ttlSecondsAfterFinished` — sets `Job.spec.ttlSecondsAfterFinished` so completed Jobs are garbage-collected automatically. Applies in both modes; leave null to keep finished Jobs.
 
 The default (`asHook=true`) is unchanged for native `helm install`/`helm upgrade` users.
