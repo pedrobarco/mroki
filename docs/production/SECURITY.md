@@ -66,6 +66,25 @@ The API enforces a token-bucket rate limit of **1000 requests per minute per IP*
 
 ---
 
+## Metrics Endpoint
+
+When `MROKI_APP_METRICS_ENABLED=true` (the default), both components expose a Prometheus
+`/metrics` endpoint **without authentication**, mirroring the health probes:
+
+- **mroki-api** — `GET /metrics` on the API port (`MROKI_APP_PORT`), outside the API-key middleware chain.
+- **mroki-proxy** — `GET /metrics` on the admin port (`MROKI_APP_ADMIN_PORT`), isolated from proxied traffic.
+
+The endpoint exposes operational data, including per-gate series labelled with **gate UUIDs** and
+latency distributions. Treat it as internal:
+
+- Keep the API and proxy admin ports on a trusted network (private subnet, same Kubernetes pod) and
+  do **not** expose `/metrics` publicly. Scope it to your Prometheus scrapers via firewall rules or
+  a `NetworkPolicy`.
+- If you front the API with a reverse proxy, do not route external traffic to `/metrics`.
+- Set `MROKI_APP_METRICS_ENABLED=false` to disable the endpoint entirely where it is not needed.
+
+---
+
 ## TLS / Network Security
 
 mroki does **not** terminate TLS itself. Use a reverse proxy or load balancer (nginx, Caddy, cloud LB) to terminate HTTPS in front of the API.
@@ -141,5 +160,6 @@ If `MROKI_APP_CORS_ORIGINS` is empty or unset, CORS is disabled entirely — no 
 - **Database SSL** — append `?sslmode=require` to `MROKI_APP_DATABASE_URL`
 - **Restrict network access** — firewall the API and database; deploy the proxy in an isolated network
 - **Configure CORS origins** — set `MROKI_APP_CORS_ORIGINS` to only the domains that need access
+- **Restrict the metrics endpoint** — `/metrics` is unauthenticated; firewall it to your scrapers or disable it with `MROKI_APP_METRICS_ENABLED=false` where unused
 - **Enable field redaction** — review default redacted fields; add application-specific fields per gate or via `MROKI_APP_REDACTED_FIELDS`
 - **Monitor logs** — watch for 401/429 responses and unusual traffic patterns

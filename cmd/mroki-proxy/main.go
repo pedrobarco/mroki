@@ -19,7 +19,9 @@ import (
 	"github.com/pedrobarco/mroki/pkg/client"
 	"github.com/pedrobarco/mroki/pkg/client/transport"
 	"github.com/pedrobarco/mroki/pkg/diff"
+	diffmetrics "github.com/pedrobarco/mroki/pkg/diff/metrics"
 	"github.com/pedrobarco/mroki/pkg/logger"
+	"github.com/pedrobarco/mroki/pkg/metrics"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 )
 
@@ -44,6 +46,21 @@ func main() {
 		}
 	}
 
+	// Metrics platform: newProxyMetrics builds an isolated registry with the
+	// runtime/process collectors and an OTel MeterProvider bridged onto it, plus
+	// the shared domain comparison recorder. The scrape handler is mounted on the
+	// admin port. Created before the clients so their transports can be
+	// instrumented with otelhttp. When disabled, the platform and recorder are
+	// nil so every instrumentation seam is a no-op and no endpoint is mounted.
+	metricsPlatform, recorder, err := newProxyMetrics(cfg.App.MetricsEnabled)
+	if err != nil {
+		log.Error("Failed to initialize metrics", "error", err)
+		os.Exit(1)
+	}
+	if metricsPlatform != nil {
+		log.Info("Metrics enabled", "endpoint", "/metrics", "port", cfg.App.AdminPort)
+	}
+
 	// Determine mode and configure URLs
 	var liveURL, shadowURL *url.URL
 	var apiClient *client.MrokiClient
@@ -65,6 +82,12 @@ func main() {
 			CBSuccessThreshold: cfg.App.CBSuccessThreshold,
 			Logger:             log,
 		})
+
+		// Instrument the API client transport (mroki.target="api") so outbound
+		// calls to the API are timed alongside live/shadow traffic on the shared
+		// semconv http_client_request_duration_seconds histogram. No-op when
+		// metrics are disabled.
+		httpClient.Transport = metricsPlatform.InstrumentClient("api", httpClient.Transport)
 
 		apiClient = client.NewMrokiClient(
 			cfg.App.APIURL,
@@ -185,6 +208,31 @@ func main() {
 	}
 	log.Info("Sampling rate configured", slog.Float64("rate", cfg.App.SamplingRate))
 
+	// instrumentUpstream wraps the outbound live/shadow client transport with
+	// client-side otelhttp, resolving the mroki.target attribute per request from
+	// the outbound host (live, shadow, or unknown). The platform method is a no-op
+	// when metrics are disabled, returning the transport unwrapped.
+	var liveHost, shadowHost string
+	if liveURL != nil {
+		liveHost = liveURL.Host
+	}
+	if shadowURL != nil {
+		shadowHost = shadowURL.Host
+	}
+	targetFn := func(req *http.Request) string {
+		switch req.URL.Host {
+		case liveHost:
+			return "live"
+		case shadowHost:
+			return "shadow"
+		default:
+			return "unknown"
+		}
+	}
+	instrumentUpstream := func(rt http.RoundTripper) http.RoundTripper {
+		return metricsPlatform.InstrumentClientFunc(targetFn, rt)
+	}
+
 	proxyConfig := handlers.ProxyConfig{
 		Live:                   liveURL,
 		Shadow:                 shadowURL,
@@ -200,19 +248,26 @@ func main() {
 			MaxConnsPerHost:     cfg.App.HTTPClient.MaxConnsPerHost,
 			IdleConnTimeout:     cfg.App.HTTPClient.IdleConnTimeout,
 		},
-		Logger:      log,
-		APIClient:   apiClient,          // nil if standalone mode
-		APITimeout:  cfg.App.APITimeout, // overall deadline for API calls
-		DiffOptions: diffOpts,           // Only used in standalone mode
-		Redactor:    redactor,           // Only used in standalone mode
+		Logger:              log,
+		APIClient:           apiClient,          // nil if standalone mode
+		APITimeout:          cfg.App.APITimeout, // overall deadline for API calls
+		DiffOptions:         diffOpts,           // Only used in standalone mode
+		Redactor:            redactor,           // Only used in standalone mode
+		Recorder:            recorder,           // shared domain comparison metrics; nil if disabled
+		InstrumentTransport: instrumentUpstream, // nil if metrics disabled
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/", handlers.Proxy(proxyConfig))
+	// Inbound server metrics: wrap the transparent proxy handler with server-side
+	// otelhttp so every request lands on the semconv
+	// http_server_request_duration_seconds histogram. The proxy is a catch-all
+	// mirror, so it is served directly without a ServeMux — that leaves r.Pattern
+	// empty, so otelhttp records no http_route and the unbounded request paths
+	// never become a metric label. No-op when metrics are disabled.
+	proxyHandler := metricsPlatform.InstrumentHandler("proxy", handlers.Proxy(proxyConfig))
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
-		Handler:      mux,
+		Handler:      proxyHandler,
 		ReadTimeout:  cfg.App.ReadTimeout,
 		WriteTimeout: cfg.App.WriteTimeout,
 		IdleTimeout:  cfg.App.IdleTimeout,
@@ -226,6 +281,12 @@ func main() {
 	adminMux := http.NewServeMux()
 	adminMux.Handle("/health/live", handlers.Liveness())
 	adminMux.Handle("/health/ready", handlers.Readiness(&ready))
+
+	// Metrics endpoint lives on the admin port so scrape traffic never collides
+	// with proxied traffic on the main listener. Only mounted when enabled.
+	if h := metricsPlatform.MetricsHandler(); h != nil {
+		adminMux.Handle("/metrics", h)
+	}
 
 	adminServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.App.AdminPort),
@@ -289,6 +350,31 @@ func main() {
 	} else {
 		log.Info("Admin server stopped")
 	}
+
+	// Flush and release the metrics MeterProvider (no-op when disabled).
+	if err := metricsPlatform.Shutdown(shutdownCtx); err != nil {
+		log.Error("Error shutting down metrics", "error", err)
+	}
+}
+
+// newProxyMetrics builds the proxy metrics platform (isolated registry with the
+// runtime/process collectors plus an OTel MeterProvider bridged onto it) and the
+// shared domain comparison recorder. It returns the platform and the recorder.
+// When enabled is false it returns nil, nil so every instrumentation seam is a
+// no-op and no endpoint is mounted.
+func newProxyMetrics(enabled bool) (*metrics.Platform, *diffmetrics.Recorder, error) {
+	if !enabled {
+		return nil, nil, nil
+	}
+	platform, err := metrics.NewPlatform()
+	if err != nil {
+		return nil, nil, err
+	}
+	recorder, err := diffmetrics.New(platform.Provider)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create comparison recorder: %w", err)
+	}
+	return platform, recorder, nil
 }
 
 func getModeString(apiClient *client.MrokiClient) string {

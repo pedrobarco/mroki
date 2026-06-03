@@ -1,6 +1,7 @@
 package caddymodule
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/caddyserver/caddy/v2"
@@ -17,7 +19,10 @@ import (
 	"github.com/pedrobarco/mroki/internal/application/services"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
+	diffmetrics "github.com/pedrobarco/mroki/pkg/diff/metrics"
+	"github.com/pedrobarco/mroki/pkg/metrics"
 	"github.com/pedrobarco/mroki/pkg/proxy"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
 )
@@ -42,6 +47,31 @@ const (
 // operational default (pkg/proxy is unopinionated); it matches the proxy
 // binary's MROKI_APP_MAX_CONCURRENT_CALLBACKS default.
 const defaultMaxConcurrentCallbacks = 200
+
+// Comparison metrics are process-global so multiple mroki_gate instances share
+// one recorder and one bridge onto Caddy's metrics registry, avoiding duplicate
+// collector registration. The gate label is empty in standalone mode, so a
+// shared recorder is semantically correct.
+var (
+	recorderOnce   sync.Once
+	sharedRecorder *diffmetrics.Recorder
+	recorderErr    error
+)
+
+// provisionRecorder builds, once per process, the shared domain comparison
+// recorder, bridging an OTel MeterProvider onto reg so the mroki_* comparison
+// metrics surface on Caddy's /metrics endpoint.
+func provisionRecorder(reg prometheus.Registerer) (*diffmetrics.Recorder, error) {
+	recorderOnce.Do(func() {
+		mp, err := metrics.NewMeterProvider(reg)
+		if err != nil {
+			recorderErr = err
+			return
+		}
+		sharedRecorder, recorderErr = diffmetrics.New(mp)
+	})
+	return sharedRecorder, recorderErr
+}
 
 func init() {
 	caddy.RegisterModule(MrokiGate{})
@@ -82,6 +112,7 @@ type MrokiGate struct {
 	proxy    *proxy.Proxy
 	redactor *traffictesting.Redactor
 	logger   *zap.Logger
+	recorder *diffmetrics.Recorder
 }
 
 // HTTPClientOptions holds the raw, unparsed outbound connection-pool directives
@@ -111,6 +142,16 @@ func (MrokiGate) CaddyModule() caddy.ModuleInfo {
 
 func (m *MrokiGate) Provision(ctx caddy.Context) error {
 	m.logger = ctx.Logger()
+
+	// Domain comparison metrics. A failure here must not break Caddy startup, so
+	// it is logged and the gate continues without recording (a nil recorder is a
+	// no-op), preserving the best-effort, never-fail-live-traffic contract.
+	recorder, err := provisionRecorder(ctx.GetMetricsRegistry())
+	if err != nil {
+		m.logger.Warn("failed to initialise comparison metrics; continuing without them", zap.Error(err))
+	} else {
+		m.recorder = recorder
+	}
 	return nil
 }
 
@@ -381,6 +422,7 @@ func (m *MrokiGate) createDiffCallback(logger *slog.Logger, diffOpts []diff.Opti
 				services.ResponseData{StatusCode: shadow.StatusCode, Headers: shadow.Response.Header, Body: shadow.Body},
 			)
 			if err != nil {
+				m.recorder.Observe(context.Background(), "", nil, err)
 				reqLogger.Error("failed to redact, skipping diff", slog.String("error", err.Error()))
 				return nil
 			}
@@ -393,6 +435,7 @@ func (m *MrokiGate) createDiffCallback(logger *slog.Logger, diffOpts []diff.Opti
 			shadow.Response.Header = result.Shadow.Headers
 			shadow.Body = result.Shadow.Body
 
+			m.recorder.Observe(context.Background(), "", result.Ops, nil)
 			m.logDiffResult(reqLogger, live, shadow, result.Ops)
 			return nil
 		}
@@ -402,6 +445,7 @@ func (m *MrokiGate) createDiffCallback(logger *slog.Logger, diffOpts []diff.Opti
 		// symmetry with createStandaloneCallback in handlers/proxy.go.
 		ops, err := differ.Diff(live, shadow)
 		if err != nil {
+			m.recorder.Observe(context.Background(), "", nil, err)
 			reqLogger.Warn("failed to diff responses",
 				slog.String("error", err.Error()),
 				slog.Int("live_status", live.StatusCode),
@@ -409,6 +453,7 @@ func (m *MrokiGate) createDiffCallback(logger *slog.Logger, diffOpts []diff.Opti
 			)
 			return nil
 		}
+		m.recorder.Observe(context.Background(), "", ops, nil)
 		m.logDiffResult(reqLogger, live, shadow, ops)
 		return nil
 	}, nil

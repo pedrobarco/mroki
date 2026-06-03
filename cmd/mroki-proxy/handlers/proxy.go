@@ -15,6 +15,7 @@ import (
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/client"
 	"github.com/pedrobarco/mroki/pkg/diff"
+	diffmetrics "github.com/pedrobarco/mroki/pkg/diff/metrics"
 	"github.com/pedrobarco/mroki/pkg/proxy"
 )
 
@@ -47,6 +48,16 @@ type ProxyConfig struct {
 
 	// Redactor for standalone mode (redacts headers + body fields)
 	Redactor *traffictesting.Redactor
+
+	// Recorder records the shared domain comparison metrics from the standalone
+	// callback, where the proxy computes the diff itself. When nil, recording is
+	// a no-op. In API mode the diff is computed (and recorded) by the API instead.
+	Recorder *diffmetrics.Recorder
+
+	// InstrumentTransport optionally wraps the outbound live/shadow client's
+	// RoundTripper for metrics. When nil the transport is left unwrapped. It is
+	// applied at this layer so pkg/proxy takes no Prometheus dependency.
+	InstrumentTransport func(http.RoundTripper) http.RoundTripper
 }
 
 func Proxy(cfg ProxyConfig) http.HandlerFunc {
@@ -60,9 +71,19 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 		opts = append(opts, proxy.WithLogger(cfg.Logger))
 	}
 
-	if cfg.HTTPClient != (proxy.HTTPClientConfig{}) {
-		opts = append(opts, proxy.WithHTTPClient(proxy.NewHTTPClient(cfg.HTTPClient)))
+	// Build the outbound live/shadow client at this layer so its transport can
+	// be instrumented for metrics without pkg/proxy taking a Prometheus
+	// dependency. NewHTTPClient with a zero config matches NewProxy's own
+	// default client, so this is behaviour-preserving when no tuning is set.
+	outboundClient := proxy.NewHTTPClient(cfg.HTTPClient)
+	if cfg.InstrumentTransport != nil {
+		base := outboundClient.Transport
+		if base == nil {
+			base = http.DefaultTransport
+		}
+		outboundClient.Transport = cfg.InstrumentTransport(base)
 	}
+	opts = append(opts, proxy.WithHTTPClient(outboundClient))
 
 	// Add shadow proxy checks
 	var checks []proxy.CheckFunc
@@ -91,9 +112,10 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 
 	p := proxy.NewProxy(cfg.Live, cfg.Shadow, opts...)
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		p.ServeHTTP(w, r)
-	}
+	// Inbound request metrics are applied by the binary via otelhttp at the mount
+	// point, so the handler is returned unwrapped here — pkg/proxy and this layer
+	// stay free of any inbound metrics dependency.
+	return p.ServeHTTP
 }
 
 // createAPICallback creates a callback that sends raw captured requests to the API.
@@ -112,6 +134,10 @@ func createAPICallback(cfg ProxyConfig) proxy.CallbackFunc {
 		)
 
 		captured := client.ConvertProxyToCapture(req, live, shadow)
+
+		// In API mode the diff is computed server-side; the forward to the API is
+		// already visible on the http_client_* metric (mroki_target="api"), so no
+		// domain comparison metric is recorded here.
 
 		timeout := cfg.APITimeout
 		if timeout == 0 {
@@ -167,6 +193,7 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 				services.ResponseData{StatusCode: shadow.StatusCode, Headers: shadow.Response.Header, Body: shadow.Body},
 			)
 			if err != nil {
+				cfg.Recorder.Observe(context.Background(), "", nil, err)
 				reqLogger.Error("failed to redact, skipping diff", slog.String("error", err.Error()))
 				return nil
 			}
@@ -179,6 +206,7 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 			shadow.Response.Header = result.Shadow.Headers
 			shadow.Body = result.Shadow.Body
 
+			cfg.Recorder.Observe(context.Background(), "", result.Ops, nil)
 			logDiffResult(reqLogger, live, shadow, result.Ops)
 			return nil
 		}
@@ -186,6 +214,7 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 		// Fallback: byte-level diff (no redactor)
 		ops, err := differ.Diff(live, shadow)
 		if err != nil {
+			cfg.Recorder.Observe(context.Background(), "", nil, err)
 			reqLogger.Warn("failed to diff responses",
 				slog.String("error", err.Error()),
 				slog.Int("live_status", live.StatusCode),
@@ -193,6 +222,7 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 			)
 			return nil
 		}
+		cfg.Recorder.Observe(context.Background(), "", ops, nil)
 		logDiffResult(reqLogger, live, shadow, ops)
 		return nil
 	}

@@ -16,14 +16,17 @@ import (
 	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
 	"github.com/pedrobarco/mroki/internal/application/commands"
 	"github.com/pedrobarco/mroki/internal/application/queries"
+	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/internal/infrastructure/jobs"
 	"github.com/pedrobarco/mroki/internal/infrastructure/persistence/ent"
 	"github.com/rs/cors"
 
 	"github.com/pedrobarco/mroki/internal/interfaces/http/handlers"
 	"github.com/pedrobarco/mroki/internal/interfaces/http/middleware"
+	diffmetrics "github.com/pedrobarco/mroki/pkg/diff/metrics"
 	"github.com/pedrobarco/mroki/pkg/dto"
 	"github.com/pedrobarco/mroki/pkg/logger"
+	"github.com/pedrobarco/mroki/pkg/metrics"
 	"github.com/pedrobarco/mroki/pkg/ratelimit"
 )
 
@@ -135,6 +138,31 @@ func main() {
 		defer cleanupJob.Stop()
 	}
 
+	// Metrics platform: newAPIMetrics builds an isolated registry holding the
+	// runtime/process, build-info and DB-pool collectors with an OTel
+	// MeterProvider bridged onto it, plus the shared domain comparison recorder.
+	// When disabled the platform and recorder are nil, so per-route
+	// instrumentation and comparison recording become no-ops and no endpoint is
+	// mounted.
+	metricsPlatform, recorder, err := newAPIMetrics(cfg.App.MetricsEnabled, db)
+	if err != nil {
+		logger.Error("Failed to initialize metrics", "error", err)
+		os.Exit(1)
+	}
+	var recordComparison handlers.RecordComparisonFunc
+	if recorder != nil {
+		recordComparison = func(req *traffictesting.Request) {
+			recorder.Observe(context.Background(), req.GateID.String(), req.Diff.Content, nil)
+		}
+		logger.Info("Metrics enabled", "endpoint", "/metrics")
+	}
+
+	// instrument wraps each API route with server-side otelhttp instrumentation so
+	// it lands on the semconv http_server_request_duration_seconds histogram, with
+	// the http_route label auto-derived from the matched ServeMux pattern. When
+	// metrics are disabled the platform method returns the handler unwrapped.
+	instrument := metricsPlatform.InstrumentHandler
+
 	// Middleware
 	baseChain := middleware.Chain{
 		middleware.RequestID(),
@@ -169,7 +197,7 @@ func main() {
 	getGateByID := handlers.GetGateByID(getGateHandler)
 	getAllGates := handlers.GetAllGates(listGatesHandler)
 
-	createRequest := handlers.CreateRequest(createRequestHandler)
+	createRequest := handlers.CreateRequest(createRequestHandler, recordComparison)
 	getRequestByID := handlers.GetRequestByID(getRequestHandler)
 	getAllRequestsByGateID := handlers.GetAllRequestsByGateID(listRequestsHandler)
 	getGlobalStats := handlers.GetGlobalStats(getGlobalStatsHandler)
@@ -180,16 +208,24 @@ func main() {
 	mux.Handle("GET /health/live", handlers.Liveness())
 	mux.Handle("GET /health/ready", handlers.Readiness(healthChecker{db: db}))
 
-	// API endpoints (with middleware)
-	mux.Handle("GET /stats", baseChain.Then(getGlobalStats))
-	mux.Handle("GET /gates", baseChain.Then(getAllGates))
-	mux.Handle("POST /gates", postChain.Then(createGate))
-	mux.Handle("PATCH /gates/{gate_id}", postChain.Then(updateGate))
-	mux.Handle("DELETE /gates/{gate_id}", baseChain.Then(deleteGate))
-	mux.Handle("GET /gates/{gate_id}", baseChain.Then(getGateByID))
-	mux.Handle("GET /gates/{gate_id}/requests", baseChain.Then(getAllRequestsByGateID))
-	mux.Handle("POST /gates/{gate_id}/requests", postChain.Then(createRequest))
-	mux.Handle("GET /gates/{gate_id}/requests/{request_id}", baseChain.Then(getRequestByID))
+	// Metrics endpoint (no auth, no middleware) so Prometheus can scrape it the
+	// same way as the health probes. Only mounted when metrics are enabled.
+	if h := metricsPlatform.MetricsHandler(); h != nil {
+		mux.Handle("GET /metrics", h)
+	}
+
+	// API endpoints (with middleware). Each route handler is also wrapped with
+	// otelhttp, which records the semconv http_server_* metrics and derives the
+	// bounded http_route label from the templated ServeMux pattern.
+	mux.Handle("GET /stats", instrument("GET /stats", baseChain.Then(getGlobalStats)))
+	mux.Handle("GET /gates", instrument("GET /gates", baseChain.Then(getAllGates)))
+	mux.Handle("POST /gates", instrument("POST /gates", postChain.Then(createGate)))
+	mux.Handle("PATCH /gates/{gate_id}", instrument("PATCH /gates/{gate_id}", postChain.Then(updateGate)))
+	mux.Handle("DELETE /gates/{gate_id}", instrument("DELETE /gates/{gate_id}", baseChain.Then(deleteGate)))
+	mux.Handle("GET /gates/{gate_id}", instrument("GET /gates/{gate_id}", baseChain.Then(getGateByID)))
+	mux.Handle("GET /gates/{gate_id}/requests", instrument("GET /gates/{gate_id}/requests", baseChain.Then(getAllRequestsByGateID)))
+	mux.Handle("POST /gates/{gate_id}/requests", instrument("POST /gates/{gate_id}/requests", postChain.Then(createRequest)))
+	mux.Handle("GET /gates/{gate_id}/requests/{request_id}", instrument("GET /gates/{gate_id}/requests/{request_id}", baseChain.Then(getRequestByID)))
 
 	// Wrap mux with CORS if configured (before auth/rate-limiting so
 	// preflight OPTIONS requests are handled without credentials).
@@ -243,12 +279,37 @@ func main() {
 		logger.Info("Server stopped")
 	}
 
+	// Flush and release the metrics MeterProvider (no-op when disabled).
+	if err := metricsPlatform.Shutdown(shutdownCtx); err != nil {
+		logger.Error("Error shutting down metrics", "error", err)
+	}
+
 	// Close database connection
 	if client != nil {
 		_ = client.Close()
 		clientClosed = true
 		logger.Info("Database connection closed")
 	}
+}
+
+// newAPIMetrics builds the API metrics platform (isolated registry with the
+// runtime/process, build-info and DB-pool collectors plus an OTel MeterProvider
+// bridged onto it) and the shared domain comparison recorder. It returns the
+// platform and the recorder. When enabled is false it returns nil, nil so every
+// instrumentation seam is a no-op and no endpoint is mounted.
+func newAPIMetrics(enabled bool, db *sql.DB) (*metrics.Platform, *diffmetrics.Recorder, error) {
+	if !enabled {
+		return nil, nil, nil
+	}
+	platform, err := metrics.NewPlatform(metrics.WithDBStats(db, "mroki"))
+	if err != nil {
+		return nil, nil, err
+	}
+	recorder, err := diffmetrics.New(platform.Provider)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create comparison recorder: %w", err)
+	}
+	return platform, recorder, nil
 }
 
 // healthChecker wraps *sql.DB to implement the handlers.HealthChecker interface.
