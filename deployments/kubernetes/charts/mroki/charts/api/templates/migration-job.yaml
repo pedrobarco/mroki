@@ -3,6 +3,9 @@
 {{- if not .Values.migration.asHook -}}
 {{- $suffix := .Values.migration.nameSuffix | default .Chart.AppVersion -}}
 {{- if $suffix -}}
+{{- $suffix = regexReplaceAll "[^a-z0-9-]" (lower $suffix) "-" | trimAll "-" -}}
+{{- end -}}
+{{- if $suffix -}}
 {{- $jobName = printf "%s-migrate-%s" (include "api.fullname" .) $suffix | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 {{- end -}}

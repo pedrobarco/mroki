@@ -37,7 +37,9 @@ migration:
   asHook: true
   # -- Suffix appended to the migration Job name when `asHook` is false, so each
   # version produces a fresh Job instead of mutating an immutable Job spec on
-  # `kubectl apply`. Defaults to the chart appVersion when left empty.
+  # `kubectl apply`. Defaults to the chart appVersion when left empty. The value
+  # is sanitized to a valid DNS-1123 label (lowercased, non-alphanumeric
+  # characters replaced with `-`) so the Job name never contains dots.
   nameSuffix: ""
   # -- Auto-clean completed migration Jobs after this many seconds
   # (`Job.spec.ttlSecondsAfterFinished`). Leave null to keep finished Jobs.
