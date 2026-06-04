@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # mroki-api exposes /metrics on its main API port.
+  - job_name: mroki-api
+    static_configs:
+      - targets: ["mroki-api:8090"]
+        labels:
+          service: mroki-api
+
+  # mroki-proxy exposes /metrics on its admin port (isolated from proxied traffic).
+  - job_name: mroki-proxy
+    static_configs:
+      - targets: ["mroki-proxy:8081"]
+        labels:
+          service: mroki-proxy

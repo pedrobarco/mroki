@@ -5,7 +5,7 @@ DEV_COMPOSE := build/dev/compose.yaml
 	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-migrate api-clean \
 	proxy-build proxy-test proxy-clean \
 	hub-build hub-test hub-test-unit hub-test-ui hub-test-setup hub-screenshots hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
-	dev-up dev-up-backend dev-up-frontend dev-down dev-reset
+	dev-up dev-up-backend dev-up-frontend dev-up-telemetry dev-down dev-reset
 
 # ─── Global ──────────────────────────────────────────────────────────
 
@@ -57,6 +57,7 @@ help:
 	@echo "  dev-up             Start full dev stack (db + api + proxy + hub)"
 	@echo "  dev-up-backend     Start backend stack (db + api + proxy)"
 	@echo "  dev-up-frontend    Start frontend stack (db + api + hub)"
+	@echo "  dev-up-telemetry   Start backend stack + Prometheus (db + api + proxy + prometheus)"
 	@echo "  dev-down           Stop dev stack"
 	@echo "  dev-reset          Reset dev stack (destroy + recreate)"
 
@@ -203,11 +204,15 @@ dev-up-frontend:
 	@echo "Starting frontend stack..."
 	docker compose -f $(DEV_COMPOSE) --profile frontend up -d --build --wait
 
+dev-up-telemetry:
+	@echo "Starting backend stack with Prometheus..."
+	docker compose -f $(DEV_COMPOSE) --profile backend --profile telemetry up -d --build --wait
+
 dev-down:
 	@echo "Stopping dev stack..."
-	docker compose -f $(DEV_COMPOSE) --profile backend --profile frontend down
+	docker compose -f $(DEV_COMPOSE) --profile backend --profile frontend --profile telemetry down
 
 dev-reset:
 	@echo "Resetting dev stack..."
-	docker compose -f $(DEV_COMPOSE) --profile backend --profile frontend down -v
+	docker compose -f $(DEV_COMPOSE) --profile backend --profile frontend --profile telemetry down -v
 	docker compose -f $(DEV_COMPOSE) --profile backend --profile frontend up -d --build --wait

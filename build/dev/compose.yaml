@@ -81,5 +81,17 @@ services:
       mroki-api:
         condition: service_healthy
 
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: [telemetry]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
 volumes:
   mroki-db-data:
