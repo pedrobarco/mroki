@@ -24,6 +24,7 @@ type Config config.Config[struct {
 	ReadTimeout     time.Duration `env:"READ_TIMEOUT, default=15s"`
 	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT, default=30s"`
 	IdleTimeout     time.Duration `env:"IDLE_TIMEOUT, default=60s"`
+	MetricsEnabled  bool          `env:"METRICS_ENABLED, default=true"` // expose /metrics for Prometheus scraping
 	Database        struct {
 		URL         *url.URL `env:"URL, default=postgres://postgres:postgres@localhost:5432/postgres"`
 		MaxConns    int32    `env:"MAX_CONNS, default=25"`

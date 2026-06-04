@@ -81,5 +81,11 @@ services:
       mroki-api:
         condition: service_healthy
 
+  prometheus:
+    extends:
+      file: ./prometheus/compose.yaml
+      service: prometheus
+    profiles: [telemetry]
+
 volumes:
   mroki-db-data:

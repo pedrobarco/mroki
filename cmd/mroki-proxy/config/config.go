@@ -36,6 +36,9 @@ type Config config.Config[struct {
 	WriteTimeout           time.Duration `env:"WRITE_TIMEOUT, default=60s"`
 	IdleTimeout            time.Duration `env:"IDLE_TIMEOUT, default=120s"`
 
+	// MetricsEnabled exposes /metrics on the admin port for Prometheus scraping.
+	MetricsEnabled bool `env:"METRICS_ENABLED, default=true"`
+
 	// Outbound HTTP client connection-pool tuning. These defaults suit most
 	// deployments; raise them when a single proxy must sustain high connection
 	// concurrency to live + shadow. A value of 0 follows net/http semantics (no
