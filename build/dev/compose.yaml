@@ -87,5 +87,14 @@ services:
       service: prometheus
     profiles: [telemetry]
 
+  grafana:
+    extends:
+      file: ./grafana/compose.yaml
+      service: grafana
+    profiles: [telemetry]
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
 volumes:
   mroki-db-data:

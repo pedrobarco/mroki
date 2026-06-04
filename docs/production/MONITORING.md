@@ -192,3 +192,51 @@ scrape_configs:
 
 The proxy's `/metrics` lives on the admin port so scrape traffic never reaches the upstream service.
 The API's `/metrics` is outside the authenticated middleware chain, so no API key is required.
+
+## Local development dashboard (Grafana)
+
+The dev stack ships a pre-provisioned Prometheus + Grafana pair behind the `telemetry` Compose
+profile. Bring it up alongside the backend with:
+
+```bash
+make dev-up-telemetry
+```
+
+This starts Prometheus (scraping the API and proxy `/metrics`) and Grafana with three ready-to-use
+dashboards in a **mroki** folder — no manual setup required.
+
+| Service | URL | Notes |
+|---------|-----|-------|
+| **Grafana** | http://localhost:3001 | Anonymous access with the Admin role (dev only — login form disabled) |
+| **API** dashboard | http://localhost:3001/d/mroki-api | mroki-api health: inbound RED by route + DB pool |
+| **Proxy** dashboard | http://localhost:3001/d/mroki-proxy | mroki-proxy health: inbound mirror + outbound upstreams |
+| **Diff Analysis** dashboard | http://localhost:3001/d/mroki-diff | What mroki finds; `$gate` selector |
+| **Prometheus** | http://localhost:9090 | Scrape targets and query console |
+
+The dashboards are split by component because the API and proxy emit largely disjoint metrics — the
+API owns `http_route` and the SQL connection pool, the proxy owns the outbound upstreams
+(`mroki_target` = live / shadow / api). A single combined view would leave half its panels empty
+depending on which service you looked at.
+
+Grafana auto-provisions, via the files under `build/dev/grafana/`:
+
+- a **Prometheus datasource** (`build/dev/grafana/provisioning/datasources/`) pointed at the
+  in-network `http://prometheus:9090` and marked default;
+- a **mroki folder** with three dashboards (`build/dev/grafana/dashboards/`), cross-linked via the
+  folder dropdown in the top-right of each:
+  - **mroki · API** (`mroki-api.json`) — mroki-api health: an SLO stat strip (rate, 5xx ratio,
+    p95), inbound RED broken down by `http_route`, the SQL connection pool (open/in-use/idle/max
+    plus wait rate and mean wait duration for contention), and runtime/process series (goroutines,
+    resident memory, CPU);
+  - **mroki · Proxy** (`mroki-proxy.json`) — mroki-proxy health: an SLO stat strip, the inbound
+    mirror (no route — the proxy is transparent), the outbound upstreams by `mroki_target`
+    (rate, p95 latency, error ratio) with a **shadow − live p95 delta** panel that answers "is the
+    shadow slower than live", and runtime/process series;
+  - **mroki · Diff Analysis** (`mroki-diff.json`) — mroki's domain signals, filterable by `$gate`:
+    comparison outcomes (rate, diff ratio, diffs/errors per second, by-result breakdown), a top
+    gates by diff ratio table, and the diff-size distribution as a heatmap plus p50/p95/p99
+    quantiles.
+
+> The anonymous-Admin auth and the floating image pins are **for local development only** — do not
+> reuse this Compose stack as a production deployment. For production Grafana, provision a real auth
+> backend and pin exact image versions.
