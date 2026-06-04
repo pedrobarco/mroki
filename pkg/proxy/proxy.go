@@ -25,8 +25,10 @@ var (
 // a stable convention. The live request path is never modified.
 const ShadowHeader = "X-Mroki-Mode"
 
-// shadowHeaderValue is the value set on ShadowHeader for shadow requests.
-const shadowHeaderValue = "shadow"
+// ShadowHeaderValue is the value set on ShadowHeader for shadow requests.
+// Consumers can match it to distinguish a shadow request from a live one even
+// when both upstreams share a host (differing only by path or query).
+const ShadowHeaderValue = "shadow"
 
 // ProxyRequest represents the original HTTP request being proxied
 type ProxyRequest struct {
@@ -338,7 +340,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// so the live request is never modified. The clone carries Background()
 	// context to match the shadow lifecycle.
 	shadowReq := r.Clone(context.Background())
-	shadowReq.Header.Set(ShadowHeader, shadowHeaderValue)
+	shadowReq.Header.Set(ShadowHeader, ShadowHeaderValue)
 
 	// Launch shadow request
 	go func() {

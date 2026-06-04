@@ -209,8 +209,8 @@ func main() {
 	log.Info("Sampling rate configured", slog.Float64("rate", cfg.App.SamplingRate))
 
 	// instrumentUpstream wraps the outbound live/shadow client transport with
-	// client-side otelhttp, resolving the mroki.target attribute per request from
-	// the outbound host (live, shadow, or unknown). The platform method is a no-op
+	// client-side otelhttp, resolving the mroki.target attribute per request via
+	// outboundTarget (live, shadow, or unknown). The platform method is a no-op
 	// when metrics are disabled, returning the transport unwrapped.
 	var liveHost, shadowHost string
 	if liveURL != nil {
@@ -220,14 +220,7 @@ func main() {
 		shadowHost = shadowURL.Host
 	}
 	targetFn := func(req *http.Request) string {
-		switch req.URL.Host {
-		case liveHost:
-			return "live"
-		case shadowHost:
-			return "shadow"
-		default:
-			return "unknown"
-		}
+		return outboundTarget(req, liveHost, shadowHost)
 	}
 	instrumentUpstream := func(rt http.RoundTripper) http.RoundTripper {
 		return metricsPlatform.InstrumentClientFunc(targetFn, rt)
@@ -382,4 +375,24 @@ func getModeString(apiClient *client.MrokiClient) string {
 		return "api"
 	}
 	return "standalone"
+}
+
+// outboundTarget resolves the mroki.target attribute for an outbound proxy
+// request. Shadow requests are identified first by the X-Mroki-Mode header the
+// proxy sets on them, so they are still distinguished when the live and shadow
+// upstreams share a host (differing only by path or query) — resolving by host
+// alone would otherwise collapse both onto "live". When the header is absent the
+// target is resolved from the request host, falling back to "unknown".
+func outboundTarget(req *http.Request, liveHost, shadowHost string) string {
+	if req.Header.Get(proxy.ShadowHeader) == proxy.ShadowHeaderValue {
+		return "shadow"
+	}
+	switch req.URL.Host {
+	case liveHost:
+		return "live"
+	case shadowHost:
+		return "shadow"
+	default:
+		return "unknown"
+	}
 }
