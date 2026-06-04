@@ -57,7 +57,7 @@ help:
 	@echo "  dev-up             Start full dev stack (db + api + proxy + hub)"
 	@echo "  dev-up-backend     Start backend stack (db + api + proxy)"
 	@echo "  dev-up-frontend    Start frontend stack (db + api + hub)"
-	@echo "  dev-up-telemetry   Start backend stack + Prometheus (db + api + proxy + prometheus)"
+	@echo "  dev-up-telemetry   Start backend stack + telemetry (db + api + proxy + prometheus + grafana)"
 	@echo "  dev-down           Stop dev stack"
 	@echo "  dev-reset          Reset dev stack (destroy + recreate)"
 
@@ -205,7 +205,7 @@ dev-up-frontend:
 	docker compose -f $(DEV_COMPOSE) --profile frontend up -d --build --wait
 
 dev-up-telemetry:
-	@echo "Starting backend stack with Prometheus..."
+	@echo "Starting backend stack with telemetry (Prometheus + Grafana)..."
 	docker compose -f $(DEV_COMPOSE) --profile backend --profile telemetry up -d --build --wait
 
 dev-down:
