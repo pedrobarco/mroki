@@ -20,6 +20,33 @@ type Request struct {
 	LiveResponse   Response
 	ShadowResponse Response
 	Diff           Diff
+
+	events []DomainEvent
+}
+
+// RecordCompared raises a RequestCompared domain event capturing the outcome of
+// comparing this request's live and shadow responses. It is invoked by the use
+// case on the create/compare transition and must be called at most once per
+// request; events are later drained via PullEvents and dispatched once the
+// request is persisted.
+func (r *Request) RecordCompared() {
+	r.events = append(r.events, RequestCompared{
+		gateID:          r.GateID,
+		diffContent:     r.Diff.Content,
+		liveStatus:      r.LiveResponse.StatusCode.Int(),
+		shadowStatus:    r.ShadowResponse.StatusCode.Int(),
+		liveLatencyMs:   r.LiveResponse.LatencyMs,
+		shadowLatencyMs: r.ShadowResponse.LatencyMs,
+		occurredAt:      r.CreatedAt,
+	})
+}
+
+// PullEvents returns the domain events recorded on this request and clears them,
+// so each event is dispatched at most once.
+func (r *Request) PullEvents() []DomainEvent {
+	events := r.events
+	r.events = nil
+	return events
 }
 
 type requestOption func(*Request)

@@ -1163,3 +1163,73 @@ func TestCreateRequestHandler_Handle_missing_body_path_silently_skipped(t *testi
 	// Body should be unchanged (stored as json.RawMessage, no base64)
 	assert.JSONEq(t, `{"kept":"yes"}`, string(savedReq.LiveResponse.Body))
 }
+
+// fakeDispatcher captures dispatched domain events for assertions.
+type fakeDispatcher struct {
+	events []traffictesting.DomainEvent
+}
+
+func (f *fakeDispatcher) Dispatch(_ context.Context, events ...traffictesting.DomainEvent) {
+	f.events = append(f.events, events...)
+}
+
+func TestCreateRequestHandler_Handle_DispatchesRequestCompared(t *testing.T) {
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error { return nil },
+	}
+	dispatcher := &fakeDispatcher{}
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{}, WithEventDispatcher(dispatcher))
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID:    gateID.String(),
+		Method:    "GET",
+		Path:      "/api/test",
+		CreatedAt: time.Now(),
+		LiveResponse: CreateRequestResponseProps{
+			StatusCode: 200, Headers: http.Header{}, Body: nil, LatencyMs: 12, CreatedAt: time.Now(),
+		},
+		ShadowResponse: CreateRequestResponseProps{
+			StatusCode: 500, Headers: http.Header{}, Body: nil, LatencyMs: 34, CreatedAt: time.Now(),
+		},
+		Diff: &CreateRequestDiffProps{
+			Content: []diff.PatchOp{{Op: "replace", Path: "/status", Value: "error"}},
+		},
+	}
+
+	_, err := handler.Handle(context.Background(), cmd)
+	require.NoError(t, err)
+
+	require.Len(t, dispatcher.events, 1, "one RequestCompared event dispatched after save")
+	evt, ok := dispatcher.events[0].(traffictesting.RequestCompared)
+	require.True(t, ok, "expected a RequestCompared event")
+	assert.Equal(t, gateID.String(), evt.GateID().String())
+	assert.True(t, evt.HasDiff())
+	assert.Equal(t, 200, evt.LiveStatus())
+	assert.Equal(t, 500, evt.ShadowStatus())
+}
+
+func TestCreateRequestHandler_Handle_NoDispatchOnSaveError(t *testing.T) {
+	repo := &mockRequestRepository{
+		saveFn: func(ctx context.Context, req *traffictesting.Request) error {
+			return errors.New("save failed")
+		},
+	}
+	dispatcher := &fakeDispatcher{}
+	handler := NewCreateRequestHandler(repo, &mockGateRepoForRequest{}, WithEventDispatcher(dispatcher))
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID:         gateID.String(),
+		Method:         "GET",
+		Path:           "/api/test",
+		CreatedAt:      time.Now(),
+		LiveResponse:   CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, CreatedAt: time.Now()},
+		ShadowResponse: CreateRequestResponseProps{StatusCode: 200, Headers: http.Header{}, CreatedAt: time.Now()},
+		Diff:           &CreateRequestDiffProps{Content: nil},
+	}
+
+	_, err := handler.Handle(context.Background(), cmd)
+	require.Error(t, err)
+	assert.Empty(t, dispatcher.events, "no event dispatched when save fails")
+}

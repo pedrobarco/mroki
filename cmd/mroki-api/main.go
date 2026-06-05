@@ -15,6 +15,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
 	"github.com/pedrobarco/mroki/internal/application/commands"
+	"github.com/pedrobarco/mroki/internal/application/events"
 	"github.com/pedrobarco/mroki/internal/application/queries"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/internal/infrastructure/jobs"
@@ -81,11 +82,17 @@ func main() {
 	reqRepo := ent.NewRequestRepository(client)
 	statsRepo := ent.NewStatsRepository(client)
 
+	// Application Layer: in-process domain event bus. The CreateRequest handler
+	// dispatches RequestCompared events through it after a successful save;
+	// subscribers (e.g. the metrics listener wired below) react best-effort
+	// without coupling the domain/application layers to their concerns.
+	eventBus := events.NewBus(events.WithLogger(logger))
+
 	// Application Layer: Command Handlers (Write operations)
 	createGateHandler := commands.NewCreateGateHandler(gateRepo)
 	updateGateHandler := commands.NewUpdateGateHandler(gateRepo)
 	deleteGateHandler := commands.NewDeleteGateHandler(gateRepo)
-	createRequestHandler := commands.NewCreateRequestHandler(reqRepo, gateRepo)
+	createRequestHandler := commands.NewCreateRequestHandler(reqRepo, gateRepo, commands.WithEventDispatcher(eventBus))
 
 	// Application Layer: Query Handlers (Read operations)
 	getGateHandler := queries.NewGetGateHandler(gateRepo, statsRepo)
@@ -149,11 +156,11 @@ func main() {
 		logger.Error("Failed to initialize metrics", "error", err)
 		os.Exit(1)
 	}
-	var recordComparison handlers.RecordComparisonFunc
 	if recorder != nil {
-		recordComparison = func(req *traffictesting.Request) {
-			recorder.Observe(context.Background(), req.GateID.String(), req.Diff.Content, nil)
-		}
+		// Subscribe the comparison metrics listener so RequestCompared events
+		// recorded by the aggregate are translated into the shared business
+		// metrics after each persisted comparison.
+		eventBus.Subscribe(traffictesting.EventRequestCompared, newComparisonMetricsListener(recorder))
 		logger.Info("Metrics enabled", "endpoint", "/metrics")
 	}
 
@@ -197,7 +204,7 @@ func main() {
 	getGateByID := handlers.GetGateByID(getGateHandler)
 	getAllGates := handlers.GetAllGates(listGatesHandler)
 
-	createRequest := handlers.CreateRequest(createRequestHandler, recordComparison)
+	createRequest := handlers.CreateRequest(createRequestHandler)
 	getRequestByID := handlers.GetRequestByID(getRequestHandler)
 	getAllRequestsByGateID := handlers.GetAllRequestsByGateID(listRequestsHandler)
 	getGlobalStats := handlers.GetGlobalStats(getGlobalStatsHandler)

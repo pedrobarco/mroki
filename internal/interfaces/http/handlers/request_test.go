@@ -116,7 +116,7 @@ func TestCreateRequest_Success(t *testing.T) {
 	req.SetPathValue("gate_id", gateID.String())
 	rec := httptest.NewRecorder()
 
-	appHandler := CreateRequest(handler, nil)
+	appHandler := CreateRequest(handler)
 	err := appHandler(rec, req)
 
 	if err != nil {
@@ -139,49 +139,6 @@ func TestCreateRequest_Success(t *testing.T) {
 	if response.Data.Path != "/api/test" {
 		t.Errorf("expected path /api/test, got %s", response.Data.Path)
 	}
-}
-
-func TestCreateRequest_InvokesRecordComparison(t *testing.T) {
-	gateID := traffictesting.NewGateID()
-	repo := &mockRequestRepository{
-		saveFunc: func(ctx context.Context, req *traffictesting.Request) error { return nil },
-	}
-	handler := commands.NewCreateRequestHandler(repo, &mockGateRepoForRequestHandlers{})
-
-	now := time.Now()
-	body := map[string]interface{}{
-		"method":     "GET",
-		"path":       "/api/test",
-		"headers":    map[string][]string{},
-		"body":       "",
-		"created_at": now.Format(time.RFC3339Nano),
-		"live_response": map[string]interface{}{
-			"status_code": 200, "headers": map[string][]string{}, "body": "", "created_at": now.Format(time.RFC3339Nano),
-		},
-		"shadow_response": map[string]interface{}{
-			"status_code": 500, "headers": map[string][]string{}, "body": "", "created_at": now.Format(time.RFC3339Nano),
-		},
-		"diff": map[string]interface{}{
-			"content": []map[string]interface{}{{"op": "replace", "path": "/status", "value": "error"}},
-		},
-	}
-	jsonBody, _ := json.Marshal(body)
-	req := httptest.NewRequest(http.MethodPost, "/gates/"+gateID.String()+"/requests", bytes.NewBuffer(jsonBody))
-	req.SetPathValue("gate_id", gateID.String())
-	rec := httptest.NewRecorder()
-
-	var recorded *traffictesting.Request
-	record := func(r *traffictesting.Request) { recorded = r }
-
-	err := CreateRequest(handler, record)(rec, req)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusCreated, rec.Code)
-
-	require.NotNil(t, recorded, "record callback must be invoked on success")
-	assert.Equal(t, gateID.String(), recorded.GateID.String())
-	assert.True(t, recorded.Diff.HasContent())
-	assert.Equal(t, 200, recorded.LiveResponse.StatusCode.Int())
-	assert.Equal(t, 500, recorded.ShadowResponse.StatusCode.Int())
 }
 
 func TestCreateRequest_Success_WithoutDiff(t *testing.T) {
@@ -229,7 +186,7 @@ func TestCreateRequest_Success_WithoutDiff(t *testing.T) {
 	req.SetPathValue("gate_id", gateID.String())
 	rec := httptest.NewRecorder()
 
-	appHandler := CreateRequest(handler, nil)
+	appHandler := CreateRequest(handler)
 	err := appHandler(rec, req)
 
 	require.NoError(t, err)
@@ -259,7 +216,7 @@ func TestCreateRequest_InvalidJSON(t *testing.T) {
 	req.SetPathValue("gate_id", gateID.String())
 	rec := httptest.NewRecorder()
 
-	appHandler := CreateRequest(handler, nil)
+	appHandler := CreateRequest(handler)
 	err := appHandler(rec, req)
 
 	apiErr, ok := err.(*dto.APIError)
@@ -280,7 +237,7 @@ func TestCreateRequest_MissingGateID(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/gates//requests", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
 
-	appHandler := CreateRequest(handler, nil)
+	appHandler := CreateRequest(handler)
 	err := appHandler(rec, req)
 
 	apiErr, ok := err.(*dto.APIError)
@@ -332,7 +289,7 @@ func TestCreateRequest_InvalidGateID(t *testing.T) {
 	req.SetPathValue("gate_id", "invalid-id")
 	rec := httptest.NewRecorder()
 
-	appHandler := CreateRequest(handler, nil)
+	appHandler := CreateRequest(handler)
 	err := appHandler(rec, req)
 
 	apiErr, ok := err.(*dto.APIError)
@@ -385,7 +342,7 @@ func TestCreateRequest_RepositoryError(t *testing.T) {
 	req.SetPathValue("gate_id", gateID.String())
 	rec := httptest.NewRecorder()
 
-	appHandler := CreateRequest(handler, nil)
+	appHandler := CreateRequest(handler)
 	err := appHandler(rec, req)
 
 	apiErr, ok := err.(*dto.APIError)
