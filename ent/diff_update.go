@@ -87,6 +87,20 @@ func (_u *DiffUpdate) AppendContent(v []diff.PatchOp) *DiffUpdate {
 	return _u
 }
 
+// SetHasContent sets the "has_content" field.
+func (_u *DiffUpdate) SetHasContent(v bool) *DiffUpdate {
+	_u.mutation.SetHasContent(v)
+	return _u
+}
+
+// SetNillableHasContent sets the "has_content" field if the given value is not nil.
+func (_u *DiffUpdate) SetNillableHasContent(v *bool) *DiffUpdate {
+	if v != nil {
+		_u.SetHasContent(*v)
+	}
+	return _u
+}
+
 // SetConfig sets the "config" field.
 func (_u *DiffUpdate) SetConfig(v schema.DiffConfigSnapshot) *DiffUpdate {
 	_u.mutation.SetConfig(v)
@@ -205,6 +219,9 @@ func (_u *DiffUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, entdiff.FieldContent, value)
 		})
+	}
+	if value, ok := _u.mutation.HasContent(); ok {
+		_spec.SetField(entdiff.FieldHasContent, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Config(); ok {
 		_spec.SetField(entdiff.FieldConfig, field.TypeJSON, value)
@@ -373,6 +390,20 @@ func (_u *DiffUpdateOne) AppendContent(v []diff.PatchOp) *DiffUpdateOne {
 	return _u
 }
 
+// SetHasContent sets the "has_content" field.
+func (_u *DiffUpdateOne) SetHasContent(v bool) *DiffUpdateOne {
+	_u.mutation.SetHasContent(v)
+	return _u
+}
+
+// SetNillableHasContent sets the "has_content" field if the given value is not nil.
+func (_u *DiffUpdateOne) SetNillableHasContent(v *bool) *DiffUpdateOne {
+	if v != nil {
+		_u.SetHasContent(*v)
+	}
+	return _u
+}
+
 // SetConfig sets the "config" field.
 func (_u *DiffUpdateOne) SetConfig(v schema.DiffConfigSnapshot) *DiffUpdateOne {
 	_u.mutation.SetConfig(v)
@@ -521,6 +552,9 @@ func (_u *DiffUpdateOne) sqlSave(ctx context.Context) (_node *Diff, err error) {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, entdiff.FieldContent, value)
 		})
+	}
+	if value, ok := _u.mutation.HasContent(); ok {
+		_spec.SetField(entdiff.FieldHasContent, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Config(); ok {
 		_spec.SetField(entdiff.FieldConfig, field.TypeJSON, value)

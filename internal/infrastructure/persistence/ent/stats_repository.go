@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/ent"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/request"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 )
@@ -54,7 +55,7 @@ func (r *statsRepository) GetGlobalStats(ctx context.Context) (*traffictesting.G
 
 	// Query 3: total diffs 24h (requests whose diff has non-empty content)
 	totalDiffs, err := r.client.Request.Query().
-		Where(request.CreatedAtGTE(since24h), request.HasDiffWith(diffHasContent)).
+		Where(request.CreatedAtGTE(since24h), request.HasDiffWith(entdiff.HasContent(true))).
 		Count(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count diffs: %w", err)
@@ -97,7 +98,7 @@ func (r *statsRepository) GetStatsByGateIDs(ctx context.Context, ids []trafficte
 	// Query 2: diff_count_24h per gate (requests whose diff has non-empty content)
 	var diffCounts []gateStatRow
 	err = r.client.Request.Query().
-		Where(request.GateIDIn(uuids...), request.CreatedAtGTE(since24h), request.HasDiffWith(diffHasContent)).
+		Where(request.GateIDIn(uuids...), request.CreatedAtGTE(since24h), request.HasDiffWith(entdiff.HasContent(true))).
 		GroupBy(request.FieldGateID).
 		Aggregate(ent.Count()).
 		Scan(ctx, &diffCounts)

@@ -49,6 +49,12 @@ func (_c *DiffCreate) SetContent(v []diff.PatchOp) *DiffCreate {
 	return _c
 }
 
+// SetHasContent sets the "has_content" field.
+func (_c *DiffCreate) SetHasContent(v bool) *DiffCreate {
+	_c.mutation.SetHasContent(v)
+	return _c
+}
+
 // SetConfig sets the "config" field.
 func (_c *DiffCreate) SetConfig(v schema.DiffConfigSnapshot) *DiffCreate {
 	_c.mutation.SetConfig(v)
@@ -165,6 +171,9 @@ func (_c *DiffCreate) check() error {
 	if _, ok := _c.mutation.Content(); !ok {
 		return &ValidationError{Name: "content", err: errors.New(`ent: missing required field "Diff.content"`)}
 	}
+	if _, ok := _c.mutation.HasContent(); !ok {
+		return &ValidationError{Name: "has_content", err: errors.New(`ent: missing required field "Diff.has_content"`)}
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Diff.created_at"`)}
 	}
@@ -215,6 +224,10 @@ func (_c *DiffCreate) createSpec() (*Diff, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Content(); ok {
 		_spec.SetField(entdiff.FieldContent, field.TypeJSON, value)
 		_node.Content = value
+	}
+	if value, ok := _c.mutation.HasContent(); ok {
+		_spec.SetField(entdiff.FieldHasContent, field.TypeBool, value)
+		_node.HasContent = value
 	}
 	if value, ok := _c.mutation.Config(); ok {
 		_spec.SetField(entdiff.FieldConfig, field.TypeJSON, value)

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/google/uuid"
 	"github.com/pedrobarco/mroki/ent"
 	entdiff "github.com/pedrobarco/mroki/ent/diff"
@@ -109,6 +108,7 @@ func (r *requestRepository) saveDiff(ctx context.Context, tx *ent.Tx, req *traff
 		SetFromResponseID(req.LiveResponse.ID).
 		SetToResponseID(req.ShadowResponse.ID).
 		SetContent(req.Diff.Content).
+		SetHasContent(req.Diff.HasContent()).
 		SetConfig(mapDiffConfigToPersistence(req.Diff.Config)).
 		SetCreatedAt(time.Now()).
 		Save(ctx); err != nil {
@@ -265,22 +265,13 @@ func (r *requestRepository) buildPredicates(gateID traffictesting.GateID, filter
 
 	if filters.HasDiffFilter() {
 		if *filters.HasDiff() {
-			preds = append(preds, request.HasDiffWith(diffHasContent))
+			preds = append(preds, request.HasDiffWith(entdiff.HasContent(true)))
 		} else {
-			preds = append(preds, request.Not(request.HasDiffWith(diffHasContent)))
+			preds = append(preds, request.Not(request.HasDiffWith(entdiff.HasContent(true))))
 		}
 	}
 
 	return preds
-}
-
-// diffHasContent matches diff rows whose content has at least one patch op.
-// A diff row is persisted for every request — identical responses yield an
-// empty content array — so "has a diff" must be defined by non-empty content
-// rather than diff-row existence. sqljson keeps the predicate portable across
-// SQLite and Postgres.
-func diffHasContent(s *sql.Selector) {
-	s.Where(sqljson.LenGT(entdiff.FieldContent, 0))
 }
 
 // buildOrderBy maps domain sort to an Ent order option.

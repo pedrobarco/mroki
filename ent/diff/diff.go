@@ -23,6 +23,8 @@ const (
 	FieldToResponseID = "to_response_id"
 	// FieldContent holds the string denoting the content field in the database.
 	FieldContent = "content"
+	// FieldHasContent holds the string denoting the has_content field in the database.
+	FieldHasContent = "has_content"
 	// FieldConfig holds the string denoting the config field in the database.
 	FieldConfig = "config"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -65,6 +67,7 @@ var Columns = []string{
 	FieldFromResponseID,
 	FieldToResponseID,
 	FieldContent,
+	FieldHasContent,
 	FieldConfig,
 	FieldCreatedAt,
 }
@@ -107,6 +110,11 @@ func ByFromResponseID(opts ...sql.OrderTermOption) OrderOption {
 // ByToResponseID orders the results by the to_response_id field.
 func ByToResponseID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldToResponseID, opts...).ToFunc()
+}
+
+// ByHasContent orders the results by the has_content field.
+func ByHasContent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHasContent, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

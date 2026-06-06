@@ -31,6 +31,8 @@ type Diff struct {
 	ToResponseID uuid.UUID `json:"to_response_id,omitempty"`
 	// Content holds the value of the "content" field.
 	Content []diff.PatchOp `json:"content,omitempty"`
+	// HasContent holds the value of the "has_content" field.
+	HasContent bool `json:"has_content,omitempty"`
 	// Config holds the value of the "config" field.
 	Config schema.DiffConfigSnapshot `json:"config,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -94,6 +96,8 @@ func (*Diff) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case entdiff.FieldContent, entdiff.FieldConfig:
 			values[i] = new([]byte)
+		case entdiff.FieldHasContent:
+			values[i] = new(sql.NullBool)
 		case entdiff.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		case entdiff.FieldID, entdiff.FieldRequestID, entdiff.FieldFromResponseID, entdiff.FieldToResponseID:
@@ -144,6 +148,12 @@ func (_m *Diff) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Content); err != nil {
 					return fmt.Errorf("unmarshal field content: %w", err)
 				}
+			}
+		case entdiff.FieldHasContent:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field has_content", values[i])
+			} else if value.Valid {
+				_m.HasContent = value.Bool
 			}
 		case entdiff.FieldConfig:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -221,6 +231,9 @@ func (_m *Diff) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("content=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Content))
+	builder.WriteString(", ")
+	builder.WriteString("has_content=")
+	builder.WriteString(fmt.Sprintf("%v", _m.HasContent))
 	builder.WriteString(", ")
 	builder.WriteString("config=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Config))

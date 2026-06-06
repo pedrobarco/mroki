@@ -71,6 +71,11 @@ func ToResponseID(v uuid.UUID) predicate.Diff {
 	return predicate.Diff(sql.FieldEQ(FieldToResponseID, v))
 }
 
+// HasContent applies equality check predicate on the "has_content" field. It's identical to HasContentEQ.
+func HasContent(v bool) predicate.Diff {
+	return predicate.Diff(sql.FieldEQ(FieldHasContent, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Diff {
 	return predicate.Diff(sql.FieldEQ(FieldCreatedAt, v))
@@ -134,6 +139,16 @@ func ToResponseIDIn(vs ...uuid.UUID) predicate.Diff {
 // ToResponseIDNotIn applies the NotIn predicate on the "to_response_id" field.
 func ToResponseIDNotIn(vs ...uuid.UUID) predicate.Diff {
 	return predicate.Diff(sql.FieldNotIn(FieldToResponseID, vs...))
+}
+
+// HasContentEQ applies the EQ predicate on the "has_content" field.
+func HasContentEQ(v bool) predicate.Diff {
+	return predicate.Diff(sql.FieldEQ(FieldHasContent, v))
+}
+
+// HasContentNEQ applies the NEQ predicate on the "has_content" field.
+func HasContentNEQ(v bool) predicate.Diff {
+	return predicate.Diff(sql.FieldNEQ(FieldHasContent, v))
 }
 
 // ConfigIsNil applies the IsNil predicate on the "config" field.

@@ -12,6 +12,7 @@ var (
 	DiffsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "content", Type: field.TypeJSON},
+		{Name: "has_content", Type: field.TypeBool},
 		{Name: "config", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "request_id", Type: field.TypeUUID, Unique: true},
@@ -26,19 +27,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "diffs_requests_diff",
-				Columns:    []*schema.Column{DiffsColumns[4]},
+				Columns:    []*schema.Column{DiffsColumns[5]},
 				RefColumns: []*schema.Column{RequestsColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
 			{
 				Symbol:     "diffs_responses_diffs_from",
-				Columns:    []*schema.Column{DiffsColumns[5]},
+				Columns:    []*schema.Column{DiffsColumns[6]},
 				RefColumns: []*schema.Column{ResponsesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "diffs_responses_diffs_to",
-				Columns:    []*schema.Column{DiffsColumns[6]},
+				Columns:    []*schema.Column{DiffsColumns[7]},
 				RefColumns: []*schema.Column{ResponsesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

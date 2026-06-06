@@ -45,6 +45,7 @@ type DiffMutation struct {
 	id                   *uuid.UUID
 	content              *[]diff.PatchOp
 	appendcontent        []diff.PatchOp
+	has_content          *bool
 	_config              *schema.DiffConfigSnapshot
 	created_at           *time.Time
 	clearedFields        map[string]struct{}
@@ -322,6 +323,42 @@ func (m *DiffMutation) ResetContent() {
 	m.appendcontent = nil
 }
 
+// SetHasContent sets the "has_content" field.
+func (m *DiffMutation) SetHasContent(b bool) {
+	m.has_content = &b
+}
+
+// HasContent returns the value of the "has_content" field in the mutation.
+func (m *DiffMutation) HasContent() (r bool, exists bool) {
+	v := m.has_content
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHasContent returns the old "has_content" field's value of the Diff entity.
+// If the Diff object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DiffMutation) OldHasContent(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHasContent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHasContent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHasContent: %w", err)
+	}
+	return oldValue.HasContent, nil
+}
+
+// ResetHasContent resets all changes to the "has_content" field.
+func (m *DiffMutation) ResetHasContent() {
+	m.has_content = nil
+}
+
 // SetConfig sets the "config" field.
 func (m *DiffMutation) SetConfig(scs schema.DiffConfigSnapshot) {
 	m._config = &scs
@@ -522,7 +559,7 @@ func (m *DiffMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DiffMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.request != nil {
 		fields = append(fields, entdiff.FieldRequestID)
 	}
@@ -534,6 +571,9 @@ func (m *DiffMutation) Fields() []string {
 	}
 	if m.content != nil {
 		fields = append(fields, entdiff.FieldContent)
+	}
+	if m.has_content != nil {
+		fields = append(fields, entdiff.FieldHasContent)
 	}
 	if m._config != nil {
 		fields = append(fields, entdiff.FieldConfig)
@@ -557,6 +597,8 @@ func (m *DiffMutation) Field(name string) (ent.Value, bool) {
 		return m.ToResponseID()
 	case entdiff.FieldContent:
 		return m.Content()
+	case entdiff.FieldHasContent:
+		return m.HasContent()
 	case entdiff.FieldConfig:
 		return m.Config()
 	case entdiff.FieldCreatedAt:
@@ -578,6 +620,8 @@ func (m *DiffMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldToResponseID(ctx)
 	case entdiff.FieldContent:
 		return m.OldContent(ctx)
+	case entdiff.FieldHasContent:
+		return m.OldHasContent(ctx)
 	case entdiff.FieldConfig:
 		return m.OldConfig(ctx)
 	case entdiff.FieldCreatedAt:
@@ -618,6 +662,13 @@ func (m *DiffMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContent(v)
+		return nil
+	case entdiff.FieldHasContent:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHasContent(v)
 		return nil
 	case entdiff.FieldConfig:
 		v, ok := value.(schema.DiffConfigSnapshot)
@@ -702,6 +753,9 @@ func (m *DiffMutation) ResetField(name string) error {
 		return nil
 	case entdiff.FieldContent:
 		m.ResetContent()
+		return nil
+	case entdiff.FieldHasContent:
+		m.ResetHasContent()
 		return nil
 	case entdiff.FieldConfig:
 		m.ResetConfig()
