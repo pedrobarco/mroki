@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pedrobarco/mroki/internal/application/events"
-	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
+	"github.com/pedrobarco/mroki/internal/domain/event"
 )
 
-// stubEvent is a minimal DomainEvent for routing tests.
+// stubEvent is a minimal event.Event for routing tests.
 type stubEvent struct{ name string }
 
 func (e stubEvent) EventName() string         { return e.name }
@@ -24,13 +24,13 @@ func TestBus_Dispatch_RoutesByEventName(t *testing.T) {
 	bus := events.NewBus()
 
 	var got []string
-	bus.Subscribe("a", func(_ context.Context, e traffictesting.DomainEvent) {
+	bus.Subscribe("a", func(_ context.Context, e event.Event) {
 		got = append(got, "h1:"+e.EventName())
 	})
-	bus.Subscribe("a", func(_ context.Context, e traffictesting.DomainEvent) {
+	bus.Subscribe("a", func(_ context.Context, e event.Event) {
 		got = append(got, "h2:"+e.EventName())
 	})
-	bus.Subscribe("b", func(_ context.Context, e traffictesting.DomainEvent) {
+	bus.Subscribe("b", func(_ context.Context, e event.Event) {
 		got = append(got, "h3:"+e.EventName())
 	})
 
@@ -51,10 +51,10 @@ func TestBus_Dispatch_RecoversHandlerPanic(t *testing.T) {
 	bus := events.NewBus(events.WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))))
 
 	var secondRan bool
-	bus.Subscribe("a", func(_ context.Context, _ traffictesting.DomainEvent) {
+	bus.Subscribe("a", func(_ context.Context, _ event.Event) {
 		panic("boom")
 	})
-	bus.Subscribe("a", func(_ context.Context, _ traffictesting.DomainEvent) {
+	bus.Subscribe("a", func(_ context.Context, _ event.Event) {
 		secondRan = true
 	})
 
@@ -69,7 +69,7 @@ func TestBus_WithLogger_NilKeepsDefault(t *testing.T) {
 	// recovery still works rather than dereferencing a nil logger.
 	bus := events.NewBus(events.WithLogger(nil))
 
-	bus.Subscribe("a", func(_ context.Context, _ traffictesting.DomainEvent) {
+	bus.Subscribe("a", func(_ context.Context, _ event.Event) {
 		panic("boom")
 	})
 
@@ -82,7 +82,7 @@ func TestBus_Dispatch_MultipleEvents(t *testing.T) {
 	bus := events.NewBus()
 
 	var count int
-	bus.Subscribe("a", func(_ context.Context, _ traffictesting.DomainEvent) { count++ })
+	bus.Subscribe("a", func(_ context.Context, _ event.Event) { count++ })
 
 	bus.Dispatch(context.Background(), stubEvent{name: "a"}, stubEvent{name: "a"})
 

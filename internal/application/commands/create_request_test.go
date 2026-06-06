@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pedrobarco/mroki/internal/domain/event"
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
@@ -1166,10 +1167,10 @@ func TestCreateRequestHandler_Handle_missing_body_path_silently_skipped(t *testi
 
 // fakeDispatcher captures dispatched domain events for assertions.
 type fakeDispatcher struct {
-	events []traffictesting.DomainEvent
+	events []event.Event
 }
 
-func (f *fakeDispatcher) Dispatch(_ context.Context, events ...traffictesting.DomainEvent) {
+func (f *fakeDispatcher) Dispatch(_ context.Context, events ...event.Event) {
 	f.events = append(f.events, events...)
 }
 

@@ -3,16 +3,12 @@ package traffictesting
 import (
 	"time"
 
+	"github.com/pedrobarco/mroki/internal/domain/event"
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
-// DomainEvent is the marker interface implemented by every domain event in the
-// traffictesting context. EventName identifies the event for routing and
-// OccurredAt records when the fact happened.
-type DomainEvent interface {
-	EventName() string
-	OccurredAt() time.Time
-}
+// RequestCompared implements the shared event.Event contract.
+var _ event.Event = RequestCompared{}
 
 // EventRequestCompared is the EventName of the RequestCompared domain event.
 const EventRequestCompared = "traffictesting.request_compared"
@@ -32,10 +28,10 @@ type RequestCompared struct {
 	occurredAt      time.Time
 }
 
-// EventName implements DomainEvent.
+// EventName implements event.Event.
 func (e RequestCompared) EventName() string { return EventRequestCompared }
 
-// OccurredAt implements DomainEvent.
+// OccurredAt implements event.Event.
 func (e RequestCompared) OccurredAt() time.Time { return e.occurredAt }
 
 // GateID returns the gate the compared request belongs to.

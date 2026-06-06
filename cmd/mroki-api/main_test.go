@@ -55,7 +55,7 @@ func TestNewAPIMetrics_Enabled(t *testing.T) {
 }
 
 // comparedRequest builds a persisted-style Request whose live/shadow responses
-// differ by diffOps operations, with the comparison domain event recorded.
+// differ by diffOps operations; NewRequest raises the comparison domain event.
 func comparedRequest(t *testing.T, diffOps int) *traffictesting.Request {
 	t.Helper()
 
@@ -84,7 +84,6 @@ func comparedRequest(t *testing.T, diffOps int) *traffictesting.Request {
 		*d,
 	)
 	require.NoError(t, err)
-	req.RecordCompared()
 	return req
 }
 

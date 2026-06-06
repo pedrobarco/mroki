@@ -57,7 +57,7 @@ type CreateRequestHandler struct {
 type CreateRequestOption func(*CreateRequestHandler)
 
 // WithEventDispatcher wires a dispatcher used to publish the domain events the
-// request aggregate records (e.g. RequestCompared) after a successful save. When
+// request aggregate raises (e.g. RequestCompared) after a successful save. When
 // unset, no events are dispatched.
 func WithEventDispatcher(d events.Dispatcher) CreateRequestOption {
 	return func(h *CreateRequestHandler) {
@@ -212,10 +212,6 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	if !requestID.IsZero() {
 		request.ID = requestID
 	}
-
-	// Raise the comparison domain event on the aggregate as part of the
-	// create/compare transition.
-	request.RecordCompared()
 
 	// Persist (transaction boundary)
 	if err := h.repo.Save(ctx, request); err != nil {

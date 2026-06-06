@@ -149,6 +149,7 @@ func TestRequestRepository_GetByID_success(t *testing.T) {
 	assert.Equal(t, 200, result.LiveResponse.StatusCode.Int())
 	assert.Equal(t, 200, result.ShadowResponse.StatusCode.Int())
 	assert.False(t, result.Diff.IsZero())
+	assert.Empty(t, result.PullEvents(), "reconstituting from persistence must not raise domain events")
 }
 
 func TestRequestRepository_GetByID_not_found(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pedrobarco/mroki/internal/application/events"
+	"github.com/pedrobarco/mroki/internal/domain/event"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	diffmetrics "github.com/pedrobarco/mroki/pkg/diff/metrics"
 )
@@ -15,8 +16,8 @@ import (
 // just the HTTP handler) is instrumented uniformly. recorder must be non-nil;
 // callers subscribe this listener only when metrics are enabled.
 func newComparisonMetricsListener(recorder *diffmetrics.Recorder) events.Handler {
-	return func(ctx context.Context, event traffictesting.DomainEvent) {
-		evt, ok := event.(traffictesting.RequestCompared)
+	return func(ctx context.Context, e event.Event) {
+		evt, ok := e.(traffictesting.RequestCompared)
 		if !ok {
 			return
 		}

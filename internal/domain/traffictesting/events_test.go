@@ -40,15 +40,12 @@ func newComparedRequest(t *testing.T, diffContent []diff.PatchOp) *traffictestin
 	return req
 }
 
-func TestRequest_RecordCompared_RaisesEvent(t *testing.T) {
+func TestNewRequest_RaisesRequestCompared(t *testing.T) {
 	req := newComparedRequest(t, []diff.PatchOp{{}, {}, {}})
 
-	require.Empty(t, req.PullEvents(), "no events before RecordCompared")
-
-	req.RecordCompared()
 	events := req.PullEvents()
 
-	require.Len(t, events, 1)
+	require.Len(t, events, 1, "constructing a Request raises one RequestCompared event")
 	evt, ok := events[0].(traffictesting.RequestCompared)
 	require.True(t, ok, "expected a RequestCompared event")
 
@@ -63,10 +60,9 @@ func TestRequest_RecordCompared_RaisesEvent(t *testing.T) {
 	assert.Equal(t, req.CreatedAt, evt.OccurredAt())
 }
 
-func TestRequest_RecordCompared_NoDiff(t *testing.T) {
+func TestNewRequest_RaisesRequestCompared_NoDiff(t *testing.T) {
 	req := newComparedRequest(t, []diff.PatchOp{})
 
-	req.RecordCompared()
 	events := req.PullEvents()
 
 	require.Len(t, events, 1)
@@ -77,7 +73,6 @@ func TestRequest_RecordCompared_NoDiff(t *testing.T) {
 func TestRequest_PullEvents_ClearsEvents(t *testing.T) {
 	req := newComparedRequest(t, nil)
 
-	req.RecordCompared()
 	require.Len(t, req.PullEvents(), 1)
 	assert.Empty(t, req.PullEvents(), "events are drained once pulled")
 }
