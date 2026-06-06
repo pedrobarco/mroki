@@ -37,6 +37,12 @@ func (Diff) Fields() []ent.Field {
 		field.UUID("from_response_id", uuid.UUID{}),
 		field.UUID("to_response_id", uuid.UUID{}),
 		field.JSON("content", []diff.PatchOp{}),
+		// has_content materializes "the diff has at least one patch op" as a
+		// persisted boolean so the has_diff filter and diff stats avoid a
+		// per-row JSON array-length computation. Set explicitly from the
+		// domain on write (see request_repository.saveDiff); backfilled by
+		// migration for existing rows.
+		field.Bool("has_content"),
 		field.JSON("config", DiffConfigSnapshot{}).
 			Optional(),
 		field.Time("created_at").

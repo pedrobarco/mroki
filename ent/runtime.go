@@ -20,7 +20,7 @@ func init() {
 	entdiffFields := schema.Diff{}.Fields()
 	_ = entdiffFields
 	// entdiffDescCreatedAt is the schema descriptor for created_at field.
-	entdiffDescCreatedAt := entdiffFields[6].Descriptor()
+	entdiffDescCreatedAt := entdiffFields[7].Descriptor()
 	// entdiff.DefaultCreatedAt holds the default value on creation for the created_at field.
 	entdiff.DefaultCreatedAt = entdiffDescCreatedAt.Default.(func() time.Time)
 	// entdiffDescID is the schema descriptor for id field.

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
+	entdiff "github.com/pedrobarco/mroki/ent/diff"
 	"github.com/pedrobarco/mroki/ent/enttest"
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
@@ -334,6 +335,35 @@ func TestRequestRepository_GetAllByGateID_with_has_diff_filter(t *testing.T) {
 	}
 	assert.True(t, ids[reqEmptyDiff.ID], "empty-content diff request should be treated as no diff")
 	assert.True(t, ids[reqNoDiff.ID], "no-diff request should be treated as no diff")
+}
+
+// TestRequestRepository_Save_persists_has_content locks in the persistence
+// invariant the has_diff filter and diff stats now rely on: the materialized
+// has_content column must mirror the domain's Diff.HasContent() on write.
+func TestRequestRepository_Save_persists_has_content(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	gateRepo := ent.NewGateRepository(client)
+	reqRepo := ent.NewRequestRepository(client)
+	gateID := setupGate(t, gateRepo)
+
+	reqWithDiff := newTestRequest(t, gateID)
+	reqEmptyDiff := newTestRequestWithEmptyDiff(t, gateID)
+	require.NoError(t, reqRepo.Save(context.Background(), reqWithDiff))
+	require.NoError(t, reqRepo.Save(context.Background(), reqEmptyDiff))
+
+	withDiff, err := client.Diff.Query().
+		Where(entdiff.RequestID(reqWithDiff.ID.UUID())).
+		Only(context.Background())
+	require.NoError(t, err)
+	assert.True(t, withDiff.HasContent, "non-empty diff content must persist has_content=true")
+
+	emptyDiff, err := client.Diff.Query().
+		Where(entdiff.RequestID(reqEmptyDiff.ID.UUID())).
+		Only(context.Background())
+	require.NoError(t, err)
+	assert.False(t, emptyDiff.HasContent, "empty diff content must persist has_content=false")
 }
 
 func TestRequestRepository_DeleteOlderThan(t *testing.T) {
