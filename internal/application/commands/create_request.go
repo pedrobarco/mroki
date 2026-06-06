@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pedrobarco/mroki/internal/application/events"
 	"github.com/pedrobarco/mroki/internal/application/services"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
@@ -47,13 +48,30 @@ type CreateRequestDiffProps struct {
 
 // CreateRequestHandler handles the CreateRequest command
 type CreateRequestHandler struct {
-	repo     traffictesting.RequestRepository
-	gateRepo traffictesting.GateRepository
+	repo       traffictesting.RequestRepository
+	gateRepo   traffictesting.GateRepository
+	dispatcher events.Dispatcher
+}
+
+// CreateRequestOption configures a CreateRequestHandler.
+type CreateRequestOption func(*CreateRequestHandler)
+
+// WithEventDispatcher wires a dispatcher used to publish the domain events the
+// request aggregate raises (e.g. RequestCompared) after a successful save. When
+// unset, no events are dispatched.
+func WithEventDispatcher(d events.Dispatcher) CreateRequestOption {
+	return func(h *CreateRequestHandler) {
+		h.dispatcher = d
+	}
 }
 
 // NewCreateRequestHandler creates a new CreateRequestHandler
-func NewCreateRequestHandler(repo traffictesting.RequestRepository, gateRepo traffictesting.GateRepository) *CreateRequestHandler {
-	return &CreateRequestHandler{repo: repo, gateRepo: gateRepo}
+func NewCreateRequestHandler(repo traffictesting.RequestRepository, gateRepo traffictesting.GateRepository, opts ...CreateRequestOption) *CreateRequestHandler {
+	h := &CreateRequestHandler{repo: repo, gateRepo: gateRepo}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
 }
 
 // Handle executes the CreateRequest command
@@ -198,6 +216,12 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 	// Persist (transaction boundary)
 	if err := h.repo.Save(ctx, request); err != nil {
 		return nil, fmt.Errorf("failed to save request: %w", err)
+	}
+
+	// Publish recorded domain events only after a successful save so subscribers
+	// (e.g. metrics) react to persisted comparisons. Best-effort and decoupled.
+	if h.dispatcher != nil {
+		h.dispatcher.Dispatch(ctx, request.PullEvents()...)
 	}
 
 	return request, nil

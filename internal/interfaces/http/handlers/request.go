@@ -11,12 +11,7 @@ import (
 	"github.com/pedrobarco/mroki/pkg/dto"
 )
 
-// RecordComparisonFunc records business metrics for a stored comparison. It
-// takes the domain request so this package stays free of any Prometheus
-// dependency; a nil func disables recording.
-type RecordComparisonFunc func(req *traffictesting.Request)
-
-func CreateRequest(handler *commands.CreateRequestHandler, record RecordComparisonFunc) AppHandler {
+func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var req dto.CreateRequestPayload
 
@@ -88,10 +83,6 @@ func CreateRequest(handler *commands.CreateRequestHandler, record RecordComparis
 					err,
 				)
 			}
-		}
-
-		if record != nil {
-			record(request)
 		}
 
 		resp := dto.Response[dto.Request]{
