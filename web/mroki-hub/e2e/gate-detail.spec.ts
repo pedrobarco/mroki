@@ -88,6 +88,45 @@ test.describe('Gate Detail Page', () => {
     await expect(page.getByText('/api/beta')).not.toBeVisible()
   })
 
+  test('filter by has diff', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `hasdiff-gate-${suffix}`,
+      `https://hasdiff-live-${suffix}.example.com`,
+      `https://hasdiff-shadow-${suffix}.example.com`
+    )
+    // One request with a diff, one without (distinct timestamps for deterministic ordering)
+    await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/with-diff',
+      createdAt: new Date(2026, 0, 1, 0, 0, 1).toISOString(),
+    })
+    await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/no-diff',
+      diffContent: [],
+      createdAt: new Date(2026, 0, 1, 0, 0, 0).toISOString(),
+    })
+
+    await page.goto(`/gates/${gate.id}`)
+
+    // Both visible initially
+    await expect(page.getByText('/api/with-diff')).toBeVisible()
+    await expect(page.getByText('/api/no-diff')).toBeVisible()
+
+    // Enable the "Has diff only" toggle
+    await page.getByRole('switch').click()
+
+    // Only the request with a diff remains visible
+    await expect(page.getByText('/api/with-diff')).toBeVisible()
+    await expect(page.getByText('/api/no-diff')).not.toBeVisible()
+
+    // Disable the toggle again — both visible
+    await page.getByRole('switch').click()
+    await expect(page.getByText('/api/with-diff')).toBeVisible()
+    await expect(page.getByText('/api/no-diff')).toBeVisible()
+  })
+
   test('pagination works with many requests', async ({ page, api }) => {
     const gate = await api.createGate(
       'page-gate',
