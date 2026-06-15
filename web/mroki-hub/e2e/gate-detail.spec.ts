@@ -95,9 +95,18 @@ test.describe('Gate Detail Page', () => {
       `https://hasdiff-live-${suffix}.example.com`,
       `https://hasdiff-shadow-${suffix}.example.com`
     )
-    // One request with a diff, one without
-    await api.seedRequest(gate.id, { method: 'GET', path: '/api/with-diff' })
-    await api.seedRequest(gate.id, { method: 'GET', path: '/api/no-diff', diffContent: [] })
+    // One request with a diff, one without (distinct timestamps for deterministic ordering)
+    await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/with-diff',
+      createdAt: new Date(2026, 0, 1, 0, 0, 1).toISOString(),
+    })
+    await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/no-diff',
+      diffContent: [],
+      createdAt: new Date(2026, 0, 1, 0, 0, 0).toISOString(),
+    })
 
     await page.goto(`/gates/${gate.id}`)
 
