@@ -313,6 +313,7 @@ func TestRequestRepository_GetAllByGateID_with_path_filter(t *testing.T) {
 		"/api/users/42/settings",
 		"/api/orders/7",
 		"/api/user_profile",
+		"/api/user_42/profile",
 	}
 	for _, p := range seedPaths {
 		req := newTestRequest(t, gateID)
@@ -349,6 +350,14 @@ func TestRequestRepository_GetAllByGateID_with_path_filter(t *testing.T) {
 			name:    "literal underscore is not a wildcard",
 			pattern: "/api/user_profile",
 			want:    []string{"/api/user_profile"},
+		},
+		{
+			// Mixes a literal underscore with a '*' wildcard: the underscore
+			// must be escaped (matched literally) while '*' stays a wildcard,
+			// locking in the escape-before-wildcard ordering.
+			name:    "literal underscore combined with wildcard",
+			pattern: "/api/user_*/profile",
+			want:    []string{"/api/user_42/profile"},
 		},
 		{
 			name:    "no match",
