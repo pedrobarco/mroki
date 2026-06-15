@@ -101,6 +101,12 @@ func TestNewPathPattern(t *testing.T) {
 			wantErr:   true,
 		},
 		{
+			name:      "non-ASCII rejected",
+			input:     "/api/café",
+			wantValue: "",
+			wantErr:   true,
+		},
+		{
 			name:      "exceeds max length",
 			input:     "/" + strings.Repeat("a", 500),
 			wantValue: "",

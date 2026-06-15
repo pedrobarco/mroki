@@ -3,6 +3,7 @@ package traffictesting
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 // PathPattern represents a glob-style path pattern for filtering
@@ -48,11 +49,11 @@ func NewPathPattern(pattern string) (PathPattern, error) {
 // rejects characters that cannot appear unencoded in a URL path, such as
 // spaces, quotes, angle brackets, control characters, and URL delimiters.
 func validatePathPatternChars(pattern string) error {
-	for i := 0; i < len(pattern); i++ {
-		if !isPathChar(pattern[i]) {
+	for _, r := range pattern {
+		if r > unicode.MaxASCII || !isPathChar(byte(r)) {
 			return fmt.Errorf(
 				"path pattern contains invalid character %q for a URL path",
-				rune(pattern[i]),
+				r,
 			)
 		}
 	}

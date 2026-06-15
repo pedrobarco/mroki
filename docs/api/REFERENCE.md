@@ -760,7 +760,7 @@ curl -H "Authorization: Bearer your-api-key" \
 | `limit` | integer | 50 | Results per page (max: 100) |
 | `offset` | integer | 0 | Number of results to skip |
 | `method` | string | — | Filter by HTTP method(s), comma-separated (e.g., `GET,POST`) |
-| `path` | string | — | Filter by path pattern, supports wildcards (e.g., `/api/users/*`) |
+| `path` | string | — | Filter by path. Matched as a substring (not anchored to the start); `*` matches any sequence of characters (e.g., `/api/users/*`). Matching is case-sensitive. |
 | `from` | RFC3339 | — | Filter requests created on or after this timestamp |
 | `to` | RFC3339 | — | Filter requests created on or before this timestamp |
 | `has_diff` | boolean | — | Filter by whether the responses differ (`true` = only requests with a non-empty diff, `false` = only requests whose responses are identical) |
