@@ -120,7 +120,7 @@ function emitUpdate(partial: Partial<FilterState>) {
     <label
       class="flex items-center gap-2 text-xs text-dim border border-border rounded-lg px-3 py-1.5 bg-card cursor-pointer select-none"
     >
-      <Switch :checked="modelValue.hasDiff === true" @update:checked="onDiffToggle" />
+      <Switch :model-value="modelValue.hasDiff === true" @update:model-value="onDiffToggle" />
       Has diff only
     </label>
 
