@@ -190,7 +190,7 @@ The request list endpoint supports query parameters for filtering and sorting:
 | Parameter | Example | Description |
 |-----------|---------|-------------|
 | `method` | `GET,POST` | Filter by HTTP method (comma-separated) |
-| `path` | `/api/users/*` | Filter by path pattern (supports wildcards) |
+| `path` | `/api/users/*` | Filter by path; substring match (not anchored), `*` = any sequence, case-sensitive |
 | `has_diff` | `true` | Only requests with (`true`) or without (`false`) diffs |
 | `from` / `to` | `2026-03-29T00:00:00Z` | Filter by creation timestamp (RFC 3339) |
 | `sort` | `created_at` | Sort field: `created_at`, `method`, or `path` |

@@ -298,6 +298,129 @@ func TestRequestRepository_GetAllByGateID_with_method_filter(t *testing.T) {
 	assert.Equal(t, "GET", result.Items[0].Method.String())
 }
 
+func TestRequestRepository_GetAllByGateID_with_path_filter(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	gateRepo := ent.NewGateRepository(client)
+	reqRepo := ent.NewRequestRepository(client)
+	gateID := setupGate(t, gateRepo)
+
+	// Seed requests with distinct paths. Several contain literal LIKE
+	// metacharacters ('_' and '%') that must be matched literally. The
+	// "X" variants ("/api/userXprofile", "/api/100Xdiscount") let the literal
+	// metacharacter cases prove '_'/'%' are escaped rather than treated as
+	// single-character/any-sequence wildcards.
+	seedPaths := []string{
+		"/api/users/42/profile",
+		"/api/users/42/settings",
+		"/api/orders/7",
+		"/api/user_profile",
+		"/api/user_42/profile",
+		"/api/userXprofile",
+		"/api/100%discount",
+		"/api/100Xdiscount",
+	}
+	for _, p := range seedPaths {
+		req := newTestRequest(t, gateID)
+		path, err := traffictesting.ParsePath(p)
+		require.NoError(t, err)
+		req.Path = path
+		require.NoError(t, reqRepo.Save(context.Background(), req))
+	}
+
+	params, _ := pagination.NewParams(50, 0)
+	sort := traffictesting.DefaultRequestSort()
+
+	tests := []struct {
+		name    string
+		pattern string
+		want    []string
+	}{
+		{
+			name:    "plain substring matches anywhere",
+			pattern: "/api/users",
+			want:    []string{"/api/users/42/profile", "/api/users/42/settings"},
+		},
+		{
+			name:    "trailing wildcard",
+			pattern: "/api/users/*",
+			want:    []string{"/api/users/42/profile", "/api/users/42/settings"},
+		},
+		{
+			name:    "middle wildcard",
+			pattern: "/api/users/*/profile",
+			want:    []string{"/api/users/42/profile"},
+		},
+		{
+			// "/api/userXprofile" is also seeded, so this proves '_' is matched
+			// literally rather than as a single-character wildcard.
+			name:    "literal underscore is not a wildcard",
+			pattern: "/api/user_profile",
+			want:    []string{"/api/user_profile"},
+		},
+		{
+			// Mixes a literal underscore with a '*' wildcard: the underscore
+			// must be escaped (matched literally) while '*' stays a wildcard,
+			// locking in the escape-before-wildcard ordering.
+			name:    "literal underscore combined with wildcard",
+			pattern: "/api/user_*/profile",
+			want:    []string{"/api/user_42/profile"},
+		},
+		{
+			name:    "bare wildcard matches everything",
+			pattern: "*",
+			want:    seedPaths,
+		},
+		{
+			name:    "leading wildcard",
+			pattern: "*/profile",
+			want:    []string{"/api/users/42/profile", "/api/user_42/profile"},
+		},
+		{
+			// No '*': the literal '%' must be escaped by the PathContains
+			// branch so it matches a literal '%', not any sequence.
+			name:    "literal percent is not a wildcard",
+			pattern: "/api/100%discount",
+			want:    []string{"/api/100%discount"},
+		},
+		{
+			// '%' literal combined with a '*' wildcard: '%' is escaped while
+			// '*' stays a wildcard.
+			name:    "literal percent combined with wildcard",
+			pattern: "/api/100%*",
+			want:    []string{"/api/100%discount"},
+		},
+		{
+			name:    "no match",
+			pattern: "/api/nonexistent/*",
+			want:    []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pattern, err := traffictesting.NewPathPattern(tt.pattern)
+			require.NoError(t, err)
+			filters := traffictesting.NewRequestFilters(
+				nil,
+				pattern,
+				traffictesting.EmptyDateRange(),
+				nil,
+			)
+
+			result, err := reqRepo.GetAllByGateID(context.Background(), gateID, filters, sort, params)
+			require.NoError(t, err)
+
+			got := make([]string, 0, len(result.Items))
+			for _, item := range result.Items {
+				got = append(got, item.Path.String())
+			}
+			assert.ElementsMatch(t, tt.want, got)
+		})
+	}
+}
+
 func TestRequestRepository_GetAllByGateID_with_has_diff_filter(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
 	defer func() { _ = client.Close() }()

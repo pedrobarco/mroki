@@ -49,38 +49,60 @@ func TestNewPathPattern(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:      "SQL injection semicolon rejected",
-			input:     "/api/users; DROP TABLE",
-			wantValue: "",
-			wantErr:   true,
+			// Substrings that look like SQL keywords are legitimate path
+			// segments; the old denylist rejected them as false positives.
+			name:      "path containing SQL keyword substring is valid",
+			input:     "/api/selection",
+			wantValue: "/api/selection",
+			wantErr:   false,
 		},
 		{
-			name:      "SQL injection comment rejected",
+			name:      "double dash is valid",
 			input:     "/api/users--comment",
+			wantValue: "/api/users--comment",
+			wantErr:   false,
+		},
+		{
+			// All RFC 3986 sub-delims are allowed; SQL safety is handled by
+			// parameterization and escaping at the repository layer.
+			name:      "sub-delims are valid",
+			input:     "/api/users';=,!$&()+",
+			wantValue: "/api/users';=,!$&()+",
+			wantErr:   false,
+		},
+		{
+			name:      "percent-encoded characters are valid",
+			input:     "/api/a%20b",
+			wantValue: "/api/a%20b",
+			wantErr:   false,
+		},
+		{
+			name:      "space rejected",
+			input:     "/api/a b",
 			wantValue: "",
 			wantErr:   true,
 		},
 		{
-			name:      "SQL SELECT keyword rejected",
-			input:     "/api/SELECT",
-			wantValue: "",
-			wantErr:   true,
-		},
-		{
-			name:      "SQL DROP keyword rejected",
-			input:     "/api/DROP",
-			wantValue: "",
-			wantErr:   true,
-		},
-		{
-			name:      "SQL single quote rejected",
-			input:     "/api/users'",
-			wantValue: "",
-			wantErr:   true,
-		},
-		{
-			name:      "SQL double quote rejected",
+			name:      "double quote rejected",
 			input:     "/api/users\"",
+			wantValue: "",
+			wantErr:   true,
+		},
+		{
+			name:      "angle brackets rejected",
+			input:     "/api/<script>",
+			wantValue: "",
+			wantErr:   true,
+		},
+		{
+			name:      "control character rejected",
+			input:     "/api/\x01x",
+			wantValue: "",
+			wantErr:   true,
+		},
+		{
+			name:      "non-ASCII rejected",
+			input:     "/api/café",
 			wantValue: "",
 			wantErr:   true,
 		},

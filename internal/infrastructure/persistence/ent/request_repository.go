@@ -250,9 +250,7 @@ func (r *requestRepository) buildPredicates(gateID traffictesting.GateID, filter
 	}
 
 	if filters.HasPathFilter() {
-		pattern := filters.PathPattern().String()
-		pattern = strings.ReplaceAll(pattern, "*", "%")
-		preds = append(preds, request.PathContains(strings.ReplaceAll(pattern, "%", "")))
+		preds = append(preds, pathPredicate(filters.PathPattern().String()))
 	}
 
 	dateRange := filters.DateRange()
@@ -272,6 +270,47 @@ func (r *requestRepository) buildPredicates(gateID traffictesting.GateID, filter
 	}
 
 	return preds
+}
+
+// pathPredicate builds a predicate for a glob-style path pattern.
+//
+// Matching is "contains + wildcard": the pattern matches anywhere in the path
+// and '*' expands to any (possibly empty) sequence of characters. When the
+// pattern has no '*', it falls back to Ent's PathContains, which performs a
+// substring match and escapes LIKE metacharacters for us.
+//
+// When wildcards are present, the pattern is translated to a SQL LIKE: any
+// literal LIKE metacharacters ('%', '_', '\') in the user input are escaped so
+// they match literally, each '*' becomes '%', and the whole expression is
+// wrapped in '%...%' to keep the contains semantics. ESCAPE '\' is set
+// explicitly so the behavior is identical across Postgres (prod) and
+// SQLite (tests).
+func pathPredicate(pattern string) predicate.Request {
+	if !strings.Contains(pattern, "*") {
+		return request.PathContains(pattern)
+	}
+
+	like := "%" + strings.ReplaceAll(escapeLike(pattern), "*", "%") + "%"
+	return predicate.Request(func(s *sql.Selector) {
+		s.Where(sql.P(func(b *sql.Builder) {
+			b.Ident(s.C(request.FieldPath)).
+				WriteString(" LIKE ").
+				Arg(like).
+				WriteString(" ESCAPE ").
+				Arg("\\")
+		}))
+	})
+}
+
+// escapeLike escapes the LIKE metacharacters '%', '_' and the escape character
+// '\' so they are matched literally, using '\' as the escape character.
+func escapeLike(s string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\",
+		"%", "\\%",
+		"_", "\\_",
+	)
+	return replacer.Replace(s)
 }
 
 // buildOrderBy maps domain sort to an Ent order option.
