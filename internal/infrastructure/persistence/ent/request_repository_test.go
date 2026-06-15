@@ -298,6 +298,88 @@ func TestRequestRepository_GetAllByGateID_with_method_filter(t *testing.T) {
 	assert.Equal(t, "GET", result.Items[0].Method.String())
 }
 
+func TestRequestRepository_GetAllByGateID_with_path_filter(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
+	defer func() { _ = client.Close() }()
+
+	gateRepo := ent.NewGateRepository(client)
+	reqRepo := ent.NewRequestRepository(client)
+	gateID := setupGate(t, gateRepo)
+
+	// Seed requests with distinct paths. "/api/user_profile" contains a literal
+	// underscore, which is a LIKE wildcard and must not be treated as one.
+	seedPaths := []string{
+		"/api/users/42/profile",
+		"/api/users/42/settings",
+		"/api/orders/7",
+		"/api/user_profile",
+	}
+	for _, p := range seedPaths {
+		req := newTestRequest(t, gateID)
+		path, err := traffictesting.ParsePath(p)
+		require.NoError(t, err)
+		req.Path = path
+		require.NoError(t, reqRepo.Save(context.Background(), req))
+	}
+
+	params, _ := pagination.NewParams(50, 0)
+	sort := traffictesting.DefaultRequestSort()
+
+	tests := []struct {
+		name    string
+		pattern string
+		want    []string
+	}{
+		{
+			name:    "plain substring matches anywhere",
+			pattern: "/api/users",
+			want:    []string{"/api/users/42/profile", "/api/users/42/settings"},
+		},
+		{
+			name:    "trailing wildcard",
+			pattern: "/api/users/*",
+			want:    []string{"/api/users/42/profile", "/api/users/42/settings"},
+		},
+		{
+			name:    "middle wildcard",
+			pattern: "/api/users/*/profile",
+			want:    []string{"/api/users/42/profile"},
+		},
+		{
+			name:    "literal underscore is not a wildcard",
+			pattern: "/api/user_profile",
+			want:    []string{"/api/user_profile"},
+		},
+		{
+			name:    "no match",
+			pattern: "/api/nonexistent/*",
+			want:    []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pattern, err := traffictesting.NewPathPattern(tt.pattern)
+			require.NoError(t, err)
+			filters := traffictesting.NewRequestFilters(
+				nil,
+				pattern,
+				traffictesting.EmptyDateRange(),
+				nil,
+			)
+
+			result, err := reqRepo.GetAllByGateID(context.Background(), gateID, filters, sort, params)
+			require.NoError(t, err)
+
+			got := make([]string, 0, len(result.Items))
+			for _, item := range result.Items {
+				got = append(got, item.Path.String())
+			}
+			assert.ElementsMatch(t, tt.want, got)
+		})
+	}
+}
+
 func TestRequestRepository_GetAllByGateID_with_has_diff_filter(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
 	defer func() { _ = client.Close() }()
