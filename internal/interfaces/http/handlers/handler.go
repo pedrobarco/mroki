@@ -35,7 +35,13 @@ func (fn AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(apiErrCopy.Status)
 
-		slog.Error("API error",
+		// Client errors (4xx) are expected outcomes and logged at warn; only
+		// server errors (5xx) are logged at error so they stand out for alerting.
+		level := slog.LevelError
+		if apiErrCopy.Status < http.StatusInternalServerError {
+			level = slog.LevelWarn
+		}
+		slog.LogAttrs(r.Context(), level, "API error",
 			slog.String("request.id", middleware.GetRequestID(r.Context())),
 			slog.String("request.method", r.Method),
 			slog.String("request.path", r.URL.Path),
@@ -44,12 +50,12 @@ func (fn AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			slog.Int("error.status", apiErrCopy.Status),
 			slog.String("error.detail", apiErrCopy.Detail),
 			slog.String("error.instance", apiErrCopy.Instance),
-			slog.String("error.error", apiErrCopy.Error()),
+			slog.String("error.message", apiErrCopy.Error()),
 		)
 
 		if err := json.NewEncoder(w).Encode(apiErrCopy); err != nil {
 			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-			slog.Error("Failed to encode error response",
+			slog.Error("failed to encode error response",
 				slog.String("error", err.Error()),
 			)
 			return

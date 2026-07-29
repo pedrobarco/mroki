@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -30,13 +29,16 @@ func Logging(logger *slog.Logger) Middleware {
 			next.ServeHTTP(wrapped, r)
 
 			latency := time.Since(now)
-			msg := fmt.Sprintf("%d: %s", wrapped.statusCode, http.StatusText(wrapped.statusCode))
 
-			logger.Info(msg,
+			// Use a constant message with the status carried as structured
+			// attributes so log streams (especially JSON) group cleanly by
+			// message rather than by every distinct status line.
+			logger.Info("request completed",
 				slog.String("request.id", GetRequestID(r.Context())),
 				slog.String("request.method", r.Method),
 				slog.String("request.path", r.URL.Path),
 				slog.Int("response.status", wrapped.statusCode),
+				slog.String("response.status_text", http.StatusText(wrapped.statusCode)),
 				slog.Duration("response.latency", latency),
 			)
 		})

@@ -25,7 +25,13 @@ type Config config.Config[struct {
 	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT, default=30s"`
 	IdleTimeout     time.Duration `env:"IDLE_TIMEOUT, default=60s"`
 	MetricsEnabled  bool          `env:"METRICS_ENABLED, default=true"` // expose /metrics for Prometheus scraping
-	Database        struct {
+	// Logging: level is one of debug, info, warn, error; format is text or json.
+	// When left empty the effective defaults are derived from APP_ENV via
+	// EffectiveLogLevel/EffectiveLogFormat (development: debug/text,
+	// production: info/json).
+	LogLevel  string `env:"LOG_LEVEL"`
+	LogFormat string `env:"LOG_FORMAT"`
+	Database  struct {
 		URL         *url.URL `env:"URL, default=postgres://postgres:postgres@localhost:5432/postgres"`
 		MaxConns    int32    `env:"MAX_CONNS, default=25"`
 		MinConns    int32    `env:"MIN_CONNS, default=5"`
@@ -149,6 +155,9 @@ func (c Config) Validate() error {
 		verr.Add(config.SeverityError, fmt.Sprintf("database.max_conn_life must be positive, got %s", c.App.Database.MaxConnLife))
 	}
 
+	// Validate logging settings
+	config.ValidateLogSettings(verr, c.App.LogLevel, c.App.LogFormat)
+
 	if verr.HasEntries() {
 		return verr
 	}
@@ -161,6 +170,20 @@ func Load() (Config, error) {
 	var cfg Config
 	config.Load("cmd/mroki-api", &cfg)
 	return cfg, cfg.Validate()
+}
+
+// EffectiveLogLevel returns the log level to use. An explicit LogLevel always
+// wins; otherwise the level is derived from APP_ENV (production: info,
+// development: debug).
+func (c Config) EffectiveLogLevel() string {
+	return c.AppEnv.EffectiveLogLevel(c.App.LogLevel)
+}
+
+// EffectiveLogFormat returns the log format to use. An explicit LogFormat always
+// wins; otherwise the format is derived from APP_ENV (production: json,
+// development: text).
+func (c Config) EffectiveLogFormat() string {
+	return c.AppEnv.EffectiveLogFormat(c.App.LogFormat)
 }
 
 // ParseCORSOrigins splits the comma-separated CORSOrigins string into

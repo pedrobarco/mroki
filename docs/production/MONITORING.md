@@ -4,7 +4,19 @@ Mroki uses structured logging and request ID correlation to provide observabilit
 
 ## Structured Logging
 
-Both **mroki-proxy** and **mroki-api** use Go's `slog` package with JSON output at `info` level.
+Both **mroki-proxy** and **mroki-api** use Go's `slog` package. Output format and
+verbosity are configurable via `MROKI_APP_LOG_FORMAT` (`text` or `json`) and
+`MROKI_APP_LOG_LEVEL` (`debug`, `info`, `warn`, `error`) — see
+[Configuration](CONFIGURATION.md). When those are not set, the effective
+defaults are derived from `APP_ENV`: local development (`APP_ENV=development`,
+the default) logs `text` at `debug` level, while the production Docker images
+(`APP_ENV=production`) log `json` at `info` level so log lines are ready to ship
+to a collector. An explicit `MROKI_APP_LOG_LEVEL`/`MROKI_APP_LOG_FORMAT` always
+overrides the derived default.
+
+The formatted response diff is emitted as a `diff` attribute on the
+`response diff detected` log record (rather than written to stdout), so it stays
+inside the structured stream.
 
 **Example JSON log line (proxy):**
 

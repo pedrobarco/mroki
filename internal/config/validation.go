@@ -3,7 +3,26 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"github.com/pedrobarco/mroki/pkg/logger"
 )
+
+// ValidateLogSettings appends error-severity findings for unrecognised log
+// level or format values, using pkg/logger as the single source of truth for
+// the accepted values. Empty values are treated as valid so that the env
+// defaults apply.
+func ValidateLogSettings(verr *ValidationError, level, format string) {
+	if level != "" {
+		if _, err := logger.ParseLevel(level); err != nil {
+			verr.Add(SeverityError, err.Error())
+		}
+	}
+	if format != "" {
+		if _, err := logger.ParseFormat(format); err != nil {
+			verr.Add(SeverityError, err.Error())
+		}
+	}
+}
 
 // Severity indicates whether a validation finding is a hard error or a warning.
 type Severity int

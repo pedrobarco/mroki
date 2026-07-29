@@ -39,6 +39,13 @@ type Config config.Config[struct {
 	// MetricsEnabled exposes /metrics on the admin port for Prometheus scraping.
 	MetricsEnabled bool `env:"METRICS_ENABLED, default=true"`
 
+	// Logging: level is one of debug, info, warn, error; format is text or json.
+	// When left empty the effective defaults are derived from APP_ENV via
+	// EffectiveLogLevel/EffectiveLogFormat (development: debug/text,
+	// production: info/json).
+	LogLevel  string `env:"LOG_LEVEL"`
+	LogFormat string `env:"LOG_FORMAT"`
+
 	// Outbound HTTP client connection-pool tuning. These defaults suit most
 	// deployments; raise them when a single proxy must sustain high connection
 	// concurrency to live + shadow. A value of 0 follows net/http semantics (no
@@ -239,6 +246,9 @@ func (c Config) Validate() error {
 		}
 	}
 
+	// Validate logging settings
+	config.ValidateLogSettings(verr, c.App.LogLevel, c.App.LogFormat)
+
 	// --- Warnings (non-fatal) ---
 
 	// tlsHandshakeTimeout is the hardcoded TLS handshake safety net used in
@@ -278,4 +288,18 @@ func Load() (Config, error) {
 	var cfg Config
 	config.Load("cmd/mroki-proxy", &cfg)
 	return cfg, cfg.Validate()
+}
+
+// EffectiveLogLevel returns the log level to use. An explicit LogLevel always
+// wins; otherwise the level is derived from APP_ENV (production: info,
+// development: debug).
+func (c Config) EffectiveLogLevel() string {
+	return c.AppEnv.EffectiveLogLevel(c.App.LogLevel)
+}
+
+// EffectiveLogFormat returns the log format to use. An explicit LogFormat always
+// wins; otherwise the format is derived from APP_ENV (production: json,
+// development: text).
+func (c Config) EffectiveLogFormat() string {
+	return c.AppEnv.EffectiveLogFormat(c.App.LogFormat)
 }

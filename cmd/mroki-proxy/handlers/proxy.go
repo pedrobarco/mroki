@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -231,13 +230,14 @@ func createStandaloneCallback(cfg ProxyConfig) proxy.CallbackFunc {
 // logDiffResult logs the diff outcome and prints the ops if any.
 func logDiffResult(logger *slog.Logger, live, shadow proxy.ProxyResponse, ops []diff.PatchOp) {
 	if len(ops) > 0 {
+		// Carry the formatted diff as a structured attribute rather than
+		// printing to stdout, which would break JSON/structured log streams.
 		logger.Info("response diff detected",
 			slog.Int("live_status", live.StatusCode),
 			slog.Int("shadow_status", shadow.StatusCode),
 			slog.Int("changes", len(ops)),
+			slog.String("diff", diff.FormatOps(ops)),
 		)
-		fmt.Println("Diff:")
-		fmt.Print(diff.FormatOps(ops))
 	} else {
 		logger.Debug("responses match",
 			slog.Int("live_status", live.StatusCode),

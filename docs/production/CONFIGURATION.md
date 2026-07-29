@@ -28,6 +28,8 @@ This is the single source of truth for all mroki configuration. Each component i
 | `MROKI_APP_WRITE_TIMEOUT` | No | `30s` | Server write timeout (must be ≥ read timeout) |
 | `MROKI_APP_IDLE_TIMEOUT` | No | `60s` | Server idle timeout (must be ≥ write timeout) |
 | `MROKI_APP_METRICS_ENABLED` | No | `true` | Expose Prometheus metrics at `GET /metrics` on the API port (unauthenticated, like the health endpoints) |
+| `MROKI_APP_LOG_LEVEL` | No | _(derived from `APP_ENV`)_ | Minimum log level: `debug`, `info`, `warn`, or `error`. Defaults to `debug` when `APP_ENV=development` and `info` when `APP_ENV=production` |
+| `MROKI_APP_LOG_FORMAT` | No | _(derived from `APP_ENV`)_ | Log output format: `text` or `json`. Defaults to `text` when `APP_ENV=development` and `json` when `APP_ENV=production` |
 | `MROKI_APP_DATABASE_MAX_CONNS` | No | `25` | Connection pool max connections |
 | `MROKI_APP_DATABASE_MIN_CONNS` | No | `5` | Connection pool min connections |
 | `MROKI_APP_DATABASE_MAX_CONN_IDLE` | No | `5m` | Max idle time for a pooled connection |
@@ -57,6 +59,8 @@ The proxy supports two mutually exclusive operating modes: **API mode** and **St
 | `MROKI_APP_WRITE_TIMEOUT` | No | `60s` | Server write timeout (must be ≥ live timeout) |
 | `MROKI_APP_IDLE_TIMEOUT` | No | `120s` | Server idle timeout |
 | `MROKI_APP_METRICS_ENABLED` | No | `true` | Expose Prometheus metrics at `GET /metrics` on the admin port (`MROKI_APP_ADMIN_PORT`), isolated from proxied traffic |
+| `MROKI_APP_LOG_LEVEL` | No | _(derived from `APP_ENV`)_ | Minimum log level: `debug`, `info`, `warn`, or `error`. Defaults to `debug` when `APP_ENV=development` and `info` when `APP_ENV=production` |
+| `MROKI_APP_LOG_FORMAT` | No | _(derived from `APP_ENV`)_ | Log output format: `text` or `json`. Defaults to `text` when `APP_ENV=development` and `json` when `APP_ENV=production` |
 | `MROKI_APP_HTTP_CLIENT_MAX_IDLE_CONNS` | No | `100` | Outbound idle connection pool size across all hosts (`0` = unlimited) |
 | `MROKI_APP_HTTP_CLIENT_MAX_IDLE_CONNS_PER_HOST` | No | `10` | Outbound idle connections kept per host (`0` = Go default of 2) |
 | `MROKI_APP_HTTP_CLIENT_MAX_CONNS_PER_HOST` | No | `100` | Limit on total outbound connections per host (`0` = unlimited) |
