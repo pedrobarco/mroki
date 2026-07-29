@@ -59,8 +59,9 @@ test.describe('Gate Detail Page', () => {
     await expect(page.getByText('/api/filter-get')).toBeVisible()
     await expect(page.getByText('/api/filter-post')).toBeVisible()
 
-    // Click POST method button in filters
-    await page.getByRole('button', { name: 'POST' }).click()
+    // Click POST method button in filters (exact avoids matching request rows
+    // whose accessible name is "View request POST /path")
+    await page.getByRole('button', { name: 'POST', exact: true }).click()
 
     // Only POST visible
     await expect(page.getByText('/api/filter-post')).toBeVisible()
