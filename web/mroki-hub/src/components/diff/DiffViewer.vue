@@ -763,7 +763,10 @@ function tokenClass(token: Token): string {
       </div>
 
       <!-- Non-JSON fallback: plain text side-by-side -->
-      <div v-else-if="!isBinary" class="grid grid-cols-2 divide-x divide-border">
+      <div
+        v-else-if="!isBinary"
+        class="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:divide-y-0 sm:divide-x"
+      >
         <div class="p-4">
           <div class="text-xs uppercase tracking-widest text-dim mb-2">Live</div>
           <pre class="text-xs font-mono whitespace-pre-wrap text-foreground/80">{{

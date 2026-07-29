@@ -85,7 +85,7 @@ const isActive = computed(() => props.gate.stats.last_active !== null)
     </div>
 
     <!-- Live / Shadow URLs -->
-    <div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2">
       <div class="bg-background/60 rounded-lg px-3 py-2.5 border border-border/50">
         <div class="text-xs uppercase tracking-widest text-dim mb-1.5 flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-success" />

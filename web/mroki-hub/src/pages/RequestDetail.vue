@@ -297,7 +297,7 @@ onMounted(() => {
             </div>
           </div>
         </TooltipProvider>
-        <div class="grid grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
             <div class="text-xs uppercase tracking-widest text-dim mb-1">Request ID</div>
             <code class="text-xs font-mono text-muted-foreground">

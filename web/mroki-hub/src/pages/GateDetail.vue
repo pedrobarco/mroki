@@ -98,7 +98,7 @@ onMounted(() => {
     <div v-else-if="gate">
       <!-- Gate Info Card -->
       <div class="bg-card border border-border rounded-xl p-5 mb-8">
-        <div class="flex items-start justify-between mb-5">
+        <div class="flex flex-col gap-4 mb-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div class="flex items-center gap-2.5 mb-1.5">
               <h1 class="text-xl font-semibold tracking-tight">{{ gate.name }}</h1>
@@ -117,7 +117,7 @@ onMounted(() => {
         </div>
 
         <!-- Live / Shadow URLs -->
-        <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2">
           <div class="bg-background/60 rounded-lg px-3.5 py-3 border border-border/50">
             <div
               class="text-xs uppercase tracking-widest text-dim mb-1.5 flex items-center gap-1.5"

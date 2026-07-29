@@ -118,7 +118,7 @@ onMounted(() => {
         <span class="text-dim">Page {{ currentPage }} of {{ totalPages }} · {{ total }} gates</span>
         <div class="flex items-center gap-1">
           <button
-            class="px-3 py-1.5 rounded-lg border border-border bg-card text-dim transition-colors"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg border border-border bg-card text-dim transition-colors"
             :class="
               offset === 0
                 ? 'opacity-40 cursor-not-allowed'
@@ -130,12 +130,12 @@ onMounted(() => {
             Previous
           </button>
           <span
-            class="px-3 py-1.5 rounded-lg border border-border bg-accent text-foreground font-medium"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg border border-border bg-accent text-foreground font-medium"
           >
             {{ currentPage }}
           </span>
           <button
-            class="px-3 py-1.5 rounded-lg border border-border bg-card transition-colors"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg border border-border bg-card transition-colors"
             :class="
               !hasMore
                 ? 'text-dim opacity-40 cursor-not-allowed'

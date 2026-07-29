@@ -66,7 +66,7 @@ onMounted(() => {
 <template>
   <div class="max-w-6xl mx-auto px-6 py-8">
     <!-- Page Header -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="text-xl font-semibold tracking-tight mb-1">Gates</h1>
         <p class="text-xs text-muted-foreground">
@@ -95,7 +95,7 @@ onMounted(() => {
     </div>
 
     <!-- Stats Bar -->
-    <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-3">
       <div
         v-for="stat in stats"
         :key="stat.label"
