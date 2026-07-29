@@ -39,3 +39,23 @@ func TestAppEnv_IsProduction(t *testing.T) {
 		}
 	}
 }
+
+func TestAppEnv_IsValid(t *testing.T) {
+	tests := []struct {
+		env      AppEnv
+		expected bool
+	}{
+		{appEnvDevelopment, true},
+		{appEnvProduction, true},
+		{AppEnv("staging"), false},
+		{AppEnv("prod"), false},
+		{AppEnv(""), false},
+	}
+
+	for _, tt := range tests {
+		result := tt.env.IsValid()
+		if result != tt.expected {
+			t.Errorf("env=%q: expected IsValid()=%v, got %v", tt.env, tt.expected, result)
+		}
+	}
+}

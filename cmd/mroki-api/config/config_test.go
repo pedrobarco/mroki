@@ -173,6 +173,34 @@ func TestValidate_invalid_cleanup_interval(t *testing.T) {
 	assert.Contains(t, err.Error(), "cleanup_interval must be positive")
 }
 
+func TestValidate_app_env(t *testing.T) {
+	t.Run("development is valid", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.AppEnv = "development"
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("production is valid", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.AppEnv = "production"
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("empty is valid", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.AppEnv = ""
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("unknown value is an error", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.AppEnv = "staging"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "APP_ENV must be one of development, production")
+	})
+}
+
 func TestValidate_invalid_database_url(t *testing.T) {
 	cfg := validConfig()
 	cfg.App.Database.URL = mustURL("ftp://localhost/db")

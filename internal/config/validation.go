@@ -24,6 +24,16 @@ func ValidateLogSettings(verr *ValidationError, level, format string) {
 	}
 }
 
+// ValidateAppEnv appends an error-severity finding when the application
+// environment is set to an unrecognised value. An empty value is treated as
+// valid because the config loader resolves an unset APP_ENV to development
+// before validation runs.
+func ValidateAppEnv(verr *ValidationError, env AppEnv) {
+	if env != "" && !env.IsValid() {
+		verr.Add(SeverityError, fmt.Sprintf("APP_ENV must be one of development, production, got %q", env))
+	}
+}
+
 // Severity indicates whether a validation finding is a hard error or a warning.
 type Severity int
 
