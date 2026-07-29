@@ -315,7 +315,7 @@ function tokenClass(token: Token): string {
       <!-- Card Header -->
       <div class="flex items-center justify-between px-5 py-3.5 border-b border-border">
         <div class="flex items-center gap-2 flex-wrap">
-          <h3 class="text-sm font-semibold">Response Comparison</h3>
+          <h2 class="text-sm font-semibold">Response Comparison</h2>
           <span class="text-xs text-dim bg-accent px-2 py-0.5 rounded-md font-mono">
             {{ isJson ? 'json' : 'text' }}
           </span>
