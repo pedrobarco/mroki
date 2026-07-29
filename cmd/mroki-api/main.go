@@ -33,7 +33,9 @@ import (
 )
 
 func main() {
-	logger := applog.New()
+	// Bootstrap logger with fixed defaults so logs emitted before configuration
+	// is loaded (e.g. config validation errors) are still captured.
+	logger := applog.New(applog.LevelInfo, applog.FormatText)
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -43,7 +45,7 @@ func main() {
 				logger.Warn("configuration warning", "detail", w.Message)
 			}
 			if verr.HasErrors() {
-				logger.Error("configuration validation failed", "error", verr.Error())
+				logger.Error("configuration validation failed", slog.String("error", verr.Error()))
 				os.Exit(1)
 			}
 		} else {
@@ -54,7 +56,19 @@ func main() {
 
 	// Reconfigure the logger now that validated settings are available. The
 	// effective level/format are derived from APP_ENV when not set explicitly.
-	logger = applog.Configure(cfg.EffectiveLogLevel(), cfg.EffectiveLogFormat())
+	// The strings are already validated by config.Load, so a parse error here
+	// is a should-never-happen defensive guard.
+	level, err := applog.ParseLevel(cfg.EffectiveLogLevel())
+	if err != nil {
+		logger.Error("invalid log level", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	format, err := applog.ParseFormat(cfg.EffectiveLogFormat())
+	if err != nil {
+		logger.Error("invalid log format", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	logger = applog.New(level, format)
 
 	// Parse pool configuration timeouts (safe after validation)
 	maxConnIdleDuration, _ := time.ParseDuration(cfg.App.Database.MaxConnIdle)

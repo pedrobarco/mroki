@@ -294,24 +294,12 @@ func Load() (Config, error) {
 // wins; otherwise the level is derived from APP_ENV (production: info,
 // development: debug).
 func (c Config) EffectiveLogLevel() string {
-	if c.App.LogLevel != "" {
-		return c.App.LogLevel
-	}
-	if c.AppEnv.IsProduction() {
-		return "info"
-	}
-	return "debug"
+	return c.AppEnv.EffectiveLogLevel(c.App.LogLevel)
 }
 
 // EffectiveLogFormat returns the log format to use. An explicit LogFormat always
 // wins; otherwise the format is derived from APP_ENV (production: json,
 // development: text).
 func (c Config) EffectiveLogFormat() string {
-	if c.App.LogFormat != "" {
-		return c.App.LogFormat
-	}
-	if c.AppEnv.IsProduction() {
-		return "json"
-	}
-	return "text"
+	return c.AppEnv.EffectiveLogFormat(c.App.LogFormat)
 }

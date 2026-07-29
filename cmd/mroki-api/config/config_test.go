@@ -220,7 +220,8 @@ func TestValidate_log_settings(t *testing.T) {
 		cfg.App.LogLevel = "verbose"
 		err := cfg.Validate()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "log_level must be one of debug, info, warn, error")
+		assert.Contains(t, err.Error(), "invalid log level")
+		assert.Contains(t, err.Error(), "must be one of debug, info, warn, error")
 	})
 
 	t.Run("invalid format", func(t *testing.T) {
@@ -228,7 +229,8 @@ func TestValidate_log_settings(t *testing.T) {
 		cfg.App.LogFormat = "xml"
 		err := cfg.Validate()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "log_format must be one of json, text")
+		assert.Contains(t, err.Error(), "invalid log format")
+		assert.Contains(t, err.Error(), "must be one of text, json")
 	})
 }
 
