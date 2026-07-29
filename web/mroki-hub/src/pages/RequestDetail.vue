@@ -35,11 +35,11 @@ const liveResponse = computed(() => request.value?.live_response ?? null)
 const shadowResponse = computed(() => request.value?.shadow_response ?? null)
 
 const methodColors: Record<string, string> = {
-  GET: 'bg-blue-500/15 text-blue-400',
-  POST: 'bg-green-500/15 text-green-400',
-  PUT: 'bg-amber-500/15 text-amber-400',
-  PATCH: 'bg-amber-500/15 text-amber-400',
-  DELETE: 'bg-red-500/15 text-red-400',
+  GET: 'bg-info/15 text-info',
+  POST: 'bg-success/15 text-success',
+  PUT: 'bg-warning/15 text-warning',
+  PATCH: 'bg-warning/15 text-warning',
+  DELETE: 'bg-danger/15 text-danger',
 }
 
 function getMethodClasses(method: string): string {
@@ -290,7 +290,7 @@ onMounted(() => {
             </div>
             <div v-if="diffCount > 0" class="flex items-center gap-2 shrink-0 ml-4">
               <span
-                class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium"
+                class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-warning/15 text-warning font-medium"
               >
                 {{ diffCount }} diff{{ diffCount > 1 ? 's' : '' }} found
               </span>

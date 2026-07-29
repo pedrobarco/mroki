@@ -93,11 +93,11 @@ function handleRequestClick(requestId: string) {
 }
 
 const methodColors: Record<string, string> = {
-  GET: 'bg-blue-500/15 text-blue-400',
-  POST: 'bg-green-500/15 text-green-400',
-  PUT: 'bg-amber-500/15 text-amber-400',
-  PATCH: 'bg-amber-500/15 text-amber-400',
-  DELETE: 'bg-red-500/15 text-red-400',
+  GET: 'bg-info/15 text-info',
+  POST: 'bg-success/15 text-success',
+  PUT: 'bg-warning/15 text-warning',
+  PATCH: 'bg-warning/15 text-warning',
+  DELETE: 'bg-danger/15 text-danger',
 }
 
 function getMethodClasses(method: string): string {
@@ -238,14 +238,14 @@ onMounted(() => {
               <!-- Diff badge -->
               <span
                 v-if="request.has_diff"
-                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-400"
+                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-danger/10 text-danger"
               >
-                <span class="w-1 h-1 rounded-full bg-red-400" />
+                <span class="w-1 h-1 rounded-full bg-danger" />
                 Diff
               </span>
               <span
                 v-else
-                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400"
+                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success/10 text-success"
               >
                 No diff
               </span>

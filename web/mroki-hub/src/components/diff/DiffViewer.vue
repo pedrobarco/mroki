@@ -194,19 +194,19 @@ const patchFilters = computed(() => [
     key: 'add' as const,
     label: 'Added',
     n: patchCounts.value.add,
-    active: 'bg-green-500/15 text-green-400',
+    active: 'bg-success/15 text-success',
   },
   {
     key: 'remove' as const,
     label: 'Removed',
     n: patchCounts.value.remove,
-    active: 'bg-red-500/15 text-red-400',
+    active: 'bg-danger/15 text-danger',
   },
   {
     key: 'replace' as const,
     label: 'Replaced',
     n: patchCounts.value.replace,
-    active: 'bg-amber-500/15 text-amber-400',
+    active: 'bg-warning/15 text-warning',
   },
 ])
 
@@ -232,22 +232,22 @@ function opMeta(op: PatchRow['op']): OpMeta {
       return {
         sign: '+',
         abbr: 'ADD',
-        badge: 'bg-green-500/15 text-green-400',
-        rowHover: 'hover:bg-green-500/5',
+        badge: 'bg-success/15 text-success',
+        rowHover: 'hover:bg-success/5',
       }
     case 'remove':
       return {
         sign: '−',
         abbr: 'REM',
-        badge: 'bg-red-500/15 text-red-400',
-        rowHover: 'hover:bg-red-500/5',
+        badge: 'bg-danger/15 text-danger',
+        rowHover: 'hover:bg-danger/5',
       }
     default:
       return {
         sign: '~',
         abbr: 'REP',
-        badge: 'bg-amber-500/15 text-amber-400',
-        rowHover: 'hover:bg-amber-500/5',
+        badge: 'bg-warning/15 text-warning',
+        rowHover: 'hover:bg-warning/5',
       }
   }
 }
@@ -256,13 +256,13 @@ function opMeta(op: PatchRow['op']): OpMeta {
 function lineBg(line: DiffLine): string {
   switch (line.type) {
     case 'added':
-      return 'bg-green-500/10'
+      return 'bg-success/10'
     case 'removed':
-      return 'bg-red-500/10'
+      return 'bg-danger/10'
     case 'replaced-old':
-      return 'bg-amber-500/10'
+      return 'bg-warning/10'
     case 'replaced-new':
-      return 'bg-amber-500/10'
+      return 'bg-warning/10'
     default:
       return ''
   }
@@ -283,12 +283,12 @@ function gutterChar(line: DiffLine): string {
 function gutterClass(line: DiffLine): string {
   switch (line.type) {
     case 'added':
-      return 'text-green-400'
+      return 'text-success'
     case 'removed':
-      return 'text-red-400'
+      return 'text-danger'
     case 'replaced-old':
     case 'replaced-new':
-      return 'text-amber-400'
+      return 'text-warning'
     default:
       return 'text-transparent'
   }
@@ -321,28 +321,25 @@ function tokenClass(token: Token): string {
           </span>
           <span
             v-if="diffCount > 0"
-            class="text-xs px-2 py-0.5 rounded-md font-mono bg-amber-500/15 text-amber-400"
+            class="text-xs px-2 py-0.5 rounded-md font-mono bg-warning/15 text-warning"
           >
             {{ diffCount }} change{{ diffCount > 1 ? 's' : '' }}
           </span>
-          <span
-            v-else
-            class="text-xs px-2 py-0.5 rounded-md font-mono bg-green-500/15 text-green-400"
-          >
+          <span v-else class="text-xs px-2 py-0.5 rounded-md font-mono bg-success/15 text-success">
             identical
           </span>
         </div>
         <div class="flex items-center gap-3 text-xs">
           <div class="flex items-center gap-1.5 text-dim">
-            <span class="w-2.5 h-2.5 rounded-sm bg-red-500/10 border border-red-500/30" />
+            <span class="w-2.5 h-2.5 rounded-sm bg-danger/10 border border-danger/30" />
             Removed
           </div>
           <div class="flex items-center gap-1.5 text-dim">
-            <span class="w-2.5 h-2.5 rounded-sm bg-green-500/10 border border-green-500/30" />
+            <span class="w-2.5 h-2.5 rounded-sm bg-success/10 border border-success/30" />
             Added
           </div>
           <div class="flex items-center gap-1.5 text-dim">
-            <span class="w-2.5 h-2.5 rounded-sm bg-amber-500/10 border border-amber-500/30" />
+            <span class="w-2.5 h-2.5 rounded-sm bg-warning/10 border border-warning/30" />
             Changed
           </div>
           <!-- Wrap toggle -->
@@ -713,19 +710,19 @@ function tokenClass(token: Token): string {
                 class="grid gap-2 mt-2 sm:grid-cols-2"
               >
                 <div v-if="row.hasOld">
-                  <div class="text-[10px] uppercase tracking-widest text-red-400/70 mb-1">
+                  <div class="text-[10px] uppercase tracking-widest text-danger/70 mb-1">
                     live · old
                   </div>
                   <pre
-                    class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words bg-red-500/5 border border-red-500/20 rounded-md px-3 py-2 m-0"
+                    class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words bg-danger/5 border border-danger/20 rounded-md px-3 py-2 m-0"
                   ><span v-for="(t, ti) in tokenizeJson(row.oldValue, true)" :key="ti" :class="tokenClass(t)">{{ t.text }}</span></pre>
                 </div>
                 <div v-if="row.hasNew">
-                  <div class="text-[10px] uppercase tracking-widest text-green-400/70 mb-1">
+                  <div class="text-[10px] uppercase tracking-widest text-success/70 mb-1">
                     shadow · new
                   </div>
                   <pre
-                    class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words bg-green-500/5 border border-green-500/20 rounded-md px-3 py-2 m-0"
+                    class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words bg-success/5 border border-success/20 rounded-md px-3 py-2 m-0"
                   ><span v-for="(t, ti) in tokenizeJson(row.newValue, true)" :key="ti" :class="tokenClass(t)">{{ t.text }}</span></pre>
                 </div>
               </div>
@@ -737,9 +734,9 @@ function tokenClass(token: Token): string {
         <div v-else class="flex flex-col items-center justify-center text-center py-14 px-6">
           <template v-if="patchRows.length === 0">
             <div
-              class="w-10 h-10 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mb-3"
+              class="w-10 h-10 rounded-full bg-success/10 border border-success/30 flex items-center justify-center mb-3"
             >
-              <Check class="size-[18px] text-green-400" />
+              <Check class="size-[18px] text-success" />
             </div>
             <div class="text-[13px] font-medium text-muted-foreground">No differences</div>
             <div class="text-xs text-dim mt-1">
