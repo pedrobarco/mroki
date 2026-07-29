@@ -28,7 +28,9 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=builder /app/mroki-proxy .
 
-# Skip .env file loading in container
+# Skip .env file loading in container. APP_ENV=production also derives the
+# default logging level/format (info/json) unless overridden via
+# MROKI_APP_LOG_LEVEL / MROKI_APP_LOG_FORMAT.
 ENV APP_ENV=production
 
 # Run as a non-root user

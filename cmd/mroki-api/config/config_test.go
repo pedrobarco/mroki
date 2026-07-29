@@ -200,6 +200,69 @@ func TestValidate_multiple_errors(t *testing.T) {
 	assert.Contains(t, err.Error(), "cleanup_interval must be positive")
 }
 
+func TestValidate_log_settings(t *testing.T) {
+	t.Run("valid level and format", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.LogLevel = "debug"
+		cfg.App.LogFormat = "json"
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("empty is valid", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.LogLevel = ""
+		cfg.App.LogFormat = ""
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("invalid level", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.LogLevel = "verbose"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "log_level must be one of debug, info, warn, error")
+	})
+
+	t.Run("invalid format", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.LogFormat = "xml"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "log_format must be one of json, text")
+	})
+}
+
+func TestEffectiveLogSettings(t *testing.T) {
+	t.Run("development derives debug/text", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.AppEnv = "development"
+		assert.Equal(t, "debug", cfg.EffectiveLogLevel())
+		assert.Equal(t, "text", cfg.EffectiveLogFormat())
+	})
+
+	t.Run("production derives info/json", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.AppEnv = "production"
+		assert.Equal(t, "info", cfg.EffectiveLogLevel())
+		assert.Equal(t, "json", cfg.EffectiveLogFormat())
+	})
+
+	t.Run("empty APP_ENV falls back to development defaults", func(t *testing.T) {
+		cfg := validConfig()
+		assert.Equal(t, "debug", cfg.EffectiveLogLevel())
+		assert.Equal(t, "text", cfg.EffectiveLogFormat())
+	})
+
+	t.Run("explicit values override APP_ENV", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.AppEnv = "production"
+		cfg.App.LogLevel = "warn"
+		cfg.App.LogFormat = "text"
+		assert.Equal(t, "warn", cfg.EffectiveLogLevel())
+		assert.Equal(t, "text", cfg.EffectiveLogFormat())
+	})
+}
+
 func TestParseCORSOrigins(t *testing.T) {
 	cfg := validConfig()
 	cfg.App.CORSOrigins = ""

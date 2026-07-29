@@ -5,6 +5,24 @@ import (
 	"strings"
 )
 
+// validLogLevels and validLogFormats enumerate the accepted logging values.
+var (
+	validLogLevels  = map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+	validLogFormats = map[string]bool{"json": true, "text": true}
+)
+
+// ValidateLogSettings appends error-severity findings for unrecognised log
+// level or format values. Empty values are treated as valid so that the env
+// defaults apply.
+func ValidateLogSettings(verr *ValidationError, level, format string) {
+	if level != "" && !validLogLevels[strings.ToLower(strings.TrimSpace(level))] {
+		verr.Add(SeverityError, fmt.Sprintf("log_level must be one of debug, info, warn, error, got %q", level))
+	}
+	if format != "" && !validLogFormats[strings.ToLower(strings.TrimSpace(format))] {
+		verr.Add(SeverityError, fmt.Sprintf("log_format must be one of json, text, got %q", format))
+	}
+}
+
 // Severity indicates whether a validation finding is a hard error or a warning.
 type Severity int
 

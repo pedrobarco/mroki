@@ -26,7 +26,6 @@ import (
 )
 
 func main() {
-	slog.SetLogLoggerLevel(slog.LevelDebug)
 	log := logger.New()
 
 	cfg, err := config.Load()
@@ -34,17 +33,21 @@ func main() {
 		var verr *config.ValidationError
 		if errors.As(err, &verr) {
 			for _, w := range verr.Warnings() {
-				log.Warn("Configuration warning", "detail", w.Message)
+				log.Warn("configuration warning", "detail", w.Message)
 			}
 			if verr.HasErrors() {
-				log.Error("Configuration validation failed", "error", verr.Error())
+				log.Error("configuration validation failed", "error", verr.Error())
 				os.Exit(1)
 			}
 		} else {
-			log.Error("Configuration loading failed", "error", err)
+			log.Error("configuration loading failed", slog.String("error", err.Error()))
 			os.Exit(1)
 		}
 	}
+
+	// Reconfigure the logger now that validated settings are available. The
+	// effective level/format are derived from APP_ENV when not set explicitly.
+	log = logger.Configure(cfg.EffectiveLogLevel(), cfg.EffectiveLogFormat())
 
 	// Metrics platform: newProxyMetrics builds an isolated registry with the
 	// runtime/process collectors and an OTel MeterProvider bridged onto it, plus
@@ -54,11 +57,11 @@ func main() {
 	// nil so every instrumentation seam is a no-op and no endpoint is mounted.
 	metricsPlatform, recorder, err := newProxyMetrics(cfg.App.MetricsEnabled)
 	if err != nil {
-		log.Error("Failed to initialize metrics", "error", err)
+		log.Error("failed to initialize metrics", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	if metricsPlatform != nil {
-		log.Info("Metrics enabled", "endpoint", "/metrics", "port", cfg.App.AdminPort)
+		log.Info("metrics enabled", "endpoint", "/metrics", "port", cfg.App.AdminPort)
 	}
 
 	// Determine mode and configure URLs
@@ -67,7 +70,7 @@ func main() {
 
 	if cfg.App.APIURL != nil && cfg.App.GateID != "" && cfg.App.APIKey != "" {
 		// API Mode: Fetch gate configuration from API
-		log.Info("Starting in API mode",
+		log.Info("starting in API mode",
 			"api_url", cfg.App.APIURL.String(),
 			"gate_id", cfg.App.GateID,
 		)
@@ -101,24 +104,24 @@ func main() {
 		gate, err := apiClient.GetGate(ctx)
 		cancel()
 		if err != nil {
-			log.Error("Failed to fetch gate configuration", "error", err)
+			log.Error("failed to fetch gate configuration", slog.String("error", err.Error()))
 			return
 		}
 
 		// Parse gate URLs
 		liveURL, err = url.Parse(gate.LiveURL)
 		if err != nil {
-			log.Error("Invalid live URL received from API", "error", err, "url", gate.LiveURL)
+			log.Error("invalid live URL received from API", slog.String("error", err.Error()), slog.String("url", gate.LiveURL))
 			return
 		}
 
 		shadowURL, err = url.Parse(gate.ShadowURL)
 		if err != nil {
-			log.Error("Invalid shadow URL received from API", "error", err, "url", gate.ShadowURL)
+			log.Error("invalid shadow URL received from API", slog.String("error", err.Error()), slog.String("url", gate.ShadowURL))
 			return
 		}
 
-		log.Info("Gate configuration loaded",
+		log.Info("gate configuration loaded",
 			"gate_id", gate.ID,
 			"live_url", liveURL.String(),
 			"shadow_url", shadowURL.String(),
@@ -126,12 +129,12 @@ func main() {
 
 	} else {
 		// Standalone Mode: Use URLs from .env
-		log.Info("Starting in standalone mode")
+		log.Info("starting in standalone mode")
 
 		liveURL = cfg.App.LiveURL
 		shadowURL = cfg.App.ShadowURL
 
-		log.Debug("Using URLs from environment",
+		log.Debug("using URLs from environment",
 			"live_url", liveURL.String(),
 			"shadow_url", shadowURL.String(),
 		)
@@ -164,7 +167,7 @@ func main() {
 	// Build redactor from config (adds to default redacted list)
 	redactedFieldsCfg, err := traffictesting.NewRedactedFields(cfg.App.RedactedFields)
 	if err != nil {
-		log.Error("Invalid REDACTED_FIELDS configuration", "error", err)
+		log.Error("invalid REDACTED_FIELDS configuration", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	redactor := traffictesting.NewRedactor(redactedFieldsCfg.AllFields())
@@ -174,7 +177,7 @@ func main() {
 		diffOpts = append(diffOpts, diff.WithIgnoredFields(f))
 	}
 
-	log.Debug("Diff options configured",
+	log.Debug("diff options configured",
 		"ignored_fields", cfg.App.DiffIgnoredFields,
 		"included_fields", cfg.App.DiffIncludedFields,
 		"float_tolerance", cfg.App.DiffFloatTolerance,
@@ -188,14 +191,14 @@ func main() {
 	if cfg.App.ShadowRules != "" {
 		userShadowRules, err = proxy.ParseShadowRules(cfg.App.ShadowRules)
 		if err != nil {
-			log.Error("Invalid SHADOW_RULES configuration", "error", err)
+			log.Error("invalid SHADOW_RULES configuration", slog.String("error", err.Error()))
 			os.Exit(1)
 		}
-		log.Info("Custom shadow rules configured", slog.Int("count", len(userShadowRules)))
+		log.Info("custom shadow rules configured", slog.Int("count", len(userShadowRules)))
 	}
 	baseShadowRules := proxy.BaseShadowRules()
 	shadowRules := append(userShadowRules, baseShadowRules...)
-	log.Info("Shadow rules active",
+	log.Info("shadow rules active",
 		slog.Int("user_rules", len(userShadowRules)),
 		slog.Int("base_rules", len(baseShadowRules)),
 	)
@@ -206,7 +209,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("invalid sampling rate: %w", err))
 	}
-	log.Info("Sampling rate configured", slog.Float64("rate", cfg.App.SamplingRate))
+	log.Info("sampling rate configured", slog.Float64("rate", cfg.App.SamplingRate))
 
 	// instrumentUpstream wraps the outbound live/shadow client transport with
 	// client-side otelhttp, resolving the mroki.target attribute per request via
@@ -292,7 +295,7 @@ func main() {
 	serverErrors := make(chan error, 2)
 
 	go func() {
-		log.Info("Admin server started", "address", adminServer.Addr)
+		log.Info("admin server started", "address", adminServer.Addr)
 		if err := adminServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErrors <- fmt.Errorf("admin server: %w", err)
 		}
@@ -300,7 +303,7 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		log.Info("Proxy server started",
+		log.Info("proxy server started",
 			"address", server.Addr,
 			"mode", getModeString(apiClient),
 		)
@@ -318,10 +321,10 @@ func main() {
 
 	select {
 	case err := <-serverErrors:
-		log.Error("Server failed to start", "error", err)
+		log.Error("server failed to start", slog.String("error", err.Error()))
 		return
 	case sig := <-stop:
-		log.Info("Shutting down server", "signal", sig.String())
+		log.Info("shutting down server", "signal", sig.String())
 	}
 
 	// Stop reporting ready so readiness probes drain this pod before the
@@ -333,20 +336,20 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Error("Error during shutdown", "error", err)
+		log.Error("error during shutdown", slog.String("error", err.Error()))
 	} else {
-		log.Info("Server stopped")
+		log.Info("server stopped")
 	}
 
 	if err := adminServer.Shutdown(shutdownCtx); err != nil {
-		log.Error("Error during admin server shutdown", "error", err)
+		log.Error("error during admin server shutdown", slog.String("error", err.Error()))
 	} else {
-		log.Info("Admin server stopped")
+		log.Info("admin server stopped")
 	}
 
 	// Flush and release the metrics MeterProvider (no-op when disabled).
 	if err := metricsPlatform.Shutdown(shutdownCtx); err != nil {
-		log.Error("Error shutting down metrics", "error", err)
+		log.Error("error shutting down metrics", slog.String("error", err.Error()))
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,30 +27,34 @@ import (
 	"github.com/pedrobarco/mroki/internal/interfaces/http/middleware"
 	diffmetrics "github.com/pedrobarco/mroki/pkg/diff/metrics"
 	"github.com/pedrobarco/mroki/pkg/dto"
-	"github.com/pedrobarco/mroki/pkg/logger"
+	applog "github.com/pedrobarco/mroki/pkg/logger"
 	"github.com/pedrobarco/mroki/pkg/metrics"
 	"github.com/pedrobarco/mroki/pkg/ratelimit"
 )
 
 func main() {
-	logger := logger.New()
+	logger := applog.New()
 
 	cfg, err := config.Load()
 	if err != nil {
 		var verr *config.ValidationError
 		if errors.As(err, &verr) {
 			for _, w := range verr.Warnings() {
-				logger.Warn("Configuration warning", "detail", w.Message)
+				logger.Warn("configuration warning", "detail", w.Message)
 			}
 			if verr.HasErrors() {
-				logger.Error("Configuration validation failed", "error", verr.Error())
+				logger.Error("configuration validation failed", "error", verr.Error())
 				os.Exit(1)
 			}
 		} else {
-			logger.Error("Configuration loading failed", "error", err)
+			logger.Error("configuration loading failed", slog.String("error", err.Error()))
 			os.Exit(1)
 		}
 	}
+
+	// Reconfigure the logger now that validated settings are available. The
+	// effective level/format are derived from APP_ENV when not set explicitly.
+	logger = applog.Configure(cfg.EffectiveLogLevel(), cfg.EffectiveLogFormat())
 
 	// Parse pool configuration timeouts (safe after validation)
 	maxConnIdleDuration, _ := time.ParseDuration(cfg.App.Database.MaxConnIdle)
@@ -73,7 +78,7 @@ func main() {
 	defer func() {
 		if !clientClosed && client != nil {
 			_ = client.Close()
-			logger.Info("Database connection closed (cleanup)")
+			logger.Info("database connection closed (cleanup)")
 		}
 	}()
 
@@ -134,7 +139,7 @@ func main() {
 	rateLimiter := ratelimit.NewLimiter(cfg.App.RateLimit)
 	defer func() {
 		if err := rateLimiter.Stop(); err != nil {
-			logger.Error("Failed to stop rate limiter", "error", err)
+			logger.Error("failed to stop rate limiter", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -153,7 +158,7 @@ func main() {
 	// mounted.
 	metricsPlatform, recorder, err := newAPIMetrics(cfg.App.MetricsEnabled, db)
 	if err != nil {
-		logger.Error("Failed to initialize metrics", "error", err)
+		logger.Error("failed to initialize metrics", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	if recorder != nil {
@@ -161,7 +166,7 @@ func main() {
 		// recorded by the aggregate are translated into the shared business
 		// metrics after each persisted comparison.
 		eventBus.Subscribe(traffictesting.EventRequestCompared, newComparisonMetricsListener(recorder))
-		logger.Info("Metrics enabled", "endpoint", "/metrics")
+		logger.Info("metrics enabled", "endpoint", "/metrics")
 	}
 
 	// instrument wraps each API route with server-side otelhttp instrumentation so
@@ -258,7 +263,7 @@ func main() {
 	// Start server in goroutine
 	serverErrors := make(chan error, 1)
 	go func() {
-		logger.Info("Starting server", "address", server.Addr)
+		logger.Info("starting server", "address", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErrors <- err
 		}
@@ -270,10 +275,10 @@ func main() {
 
 	select {
 	case err := <-serverErrors:
-		logger.Error("Server failed to start", "error", err)
+		logger.Error("server failed to start", slog.String("error", err.Error()))
 		return
 	case sig := <-stop:
-		logger.Info("Shutting down server", "signal", sig.String())
+		logger.Info("shutting down server", "signal", sig.String())
 	}
 
 	// Graceful shutdown with timeout
@@ -281,21 +286,21 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		logger.Error("Error during shutdown", "error", err)
+		logger.Error("error during shutdown", slog.String("error", err.Error()))
 	} else {
-		logger.Info("Server stopped")
+		logger.Info("server stopped")
 	}
 
 	// Flush and release the metrics MeterProvider (no-op when disabled).
 	if err := metricsPlatform.Shutdown(shutdownCtx); err != nil {
-		logger.Error("Error shutting down metrics", "error", err)
+		logger.Error("error shutting down metrics", slog.String("error", err.Error()))
 	}
 
 	// Close database connection
 	if client != nil {
 		_ = client.Close()
 		clientClosed = true
-		logger.Info("Database connection closed")
+		logger.Info("database connection closed")
 	}
 }
 
