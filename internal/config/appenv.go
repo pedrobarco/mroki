@@ -40,3 +40,10 @@ func (e AppEnv) EffectiveLogFormat(explicit string) string {
 	}
 	return "text"
 }
+
+// IsValid reports whether the environment is one of the recognised values
+// (development or production). An empty value is not valid; the config loader
+// resolves an unset APP_ENV to development before validation runs.
+func (e AppEnv) IsValid() bool {
+	return e == appEnvDevelopment || e == appEnvProduction
+}

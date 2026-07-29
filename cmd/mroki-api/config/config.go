@@ -158,6 +158,9 @@ func (c Config) Validate() error {
 	// Validate logging settings
 	config.ValidateLogSettings(verr, c.App.LogLevel, c.App.LogFormat)
 
+	// Validate application environment
+	config.ValidateAppEnv(verr, c.AppEnv)
+
 	if verr.HasEntries() {
 		return verr
 	}

@@ -28,6 +28,7 @@ This is the single source of truth for all mroki configuration. Each component i
 | `MROKI_APP_WRITE_TIMEOUT` | No | `30s` | Server write timeout (must be ≥ read timeout) |
 | `MROKI_APP_IDLE_TIMEOUT` | No | `60s` | Server idle timeout (must be ≥ write timeout) |
 | `MROKI_APP_METRICS_ENABLED` | No | `true` | Expose Prometheus metrics at `GET /metrics` on the API port (unauthenticated, like the health endpoints) |
+| `MROKI_APP_APP_ENV` | No | `development` | Application environment: `development` or `production`. Drives the `MROKI_APP_LOG_LEVEL`/`MROKI_APP_LOG_FORMAT` defaults below. Any other non-empty value (e.g. a typo like `prod`) is rejected at startup |
 | `MROKI_APP_LOG_LEVEL` | No | _(derived from `APP_ENV`)_ | Minimum log level: `debug`, `info`, `warn`, or `error`. Defaults to `debug` when `APP_ENV=development` and `info` when `APP_ENV=production` |
 | `MROKI_APP_LOG_FORMAT` | No | _(derived from `APP_ENV`)_ | Log output format: `text` or `json`. Defaults to `text` when `APP_ENV=development` and `json` when `APP_ENV=production` |
 | `MROKI_APP_DATABASE_MAX_CONNS` | No | `25` | Connection pool max connections |
@@ -59,6 +60,7 @@ The proxy supports two mutually exclusive operating modes: **API mode** and **St
 | `MROKI_APP_WRITE_TIMEOUT` | No | `60s` | Server write timeout (must be ≥ live timeout) |
 | `MROKI_APP_IDLE_TIMEOUT` | No | `120s` | Server idle timeout |
 | `MROKI_APP_METRICS_ENABLED` | No | `true` | Expose Prometheus metrics at `GET /metrics` on the admin port (`MROKI_APP_ADMIN_PORT`), isolated from proxied traffic |
+| `MROKI_APP_APP_ENV` | No | `development` | Application environment: `development` or `production`. Drives the `MROKI_APP_LOG_LEVEL`/`MROKI_APP_LOG_FORMAT` defaults below. Any other non-empty value (e.g. a typo like `prod`) is rejected at startup |
 | `MROKI_APP_LOG_LEVEL` | No | _(derived from `APP_ENV`)_ | Minimum log level: `debug`, `info`, `warn`, or `error`. Defaults to `debug` when `APP_ENV=development` and `info` when `APP_ENV=production` |
 | `MROKI_APP_LOG_FORMAT` | No | _(derived from `APP_ENV`)_ | Log output format: `text` or `json`. Defaults to `text` when `APP_ENV=development` and `json` when `APP_ENV=production` |
 | `MROKI_APP_HTTP_CLIENT_MAX_IDLE_CONNS` | No | `100` | Outbound idle connection pool size across all hosts (`0` = unlimited) |

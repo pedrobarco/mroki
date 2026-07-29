@@ -249,6 +249,9 @@ func (c Config) Validate() error {
 	// Validate logging settings
 	config.ValidateLogSettings(verr, c.App.LogLevel, c.App.LogFormat)
 
+	// Validate application environment
+	config.ValidateAppEnv(verr, c.AppEnv)
+
 	// --- Warnings (non-fatal) ---
 
 	// tlsHandshakeTimeout is the hardcoded TLS handshake safety net used in

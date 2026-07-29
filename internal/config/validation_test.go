@@ -157,3 +157,36 @@ func TestValidationError_Error_multiple_errors(t *testing.T) {
 		t.Errorf("Error() should not include warnings, got: %s", result)
 	}
 }
+
+func TestValidateAppEnv(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     AppEnv
+		wantErr bool
+	}{
+		{name: "development is valid", env: appEnvDevelopment},
+		{name: "production is valid", env: appEnvProduction},
+		{name: "empty is valid", env: AppEnv("")},
+		{name: "unknown value is an error", env: AppEnv("staging"), wantErr: true},
+		{name: "typo is an error", env: AppEnv("prod"), wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			verr := &ValidationError{}
+			ValidateAppEnv(verr, tt.env)
+			if tt.wantErr {
+				if !verr.HasErrors() {
+					t.Errorf("env=%q: expected an error finding, got none", tt.env)
+				}
+				if !strings.Contains(verr.Error(), "APP_ENV must be one of development, production") {
+					t.Errorf("env=%q: unexpected message: %s", tt.env, verr.Error())
+				}
+				return
+			}
+			if verr.HasEntries() {
+				t.Errorf("env=%q: expected no findings, got: %s", tt.env, verr.Error())
+			}
+		})
+	}
+}
