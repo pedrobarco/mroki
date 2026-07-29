@@ -3,7 +3,6 @@ package ent
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -230,7 +229,8 @@ func (r *requestRepository) DeleteOlderThan(ctx context.Context, olderThan time.
 		return 0, fmt.Errorf("failed to delete expired requests: %w", err)
 	}
 
-	slog.Info("deleted expired requests", "count", count)
+	// The cleanup job logs the deleted count with request correlation via its
+	// injected logger, so the repository stays silent to avoid duplicate logs.
 	return int64(count), nil
 }
 

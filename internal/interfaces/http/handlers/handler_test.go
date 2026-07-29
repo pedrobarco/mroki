@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -136,6 +138,47 @@ func TestAppHandler_ServeHTTP_NilError(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+}
+
+func TestAppHandler_ServeHTTP_LogLevel(t *testing.T) {
+	tests := []struct {
+		name      string
+		err       error
+		wantLevel string
+	}{
+		{
+			name:      "client error logs at warn",
+			err:       dto.NewError(http.StatusBadRequest, dto.ErrorTypeInvalidRequestBody, "Invalid Request Body", "bad", errors.New("boom")),
+			wantLevel: "level=WARN",
+		},
+		{
+			name:      "server error logs at error",
+			err:       errors.New("boom"),
+			wantLevel: "level=ERROR",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			prev := slog.Default()
+			slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+			t.Cleanup(func() { slog.SetDefault(prev) })
+
+			handler := AppHandler(func(w http.ResponseWriter, r *http.Request) error {
+				return tt.err
+			})
+			handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/test", nil))
+
+			out := buf.String()
+			if !strings.Contains(out, tt.wantLevel) {
+				t.Errorf("expected log to contain %q, got %q", tt.wantLevel, out)
+			}
+			if !strings.Contains(out, "API error") {
+				t.Errorf("expected log to contain %q, got %q", "API error", out)
+			}
+		})
 	}
 }
 

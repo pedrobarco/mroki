@@ -214,7 +214,9 @@ func (p *Proxy) shouldProxyToShadow(r *http.Request) bool {
 	// All checks must pass (AND logic)
 	for _, check := range p.checks {
 		if !check(r) {
-			p.logger.Info("skipping shadow proxy",
+			// A skipped shadow is routine per-request sampling behaviour, not
+			// something an operator needs to see at info level.
+			p.logger.Debug("skipping shadow proxy",
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
 				slog.Int64("content_length", r.ContentLength),
@@ -416,7 +418,9 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		select {
 		case shadowResp := <-shadowCh:
 			if shadowResp.err != nil {
-				reqLogger.Error("shadow request error", slog.String("error", shadowResp.err.Error()))
+				// Shadow is best-effort and never affects live traffic, so a
+				// failed shadow request is a warning, not an error.
+				reqLogger.Warn("shadow request error", slog.String("error", shadowResp.err.Error()))
 				return
 			}
 
@@ -448,8 +452,9 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case <-shadowCtx.Done():
-			// Shadow request timed out or was cancelled
-			reqLogger.Error("shadow request timeout", slog.Duration("timeout", p.shadowTimeout))
+			// Shadow request timed out or was cancelled. Best-effort only, so
+			// this is a warning rather than an error.
+			reqLogger.Warn("shadow request timeout", slog.Duration("timeout", p.shadowTimeout))
 		}
 	}(liveResp.body)
 }
@@ -507,6 +512,10 @@ func rewriteRequestURL(original *http.Request, target *url.URL) *url.URL {
 	return &newURL
 }
 
+// defaultCallbackFn is the fallback callback used by NewProxy when none is
+// supplied. It is a test/default only: every real deployment (API, standalone
+// proxy, and Caddy module) overrides it via WithCallbackFn, so the per-request
+// Info log below never fires in production.
 func defaultCallbackFn() CallbackFunc {
 	logger := slog.Default()
 
