@@ -38,8 +38,13 @@ const isActive = computed(() => props.gate.stats.last_active !== null)
 
 <template>
   <div
-    class="block bg-card border border-border rounded-xl p-5 cursor-pointer transition-colors hover:border-ring hover:bg-accent"
+    role="button"
+    tabindex="0"
+    :aria-label="`View gate ${gateName}`"
+    class="block bg-card border border-border rounded-xl p-5 cursor-pointer transition-colors hover:border-ring hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     @click="handleClick"
+    @keydown.enter.prevent="handleClick"
+    @keydown.space.prevent="handleClick"
   >
     <!-- Top row: name + ID + status + last active -->
     <div class="flex items-start justify-between mb-4">

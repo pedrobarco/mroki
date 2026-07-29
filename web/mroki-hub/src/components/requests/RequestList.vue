@@ -180,8 +180,13 @@ onMounted(() => {
           <div
             v-for="request in requests"
             :key="request.id"
-            class="flex items-center px-5 py-3.5 cursor-pointer transition-colors hover:bg-accent"
+            role="button"
+            tabindex="0"
+            :aria-label="`View request ${request.method} ${request.path}`"
+            class="flex items-center px-5 py-3.5 cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             @click="handleRequestClick(request.id)"
+            @keydown.enter.prevent="handleRequestClick(request.id)"
+            @keydown.space.prevent="handleRequestClick(request.id)"
           >
             <div class="flex items-center gap-3 flex-1 min-w-0">
               <span

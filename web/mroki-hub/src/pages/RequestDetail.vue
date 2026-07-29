@@ -176,13 +176,14 @@ onMounted(() => {
   <div class="max-w-6xl mx-auto px-6 py-6">
     <!-- Back link + breadcrumb -->
     <div class="flex items-center gap-2 mb-5">
-      <a
-        class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+      <button
+        type="button"
+        class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         @click="goBack"
       >
         <ChevronLeft class="h-3.5 w-3.5" />
         Back to Gate
-      </a>
+      </button>
       <span class="text-dim text-xs">·</span>
       <span class="text-xs font-mono text-dim">{{ gateName ?? '...' }}</span>
       <span class="text-dim text-xs">·</span>
