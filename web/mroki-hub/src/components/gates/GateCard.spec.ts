@@ -57,3 +57,24 @@ describe('GateCard keyboard operability', () => {
     expect(push).toHaveBeenCalledWith('/gates/gate-3')
   })
 })
+
+describe('GateCard diff-rate color', () => {
+  function rateClasses(diff_rate: number): string[] {
+    const stats = { ...makeGate().stats, diff_rate }
+    const wrapper = mount(GateCard, { props: { gate: makeGate({ stats }) } })
+    const rateSpan = wrapper.findAll('span').find((s) => s.text().endsWith('%'))
+    return rateSpan?.classes() ?? []
+  }
+
+  it('reads as success below 1%', () => {
+    expect(rateClasses(0.4)).toContain('text-success')
+  })
+
+  it('reads as warning between 1% and 10%', () => {
+    expect(rateClasses(5)).toContain('text-warning')
+  })
+
+  it('reads as danger at or above 10%', () => {
+    expect(rateClasses(25)).toContain('text-danger')
+  })
+})

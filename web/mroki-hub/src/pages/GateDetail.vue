@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getGate } from '@/api'
 import type { Gate } from '@/api'
 import { useGateCache } from '@/composables/use-gate-cache'
+import { diffRateColorClass } from '@/lib/utils'
 import RequestList from '@/components/requests/RequestList.vue'
 import RequestFilters from '@/components/requests/RequestFilters.vue'
 import type { FilterState } from '@/components/requests/RequestFilters.vue'
@@ -162,7 +163,9 @@ onMounted(() => {
           </div>
           <div>
             <span class="text-dim">Diff rate</span>
-            <span class="text-warning ml-1">{{ gate.stats.diff_rate.toFixed(1) }}%</span>
+            <span class="ml-1" :class="diffRateColorClass(gate.stats.diff_rate)"
+              >{{ gate.stats.diff_rate.toFixed(1) }}%</span
+            >
           </div>
         </div>
       </div>

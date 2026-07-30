@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { truncateId } from '@/lib/utils'
+import { truncateId, diffRateColorClass } from '@/lib/utils'
 import { ChevronRight } from 'lucide-vue-next'
 import type { Gate } from '@/api'
 
@@ -32,6 +32,7 @@ const gateName = computed(() => props.gate.name)
 const requests24h = computed(() => props.gate.stats.request_count_24h.toLocaleString())
 const diffs = computed(() => props.gate.stats.diff_count_24h.toLocaleString())
 const diffRate = computed(() => `${props.gate.stats.diff_rate.toFixed(1)}%`)
+const diffRateColor = computed(() => diffRateColorClass(props.gate.stats.diff_rate))
 const lastActive = computed(() => formatRelativeTime(props.gate.stats.last_active))
 const isActive = computed(() => props.gate.stats.last_active !== null)
 </script>
@@ -119,7 +120,7 @@ const isActive = computed(() => props.gate.stats.last_active !== null)
         </div>
         <div>
           <span class="text-dim">Diff rate</span>
-          <span class="text-warning ml-1">{{ diffRate }}</span>
+          <span class="ml-1" :class="diffRateColor">{{ diffRate }}</span>
         </div>
       </div>
       <ChevronRight class="h-4 w-4 text-dim" />

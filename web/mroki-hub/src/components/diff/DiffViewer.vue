@@ -297,13 +297,13 @@ function gutterClass(line: DiffLine): string {
 // --- Syntax token coloring ---
 function tokenClass(token: Token): string {
   const colorMap: Record<TokenType, string> = {
-    key: 'text-sky-400',
-    string: 'text-violet-400',
-    number: 'text-emerald-400',
-    boolean: 'text-orange-400',
-    null: 'text-pink-400',
-    bracket: 'text-zinc-500',
-    punctuation: 'text-zinc-500',
+    key: 'text-syntax-key',
+    string: 'text-syntax-string',
+    number: 'text-syntax-number',
+    boolean: 'text-syntax-boolean',
+    null: 'text-syntax-null',
+    bracket: 'text-syntax-punctuation',
+    punctuation: 'text-syntax-punctuation',
   }
   return colorMap[token.type]
 }
@@ -499,14 +499,14 @@ function tokenClass(token: Token): string {
             ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(line.indent) }}</span><template
                 v-for="(tok, ti) in line.tokens"
                 :key="ti"
-              ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
+              ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-dim group-hover:text-muted-foreground ml-2 text-[10px]">▸ expand</span></div><div
               v-else-if="isExpandedRoot(line)"
               :class="['px-4 cursor-pointer hover:bg-accent/50 transition-colors group', wrapLines ? '' : 'min-w-fit']"
               @click="handleCollapse(line)"
             ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(line.indent) }}</span><template
                 v-for="(tok, ti) in line.tokens"
                 :key="ti"
-              ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▾ collapse</span></div><div
+              ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-dim group-hover:text-muted-foreground ml-2 text-[10px]">▾ collapse</span></div><div
               v-else
               :class="['px-4', lineBg(line), wrapLines ? '' : 'min-w-fit']"
             ><span
@@ -550,14 +550,14 @@ function tokenClass(token: Token): string {
                 ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.left.indent) }}</span><template
                     v-for="(tok, ti) in row.left.tokens"
                     :key="ti"
-                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
+                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-dim group-hover:text-muted-foreground ml-2 text-[10px]">▸ expand</span></div><div
                   v-else-if="row.left && isExpandedRoot(row.left)"
                   :class="['px-4 cursor-pointer hover:bg-accent/50 transition-colors group', wrapLines ? '' : 'min-w-fit']"
                   @click="handleCollapse(row.left)"
                 ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.left.indent) }}</span><template
                     v-for="(tok, ti) in row.left.tokens"
                     :key="ti"
-                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▾ collapse</span></div><div
+                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-dim group-hover:text-muted-foreground ml-2 text-[10px]">▾ collapse</span></div><div
                   v-else-if="row.left"
                   :class="['px-4', lineBg(row.left), wrapLines ? '' : 'min-w-fit']"
                 ><span
@@ -588,14 +588,14 @@ function tokenClass(token: Token): string {
                 ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.right.indent) }}</span><template
                     v-for="(tok, ti) in row.right.tokens"
                     :key="ti"
-                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▸ expand</span></div><div
+                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-dim group-hover:text-muted-foreground ml-2 text-[10px]">▸ expand</span></div><div
                   v-else-if="row.right && isExpandedRoot(row.right)"
                   :class="['px-4 cursor-pointer hover:bg-accent/50 transition-colors group', wrapLines ? '' : 'min-w-fit']"
                   @click="handleCollapse(row.right)"
                 ><span class="inline-block w-4 mr-2 select-none text-center text-transparent"> </span><span class="whitespace-pre">{{ '  '.repeat(row.right.indent) }}</span><template
                     v-for="(tok, ti) in row.right.tokens"
                     :key="ti"
-                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-zinc-600 group-hover:text-zinc-400 ml-2 text-[10px]">▾ collapse</span></div><div
+                  ><span :class="tokenClass(tok)">{{ tok.text }}</span></template><span class="text-dim group-hover:text-muted-foreground ml-2 text-[10px]">▾ collapse</span></div><div
                   v-else-if="row.right"
                   :class="['px-4', lineBg(row.right), wrapLines ? '' : 'min-w-fit']"
                 ><span
@@ -681,7 +681,7 @@ function tokenClass(token: Token): string {
                 :title="row.valueTitle"
               >
                 <template v-if="row.op === 'replace'"
-                  ><span class="line-through decoration-red-400/50"
+                  ><span class="line-through decoration-danger/50"
                     ><span v-for="(t, ti) in row.oldInline" :key="ti" :class="tokenClass(t)">{{
                       t.text
                     }}</span></span
@@ -696,7 +696,7 @@ function tokenClass(token: Token): string {
                     t.text
                   }}</span></template
                 ><template v-else
-                  ><span class="line-through decoration-red-400/40"
+                  ><span class="line-through decoration-danger/40"
                     ><span v-for="(t, ti) in row.oldInline" :key="ti" :class="tokenClass(t)">{{
                       t.text
                     }}</span></span

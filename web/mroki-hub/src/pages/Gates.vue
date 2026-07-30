@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { getGlobalStats } from '@/api'
 import type { GlobalStats } from '@/api'
+import { diffRateColorClass } from '@/lib/utils'
 import GateList from '@/components/gates/GateList.vue'
 import GateForm from '@/components/gates/GateForm.vue'
 import GateFilters from '@/components/gates/GateFilters.vue'
@@ -29,12 +30,22 @@ const filters = reactive<GateFilterState>({
 const globalStats = ref<GlobalStats | null>(null)
 
 const stats = computed(() => [
-  { label: 'Total gates', value: globalStats.value?.total_gates.toLocaleString() ?? '—' },
-  { label: 'Requests 24h', value: globalStats.value?.total_requests_24h.toLocaleString() ?? '—' },
+  {
+    label: 'Total gates',
+    value: globalStats.value?.total_gates.toLocaleString() ?? '—',
+    color: 'text-foreground',
+  },
+  {
+    label: 'Requests 24h',
+    value: globalStats.value?.total_requests_24h.toLocaleString() ?? '—',
+    color: 'text-foreground',
+  },
   {
     label: 'Diff rate',
     value: globalStats.value ? `${globalStats.value.total_diff_rate.toFixed(1)}%` : '—',
-    highlight: true,
+    color: globalStats.value
+      ? diffRateColorClass(globalStats.value.total_diff_rate)
+      : 'text-foreground',
   },
 ])
 const listKey = ref(0)
@@ -102,10 +113,7 @@ onMounted(() => {
         class="bg-card border border-border rounded-xl px-4 py-3.5"
       >
         <div class="text-xs uppercase tracking-widest text-dim mb-1">{{ stat.label }}</div>
-        <div
-          class="text-lg font-semibold tracking-tight"
-          :class="stat.highlight ? 'text-warning' : 'text-foreground'"
-        >
+        <div class="text-lg font-semibold tracking-tight" :class="stat.color">
           {{ stat.value }}
         </div>
       </div>
