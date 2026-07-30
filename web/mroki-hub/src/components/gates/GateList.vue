@@ -6,12 +6,22 @@ import type { GateFilterState } from './GateFilters.vue'
 import GateCard from './GateCard.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { GitCompareArrows, Plus } from 'lucide-vue-next'
 
 interface Props {
   filters: GateFilterState
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  create: []
+  clearFilters: []
+}>()
+
+// A gate list can be empty for two reasons: the user has no gates yet
+// (first run), or an active URL filter matched nothing.
+const hasActiveFilter = computed(() => Boolean(props.filters.liveUrl || props.filters.shadowUrl))
 
 const gates = ref<Gate[]>([])
 const loading = ref(true)
@@ -100,10 +110,33 @@ onMounted(() => {
       </div>
     </Alert>
 
-    <!-- Empty State -->
-    <div v-else-if="gates.length === 0" class="text-center py-12">
-      <p class="text-muted-foreground">
-        No gates found. Try adjusting your filters or create a new gate.
+    <!-- Empty State: active filter matched nothing -->
+    <div v-else-if="gates.length === 0 && hasActiveFilter" class="text-center py-12">
+      <p class="text-muted-foreground mb-4">No gates match your current filter.</p>
+      <Button variant="outline" size="sm" @click="emit('clearFilters')">Clear filter</Button>
+    </div>
+
+    <!-- Empty State: first run, no gates yet -->
+    <div
+      v-else-if="gates.length === 0"
+      class="flex flex-col items-center text-center px-6 py-16 border border-border rounded-xl bg-card"
+    >
+      <div class="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-primary">
+        <GitCompareArrows class="h-6 w-6" />
+      </div>
+      <h2 class="mt-5 text-base font-semibold tracking-tight text-foreground">
+        Create your first gate
+      </h2>
+      <p class="mt-2 max-w-md text-sm text-muted-foreground">
+        A gate pairs a live service with a shadow service. mroki mirrors your traffic to both and
+        highlights every difference in their JSON responses.
+      </p>
+      <Button class="mt-6 gap-2" @click="emit('create')">
+        <Plus class="h-3.5 w-3.5" />
+        New gate
+      </Button>
+      <p class="mt-4 text-xs text-dim">
+        Once it exists, send traffic through the proxy to see diffs appear here.
       </p>
     </div>
 

@@ -69,6 +69,10 @@ function onFiltersUpdate(newFilters: GateFilterState) {
   Object.assign(filters, newFilters)
 }
 
+function clearFilters() {
+  Object.assign(filters, { liveUrl: '', shadowUrl: '' })
+}
+
 onMounted(() => {
   loadStats()
 })
@@ -125,6 +129,11 @@ onMounted(() => {
     </div>
 
     <!-- Gates List -->
-    <GateList :key="listKey" :filters="filters" />
+    <GateList
+      :key="listKey"
+      :filters="filters"
+      @create="dialogOpen = true"
+      @clear-filters="clearFilters"
+    />
   </div>
 </template>
