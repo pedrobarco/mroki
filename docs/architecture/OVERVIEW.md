@@ -179,6 +179,7 @@ type Gate struct {
     ShadowURL   GateURL     // Shadow service URL (immutable)
     DiffConfig  DiffConfig  // Per-gate diff computation settings
     RedactedFields RedactedFields // Per-gate field redaction (additional fields on top of defaults)
+    Retention   Retention   // Per-gate request retention override (falls back to the global floor)
     CreatedAt   time.Time
 }
 

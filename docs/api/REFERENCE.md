@@ -176,6 +176,38 @@ curl -H "Authorization: Bearer your-api-key" \
 
 ---
 
+### Config
+
+#### GET /config
+
+**Purpose:** Retrieve read-only, server-wide settings the hub needs to render its UI (not tied to any gate)
+
+**Response:**
+- `200 OK` on success
+
+**Success Response Body:**
+```json
+{
+  "data": {
+    "retention": "720h0m0s"
+  }
+}
+```
+
+**Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `retention` | `string` | Global retention floor as a Go duration string (from `MROKI_APP_RETENTION`). Every gate is pruned no sooner than this, and any per-gate override must be at least this value |
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer your-api-key" \
+  http://localhost:8090/config
+```
+
+---
+
 ### Gates
 
 #### POST /gates
@@ -217,6 +249,7 @@ curl -H "Authorization: Bearer your-api-key" \
       "sort_arrays": false
     },
     "redacted_fields": [],
+    "retention": "",
     "created_at": "2026-03-29T09:00:00Z",
     "stats": {
       "request_count_24h": 0,
@@ -302,6 +335,7 @@ curl -X POST http://localhost:8090/gates \
       "sort_arrays": true
     },
     "redacted_fields": ["headers.X-Internal-Token"],
+    "retention": "",
     "created_at": "2026-03-29T09:00:00Z",
     "stats": {
       "request_count_24h": 5241,
@@ -376,6 +410,7 @@ curl -H "Authorization: Bearer your-api-key" \
         "sort_arrays": true
       },
       "redacted_fields": ["headers.X-Internal-Token"],
+      "retention": "168h",
       "created_at": "2026-03-29T09:00:00Z",
       "stats": {
         "request_count_24h": 5241,
@@ -396,6 +431,7 @@ curl -H "Authorization: Bearer your-api-key" \
         "sort_arrays": false
       },
       "redacted_fields": [],
+      "retention": "",
       "created_at": "2026-03-28T14:30:00Z",
       "stats": {
         "request_count_24h": 832,
@@ -441,7 +477,7 @@ curl -H "Authorization: Bearer your-api-key" \
 
 #### PATCH /gates/:gate_id
 
-**Purpose:** Update a gate's name, diff configuration, and/or redacted fields
+**Purpose:** Update a gate's name, diff configuration, redacted fields, and/or retention
 
 **Path Parameters:**
 - `gate_id` (UUID) - Gate identifier
@@ -456,7 +492,8 @@ curl -H "Authorization: Bearer your-api-key" \
     "float_tolerance": 0.001,
     "sort_arrays": true
   },
-  "redacted_fields": ["headers.X-Internal-Token", "headers.X-Session-Id"]
+  "redacted_fields": ["headers.X-Internal-Token", "headers.X-Session-Id"],
+  "retention": "168h"
 }
 ```
 
@@ -467,6 +504,7 @@ curl -H "Authorization: Bearer your-api-key" \
 - `diff_config.float_tolerance` must be non-negative
 - `diff_config.sort_arrays` must be a boolean
 - `redacted_fields` entries must be non-empty strings prefixed with `headers.` (for HTTP headers, e.g. `headers.X-Internal-Token`) or `body.` (for JSON body paths, e.g. `body.user.password`)
+- `retention` (if provided) is a per-gate override: a Go duration string (e.g. `168h`) that must be positive and at least the global `MROKI_APP_RETENTION` floor. Surrounding whitespace is trimmed. The field is tri-state: omitting it leaves the current value unchanged, `null` or an empty string (`""`) resets the gate to the global retention, and a duration string sets a custom value. Retention cannot be disabled per gate
 
 **Response:**
 - `200 OK` on success
@@ -489,6 +527,7 @@ curl -H "Authorization: Bearer your-api-key" \
       "sort_arrays": true
     },
     "redacted_fields": ["headers.X-Internal-Token", "headers.X-Session-Id"],
+    "retention": "168h",
     "created_at": "2026-03-29T09:00:00Z",
     "stats": {
       "request_count_24h": 5241,
@@ -500,7 +539,7 @@ curl -H "Authorization: Bearer your-api-key" \
 }
 ```
 
-> **Note:** `live_url` and `shadow_url` are immutable after creation and cannot be changed via PATCH. Stats are returned in the response but computed from the read side.
+> **Note:** `live_url` and `shadow_url` are immutable after creation and cannot be changed via PATCH. Stats are returned in the response but computed from the read side. `retention` is returned as an empty string when the gate uses the global retention floor.
 
 **Error Response Examples:**
 ```json
@@ -543,6 +582,18 @@ curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
       "sort_arrays": true
     }
   }'
+
+# Set a custom retention (must be >= the global MROKI_APP_RETENTION floor)
+curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"retention": "168h"}'
+
+# Reset a gate back to the global retention
+curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"retention": ""}'
 ```
 
 ---

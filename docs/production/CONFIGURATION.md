@@ -23,7 +23,7 @@ This is the single source of truth for all mroki configuration. Each component i
 | `MROKI_APP_MAX_BODY_SIZE` | No | `10485760` | Request body size limit in bytes (10 MB) |
 | `MROKI_APP_CORS_ORIGINS` | No | _(disabled)_ | Comma-separated allowed origins. The wildcard `*` is rejected at startup because the API allows the `Authorization` header — set explicit origins instead |
 | `MROKI_APP_TRUSTED_PROXIES` | No | _(none)_ | Comma-separated CIDRs/IPs (e.g. `10.0.0.0/8, 192.168.1.1`) allowed to set `X-Forwarded-For` for rate-limit keying. See [Trusted proxies](#trusted-proxies) |
-| `MROKI_APP_RETENTION` | No | `0` | Request retention duration (Go duration format, `0` = keep forever) |
+| `MROKI_APP_RETENTION` | No | `720h` | Global request retention floor (Go duration format). Must be positive — keep-forever (`0`) is no longer supported. Acts as the minimum for any per-gate retention override |
 | `MROKI_APP_CLEANUP_INTERVAL` | No | `1h` | Cleanup job interval (Go duration format) |
 | `MROKI_APP_READ_TIMEOUT` | No | `15s` | Server read timeout |
 | `MROKI_APP_WRITE_TIMEOUT` | No | `30s` | Server write timeout (must be ≥ read timeout) |
@@ -38,6 +38,8 @@ This is the single source of truth for all mroki configuration. Each component i
 | `MROKI_APP_DATABASE_MAX_CONN_LIFE` | No | `1h` | Max lifetime of a pooled connection |
 
 > **Schema migrations** are not configured via environment variables. They are applied by the `mroki-db-migrator` image (Atlas) — a Helm `pre-install`/`pre-upgrade` Job on Kubernetes (`api.migration.*`, including `baseline` for pre-existing databases) and a one-shot service on Docker Compose. See [Kubernetes → Database migrations](KUBERNETES.md#database-migrations).
+
+> **Upgrade note — retention is now a positive floor.** `MROKI_APP_RETENTION` previously defaulted to `0` (keep forever); it now defaults to `720h` and **must be positive**. Setting `MROKI_APP_RETENTION=0` (or any non-positive value) now fails startup — keep-forever is no longer supported. The global value acts as the *minimum* for any per-gate retention override: a gate may extend retention beyond the floor but never below it. If you relied on `0` to disable cleanup, set an explicit large duration instead.
 
 ### Trusted proxies
 
