@@ -164,7 +164,6 @@ function handleCollapse(line: DiffLine) {
 }
 const livePlain = computed(() => liveBody.value ?? '')
 const shadowPlain = computed(() => shadowBody.value ?? '')
-const diffCount = computed(() => props.diffContent?.length ?? 0)
 
 // --- Patch list view (#75) ---
 type PatchFilter = 'all' | 'add' | 'remove' | 'replace'
@@ -319,34 +318,10 @@ function tokenClass(token: Token): string {
           <span class="text-xs text-dim bg-accent px-2 py-0.5 rounded-md font-mono">
             {{ isJson ? 'json' : 'text' }}
           </span>
-          <span
-            v-if="diffCount > 0"
-            class="text-xs px-2 py-0.5 rounded-md font-mono bg-warning/15 text-warning"
-          >
-            {{ diffCount }} diff{{ diffCount > 1 ? 's' : '' }}
-          </span>
-          <span v-else class="text-xs px-2 py-0.5 rounded-md font-mono bg-success/15 text-success">
-            identical
-          </span>
         </div>
         <div class="flex items-center gap-3 text-xs">
-          <div class="flex items-center gap-1.5 text-dim">
-            <span class="w-2.5 h-2.5 rounded-sm bg-danger/10 border border-danger/30" />
-            Removed
-          </div>
-          <div class="flex items-center gap-1.5 text-dim">
-            <span class="w-2.5 h-2.5 rounded-sm bg-success/10 border border-success/30" />
-            Added
-          </div>
-          <div class="flex items-center gap-1.5 text-dim">
-            <span class="w-2.5 h-2.5 rounded-sm bg-warning/10 border border-warning/30" />
-            Changed
-          </div>
           <!-- Wrap toggle -->
-          <div
-            v-if="isJson && !isBinary"
-            class="flex items-center rounded-md border border-border ml-2"
-          >
+          <div v-if="isJson && !isBinary" class="flex items-center rounded-md border border-border">
             <TooltipProvider :delay-duration="300">
               <Tooltip>
                 <TooltipTrigger as-child>
