@@ -262,6 +262,8 @@ MROKI_APP_CORS_ORIGINS=http://localhost:5173,https://hub.example.com
 # Restart mroki-api
 ```
 
+> **Note:** Do not use `MROKI_APP_CORS_ORIGINS=*` as a quick fix. The wildcard is rejected at startup (the API fails to boot with a clear error) because the API allows the `Authorization` header, and a wildcard origin would let any site drive authenticated cross-origin requests. List explicit origins instead.
+
 ---
 
 ## Debugging Tips

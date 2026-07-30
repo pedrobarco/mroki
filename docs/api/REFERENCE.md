@@ -1121,6 +1121,8 @@ Access-Control-Max-Age: 86400
 MROKI_APP_CORS_ORIGINS=http://localhost:5173,https://hub.example.com
 ```
 
+The wildcard origin `*` is rejected at startup: because the API allows the `Authorization` header, a wildcard origin would permit any site to drive authenticated cross-origin requests. Set explicit origins instead.
+
 ---
 
 ## Example Workflows
