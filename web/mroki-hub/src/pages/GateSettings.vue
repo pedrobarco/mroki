@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { getGate, updateGate, deleteGate } from '@/api'
 import type { Gate } from '@/api'
 import { useGateCache } from '@/composables/use-gate-cache'
@@ -47,6 +47,9 @@ const saving = ref(false)
 const saveError = ref<string | null>(null)
 const saveSuccess = ref(false)
 const deleting = ref(false)
+const deleteError = ref<string | null>(null)
+const deleteDialogOpen = ref(false)
+const leaveDialogOpen = ref(false)
 
 // Form state
 const name = ref('')
@@ -55,6 +58,25 @@ const diffIgnoredFields = ref<string[]>([])
 const diffIncludedFields = ref<string[]>([])
 const floatTolerance = ref('')
 const sortArrays = ref(false)
+
+// Pristine snapshot of the form used to detect unsaved edits. Seeded with the
+// empty-form snapshot so a gate that never loaded is not treated as dirty.
+let pendingRoute: string | null = null
+let bypassGuard = false
+
+function snapshot() {
+  return JSON.stringify({
+    name: name.value.trim(),
+    redacted: redactedAdditionalFields.value,
+    ignored: diffIgnoredFields.value,
+    included: diffIncludedFields.value,
+    tol: floatTolerance.value,
+    sort: sortArrays.value,
+  })
+}
+
+const pristine = ref(snapshot())
+const isDirty = computed(() => snapshot() !== pristine.value)
 
 // Default redacted fields (mirrors domain DefaultRedactedFields)
 const defaultRedactedFields = [
@@ -73,6 +95,7 @@ function populateForm(g: Gate) {
     ? g.diff_config.float_tolerance.toString()
     : ''
   sortArrays.value = g.diff_config?.sort_arrays ?? false
+  pristine.value = snapshot()
 }
 
 async function loadGate() {
@@ -120,6 +143,7 @@ async function handleSave() {
 
     gate.value = response.data
     cacheGate(response.data)
+    pristine.value = snapshot()
     saveSuccess.value = true
     setTimeout(() => (saveSuccess.value = false), 3000)
   } catch (err) {
@@ -131,21 +155,60 @@ async function handleSave() {
 
 async function handleDelete() {
   deleting.value = true
+  deleteError.value = null
   try {
     await deleteGate(gateId)
+    deleteDialogOpen.value = false
+    bypassGuard = true
     router.push('/gates')
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to delete gate'
+    deleteError.value = err instanceof Error ? err.message : 'Failed to delete gate'
+  } finally {
     deleting.value = false
   }
 }
 
+// Returns true when navigation may proceed immediately; otherwise opens the
+// discard-changes confirmation dialog and returns false.
+function guardLeave(target: string): boolean {
+  if (!isDirty.value || bypassGuard) return true
+  pendingRoute = target
+  leaveDialogOpen.value = true
+  return false
+}
+
 function goBack() {
-  router.push(`/gates/${gateId}`)
+  const target = `/gates/${gateId}`
+  if (guardLeave(target)) router.push(target)
+}
+
+function confirmLeave() {
+  bypassGuard = true
+  leaveDialogOpen.value = false
+  if (pendingRoute) router.push(pendingRoute)
+}
+
+onBeforeRouteLeave((to) => {
+  if (!isDirty.value || bypassGuard) return true
+  pendingRoute = to.fullPath
+  leaveDialogOpen.value = true
+  return false
+})
+
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (isDirty.value) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
 }
 
 onMounted(() => {
   loadGate()
+  window.addEventListener('beforeunload', onBeforeUnload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', onBeforeUnload)
 })
 </script>
 
@@ -187,7 +250,7 @@ onMounted(() => {
             <code class="text-xs font-mono">{{ gate.id }}</code>
           </div>
         </div>
-        <Button :disabled="saving" class="gap-2" @click="handleSave">
+        <Button :disabled="saving || !isDirty" class="gap-2" @click="handleSave">
           <Save v-if="!saveSuccess" class="h-3.5 w-3.5" />
           <Check v-else class="h-3.5 w-3.5" />
           {{ saving ? 'Saving...' : saveSuccess ? 'Saved' : 'Save Changes' }}
@@ -410,7 +473,7 @@ onMounted(() => {
                 undone.
               </p>
             </div>
-            <AlertDialog>
+            <AlertDialog v-model:open="deleteDialogOpen">
               <AlertDialogTrigger as-child>
                 <Button variant="outline" class="gap-1.5 text-destructive border-destructive/30">
                   <Trash2 class="h-3.5 w-3.5" />
@@ -426,6 +489,9 @@ onMounted(() => {
                     and all its captured requests. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
+                <Alert v-if="deleteError" variant="destructive" class="mt-2">
+                  <AlertDescription>{{ deleteError }}</AlertDescription>
+                </Alert>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
@@ -441,6 +507,27 @@ onMounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- Unsaved-changes leave guard -->
+      <AlertDialog v-model:open="leaveDialogOpen">
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes to this gate's settings. Leaving now will discard them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              @click="confirmLeave"
+            >
+              Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   </div>
 </template>

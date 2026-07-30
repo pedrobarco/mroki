@@ -8,6 +8,7 @@ const push = vi.fn()
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push }),
   useRoute: () => ({ params: { id: 'gate-1', rid: 'req-1' } }),
+  onBeforeRouteLeave: vi.fn(),
 }))
 
 // Reject API calls so each page settles into its error branch, keeping the

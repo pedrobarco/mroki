@@ -187,4 +187,38 @@ test.describe('Gate Settings Page', () => {
     await page.getByText('Back to Gate').click()
     await expect(page).toHaveURL(`/gates/${gate.id}`)
   })
+
+  test('guards against leaving with unsaved changes', async ({ page, api }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `dirty-guard-gate-${suffix}`,
+      `https://dirty-live-${suffix}.example.com`,
+      `https://dirty-shadow-${suffix}.example.com`
+    )
+
+    await page.goto(`/gates/${gate.id}/settings`)
+
+    // Save is disabled until the form is dirty.
+    await expect(page.getByRole('button', { name: 'Save Changes' })).toBeDisabled()
+
+    // Make an edit — Save enables and the form becomes dirty.
+    const nameInput = page.getByLabel('Name')
+    await nameInput.clear()
+    await nameInput.fill(`dirty-${suffix}`)
+    await expect(page.getByRole('button', { name: 'Save Changes' })).toBeEnabled()
+
+    // Attempting to navigate back opens the discard-changes guard.
+    await page.getByText('Back to Gate').click()
+    const guard = page.getByRole('alertdialog')
+    await expect(guard.getByText('Discard unsaved changes?')).toBeVisible()
+
+    // Keep editing stays on the settings page.
+    await page.getByRole('button', { name: 'Keep editing' }).click()
+    await expect(page).toHaveURL(`/gates/${gate.id}/settings`)
+
+    // Discarding leaves for the gate detail page.
+    await page.getByText('Back to Gate').click()
+    await page.getByRole('button', { name: 'Discard changes' }).click()
+    await expect(page).toHaveURL(`/gates/${gate.id}`)
+  })
 })
