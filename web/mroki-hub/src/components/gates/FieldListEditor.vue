@@ -45,7 +45,8 @@ function handleKeydown(e: KeyboardEvent) {
       <Button
         variant="outline"
         size="icon"
-        class="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-dim hover:text-destructive hover:border-destructive/30"
+        :aria-label="`Remove ${field}`"
+        class="h-7 w-7 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity text-dim hover:text-destructive hover:border-destructive/30 focus-visible:ring-[3px]"
         :disabled="disabled"
         @click="emit('remove', index)"
       >

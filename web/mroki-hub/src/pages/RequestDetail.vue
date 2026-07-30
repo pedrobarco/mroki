@@ -14,7 +14,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import DiffViewer from '@/components/diff/DiffViewer.vue'
 import { ChevronLeft, Copy, Download, ChevronDown, Check } from 'lucide-vue-next'
-import { truncateId, methodColorClass } from '@/lib/utils'
+import { truncateId, methodColorClass, formatLatency } from '@/lib/utils'
 import { useGateCache } from '@/composables/use-gate-cache'
 
 const route = useRoute()
@@ -358,7 +358,7 @@ onUnmounted(() => {
               >
                 {{ liveResponse.status_code }}
               </span>
-              <span class="text-xs text-dim">{{ liveResponse.latency_ms }}ms</span>
+              <span class="text-xs text-dim">{{ formatLatency(liveResponse.latency_ms) }}</span>
             </div>
           </div>
           <div v-if="shadowResponse">
@@ -370,7 +370,7 @@ onUnmounted(() => {
               >
                 {{ shadowResponse.status_code }}
               </span>
-              <span class="text-xs text-dim">{{ shadowResponse.latency_ms }}ms</span>
+              <span class="text-xs text-dim">{{ formatLatency(shadowResponse.latency_ms) }}</span>
             </div>
           </div>
         </div>

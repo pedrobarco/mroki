@@ -241,16 +241,16 @@ onUnmounted(() => {
     <!-- Settings Content -->
     <div v-else-if="gate">
       <!-- Page Title -->
-      <div class="flex items-center justify-between mb-6">
-        <div>
+      <div class="flex items-center justify-between mb-6 gap-4">
+        <div class="min-w-0">
           <h1 class="text-xl font-semibold tracking-tight mb-1">Gate Settings</h1>
-          <div class="flex items-center gap-2 text-sm text-dim">
-            <span class="font-medium text-muted-foreground">{{ gate.name }}</span>
-            <span class="text-dim/50">&middot;</span>
-            <code class="text-xs font-mono">{{ gate.id }}</code>
+          <div class="flex items-center gap-2 text-sm text-dim min-w-0">
+            <span class="font-medium text-muted-foreground truncate min-w-0">{{ gate.name }}</span>
+            <span class="text-dim/50 shrink-0">&middot;</span>
+            <code class="text-xs font-mono shrink-0">{{ gate.id }}</code>
           </div>
         </div>
-        <Button :disabled="saving || !isDirty" class="gap-2" @click="handleSave">
+        <Button :disabled="saving || !isDirty" class="gap-2 shrink-0" @click="handleSave">
           <Save v-if="!saveSuccess" class="h-3.5 w-3.5" />
           <Check v-else class="h-3.5 w-3.5" />
           {{ saving ? 'Saving...' : saveSuccess ? 'Saved' : 'Save Changes' }}

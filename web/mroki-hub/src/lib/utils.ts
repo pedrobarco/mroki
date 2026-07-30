@@ -70,3 +70,16 @@ export function methodColorClass(method: string): string {
       return 'bg-muted text-muted-foreground'
   }
 }
+
+/**
+ * Format a latency in milliseconds for display. Missing values render as an
+ * em dash; sub-millisecond timings collapse to `<1ms` rather than a misleading
+ * `0ms` or a noisy fraction.
+ * @param ms - Latency in milliseconds, or null/undefined when unavailable
+ * @returns A short human-readable latency string
+ */
+export function formatLatency(ms?: number | null): string {
+  if (ms == null) return '—'
+  if (ms > 0 && ms < 1) return '<1ms'
+  return `${ms}ms`
+}

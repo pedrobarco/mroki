@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Pagination from '@/components/common/Pagination.vue'
-import { methodColorClass } from '@/lib/utils'
+import { methodColorClass, formatLatency } from '@/lib/utils'
 import { ChevronRight } from 'lucide-vue-next'
 
 interface Props {
@@ -263,8 +263,8 @@ onMounted(() => {
               </span>
               <!-- Latency -->
               <span class="text-xs font-mono text-dim whitespace-nowrap sm:w-36 sm:text-right">
-                {{ request.live_response?.latency_ms ?? '—' }}ms /
-                {{ request.shadow_response?.latency_ms ?? '—' }}ms
+                {{ formatLatency(request.live_response?.latency_ms) }} /
+                {{ formatLatency(request.shadow_response?.latency_ms) }}
               </span>
               <!-- Timestamp -->
               <div class="text-xs text-dim sm:w-20 sm:text-right">

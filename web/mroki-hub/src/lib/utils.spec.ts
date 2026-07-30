@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { methodColorClass, pointerToGjson } from './utils'
+import { methodColorClass, pointerToGjson, formatLatency } from './utils'
 
 describe('methodColorClass', () => {
   it('maps the known HTTP verbs to their semantic classes', () => {
@@ -30,5 +30,21 @@ describe('pointerToGjson', () => {
   it('decodes the RFC 6901 escape sequences', () => {
     expect(pointerToGjson('/headers/X~1Trace')).toBe('headers.X/Trace')
     expect(pointerToGjson('/body/a~0b')).toBe('body.a~b')
+  })
+})
+
+describe('formatLatency', () => {
+  it('renders an em dash for missing values', () => {
+    expect(formatLatency(null)).toBe('—')
+    expect(formatLatency(undefined)).toBe('—')
+  })
+
+  it('collapses sub-millisecond timings to <1ms', () => {
+    expect(formatLatency(0.4)).toBe('<1ms')
+  })
+
+  it('renders whole-millisecond timings with a unit', () => {
+    expect(formatLatency(0)).toBe('0ms')
+    expect(formatLatency(12)).toBe('12ms')
   })
 })

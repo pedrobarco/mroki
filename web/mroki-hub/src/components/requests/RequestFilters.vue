@@ -119,12 +119,14 @@ function emitUpdate(partial: Partial<FilterState>) {
 
     <!-- Path search -->
     <div class="relative flex-1 max-w-xs">
+      <label for="request-path-search" class="sr-only">Filter requests by path</label>
       <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-dim h-3.5 w-3.5" />
       <input
+        id="request-path-search"
         v-model="pathInput"
         type="text"
         placeholder="Filter by path..."
-        class="w-full bg-card border border-border rounded-lg pl-8 pr-4 py-1.5 text-xs text-foreground placeholder:text-dim focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+        class="w-full bg-card border border-border rounded-lg pl-8 pr-4 py-1.5 text-xs text-foreground placeholder:text-dim focus:outline-none focus:border-ring focus-visible:ring-[3px] focus-visible:ring-ring"
       />
     </div>
 
