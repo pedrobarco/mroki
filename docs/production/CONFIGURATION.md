@@ -22,6 +22,7 @@ This is the single source of truth for all mroki configuration. Each component i
 | `MROKI_APP_RATE_LIMIT` | No | `1000` | Requests per minute per IP |
 | `MROKI_APP_MAX_BODY_SIZE` | No | `10485760` | Request body size limit in bytes (10 MB) |
 | `MROKI_APP_CORS_ORIGINS` | No | _(disabled)_ | Comma-separated allowed origins. The wildcard `*` is rejected at startup because the API allows the `Authorization` header — set explicit origins instead |
+| `MROKI_APP_TRUSTED_PROXIES` | No | _(none)_ | Comma-separated CIDRs/IPs (e.g. `10.0.0.0/8, 192.168.1.1`) allowed to set `X-Forwarded-For` for rate-limit keying. See [Trusted proxies](#trusted-proxies) |
 | `MROKI_APP_RETENTION` | No | `0` | Request retention duration (Go duration format, `0` = keep forever) |
 | `MROKI_APP_CLEANUP_INTERVAL` | No | `1h` | Cleanup job interval (Go duration format) |
 | `MROKI_APP_READ_TIMEOUT` | No | `15s` | Server read timeout |
@@ -37,6 +38,15 @@ This is the single source of truth for all mroki configuration. Each component i
 | `MROKI_APP_DATABASE_MAX_CONN_LIFE` | No | `1h` | Max lifetime of a pooled connection |
 
 > **Schema migrations** are not configured via environment variables. They are applied by the `mroki-db-migrator` image (Atlas) — a Helm `pre-install`/`pre-upgrade` Job on Kubernetes (`api.migration.*`, including `baseline` for pre-existing databases) and a one-shot service on Docker Compose. See [Kubernetes → Database migrations](KUBERNETES.md#database-migrations).
+
+### Trusted proxies
+
+Per-IP rate limiting keys off the client IP. The `X-Forwarded-For` header is client-controlled, so it is honored **only** when a request's immediate peer (`RemoteAddr`) is listed in `MROKI_APP_TRUSTED_PROXIES`. Otherwise the header is ignored and the limiter keys off `RemoteAddr`, preventing clients from spoofing or rotating `X-Forwarded-For` to evade limits.
+
+- **Empty (default):** `X-Forwarded-For` is never trusted; rate limiting always uses the direct peer. Use this when the API is exposed directly.
+- **Behind a reverse proxy / load balancer:** set `MROKI_APP_TRUSTED_PROXIES` to the CIDR(s) or IP(s) of your proxies (e.g. `10.0.0.0/8`, `192.168.1.1`). Invalid entries are rejected at startup.
+
+When the peer is trusted, the client IP is the **right-most** `X-Forwarded-For` entry that is **not** itself a trusted proxy — the real client behind the (possibly chained) proxies — rather than the spoofable left-most entry. If no untrusted hop is found, the API falls back to `X-Real-IP` and finally to `RemoteAddr`.
 
 ---
 

@@ -189,12 +189,21 @@ func main() {
 	// metrics are disabled the platform method returns the handler unwrapped.
 	instrument := metricsPlatform.InstrumentHandler
 
+	// Rate-limit IP extractor. X-Forwarded-For is honored only when a request's
+	// direct peer is a configured trusted proxy; otherwise the limiter keys off
+	// RemoteAddr so clients cannot spoof their source IP to evade per-IP limits.
+	ipExtractor, err := middleware.NewForwardedForExtractor(cfg.ParseTrustedProxies())
+	if err != nil {
+		logger.Error("failed to configure rate-limit IP extractor", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
 	// Middleware
 	baseChain := middleware.Chain{
 		middleware.RequestID(),
 		middleware.Logging(logger),
 		middleware.RateLimit(rateLimiter,
-			middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
+			middleware.WithIPExtractor(ipExtractor),
 			middleware.WithRateLimitErrorHandler(handleRateLimitError),
 		),
 		middleware.APIKeyAuth(cfg.App.APIKey,
@@ -207,7 +216,7 @@ func main() {
 		middleware.RequestID(),
 		middleware.Logging(logger),
 		middleware.RateLimit(rateLimiter,
-			middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
+			middleware.WithIPExtractor(ipExtractor),
 			middleware.WithRateLimitErrorHandler(handleRateLimitError),
 		),
 		middleware.APIKeyAuth(cfg.App.APIKey,

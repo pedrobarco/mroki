@@ -10,6 +10,7 @@ import (
 	"github.com/pedrobarco/mroki/internal/interfaces/http/middleware"
 	"github.com/pedrobarco/mroki/pkg/ratelimit"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRateLimit_AllowsRequestsUnderLimit(t *testing.T) {
@@ -131,22 +132,26 @@ func TestRateLimit_CustomIPExtractor(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Custom extractor that uses X-Forwarded-For
+	// Custom extractor that trusts X-Forwarded-For from a trusted peer.
+	extractIP, err := middleware.NewForwardedForExtractor([]string{"192.0.2.1"})
+	require.NoError(t, err)
 	mw := middleware.RateLimit(limiter,
-		middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
+		middleware.WithIPExtractor(extractIP),
 	)
 
-	// Make 3 requests with X-Forwarded-For header
+	// Make 3 requests with X-Forwarded-For header from the trusted proxy
 	for i := 0; i < 3; i++ {
 		req := httptest.NewRequest("GET", "/test", nil)
+		req.RemoteAddr = "192.0.2.1:12345"
 		req.Header.Set("X-Forwarded-For", "10.0.0.1")
 		rec := httptest.NewRecorder()
 		mw(handler).ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 
-	// 4th request should be rate limited (same X-Forwarded-For)
+	// 4th request should be rate limited (same client IP via X-Forwarded-For)
 	req := httptest.NewRequest("GET", "/test", nil)
+	req.RemoteAddr = "192.0.2.1:12345"
 	req.Header.Set("X-Forwarded-For", "10.0.0.1")
 	rec := httptest.NewRecorder()
 	mw(handler).ServeHTTP(rec, req)
@@ -252,28 +257,155 @@ func TestRateLimit_BurstBehavior(t *testing.T) {
 	assert.GreaterOrEqual(t, successCount, 60, "Should allow burst up to limit")
 }
 
-func TestExtractIPWithForwardedFor_MultipleIPs(t *testing.T) {
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Forwarded-For", "1.2.3.4, 5.6.7.8, 9.10.11.12")
-
-	ip := middleware.ExtractIPWithForwardedFor(req)
-	assert.Equal(t, "1.2.3.4", ip, "Should extract first IP from X-Forwarded-For")
+func TestNewForwardedForExtractor_InvalidEntry(t *testing.T) {
+	_, err := middleware.NewForwardedForExtractor([]string{"not-an-ip"})
+	assert.Error(t, err, "Invalid trusted-proxy entry should error")
 }
 
-func TestExtractIPWithForwardedFor_XRealIP(t *testing.T) {
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Real-IP", "1.2.3.4")
+func TestNewForwardedForExtractor(t *testing.T) {
+	tests := []struct {
+		name       string
+		trusted    []string
+		remoteAddr string
+		xff        string   // single X-Forwarded-For header (Set)
+		xffLines   []string // multiple X-Forwarded-For headers (Add per line)
+		xRealIP    string
+		want       string
+	}{
+		{
+			name:       "empty trusted set ignores XFF and keys off RemoteAddr",
+			trusted:    nil,
+			remoteAddr: "203.0.113.9:5555",
+			xff:        "1.2.3.4",
+			want:       "203.0.113.9",
+		},
+		{
+			name:       "spoofed XFF from untrusted peer is ignored",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "203.0.113.9:5555",
+			xff:        "1.2.3.4",
+			want:       "203.0.113.9",
+		},
+		{
+			name:       "spoofed X-Real-IP from untrusted peer is ignored",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "203.0.113.9:5555",
+			xRealIP:    "1.2.3.4",
+			want:       "203.0.113.9",
+		},
+		{
+			name:       "valid XFF from trusted proxy is honored",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "192.0.2.1:5555",
+			xff:        "1.2.3.4",
+			want:       "1.2.3.4",
+		},
+		{
+			name:       "trusted CIDR honors XFF",
+			trusted:    []string{"192.0.2.0/24"},
+			remoteAddr: "192.0.2.55:5555",
+			xff:        "1.2.3.4",
+			want:       "1.2.3.4",
+		},
+		{
+			name:       "chained proxies return right-most untrusted hop",
+			trusted:    []string{"192.0.2.1", "192.0.2.2"},
+			remoteAddr: "192.0.2.1:5555",
+			xff:        "1.2.3.4, 5.6.7.8, 192.0.2.2",
+			want:       "5.6.7.8",
+		},
+		{
+			name:       "all XFF hops trusted falls back to peer",
+			trusted:    []string{"192.0.2.0/24"},
+			remoteAddr: "192.0.2.1:5555",
+			xff:        "192.0.2.7, 192.0.2.8",
+			want:       "192.0.2.1",
+		},
+		{
+			name:       "trusted peer with no XFF falls back to X-Real-IP",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "192.0.2.1:5555",
+			xRealIP:    "1.2.3.4",
+			want:       "1.2.3.4",
+		},
+		{
+			name:       "trusted peer with no headers falls back to peer",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "192.0.2.1:5555",
+			want:       "192.0.2.1",
+		},
+		{
+			name:       "multiple XFF headers are joined into one chain",
+			trusted:    []string{"192.0.2.1", "192.0.2.2"},
+			remoteAddr: "192.0.2.1:5555",
+			xffLines:   []string{"1.2.3.4", "5.6.7.8, 192.0.2.2"},
+			want:       "5.6.7.8",
+		},
+		{
+			name:       "XFF entry with port is normalized to bare IP",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "192.0.2.1:5555",
+			xff:        "1.2.3.4:56789",
+			want:       "1.2.3.4",
+		},
+		{
+			name:       "IPv6 client via XFF is honored",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "192.0.2.1:5555",
+			xff:        "2001:db8::1",
+			want:       "2001:db8::1",
+		},
+		{
+			name:       "IPv4-mapped IPv6 XFF is normalized",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "192.0.2.1:5555",
+			xff:        "::ffff:1.2.3.4",
+			want:       "1.2.3.4",
+		},
+		{
+			name:       "empty and whitespace XFF elements are skipped",
+			trusted:    []string{"192.0.2.1", "5.6.7.8"},
+			remoteAddr: "192.0.2.1:5555",
+			xff:        "1.2.3.4, , 5.6.7.8",
+			want:       "1.2.3.4",
+		},
+		{
+			name:       "untrusted XFF hop wins over X-Real-IP",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "192.0.2.1:5555",
+			xff:        "5.6.7.8",
+			xRealIP:    "9.9.9.9",
+			want:       "5.6.7.8",
+		},
+		{
+			name:       "invalid X-Real-IP is ignored and falls back to peer",
+			trusted:    []string{"192.0.2.1"},
+			remoteAddr: "192.0.2.1:5555",
+			xRealIP:    "not-an-ip",
+			want:       "192.0.2.1",
+		},
+	}
 
-	ip := middleware.ExtractIPWithForwardedFor(req)
-	assert.Equal(t, "1.2.3.4", ip, "Should extract IP from X-Real-IP")
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extractIP, err := middleware.NewForwardedForExtractor(tt.trusted)
+			require.NoError(t, err)
 
-func TestExtractIPWithForwardedFor_FallbackToRemoteAddr(t *testing.T) {
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.RemoteAddr = "192.168.1.1:12345"
+			req := httptest.NewRequest("GET", "/test", nil)
+			req.RemoteAddr = tt.remoteAddr
+			if tt.xff != "" {
+				req.Header.Set("X-Forwarded-For", tt.xff)
+			}
+			for _, line := range tt.xffLines {
+				req.Header.Add("X-Forwarded-For", line)
+			}
+			if tt.xRealIP != "" {
+				req.Header.Set("X-Real-IP", tt.xRealIP)
+			}
 
-	ip := middleware.ExtractIPWithForwardedFor(req)
-	assert.Equal(t, "192.168.1.1", ip, "Should fall back to RemoteAddr")
+			assert.Equal(t, tt.want, extractIP(req))
+		})
+	}
 }
 
 func TestRateLimit_TokenRefill(t *testing.T) {

@@ -312,3 +312,37 @@ func TestParseCORSOrigins(t *testing.T) {
 	cfg.App.CORSOrigins = "http://a.com, http://b.com"
 	assert.Equal(t, []string{"http://a.com", "http://b.com"}, cfg.ParseCORSOrigins())
 }
+
+func TestParseTrustedProxies(t *testing.T) {
+	cfg := validConfig()
+	cfg.App.TrustedProxies = ""
+	assert.Nil(t, cfg.ParseTrustedProxies())
+
+	cfg.App.TrustedProxies = "10.0.0.0/8"
+	assert.Equal(t, []string{"10.0.0.0/8"}, cfg.ParseTrustedProxies())
+
+	cfg.App.TrustedProxies = "10.0.0.0/8, 192.168.1.1"
+	assert.Equal(t, []string{"10.0.0.0/8", "192.168.1.1"}, cfg.ParseTrustedProxies())
+}
+
+func TestValidate_trustedProxies(t *testing.T) {
+	t.Run("valid CIDRs and IPs", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.TrustedProxies = "10.0.0.0/8, 192.168.1.1, ::1"
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("empty is valid", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.TrustedProxies = ""
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("invalid entry is rejected", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.TrustedProxies = "not-an-ip"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "trusted_proxies")
+	})
+}

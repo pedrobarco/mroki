@@ -1058,7 +1058,7 @@ Per-IP rate limiting using token bucket algorithm.
 
 - Default: 1000 requests per minute per IP
 - Configurable via `MROKI_API_RATE_LIMIT` (or `MROKI_APP_RATE_LIMIT`)
-- Supports `X-Forwarded-For` header for proxy-aware IP extraction
+- Honors `X-Forwarded-For` only from trusted proxies (`MROKI_APP_TRUSTED_PROXIES`); see [Configuration → Trusted proxies](../production/CONFIGURATION.md#trusted-proxies)
 - Returns `429 Too Many Requests` with `Retry-After` header when exceeded
 
 **Rate limit error response:**
