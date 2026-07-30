@@ -86,6 +86,11 @@ func DiffSortArrays(v bool) predicate.Gate {
 	return predicate.Gate(sql.FieldEQ(FieldDiffSortArrays, v))
 }
 
+// Retention applies equality check predicate on the "retention" field. It's identical to RetentionEQ.
+func Retention(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldRetention, v))
+}
+
 // NameEQ applies the EQ predicate on the "name" field.
 func NameEQ(v string) predicate.Gate {
 	return predicate.Gate(sql.FieldEQ(FieldName, v))
@@ -419,6 +424,81 @@ func RedactedFieldsIsNil() predicate.Gate {
 // RedactedFieldsNotNil applies the NotNil predicate on the "redacted_fields" field.
 func RedactedFieldsNotNil() predicate.Gate {
 	return predicate.Gate(sql.FieldNotNull(FieldRedactedFields))
+}
+
+// RetentionEQ applies the EQ predicate on the "retention" field.
+func RetentionEQ(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldEQ(FieldRetention, v))
+}
+
+// RetentionNEQ applies the NEQ predicate on the "retention" field.
+func RetentionNEQ(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldNEQ(FieldRetention, v))
+}
+
+// RetentionIn applies the In predicate on the "retention" field.
+func RetentionIn(vs ...string) predicate.Gate {
+	return predicate.Gate(sql.FieldIn(FieldRetention, vs...))
+}
+
+// RetentionNotIn applies the NotIn predicate on the "retention" field.
+func RetentionNotIn(vs ...string) predicate.Gate {
+	return predicate.Gate(sql.FieldNotIn(FieldRetention, vs...))
+}
+
+// RetentionGT applies the GT predicate on the "retention" field.
+func RetentionGT(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldGT(FieldRetention, v))
+}
+
+// RetentionGTE applies the GTE predicate on the "retention" field.
+func RetentionGTE(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldGTE(FieldRetention, v))
+}
+
+// RetentionLT applies the LT predicate on the "retention" field.
+func RetentionLT(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldLT(FieldRetention, v))
+}
+
+// RetentionLTE applies the LTE predicate on the "retention" field.
+func RetentionLTE(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldLTE(FieldRetention, v))
+}
+
+// RetentionContains applies the Contains predicate on the "retention" field.
+func RetentionContains(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldContains(FieldRetention, v))
+}
+
+// RetentionHasPrefix applies the HasPrefix predicate on the "retention" field.
+func RetentionHasPrefix(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldHasPrefix(FieldRetention, v))
+}
+
+// RetentionHasSuffix applies the HasSuffix predicate on the "retention" field.
+func RetentionHasSuffix(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldHasSuffix(FieldRetention, v))
+}
+
+// RetentionIsNil applies the IsNil predicate on the "retention" field.
+func RetentionIsNil() predicate.Gate {
+	return predicate.Gate(sql.FieldIsNull(FieldRetention))
+}
+
+// RetentionNotNil applies the NotNil predicate on the "retention" field.
+func RetentionNotNil() predicate.Gate {
+	return predicate.Gate(sql.FieldNotNull(FieldRetention))
+}
+
+// RetentionEqualFold applies the EqualFold predicate on the "retention" field.
+func RetentionEqualFold(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldEqualFold(FieldRetention, v))
+}
+
+// RetentionContainsFold applies the ContainsFold predicate on the "retention" field.
+func RetentionContainsFold(v string) predicate.Gate {
+	return predicate.Gate(sql.FieldContainsFold(FieldRetention, v))
 }
 
 // HasRequests applies the HasEdge predicate on the "requests" edge.

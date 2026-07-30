@@ -24,6 +24,9 @@ type Gate struct {
 	ShadowURL      string     `json:"shadow_url"`
 	DiffConfig     DiffConfig `json:"diff_config"`
 	RedactedFields []string   `json:"redacted_fields"`
-	CreatedAt      string     `json:"created_at"`
-	Stats          GateStats  `json:"stats"`
+	// Retention is a per-gate Go duration string (e.g. "168h"). An empty string
+	// means the gate uses the global retention floor.
+	Retention string    `json:"retention"`
+	CreatedAt string    `json:"created_at"`
+	Stats     GateStats `json:"stats"`
 }

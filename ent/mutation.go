@@ -896,6 +896,7 @@ type GateMutation struct {
 	diff_sort_arrays           *bool
 	redacted_fields            *[]string
 	appendredacted_fields      []string
+	retention                  *string
 	clearedFields              map[string]struct{}
 	requests                   map[uuid.UUID]struct{}
 	removedrequests            map[uuid.UUID]struct{}
@@ -1467,6 +1468,55 @@ func (m *GateMutation) ResetRedactedFields() {
 	delete(m.clearedFields, gate.FieldRedactedFields)
 }
 
+// SetRetention sets the "retention" field.
+func (m *GateMutation) SetRetention(s string) {
+	m.retention = &s
+}
+
+// Retention returns the value of the "retention" field in the mutation.
+func (m *GateMutation) Retention() (r string, exists bool) {
+	v := m.retention
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetention returns the old "retention" field's value of the Gate entity.
+// If the Gate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GateMutation) OldRetention(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetention is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetention requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetention: %w", err)
+	}
+	return oldValue.Retention, nil
+}
+
+// ClearRetention clears the value of the "retention" field.
+func (m *GateMutation) ClearRetention() {
+	m.retention = nil
+	m.clearedFields[gate.FieldRetention] = struct{}{}
+}
+
+// RetentionCleared returns if the "retention" field was cleared in this mutation.
+func (m *GateMutation) RetentionCleared() bool {
+	_, ok := m.clearedFields[gate.FieldRetention]
+	return ok
+}
+
+// ResetRetention resets all changes to the "retention" field.
+func (m *GateMutation) ResetRetention() {
+	m.retention = nil
+	delete(m.clearedFields, gate.FieldRetention)
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by ids.
 func (m *GateMutation) AddRequestIDs(ids ...uuid.UUID) {
 	if m.requests == nil {
@@ -1555,7 +1605,7 @@ func (m *GateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GateMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 10)
 	if m.name != nil {
 		fields = append(fields, gate.FieldName)
 	}
@@ -1583,6 +1633,9 @@ func (m *GateMutation) Fields() []string {
 	if m.redacted_fields != nil {
 		fields = append(fields, gate.FieldRedactedFields)
 	}
+	if m.retention != nil {
+		fields = append(fields, gate.FieldRetention)
+	}
 	return fields
 }
 
@@ -1609,6 +1662,8 @@ func (m *GateMutation) Field(name string) (ent.Value, bool) {
 		return m.DiffSortArrays()
 	case gate.FieldRedactedFields:
 		return m.RedactedFields()
+	case gate.FieldRetention:
+		return m.Retention()
 	}
 	return nil, false
 }
@@ -1636,6 +1691,8 @@ func (m *GateMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldDiffSortArrays(ctx)
 	case gate.FieldRedactedFields:
 		return m.OldRedactedFields(ctx)
+	case gate.FieldRetention:
+		return m.OldRetention(ctx)
 	}
 	return nil, fmt.Errorf("unknown Gate field %s", name)
 }
@@ -1708,6 +1765,13 @@ func (m *GateMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRedactedFields(v)
 		return nil
+	case gate.FieldRetention:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetention(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Gate field %s", name)
 }
@@ -1768,6 +1832,9 @@ func (m *GateMutation) ClearedFields() []string {
 	if m.FieldCleared(gate.FieldRedactedFields) {
 		fields = append(fields, gate.FieldRedactedFields)
 	}
+	if m.FieldCleared(gate.FieldRetention) {
+		fields = append(fields, gate.FieldRetention)
+	}
 	return fields
 }
 
@@ -1796,6 +1863,9 @@ func (m *GateMutation) ClearField(name string) error {
 		return nil
 	case gate.FieldRedactedFields:
 		m.ClearRedactedFields()
+		return nil
+	case gate.FieldRetention:
+		m.ClearRetention()
 		return nil
 	}
 	return fmt.Errorf("unknown Gate nullable field %s", name)
@@ -1831,6 +1901,9 @@ func (m *GateMutation) ResetField(name string) error {
 		return nil
 	case gate.FieldRedactedFields:
 		m.ResetRedactedFields()
+		return nil
+	case gate.FieldRetention:
+		m.ResetRetention()
 		return nil
 	}
 	return fmt.Errorf("unknown Gate field %s", name)

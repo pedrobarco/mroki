@@ -145,6 +145,26 @@ func (_u *GateUpdate) ClearRedactedFields() *GateUpdate {
 	return _u
 }
 
+// SetRetention sets the "retention" field.
+func (_u *GateUpdate) SetRetention(v string) *GateUpdate {
+	_u.mutation.SetRetention(v)
+	return _u
+}
+
+// SetNillableRetention sets the "retention" field if the given value is not nil.
+func (_u *GateUpdate) SetNillableRetention(v *string) *GateUpdate {
+	if v != nil {
+		_u.SetRetention(*v)
+	}
+	return _u
+}
+
+// ClearRetention clears the value of the "retention" field.
+func (_u *GateUpdate) ClearRetention() *GateUpdate {
+	_u.mutation.ClearRetention()
+	return _u
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by IDs.
 func (_u *GateUpdate) AddRequestIDs(ids ...uuid.UUID) *GateUpdate {
 	_u.mutation.AddRequestIDs(ids...)
@@ -285,6 +305,12 @@ func (_u *GateUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.RedactedFieldsCleared() {
 		_spec.ClearField(gate.FieldRedactedFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Retention(); ok {
+		_spec.SetField(gate.FieldRetention, field.TypeString, value)
+	}
+	if _u.mutation.RetentionCleared() {
+		_spec.ClearField(gate.FieldRetention, field.TypeString)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -466,6 +492,26 @@ func (_u *GateUpdateOne) ClearRedactedFields() *GateUpdateOne {
 	return _u
 }
 
+// SetRetention sets the "retention" field.
+func (_u *GateUpdateOne) SetRetention(v string) *GateUpdateOne {
+	_u.mutation.SetRetention(v)
+	return _u
+}
+
+// SetNillableRetention sets the "retention" field if the given value is not nil.
+func (_u *GateUpdateOne) SetNillableRetention(v *string) *GateUpdateOne {
+	if v != nil {
+		_u.SetRetention(*v)
+	}
+	return _u
+}
+
+// ClearRetention clears the value of the "retention" field.
+func (_u *GateUpdateOne) ClearRetention() *GateUpdateOne {
+	_u.mutation.ClearRetention()
+	return _u
+}
+
 // AddRequestIDs adds the "requests" edge to the Request entity by IDs.
 func (_u *GateUpdateOne) AddRequestIDs(ids ...uuid.UUID) *GateUpdateOne {
 	_u.mutation.AddRequestIDs(ids...)
@@ -636,6 +682,12 @@ func (_u *GateUpdateOne) sqlSave(ctx context.Context) (_node *Gate, err error) {
 	}
 	if _u.mutation.RedactedFieldsCleared() {
 		_spec.ClearField(gate.FieldRedactedFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Retention(); ok {
+		_spec.SetField(gate.FieldRetention, field.TypeString, value)
+	}
+	if _u.mutation.RetentionCleared() {
+		_spec.ClearField(gate.FieldRetention, field.TypeString)
 	}
 	if _u.mutation.RequestsCleared() {
 		edge := &sqlgraph.EdgeSpec{

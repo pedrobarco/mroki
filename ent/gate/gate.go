@@ -33,6 +33,8 @@ const (
 	FieldDiffSortArrays = "diff_sort_arrays"
 	// FieldRedactedFields holds the string denoting the redacted_fields field in the database.
 	FieldRedactedFields = "redacted_fields"
+	// FieldRetention holds the string denoting the retention field in the database.
+	FieldRetention = "retention"
 	// EdgeRequests holds the string denoting the requests edge name in mutations.
 	EdgeRequests = "requests"
 	// Table holds the table name of the gate in the database.
@@ -58,6 +60,7 @@ var Columns = []string{
 	FieldDiffFloatTolerance,
 	FieldDiffSortArrays,
 	FieldRedactedFields,
+	FieldRetention,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -121,6 +124,11 @@ func ByDiffFloatTolerance(opts ...sql.OrderTermOption) OrderOption {
 // ByDiffSortArrays orders the results by the diff_sort_arrays field.
 func ByDiffSortArrays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDiffSortArrays, opts...).ToFunc()
+}
+
+// ByRetention orders the results by the retention field.
+func ByRetention(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRetention, opts...).ToFunc()
 }
 
 // ByRequestsCount orders the results by requests count.

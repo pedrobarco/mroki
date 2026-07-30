@@ -100,6 +100,20 @@ func (_c *GateCreate) SetRedactedFields(v []string) *GateCreate {
 	return _c
 }
 
+// SetRetention sets the "retention" field.
+func (_c *GateCreate) SetRetention(v string) *GateCreate {
+	_c.mutation.SetRetention(v)
+	return _c
+}
+
+// SetNillableRetention sets the "retention" field if the given value is not nil.
+func (_c *GateCreate) SetNillableRetention(v *string) *GateCreate {
+	if v != nil {
+		_c.SetRetention(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *GateCreate) SetID(v uuid.UUID) *GateCreate {
 	_c.mutation.SetID(v)
@@ -277,6 +291,10 @@ func (_c *GateCreate) createSpec() (*Gate, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RedactedFields(); ok {
 		_spec.SetField(gate.FieldRedactedFields, field.TypeJSON, value)
 		_node.RedactedFields = value
+	}
+	if value, ok := _c.mutation.Retention(); ok {
+		_spec.SetField(gate.FieldRetention, field.TypeString, value)
+		_node.Retention = value
 	}
 	if nodes := _c.mutation.RequestsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

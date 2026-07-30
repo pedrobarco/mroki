@@ -9,6 +9,7 @@ type Gate struct {
 	ShadowURL   GateURL
 	DiffConfig  DiffConfig
 	RedactedFields RedactedFields
+	Retention   Retention
 	CreatedAt   time.Time
 }
 
@@ -38,6 +39,12 @@ func WithGateRedactedFields(rf RedactedFields) gateOption {
 	}
 }
 
+func WithGateRetention(r Retention) gateOption {
+	return func(g *Gate) {
+		g.Retention = r
+	}
+}
+
 func NewGate(name GateName, live, shadow GateURL, opts ...gateOption) (*Gate, error) {
 	gate := &Gate{
 		Name:        name,
@@ -45,6 +52,7 @@ func NewGate(name GateName, live, shadow GateURL, opts ...gateOption) (*Gate, er
 		ShadowURL:   shadow,
 		DiffConfig:  DefaultDiffConfig(),
 		RedactedFields: DefaultRedactedFields(),
+		Retention:   NoRetention(),
 	}
 
 	for _, o := range opts {

@@ -45,6 +45,10 @@ func (Gate) Fields() []ent.Field {
 			Default(false),
 		field.JSON("redacted_fields", []string{}).
 			Optional(),
+		// Per-gate request retention as a Go duration string (e.g. "168h").
+		// Empty means the gate falls back to the global retention floor.
+		field.String("retention").
+			Optional(),
 	}
 }
 

@@ -54,11 +54,20 @@ func mapGateToDomain(raw *ent.Gate) (*traffictesting.Gate, error) {
 		return nil, fmt.Errorf("invalid redacted fields in database: %w", err)
 	}
 
+	retention := traffictesting.NoRetention()
+	if raw.Retention != "" {
+		retention, err = traffictesting.ParseRetention(raw.Retention)
+		if err != nil {
+			return nil, fmt.Errorf("invalid retention in database: %w", err)
+		}
+	}
+
 	return traffictesting.NewGate(name, live, shadow,
 		traffictesting.WithGateID(id),
 		traffictesting.WithGateCreatedAt(raw.CreatedAt),
 		traffictesting.WithGateDiffConfig(diffConfig),
 		traffictesting.WithGateRedactedFields(redactedFields),
+		traffictesting.WithGateRetention(retention),
 	)
 }
 

@@ -5,15 +5,18 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 )
 
-// RequestCleaner deletes requests older than a given duration.
-// Implemented by postgres.requestRepository.
+// RequestCleaner deletes a single gate's requests older than a given duration.
+// Implemented by the ent requestRepository.
 type RequestCleaner interface {
-	DeleteOlderThan(ctx context.Context, olderThan time.Duration) (int64, error)
+	DeleteOlderThanForGate(ctx context.Context, gateID traffictesting.GateID, olderThan time.Duration) (int64, error)
 }
 
-// CleanupJob periodically deletes requests older than the configured retention period.
+// CleanupJob periodically deletes each gate's requests older than that gate's
+// effective retention (its custom retention, or the global floor when unset).
 // Responses and diffs are automatically removed via ON DELETE CASCADE.
 //
 // The job follows the same lifecycle pattern as pkg/ratelimit.Limiter:
@@ -22,6 +25,7 @@ type RequestCleaner interface {
 // Important: Call Stop() when done to prevent goroutine leaks.
 type CleanupJob struct {
 	cleaner   RequestCleaner
+	gates     traffictesting.GateRepository
 	ticker    *time.Ticker
 	done      chan struct{}
 	stopped   bool
@@ -32,13 +36,15 @@ type CleanupJob struct {
 }
 
 // NewCleanupJob creates a new cleanup job.
-// retention is the maximum age of requests to keep (e.g., 168h for 7 days).
+// retention is the global retention floor (must be > 0); it applies to every
+// gate that has not configured a custom retention.
 // interval is how often the cleanup runs (e.g., 1h).
 //
 // Call Start() to begin the background goroutine.
-func NewCleanupJob(cleaner RequestCleaner, retention, interval time.Duration, logger *slog.Logger) *CleanupJob {
+func NewCleanupJob(cleaner RequestCleaner, gates traffictesting.GateRepository, retention, interval time.Duration, logger *slog.Logger) *CleanupJob {
 	return &CleanupJob{
 		cleaner:   cleaner,
+		gates:     gates,
 		done:      make(chan struct{}),
 		interval:  interval,
 		retention: retention,
@@ -86,28 +92,50 @@ func (j *CleanupJob) Stop() {
 	j.logger.Info("cleanup job stopped")
 }
 
-// run executes a single cleanup cycle.
+// run executes a single cleanup cycle, deleting each gate's expired requests
+// based on that gate's effective retention.
 func (j *CleanupJob) run() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	start := time.Now()
 
-	deleted, err := j.cleaner.DeleteOlderThan(ctx, j.retention)
+	gates, err := j.gates.ListRetentions(ctx)
 	if err != nil {
-		j.logger.Error("cleanup failed",
+		j.logger.Error("cleanup failed to list gate retentions",
 			slog.String("error", err.Error()),
-			slog.Duration("retention", j.retention),
 			slog.Duration("elapsed", time.Since(start)),
 		)
 		return
 	}
 
+	// One DELETE per gate. Gates sharing an identical effective retention
+	// (most use the global floor) could be batched into a single query, but the
+	// per-gate loop is kept deliberately: it isolates failures so one gate's
+	// error does not abort the others, and each delete already uses the
+	// composite (gate_id, created_at) index efficiently.
+	var totalDeleted int64
+	for _, g := range gates {
+		effective := g.Retention.Effective(j.retention)
+
+		deleted, err := j.cleaner.DeleteOlderThanForGate(ctx, g.ID, effective)
+		if err != nil {
+			j.logger.Error("cleanup failed for gate",
+				slog.String("error", err.Error()),
+				slog.String("gate_id", g.ID.String()),
+				slog.Duration("retention", effective),
+			)
+			continue
+		}
+		totalDeleted += deleted
+	}
+
 	duration := time.Since(start)
 
-	if deleted > 0 {
+	if totalDeleted > 0 {
 		j.logger.Info("cleanup completed",
-			slog.Int64("deleted_requests", deleted),
+			slog.Int64("deleted_requests", totalDeleted),
+			slog.Int("gates", len(gates)),
 			slog.Duration("duration", duration),
 		)
 	}

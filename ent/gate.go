@@ -37,6 +37,8 @@ type Gate struct {
 	DiffSortArrays bool `json:"diff_sort_arrays,omitempty"`
 	// RedactedFields holds the value of the "redacted_fields" field.
 	RedactedFields []string `json:"redacted_fields,omitempty"`
+	// Retention holds the value of the "retention" field.
+	Retention string `json:"retention,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GateQuery when eager-loading is set.
 	Edges        GateEdges `json:"edges"`
@@ -72,7 +74,7 @@ func (*Gate) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case gate.FieldDiffFloatTolerance:
 			values[i] = new(sql.NullFloat64)
-		case gate.FieldName, gate.FieldLiveURL, gate.FieldShadowURL:
+		case gate.FieldName, gate.FieldLiveURL, gate.FieldShadowURL, gate.FieldRetention:
 			values[i] = new(sql.NullString)
 		case gate.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -159,6 +161,12 @@ func (_m *Gate) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field redacted_fields: %w", err)
 				}
 			}
+		case gate.FieldRetention:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field retention", values[i])
+			} else if value.Valid {
+				_m.Retention = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -226,6 +234,9 @@ func (_m *Gate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("redacted_fields=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RedactedFields))
+	builder.WriteString(", ")
+	builder.WriteString("retention=")
+	builder.WriteString(_m.Retention)
 	builder.WriteByte(')')
 	return builder.String()
 }

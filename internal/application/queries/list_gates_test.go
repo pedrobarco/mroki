@@ -38,6 +38,10 @@ func (m *mockGateRepositoryForListGates) GetAll(ctx context.Context, filters tra
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockGateRepositoryForListGates) ListRetentions(ctx context.Context) ([]traffictesting.GateRetention, error) {
+	return nil, errors.New("not implemented")
+}
+
 type mockStatsRepositoryForListGates struct{}
 
 func (m *mockStatsRepositoryForListGates) GetGlobalStats(ctx context.Context) (*traffictesting.GlobalStats, error) {

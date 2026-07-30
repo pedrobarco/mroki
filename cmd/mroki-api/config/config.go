@@ -18,9 +18,9 @@ type Config config.Config[struct {
 	MaxBodySize     int64         `env:"MAX_BODY_SIZE, default=10485760"` // 10MB
 	RateLimit       int           `env:"RATE_LIMIT, default=1000"`        // requests per minute per IP
 	APIKey          string        `env:"API_KEY, required"`
-	CORSOrigins     string        `env:"CORS_ORIGINS"`         // comma-separated allowed origins, empty = disabled
-	TrustedProxies  string        `env:"TRUSTED_PROXIES"`      // comma-separated CIDRs/IPs allowed to set X-Forwarded-For, empty = XFF ignored
-	Retention       time.Duration `env:"RETENTION, default=0"` // 0 = keep forever, e.g. 168h = 7 days
+	CORSOrigins     string        `env:"CORS_ORIGINS"`            // comma-separated allowed origins, empty = disabled
+	TrustedProxies  string        `env:"TRUSTED_PROXIES"`         // comma-separated CIDRs/IPs allowed to set X-Forwarded-For, empty = XFF ignored
+	Retention       time.Duration `env:"RETENTION, default=720h"` // global request retention floor; must be > 0, e.g. 168h = 7 days
 	CleanupInterval time.Duration `env:"CLEANUP_INTERVAL, default=1h"`
 	ReadTimeout     time.Duration `env:"READ_TIMEOUT, default=15s"`
 	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT, default=30s"`
@@ -74,9 +74,10 @@ func (c Config) Validate() error {
 		verr.Add(config.SeverityError, fmt.Sprintf("api_key must be at least 16 characters, got %d", len(c.App.APIKey)))
 	}
 
-	// Validate retention
-	if c.App.Retention < 0 {
-		verr.Add(config.SeverityError, fmt.Sprintf("retention must be non-negative, got %s", c.App.Retention))
+	// Validate retention. Keep-forever (0) is no longer supported: retention is
+	// the global floor applied to every gate, so it must be a positive duration.
+	if c.App.Retention <= 0 {
+		verr.Add(config.SeverityError, fmt.Sprintf("retention must be positive (keep-forever is no longer supported), got %s", c.App.Retention))
 	}
 
 	// Validate cleanup interval

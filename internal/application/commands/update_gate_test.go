@@ -4,12 +4,16 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// testGlobalRetention is the global retention floor used by update_gate tests.
+const testGlobalRetention = 720 * time.Hour
 
 // mockGateRepo is a mock implementation of GateRepository for update_gate tests.
 type mockGateRepo struct {
@@ -31,6 +35,10 @@ func (m *mockGateRepo) GetAll(_ context.Context, _ traffictesting.GateFilters, _
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockGateRepo) ListRetentions(_ context.Context) ([]traffictesting.GateRetention, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *mockGateRepo) GetByID(_ context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
 	if m.gate == nil {
 		return nil, traffictesting.ErrGateNotFound
@@ -45,7 +53,7 @@ func (m *mockGateRepo) Update(_ context.Context, g *traffictesting.Gate) error {
 
 func TestUpdateGateHandler_valid_redacted_fields(t *testing.T) {
 	repo := newMockGateRepo()
-	handler := NewUpdateGateHandler(repo)
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
 
 	cmd := UpdateGateCommand{
 		ID: repo.gate.ID.String(),
@@ -64,7 +72,7 @@ func TestUpdateGateHandler_valid_redacted_fields(t *testing.T) {
 
 func TestUpdateGateHandler_invalid_redacted_fields_missing_prefix(t *testing.T) {
 	repo := newMockGateRepo()
-	handler := NewUpdateGateHandler(repo)
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
 
 	cmd := UpdateGateCommand{
 		ID: repo.gate.ID.String(),
@@ -82,7 +90,7 @@ func TestUpdateGateHandler_invalid_redacted_fields_missing_prefix(t *testing.T) 
 
 func TestUpdateGateHandler_invalid_redacted_fields_bare_prefix(t *testing.T) {
 	repo := newMockGateRepo()
-	handler := NewUpdateGateHandler(repo)
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
 
 	cmd := UpdateGateCommand{
 		ID: repo.gate.ID.String(),
@@ -101,7 +109,7 @@ func TestUpdateGateHandler_invalid_redacted_fields_bare_prefix(t *testing.T) {
 func TestUpdateGateHandler_partial_update_only_redacted_fields(t *testing.T) {
 	repo := newMockGateRepo()
 	originalName := repo.gate.Name
-	handler := NewUpdateGateHandler(repo)
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
 
 	cmd := UpdateGateCommand{
 		ID: repo.gate.ID.String(),
@@ -119,7 +127,7 @@ func TestUpdateGateHandler_partial_update_only_redacted_fields(t *testing.T) {
 
 func TestUpdateGateHandler_combined_name_and_redacted_fields(t *testing.T) {
 	repo := newMockGateRepo()
-	handler := NewUpdateGateHandler(repo)
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
 
 	newName := "updated-gate"
 	cmd := UpdateGateCommand{
@@ -139,7 +147,7 @@ func TestUpdateGateHandler_combined_name_and_redacted_fields(t *testing.T) {
 
 func TestUpdateGateHandler_gate_not_found(t *testing.T) {
 	repo := &mockGateRepo{gate: nil}
-	handler := NewUpdateGateHandler(repo)
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
 
 	cmd := UpdateGateCommand{
 		ID:   traffictesting.NewGateID().String(),
@@ -151,6 +159,95 @@ func TestUpdateGateHandler_gate_not_found(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, gate)
 	assert.ErrorIs(t, err, traffictesting.ErrGateNotFound)
+}
+
+func TestUpdateGateHandler_set_custom_retention(t *testing.T) {
+	repo := newMockGateRepo()
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
+
+	cmd := UpdateGateCommand{
+		ID:        repo.gate.ID.String(),
+		Retention: strPtr("1000h"),
+	}
+
+	gate, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	require.NotNil(t, gate)
+	assert.True(t, gate.Retention.IsSet())
+	assert.Equal(t, 1000*time.Hour, gate.Retention.Duration())
+	assert.Equal(t, gate, repo.updated)
+}
+
+func TestUpdateGateHandler_retention_equal_to_global_is_allowed(t *testing.T) {
+	repo := newMockGateRepo()
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
+
+	cmd := UpdateGateCommand{
+		ID:        repo.gate.ID.String(),
+		Retention: strPtr(testGlobalRetention.String()),
+	}
+
+	gate, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	assert.Equal(t, testGlobalRetention, gate.Retention.Duration())
+}
+
+func TestUpdateGateHandler_retention_below_global_is_rejected(t *testing.T) {
+	repo := newMockGateRepo()
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
+
+	cmd := UpdateGateCommand{
+		ID:        repo.gate.ID.String(),
+		Retention: strPtr("1h"),
+	}
+
+	gate, err := handler.Handle(context.Background(), cmd)
+
+	require.Error(t, err)
+	assert.Nil(t, gate)
+	assert.ErrorIs(t, err, traffictesting.ErrRetentionBelowMinimum)
+}
+
+func TestUpdateGateHandler_invalid_retention_format(t *testing.T) {
+	repo := newMockGateRepo()
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
+
+	cmd := UpdateGateCommand{
+		ID:        repo.gate.ID.String(),
+		Retention: strPtr("not-a-duration"),
+	}
+
+	gate, err := handler.Handle(context.Background(), cmd)
+
+	require.Error(t, err)
+	assert.Nil(t, gate)
+	assert.ErrorIs(t, err, traffictesting.ErrInvalidRetention)
+}
+
+func TestUpdateGateHandler_empty_retention_resets_to_global(t *testing.T) {
+	repo := newMockGateRepo()
+	// Seed the gate with a custom retention so we can verify it is cleared.
+	repo.gate.Retention = mustRetention(t, "1000h")
+	handler := NewUpdateGateHandler(repo, testGlobalRetention)
+
+	cmd := UpdateGateCommand{
+		ID:        repo.gate.ID.String(),
+		Retention: strPtr(""),
+	}
+
+	gate, err := handler.Handle(context.Background(), cmd)
+
+	require.NoError(t, err)
+	assert.False(t, gate.Retention.IsSet(), "empty string should reset to global retention")
+}
+
+func mustRetention(t *testing.T, s string) traffictesting.Retention {
+	t.Helper()
+	r, err := traffictesting.ParseRetention(s)
+	require.NoError(t, err)
+	return r
 }
 
 func strPtr(s string) *string { return &s }

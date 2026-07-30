@@ -35,6 +35,7 @@ func (r *gateRepository) Save(ctx context.Context, g *traffictesting.Gate) error
 		SetDiffFloatTolerance(g.DiffConfig.FloatTolerance).
 		SetDiffSortArrays(g.DiffConfig.SortArrays).
 		SetRedactedFields(g.RedactedFields.AdditionalFields).
+		SetRetention(g.Retention.String()).
 		Save(ctx); err != nil {
 		if isUniqueConstraintError(err) {
 			return classifyGateUniqueViolation(err, g)
@@ -52,6 +53,7 @@ func (r *gateRepository) Update(ctx context.Context, g *traffictesting.Gate) err
 		SetDiffFloatTolerance(g.DiffConfig.FloatTolerance).
 		SetDiffSortArrays(g.DiffConfig.SortArrays).
 		SetRedactedFields(g.RedactedFields.AdditionalFields).
+		SetRetention(g.Retention.String()).
 		Save(ctx); err != nil {
 		if ent.IsNotFound(err) {
 			return fmt.Errorf("%w: %s", traffictesting.ErrGateNotFound, g.ID)
@@ -62,6 +64,38 @@ func (r *gateRepository) Update(ctx context.Context, g *traffictesting.Gate) err
 		return fmt.Errorf("failed to update gate: %w", err)
 	}
 	return nil
+}
+
+// ListRetentions returns the retention setting for every gate. It is used by
+// the cleanup job to resolve per-gate effective retention against the global
+// floor. Only the id and retention columns are selected to keep it cheap.
+func (r *gateRepository) ListRetentions(ctx context.Context) ([]traffictesting.GateRetention, error) {
+	rows, err := r.client.Gate.Query().
+		Select(gate.FieldID, gate.FieldRetention).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list gate retentions: %w", err)
+	}
+
+	out := make([]traffictesting.GateRetention, 0, len(rows))
+	for _, raw := range rows {
+		id, err := traffictesting.ParseGateID(raw.ID.String())
+		if err != nil {
+			return nil, fmt.Errorf("invalid gate ID in database: %w", err)
+		}
+
+		retention := traffictesting.NoRetention()
+		if raw.Retention != "" {
+			retention, err = traffictesting.ParseRetention(raw.Retention)
+			if err != nil {
+				return nil, fmt.Errorf("invalid retention in database for gate %s: %w", id, err)
+			}
+		}
+
+		out = append(out, traffictesting.GateRetention{ID: id, Retention: retention})
+	}
+
+	return out, nil
 }
 
 func (r *gateRepository) Delete(ctx context.Context, id traffictesting.GateID) error {

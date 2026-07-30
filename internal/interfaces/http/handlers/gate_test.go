@@ -62,6 +62,10 @@ func (m *mockGateRepository) GetAll(ctx context.Context, filters traffictesting.
 	return nil, nil
 }
 
+func (m *mockGateRepository) ListRetentions(ctx context.Context) ([]traffictesting.GateRetention, error) {
+	return nil, nil
+}
+
 // mockGateStatsRepository implements traffictesting.StatsRepository for gate handler testing
 type mockGateStatsRepository struct {
 	getStatsByGateIDsFn func(context.Context, []traffictesting.GateID) (map[traffictesting.GateID]traffictesting.GateStats, error)
@@ -547,7 +551,6 @@ func TestGetAllGates_PaginationValidationError(t *testing.T) {
 	}
 }
 
-
 func TestGetAllGates_WithSortParams(t *testing.T) {
 	name, _ := traffictesting.ParseGateName("sort-gate")
 	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
@@ -837,7 +840,7 @@ func TestUpdateGate_Success_NameOnly(t *testing.T) {
 			return nil
 		},
 	}
-	handler := commands.NewUpdateGateHandler(repo)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
 
 	body := `{"name":"updated-gate"}`
 	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
@@ -882,7 +885,7 @@ func TestUpdateGate_Success_DiffConfig(t *testing.T) {
 			return nil
 		},
 	}
-	handler := commands.NewUpdateGateHandler(repo)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
 
 	body := `{"diff_config":{"ignored_fields":["timestamp","trace_id"],"included_fields":[],"float_tolerance":0.001,"sort_arrays":true}}`
 	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
@@ -937,7 +940,7 @@ func TestUpdateGate_Success_RedactedFields(t *testing.T) {
 			return nil
 		},
 	}
-	handler := commands.NewUpdateGateHandler(repo)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
 
 	body := `{"redacted_fields":["headers.X-Internal-Token","headers.X-Secret"]}`
 	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
@@ -977,7 +980,7 @@ func TestUpdateGate_NotFound(t *testing.T) {
 			return nil, traffictesting.ErrGateNotFound
 		},
 	}
-	handler := commands.NewUpdateGateHandler(repo)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
 
 	gateID := traffictesting.NewGateID()
 	body := `{"name":"new-name"}`
@@ -1000,7 +1003,7 @@ func TestUpdateGate_NotFound(t *testing.T) {
 
 func TestUpdateGate_InvalidID(t *testing.T) {
 	repo := &mockGateRepository{}
-	handler := commands.NewUpdateGateHandler(repo)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
 
 	body := `{"name":"new-name"}`
 	req := httptest.NewRequest(http.MethodPatch, "/gates/invalid-id", bytes.NewBufferString(body))
@@ -1022,7 +1025,7 @@ func TestUpdateGate_InvalidID(t *testing.T) {
 
 func TestUpdateGate_MissingPathParam(t *testing.T) {
 	repo := &mockGateRepository{}
-	handler := commands.NewUpdateGateHandler(repo)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
 
 	body := `{"name":"new-name"}`
 	req := httptest.NewRequest(http.MethodPatch, "/gates/", bytes.NewBufferString(body))
@@ -1043,7 +1046,7 @@ func TestUpdateGate_MissingPathParam(t *testing.T) {
 
 func TestUpdateGate_InvalidJSON(t *testing.T) {
 	repo := &mockGateRepository{}
-	handler := commands.NewUpdateGateHandler(repo)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
 
 	gateID := traffictesting.NewGateID()
 	body := `{invalid json}`
@@ -1079,7 +1082,7 @@ func TestUpdateGate_DuplicateName(t *testing.T) {
 			return traffictesting.ErrDuplicateGateName
 		},
 	}
-	handler := commands.NewUpdateGateHandler(repo)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
 
 	body := `{"name":"duplicate-name"}`
 	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID.String(), bytes.NewBufferString(body))
@@ -1096,5 +1099,177 @@ func TestUpdateGate_DuplicateName(t *testing.T) {
 
 	if apiErr.Status != http.StatusConflict {
 		t.Errorf("expected status 409, got %d", apiErr.Status)
+	}
+}
+
+// newRetentionGate builds an existing gate and a repo that captures the updated
+// gate, for use by the retention PATCH tests.
+func newRetentionGate(t *testing.T) (*traffictesting.Gate, *mockGateRepository, **traffictesting.Gate) {
+	t.Helper()
+	gateID := traffictesting.NewGateID()
+	name, _ := traffictesting.ParseGateName("retention-gate")
+	liveURL, _ := traffictesting.ParseGateURL("http://live.example.com")
+	shadowURL, _ := traffictesting.ParseGateURL("http://shadow.example.com")
+	existingGate, _ := traffictesting.NewGate(name, liveURL, shadowURL, traffictesting.WithGateID(gateID))
+
+	var updated *traffictesting.Gate
+	repo := &mockGateRepository{
+		getByIDFunc: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			return existingGate, nil
+		},
+		updateFunc: func(ctx context.Context, gate *traffictesting.Gate) error {
+			updated = gate
+			return nil
+		},
+	}
+	return existingGate, repo, &updated
+}
+
+func patchGate(t *testing.T, handler *commands.UpdateGateHandler, gateID, body string) (*httptest.ResponseRecorder, error) {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPatch, "/gates/"+gateID, bytes.NewBufferString(body))
+	req.SetPathValue("gate_id", gateID)
+	rec := httptest.NewRecorder()
+	return rec, UpdateGate(handler)(rec, req)
+}
+
+func TestUpdateGate_Retention_SetCustom(t *testing.T) {
+	existingGate, repo, updated := newRetentionGate(t)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
+
+	rec, err := patchGate(t, handler, existingGate.ID.String(), `{"retention":"1000h"}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+	if *updated == nil {
+		t.Fatal("expected gate to be updated")
+	}
+	assert.Equal(t, "1000h0m0s", (*updated).Retention.String())
+
+	var response dto.Response[dto.Gate]
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	assert.Equal(t, "1000h0m0s", response.Data.Retention)
+}
+
+func TestUpdateGate_Retention_ResetViaEmptyString(t *testing.T) {
+	existingGate, repo, updated := newRetentionGate(t)
+	custom, _ := traffictesting.ParseRetention("1000h")
+	existingGate.Retention = custom
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
+
+	rec, err := patchGate(t, handler, existingGate.ID.String(), `{"retention":""}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+	if *updated == nil {
+		t.Fatal("expected gate to be updated")
+	}
+	assert.False(t, (*updated).Retention.IsSet())
+	assert.Equal(t, "", (*updated).Retention.String())
+}
+
+func TestUpdateGate_Retention_ResetViaNull(t *testing.T) {
+	existingGate, repo, updated := newRetentionGate(t)
+	custom, _ := traffictesting.ParseRetention("1000h")
+	existingGate.Retention = custom
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
+
+	rec, err := patchGate(t, handler, existingGate.ID.String(), `{"retention":null}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+	if *updated == nil {
+		t.Fatal("expected gate to be updated")
+	}
+	assert.False(t, (*updated).Retention.IsSet())
+}
+
+func TestUpdateGate_Retention_AbsentLeavesUnchanged(t *testing.T) {
+	existingGate, repo, updated := newRetentionGate(t)
+	custom, _ := traffictesting.ParseRetention("1000h")
+	existingGate.Retention = custom
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
+
+	rec, err := patchGate(t, handler, existingGate.ID.String(), `{"name":"renamed-gate"}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+	if *updated == nil {
+		t.Fatal("expected gate to be updated")
+	}
+	assert.True(t, (*updated).Retention.IsSet())
+	assert.Equal(t, "1000h0m0s", (*updated).Retention.String())
+}
+
+func TestUpdateGate_Retention_TrimsWhitespace(t *testing.T) {
+	existingGate, repo, updated := newRetentionGate(t)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
+
+	rec, err := patchGate(t, handler, existingGate.ID.String(), `{"retention":"  1000h  "}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+	if *updated == nil {
+		t.Fatal("expected gate to be updated")
+	}
+	assert.Equal(t, "1000h0m0s", (*updated).Retention.String())
+}
+
+func TestUpdateGate_Retention_BelowFloor(t *testing.T) {
+	existingGate, repo, _ := newRetentionGate(t)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
+
+	_, err := patchGate(t, handler, existingGate.ID.String(), `{"retention":"168h"}`)
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+func TestUpdateGate_Retention_InvalidFormat(t *testing.T) {
+	existingGate, repo, _ := newRetentionGate(t)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
+
+	_, err := patchGate(t, handler, existingGate.ID.String(), `{"retention":"not-a-duration"}`)
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
+func TestUpdateGate_Retention_InvalidJSONType(t *testing.T) {
+	existingGate, repo, _ := newRetentionGate(t)
+	handler := commands.NewUpdateGateHandler(repo, 720*time.Hour)
+
+	_, err := patchGate(t, handler, existingGate.ID.String(), `{"retention":123}`)
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
 	}
 }

@@ -3,17 +3,26 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 )
 
 // UpdateGateCommand represents the intent to update an existing gate.
 // All fields are optional — only non-nil fields are applied.
+//
+// Retention is a tri-state pointer: nil leaves the current value untouched, an
+// empty string (including a JSON null, which the HTTP layer maps to "") resets
+// the gate to the global retention floor, and a non-empty Go duration string
+// sets a custom retention (which must be >= the global floor). Surrounding
+// whitespace is trimmed before parsing.
 type UpdateGateCommand struct {
 	ID          string
 	Name        *string
 	DiffConfig  *UpdateDiffConfigProps
 	RedactedFields *UpdateRedactedFieldsProps
+	Retention   *string
 }
 
 // UpdateDiffConfigProps holds the diff configuration fields for update.
@@ -31,12 +40,15 @@ type UpdateRedactedFieldsProps struct {
 
 // UpdateGateHandler handles the UpdateGate command
 type UpdateGateHandler struct {
-	repo traffictesting.GateRepository
+	repo             traffictesting.GateRepository
+	globalRetention  time.Duration
 }
 
-// NewUpdateGateHandler creates a new UpdateGateHandler
-func NewUpdateGateHandler(repo traffictesting.GateRepository) *UpdateGateHandler {
-	return &UpdateGateHandler{repo: repo}
+// NewUpdateGateHandler creates a new UpdateGateHandler.
+// globalRetention is the retention floor: a custom per-gate retention must be
+// greater than or equal to this value.
+func NewUpdateGateHandler(repo traffictesting.GateRepository, globalRetention time.Duration) *UpdateGateHandler {
+	return &UpdateGateHandler{repo: repo, globalRetention: globalRetention}
 }
 
 // Handle executes the UpdateGate command
@@ -83,6 +95,26 @@ func (h *UpdateGateHandler) Handle(ctx context.Context, cmd UpdateGateCommand) (
 			return nil, err
 		}
 		gate.RedactedFields = redactedFields
+	}
+
+	// Apply retention if provided. An empty string (after trimming) resets the
+	// gate to the global floor; a non-empty duration must be valid and >= the
+	// global floor.
+	if cmd.Retention != nil {
+		v := strings.TrimSpace(*cmd.Retention)
+		if v == "" {
+			gate.Retention = traffictesting.NoRetention()
+		} else {
+			retention, err := traffictesting.ParseRetention(v)
+			if err != nil {
+				return nil, err
+			}
+			if retention.Duration() < h.globalRetention {
+				return nil, fmt.Errorf("%w: %s is below the global minimum of %s",
+					traffictesting.ErrRetentionBelowMinimum, retention.Duration(), h.globalRetention)
+			}
+			gate.Retention = retention
+		}
 	}
 
 	// Persist
