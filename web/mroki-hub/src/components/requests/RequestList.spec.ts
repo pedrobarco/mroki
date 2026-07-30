@@ -123,6 +123,45 @@ describe('RequestList pagination', () => {
   })
 })
 
+describe('RequestList reset-on-watch', () => {
+  beforeEach(() => {
+    push.mockClear()
+    getRequests.mockReset()
+  })
+
+  function lastParams(): { offset?: number; path?: string } {
+    return getRequests.mock.calls[getRequests.mock.calls.length - 1][1] as {
+      offset?: number
+      path?: string
+    }
+  }
+
+  it('resets the offset to the first page and refetches when filters change', async () => {
+    // 40 rows over a page size of 20 => two pages, so the pager is interactive.
+    getRequests.mockResolvedValue({
+      data: [makeRequest()],
+      pagination: { limit: 20, offset: 0, total: 40, has_more: true },
+    } satisfies PaginatedResponse<Request[]>)
+    const wrapper = mount(RequestList, { props: { gateId: 'gate-1', filters }, global })
+    await flushPromises()
+
+    // Advance to page 2 so the reset is observable.
+    const next = wrapper.findComponent(Pagination).findAll('button')[1]
+    await next.trigger('click')
+    await flushPromises()
+    expect(lastParams().offset).toBe(20)
+
+    // Changing the filters must reset the offset and refetch with the new path.
+    await wrapper.setProps({ filters: { ...filters, path: '/api/orders' } })
+    await flushPromises()
+
+    const params = lastParams()
+    expect(params.offset).toBe(0)
+    expect(params.path).toBe('/api/orders')
+    expect(wrapper.findComponent(Pagination).text()).toContain('Page 1 of 2')
+  })
+})
+
 describe('RequestList latency formatting', () => {
   beforeEach(() => {
     push.mockClear()
