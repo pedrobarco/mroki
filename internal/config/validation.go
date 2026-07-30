@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 
@@ -31,6 +32,23 @@ func ValidateCORSOrigins(verr *ValidationError, origins []string, allowAuthoriza
 		} else if u.Scheme != "http" && u.Scheme != "https" {
 			verr.Add(SeverityError, fmt.Sprintf("cors_origins entry %q must use http or https scheme, got %q", origin, u.Scheme))
 		}
+	}
+}
+
+// ValidateTrustedProxies appends error-severity findings for trusted-proxy
+// entries that are neither a valid CIDR (e.g. "10.0.0.0/8") nor a bare IP
+// address (e.g. "192.168.1.1"). Each entry decides whether a request's
+// X-Forwarded-For header may be trusted, so an unparseable entry is rejected at
+// startup rather than silently ignored.
+func ValidateTrustedProxies(verr *ValidationError, entries []string) {
+	for _, entry := range entries {
+		if _, _, err := net.ParseCIDR(entry); err == nil {
+			continue
+		}
+		if net.ParseIP(entry) != nil {
+			continue
+		}
+		verr.Add(SeverityError, fmt.Sprintf("trusted_proxies entry %q must be a valid IP or CIDR", entry))
 	}
 }
 

@@ -19,6 +19,7 @@ type Config config.Config[struct {
 	RateLimit       int           `env:"RATE_LIMIT, default=1000"`        // requests per minute per IP
 	APIKey          string        `env:"API_KEY, required"`
 	CORSOrigins     string        `env:"CORS_ORIGINS"`         // comma-separated allowed origins, empty = disabled
+	TrustedProxies  string        `env:"TRUSTED_PROXIES"`      // comma-separated CIDRs/IPs allowed to set X-Forwarded-For, empty = XFF ignored
 	Retention       time.Duration `env:"RETENTION, default=0"` // 0 = keep forever, e.g. 168h = 7 days
 	CleanupInterval time.Duration `env:"CLEANUP_INTERVAL, default=1h"`
 	ReadTimeout     time.Duration `env:"READ_TIMEOUT, default=15s"`
@@ -111,6 +112,13 @@ func (c Config) Validate() error {
 		config.ValidateCORSOrigins(verr, c.ParseCORSOrigins(), true)
 	}
 
+	// Validate trusted proxies. Each entry must be a valid CIDR or bare IP.
+	// Empty means X-Forwarded-For is never trusted and per-IP rate limiting
+	// always keys off the direct peer (RemoteAddr).
+	if c.App.TrustedProxies != "" {
+		config.ValidateTrustedProxies(verr, c.ParseTrustedProxies())
+	}
+
 	// Validate database URL scheme
 	if c.App.Database.URL == nil {
 		verr.Add(config.SeverityError, "database.url is required")
@@ -198,4 +206,20 @@ func (c Config) ParseCORSOrigins() []string {
 		}
 	}
 	return origins
+}
+
+// ParseTrustedProxies splits the comma-separated TrustedProxies string into a
+// slice of trimmed, non-empty entries (CIDRs or bare IPs). Returns nil if empty.
+func (c Config) ParseTrustedProxies() []string {
+	if c.App.TrustedProxies == "" {
+		return nil
+	}
+	parts := strings.Split(c.App.TrustedProxies, ",")
+	proxies := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			proxies = append(proxies, trimmed)
+		}
+	}
+	return proxies
 }

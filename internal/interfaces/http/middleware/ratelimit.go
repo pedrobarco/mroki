@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -41,9 +42,10 @@ func WithRateLimitErrorHandler(handler func(w http.ResponseWriter, r *http.Reque
 //	limiter := ratelimit.NewLimiter(1000)
 //	defer limiter.Stop()
 //
+//	extractIP, _ := middleware.NewForwardedForExtractor(cfg.ParseTrustedProxies())
 //	mw := middleware.RateLimit(
 //	    limiter,
-//	    middleware.WithIPExtractor(middleware.ExtractIPWithForwardedFor),
+//	    middleware.WithIPExtractor(extractIP),
 //	    middleware.WithRateLimitErrorHandler(customHandler),
 //	)
 //
@@ -96,35 +98,117 @@ func defaultRateLimitErrorHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 }
 
-// ExtractIPWithForwardedFor returns an IP extractor that checks X-Forwarded-For and X-Real-IP headers.
-// Use this when the API is behind a proxy/load balancer.
+// NewForwardedForExtractor returns an IP extractor that honors the
+// X-Forwarded-For (and X-Real-IP) headers only when a request's immediate peer
+// (RemoteAddr) is one of the configured trusted proxies. This prevents clients
+// from spoofing their source IP to evade per-IP rate limiting.
 //
-// WARNING: Only use this if your proxy is configured to set these headers correctly.
-// If misconfigured, clients can spoof their IP addresses to bypass rate limits.
+// trustedProxies is a list of CIDRs (e.g. "10.0.0.0/8") or bare IPs (e.g.
+// "192.168.1.1"). An empty list means no peer is ever trusted, so the extractor
+// always keys off RemoteAddr and ignores forwarding headers. An invalid entry
+// returns an error.
 //
-// Priority order:
-// 1. X-Forwarded-For (leftmost IP = original client)
-// 2. X-Real-IP
-// 3. RemoteAddr (fallback)
-func ExtractIPWithForwardedFor(r *http.Request) string {
-	// Check X-Forwarded-For header (comma-separated list, leftmost is original client)
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// Take the first IP (leftmost = original client)
-		if idx := strings.Index(xff, ","); idx != -1 {
-			return strings.TrimSpace(xff[:idx])
+// When the peer is trusted, the client IP is taken as the right-most entry in
+// the X-Forwarded-For chain that is NOT itself a trusted proxy. This walks past
+// any chained trusted proxies to reach the real client while ignoring
+// attacker-supplied left-hand entries. All X-Forwarded-For header lines are
+// joined into a single chain, and each entry is normalized (an "ip:port" pair
+// is reduced to its IP and malformed entries are skipped) so the resulting key
+// cannot be rotated via ports or spoofed junk. If X-Forwarded-For yields no
+// untrusted hop, the extractor falls back to X-Real-IP and finally to
+// RemoteAddr.
+func NewForwardedForExtractor(trustedProxies []string) (func(r *http.Request) string, error) {
+	nets := make([]*net.IPNet, 0, len(trustedProxies))
+	for _, entry := range trustedProxies {
+		n, err := parseTrustedEntry(entry)
+		if err != nil {
+			return nil, err
 		}
-		return strings.TrimSpace(xff)
+		nets = append(nets, n)
 	}
 
-	// Check X-Real-IP header
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
+	return func(r *http.Request) string {
+		peer := defaultExtractIP(r)
 
-	// Fallback to RemoteAddr
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
+		// Untrusted (or no) peer: never trust forwarding headers.
+		if !ipInNets(peer, nets) {
+			return peer
+		}
+
+		// Trusted peer: return the right-most X-Forwarded-For entry that is not
+		// itself a trusted proxy (the real client behind the proxy chain). All
+		// X-Forwarded-For header lines are joined so that proxies which append a
+		// separate header (rather than extending the existing one) are still
+		// considered as part of the chain.
+		if values := r.Header.Values("X-Forwarded-For"); len(values) > 0 {
+			chain := strings.Split(strings.Join(values, ","), ",")
+			for i := len(chain) - 1; i >= 0; i-- {
+				ip := normalizeIP(chain[i])
+				if ip == "" {
+					continue
+				}
+				if !ipInNets(ip, nets) {
+					return ip
+				}
+			}
+		}
+
+		// No untrusted X-Forwarded-For hop; fall back to X-Real-IP then peer.
+		if xri := normalizeIP(r.Header.Get("X-Real-IP")); xri != "" {
+			return xri
+		}
+		return peer
+	}, nil
+}
+
+// normalizeIP trims and parses a forwarding-header entry, which may be a bare
+// IP or an "ip:port" pair, and returns the canonical IP string (e.g.
+// "::ffff:1.2.3.4" becomes "1.2.3.4"). It returns "" when the entry does not
+// contain a valid IP, so callers can skip spoofed or malformed hops rather than
+// keying rate limiting off attacker-controlled junk.
+func normalizeIP(entry string) string {
+	entry = strings.TrimSpace(entry)
+	if entry == "" {
+		return ""
 	}
-	return ip
+	if ip := net.ParseIP(entry); ip != nil {
+		return ip.String()
+	}
+	if host, _, err := net.SplitHostPort(entry); err == nil {
+		if ip := net.ParseIP(strings.TrimSpace(host)); ip != nil {
+			return ip.String()
+		}
+	}
+	return ""
+}
+
+// parseTrustedEntry parses a trusted-proxy entry as either a CIDR or a bare IP
+// (converted to a single-host network).
+func parseTrustedEntry(entry string) (*net.IPNet, error) {
+	if _, n, err := net.ParseCIDR(entry); err == nil {
+		return n, nil
+	}
+	if ip := net.ParseIP(entry); ip != nil {
+		bits := 32
+		if ip.To4() == nil {
+			bits = 128
+		}
+		return &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)}, nil
+	}
+	return nil, fmt.Errorf("invalid trusted proxy %q: must be a valid IP or CIDR", entry)
+}
+
+// ipInNets reports whether ipStr parses to an IP contained in any of nets.
+// An unparseable IP is never contained.
+func ipInNets(ipStr string, nets []*net.IPNet) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+	for _, n := range nets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
