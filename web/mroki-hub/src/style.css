@@ -59,6 +59,12 @@
     system-ui, -apple-system, 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', sans-serif;
 }
 
+/*
+ * Future/opt-in light seed — NOT currently reachable. The hub is dark-only:
+ * index.html sets <html class="dark">, so the active palette is `.dark` below.
+ * These `:root` values are retained as a starting point should a light theme be
+ * introduced later; they are not applied while the hub renders dark-only.
+ */
 :root {
   --radius: 0.625rem;
   --background: #ffffff;
