@@ -24,7 +24,7 @@ func validConfig() config.Config {
 	cfg.App.MaxBodySize = 10485760
 	cfg.App.RateLimit = 1000
 	cfg.App.APIKey = "test-api-key-min-16-chars"
-	cfg.App.Retention = 0
+	cfg.App.Retention = 720 * time.Hour
 	cfg.App.CleanupInterval = 1 * time.Hour
 	cfg.App.ReadTimeout = 15 * time.Second
 	cfg.App.WriteTimeout = 30 * time.Second
@@ -166,11 +166,19 @@ func TestValidate_cors_origins(t *testing.T) {
 }
 
 func TestValidate_invalid_retention(t *testing.T) {
+	// Zero (keep-forever) is no longer supported.
 	cfg := validConfig()
-	cfg.App.Retention = -1 * time.Hour
+	cfg.App.Retention = 0
 	err := cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "retention must be non-negative")
+	assert.Contains(t, err.Error(), "retention must be positive")
+
+	// Negative retention is rejected too.
+	cfg = validConfig()
+	cfg.App.Retention = -1 * time.Hour
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "retention must be positive")
 }
 
 func TestValidate_invalid_cleanup_interval(t *testing.T) {

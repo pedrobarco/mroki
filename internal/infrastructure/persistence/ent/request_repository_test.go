@@ -489,7 +489,7 @@ func TestRequestRepository_Save_persists_has_content(t *testing.T) {
 	assert.False(t, emptyDiff.HasContent, "empty diff content must persist has_content=false")
 }
 
-func TestRequestRepository_DeleteOlderThan(t *testing.T) {
+func TestRequestRepository_DeleteOlderThanForGate(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&_fk=1")
 	defer func() { _ = client.Close() }()
 
@@ -497,25 +497,49 @@ func TestRequestRepository_DeleteOlderThan(t *testing.T) {
 	reqRepo := ent.NewRequestRepository(client)
 	gateID := setupGate(t, gateRepo)
 
-	// Create request with old timestamp
-	req := newTestRequest(t, gateID)
-	req.CreatedAt = time.Now().Add(-48 * time.Hour)
-	req.LiveResponse.CreatedAt = req.CreatedAt
-	req.ShadowResponse.CreatedAt = req.CreatedAt
-	require.NoError(t, reqRepo.Save(context.Background(), req))
+	// A second gate with distinct URLs (the URL pair is unique) to prove the
+	// delete is scoped to a single gate.
+	otherLive, _ := traffictesting.ParseGateURL("http://live2.example.com")
+	otherShadow, _ := traffictesting.ParseGateURL("http://shadow2.example.com")
+	otherGate, _ := traffictesting.NewGate(nextGateName(), otherLive, otherShadow)
+	require.NoError(t, gateRepo.Save(context.Background(), otherGate))
+	otherGateID := otherGate.ID
 
-	// Delete requests older than 24 hours
-	count, err := reqRepo.DeleteOlderThan(context.Background(), 24*time.Hour)
+	// Old request on the target gate — should be deleted.
+	oldReq := newTestRequest(t, gateID)
+	oldReq.CreatedAt = time.Now().Add(-48 * time.Hour)
+	oldReq.LiveResponse.CreatedAt = oldReq.CreatedAt
+	oldReq.ShadowResponse.CreatedAt = oldReq.CreatedAt
+	require.NoError(t, reqRepo.Save(context.Background(), oldReq))
 
+	// Recent request on the target gate — should survive.
+	recentReq := newTestRequest(t, gateID)
+	require.NoError(t, reqRepo.Save(context.Background(), recentReq))
+
+	// Old request on a different gate — must not be touched by this gate's delete.
+	otherReq := newTestRequest(t, otherGateID)
+	otherReq.CreatedAt = time.Now().Add(-48 * time.Hour)
+	otherReq.LiveResponse.CreatedAt = otherReq.CreatedAt
+	otherReq.ShadowResponse.CreatedAt = otherReq.CreatedAt
+	require.NoError(t, reqRepo.Save(context.Background(), otherReq))
+
+	// Delete the target gate's requests older than 24 hours.
+	count, err := reqRepo.DeleteOlderThanForGate(context.Background(), gateID, 24*time.Hour)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), count)
 
-	// Verify it's gone
 	params, _ := pagination.NewParams(50, 0)
 	filters := traffictesting.EmptyRequestFilters()
 	sort := traffictesting.DefaultRequestSort()
+
+	// Only the recent request remains on the target gate.
 	result, _ := reqRepo.GetAllByGateID(context.Background(), gateID, filters, sort, params)
-	assert.Empty(t, result.Items)
+	require.Len(t, result.Items, 1)
+	assert.Equal(t, recentReq.ID, result.Items[0].ID)
+
+	// The other gate's old request is untouched.
+	otherResult, _ := reqRepo.GetAllByGateID(context.Background(), otherGateID, filters, sort, params)
+	assert.Len(t, otherResult.Items, 1)
 }
 
 func TestRequestRepository_Save_without_diff(t *testing.T) {

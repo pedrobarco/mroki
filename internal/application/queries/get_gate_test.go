@@ -38,6 +38,10 @@ func (m *mockGateRepositoryForGetGate) GetAll(ctx context.Context, filters traff
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockGateRepositoryForGetGate) ListRetentions(ctx context.Context) ([]traffictesting.GateRetention, error) {
+	return nil, errors.New("not implemented")
+}
+
 type mockStatsRepositoryForGetGate struct {
 	getStatsByGateIDsFn func(context.Context, []traffictesting.GateID) (map[traffictesting.GateID]traffictesting.GateStats, error)
 }

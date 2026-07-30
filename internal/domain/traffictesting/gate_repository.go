@@ -15,4 +15,8 @@ type GateRepository interface {
 	Delete(ctx context.Context, id GateID) error
 	GetByID(ctx context.Context, id GateID) (*Gate, error)
 	GetAll(ctx context.Context, filters GateFilters, sort GateSort, params *pagination.Params) (*pagination.PagedResult[*Gate], error)
+	// ListRetentions returns the retention setting for every gate. The cleanup
+	// job uses it to resolve each gate's effective retention against the global
+	// floor without loading full gate aggregates.
+	ListRetentions(ctx context.Context) ([]GateRetention, error)
 }

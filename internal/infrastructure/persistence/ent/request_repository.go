@@ -219,18 +219,21 @@ func (r *requestRepository) GetAllByGateID(
 	return pagination.NewPagedResult(reqs, int64(total), params), nil
 }
 
-func (r *requestRepository) DeleteOlderThan(ctx context.Context, olderThan time.Duration) (int64, error) {
+// DeleteOlderThanForGate deletes a single gate's requests older than olderThan.
+// It uses the composite (gate_id, created_at) index for an efficient delete.
+func (r *requestRepository) DeleteOlderThanForGate(ctx context.Context, gateID traffictesting.GateID, olderThan time.Duration) (int64, error) {
 	cutoff := time.Now().Add(-olderThan)
 
 	count, err := r.client.Request.Delete().
-		Where(request.CreatedAtLT(cutoff)).
+		Where(
+			request.GateID(gateID.UUID()),
+			request.CreatedAtLT(cutoff),
+		).
 		Exec(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("failed to delete expired requests: %w", err)
+		return 0, fmt.Errorf("failed to delete expired requests for gate %s: %w", gateID, err)
 	}
 
-	// The cleanup job logs the deleted count with request correlation via its
-	// injected logger, so the repository stays silent to avoid duplicate logs.
 	return int64(count), nil
 }
 

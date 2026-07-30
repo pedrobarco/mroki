@@ -69,6 +69,10 @@ func (m *mockGateRepoForRequest) GetAll(ctx context.Context, filters traffictest
 	return nil, errors.New("not implemented")
 }
 
+func (m *mockGateRepoForRequest) ListRetentions(ctx context.Context) ([]traffictesting.GateRetention, error) {
+	return nil, errors.New("not implemented")
+}
+
 func TestCreateRequestHandler_Handle_success(t *testing.T) {
 	// Arrange
 	repo := &mockRequestRepository{

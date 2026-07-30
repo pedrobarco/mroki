@@ -279,6 +279,38 @@ func InvalidRedactedFields(err error) *APIError {
 	)
 }
 
+// InvalidRetention returns an RFC 7807 error for an invalid retention value.
+// Used when retention is not a valid Go duration or is not positive.
+func InvalidRetention(err error) *APIError {
+	detail := "retention is invalid"
+	if err != nil {
+		detail = fmt.Sprintf("%s: %v", detail, err)
+	}
+	return NewError(
+		http.StatusBadRequest,
+		ErrorTypeInvalidRequestBody,
+		"Invalid Retention",
+		detail,
+		err,
+	)
+}
+
+// RetentionBelowMinimum returns an RFC 7807 error when a custom per-gate
+// retention is below the global retention floor.
+func RetentionBelowMinimum(err error) *APIError {
+	detail := "retention is below the global minimum"
+	if err != nil {
+		detail = fmt.Sprintf("%s: %v", detail, err)
+	}
+	return NewError(
+		http.StatusBadRequest,
+		ErrorTypeInvalidRequestBody,
+		"Retention Below Minimum",
+		detail,
+		err,
+	)
+}
+
 // DuplicateGateURLs returns an RFC 7807 error for duplicate gate URL pairs.
 // Used when a gate with the same live_url + shadow_url combination already exists.
 func DuplicateGateURLs(err error) *APIError {

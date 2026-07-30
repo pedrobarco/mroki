@@ -36,6 +36,7 @@ function makeGate(overrides: Partial<Gate> = {}): Gate {
       sort_arrays: false,
     },
     redacted_fields: [],
+    retention: '',
     created_at: '2026-07-30T09:00:00Z',
     stats: { request_count_24h: 0, diff_count_24h: 0, diff_rate: 0, last_active: null },
     ...overrides,

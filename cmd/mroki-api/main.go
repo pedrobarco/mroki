@@ -109,7 +109,7 @@ func main() {
 
 	// Application Layer: Command Handlers (Write operations)
 	createGateHandler := commands.NewCreateGateHandler(gateRepo)
-	updateGateHandler := commands.NewUpdateGateHandler(gateRepo)
+	updateGateHandler := commands.NewUpdateGateHandler(gateRepo, cfg.App.Retention)
 	deleteGateHandler := commands.NewDeleteGateHandler(gateRepo)
 	createRequestHandler := commands.NewCreateRequestHandler(reqRepo, gateRepo, commands.WithEventDispatcher(eventBus))
 
@@ -157,12 +157,11 @@ func main() {
 		}
 	}()
 
-	// Start cleanup job if retention is configured
-	if cfg.App.Retention > 0 {
-		cleanupJob := jobs.NewCleanupJob(reqRepo, cfg.App.Retention, cfg.App.CleanupInterval, logger)
-		cleanupJob.Start()
-		defer cleanupJob.Stop()
-	}
+	// Start the cleanup job. Retention is always a positive global floor, so the
+	// job runs unconditionally, resolving per-gate effective retention each cycle.
+	cleanupJob := jobs.NewCleanupJob(reqRepo, gateRepo, cfg.App.Retention, cfg.App.CleanupInterval, logger)
+	cleanupJob.Start()
+	defer cleanupJob.Stop()
 
 	// Metrics platform: newAPIMetrics builds an isolated registry holding the
 	// runtime/process, build-info and DB-pool collectors with an OTel
@@ -236,6 +235,7 @@ func main() {
 	getRequestByID := handlers.GetRequestByID(getRequestHandler)
 	getAllRequestsByGateID := handlers.GetAllRequestsByGateID(listRequestsHandler)
 	getGlobalStats := handlers.GetGlobalStats(getGlobalStatsHandler)
+	getConfig := handlers.GetConfig(cfg.App.Retention)
 
 	mux := http.NewServeMux()
 
@@ -252,6 +252,7 @@ func main() {
 	// API endpoints (with middleware). Each route handler is also wrapped with
 	// otelhttp, which records the semconv http_server_* metrics and derives the
 	// bounded http_route label from the templated ServeMux pattern.
+	mux.Handle("GET /config", instrument("GET /config", baseChain.Then(getConfig)))
 	mux.Handle("GET /stats", instrument("GET /stats", baseChain.Then(getGlobalStats)))
 	mux.Handle("GET /gates", instrument("GET /gates", baseChain.Then(getAllGates)))
 	mux.Handle("POST /gates", instrument("POST /gates", postChain.Then(createGate)))

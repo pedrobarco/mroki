@@ -184,7 +184,6 @@ func GetAllGates(handler *queries.ListGatesHandler) AppHandler {
 	}
 }
 
-
 func DeleteGate(handler *commands.DeleteGateHandler) AppHandler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("gate_id")
@@ -229,15 +228,27 @@ func UpdateGate(handler *commands.UpdateGateHandler) AppHandler {
 			Name           *string         `json:"name"`
 			DiffConfig     *dto.DiffConfig `json:"diff_config"`
 			RedactedFields *[]string       `json:"redacted_fields"`
+			Retention      json.RawMessage `json:"retention"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return dto.InvalidRequestBody(err)
 		}
 
+		// Decode retention as a tri-state:
+		//   - absent key      -> leave the current value unchanged (nil)
+		//   - JSON null        -> reset to the global retention floor ("")
+		//   - JSON string ""   -> reset to the global retention floor ("")
+		//   - JSON string "…"  -> set a custom retention
+		retention, err := decodeRetention(req.Retention)
+		if err != nil {
+			return err
+		}
+
 		cmd := commands.UpdateGateCommand{
-			ID:   id,
-			Name: req.Name,
+			ID:        id,
+			Name:      req.Name,
+			Retention: retention,
 		}
 
 		if req.DiffConfig != nil {
@@ -268,6 +279,10 @@ func UpdateGate(handler *commands.UpdateGateHandler) AppHandler {
 				return dto.InvalidDiffConfig(err)
 			case errors.Is(err, traffictesting.ErrInvalidRedactedFields):
 				return dto.InvalidRedactedFields(err)
+			case errors.Is(err, traffictesting.ErrInvalidRetention):
+				return dto.InvalidRetention(err)
+			case errors.Is(err, traffictesting.ErrRetentionBelowMinimum):
+				return dto.RetentionBelowMinimum(err)
 			case errors.Is(err, traffictesting.ErrDuplicateGateName):
 				return dto.DuplicateGateName(err)
 			default:
@@ -294,6 +309,26 @@ func UpdateGate(handler *commands.UpdateGateHandler) AppHandler {
 	}
 }
 
+// decodeRetention interprets the raw JSON value of the "retention" field as a
+// tri-state command value. An absent field (nil raw) returns nil (unchanged).
+// A JSON null or an empty string returns a pointer to "" (reset to the global
+// floor). A JSON string returns a pointer to its value (set custom). Any other
+// JSON type is rejected as an invalid request body.
+func decodeRetention(raw json.RawMessage) (*string, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	if string(raw) == "null" {
+		empty := ""
+		return &empty, nil
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return nil, dto.InvalidRequestBody(err)
+	}
+	return &s, nil
+}
+
 func mapGateToDTO(gws *queries.GateWithStats) dto.Gate {
 	var lastActive *string
 	if gws.Stats.LastActive != nil {
@@ -313,7 +348,8 @@ func mapGateToDTO(gws *queries.GateWithStats) dto.Gate {
 			SortArrays:     gws.Gate.DiffConfig.SortArrays,
 		},
 		RedactedFields: gws.Gate.RedactedFields.AdditionalFields,
-		CreatedAt: gws.Gate.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Retention:      gws.Gate.Retention.String(),
+		CreatedAt:      gws.Gate.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Stats: dto.GateStats{
 			RequestCount24h: gws.Stats.RequestCount24h,
 			DiffCount24h:    gws.Stats.DiffCount24h,

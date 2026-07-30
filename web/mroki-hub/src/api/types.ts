@@ -20,6 +20,14 @@ export interface GlobalStats {
 }
 
 /**
+ * Read-only, server-wide settings the hub needs to render its UI.
+ */
+export interface AppConfig {
+  /** Global retention floor as a Go duration string (e.g. "720h0m0s"). */
+  retention: string
+}
+
+/**
  * Diff configuration for a gate
  */
 export interface DiffConfig {
@@ -39,6 +47,8 @@ export interface Gate {
   shadow_url: string
   diff_config: DiffConfig
   redacted_fields: string[]
+  /** Per-gate retention as a Go duration string (e.g. "168h"); empty = use global. */
+  retention: string
   created_at: string
   stats: GateStats
 }
@@ -181,6 +191,8 @@ export interface UpdateGatePayload {
   name?: string
   diff_config?: DiffConfig
   redacted_fields?: string[]
+  /** Go duration string (e.g. "168h"); empty string resets to the global floor. */
+  retention?: string
 }
 
 /**

@@ -13,6 +13,8 @@ var (
 	ErrInvalidGateURL     = errors.New("invalid gate URL")
 	ErrInvalidDiffConfig  = errors.New("invalid diff config")
 	ErrInvalidRedactedFields = errors.New("invalid redacted fields")
+	ErrInvalidRetention       = errors.New("invalid retention")
+	ErrRetentionBelowMinimum  = errors.New("retention below global minimum")
 
 	// Request errors
 	ErrRequestNotFound  = errors.New("request not found")
