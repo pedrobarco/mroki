@@ -30,7 +30,7 @@ func (h *DeleteGateHandler) Handle(ctx context.Context, cmd DeleteGateCommand) e
 	}
 
 	if err := h.repo.Delete(ctx, id); err != nil {
-		return err
+		return fmt.Errorf("failed to delete gate: %w", err)
 	}
 
 	return nil
