@@ -158,6 +158,67 @@ func TestValidationError_Error_multiple_errors(t *testing.T) {
 	}
 }
 
+func TestValidateCORSOrigins(t *testing.T) {
+	tests := []struct {
+		name               string
+		origins            []string
+		allowAuthorization bool
+		wantErr            bool
+		wantMsg            string
+	}{
+		{
+			name:               "wildcard with authorization is rejected",
+			origins:            []string{"*"},
+			allowAuthorization: true,
+			wantErr:            true,
+			wantMsg:            `cors_origins cannot be "*" (wildcard) when the Authorization header is allowed`,
+		},
+		{
+			name:               "explicit origins with authorization are allowed",
+			origins:            []string{"http://localhost:5173", "https://example.com"},
+			allowAuthorization: true,
+		},
+		{
+			name:               "wildcard without authorization is allowed",
+			origins:            []string{"*"},
+			allowAuthorization: false,
+		},
+		{
+			name:               "wildcard among explicit origins is still rejected",
+			origins:            []string{"https://good.com", "*"},
+			allowAuthorization: true,
+			wantErr:            true,
+			wantMsg:            `cors_origins cannot be "*" (wildcard)`,
+		},
+		{
+			name:               "invalid scheme is rejected",
+			origins:            []string{"ftp://bad.com"},
+			allowAuthorization: true,
+			wantErr:            true,
+			wantMsg:            `cors_origins entry "ftp://bad.com" must use http or https scheme`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			verr := &ValidationError{}
+			ValidateCORSOrigins(verr, tt.origins, tt.allowAuthorization)
+			if tt.wantErr {
+				if !verr.HasErrors() {
+					t.Errorf("origins=%v allowAuthorization=%v: expected an error finding, got none", tt.origins, tt.allowAuthorization)
+				}
+				if tt.wantMsg != "" && !strings.Contains(verr.Error(), tt.wantMsg) {
+					t.Errorf("origins=%v: unexpected message: %s", tt.origins, verr.Error())
+				}
+				return
+			}
+			if verr.HasEntries() {
+				t.Errorf("origins=%v allowAuthorization=%v: expected no findings, got: %s", tt.origins, tt.allowAuthorization, verr.Error())
+			}
+		})
+	}
+}
+
 func TestValidateAppEnv(t *testing.T) {
 	tests := []struct {
 		name    string

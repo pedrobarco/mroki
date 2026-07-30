@@ -151,6 +151,8 @@ Access-Control-Max-Age: 86400
 
 If `MROKI_APP_CORS_ORIGINS` is empty or unset, CORS is disabled entirely — no `Access-Control-*` headers are sent.
 
+The wildcard origin `*` is **not** permitted. Because the API always allows the `Authorization` header, a wildcard origin would let any site drive authenticated cross-origin requests. This misconfiguration is rejected at startup with a clear error — set an explicit list of trusted origins (e.g. `https://hub.example.com`) instead.
+
 ---
 
 ## Production Checklist

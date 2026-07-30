@@ -21,7 +21,7 @@ This is the single source of truth for all mroki configuration. Each component i
 | `MROKI_APP_PORT` | No | `8090` | Server port |
 | `MROKI_APP_RATE_LIMIT` | No | `1000` | Requests per minute per IP |
 | `MROKI_APP_MAX_BODY_SIZE` | No | `10485760` | Request body size limit in bytes (10 MB) |
-| `MROKI_APP_CORS_ORIGINS` | No | _(disabled)_ | Comma-separated allowed origins |
+| `MROKI_APP_CORS_ORIGINS` | No | _(disabled)_ | Comma-separated allowed origins. The wildcard `*` is rejected at startup because the API allows the `Authorization` header — set explicit origins instead |
 | `MROKI_APP_RETENTION` | No | `0` | Request retention duration (Go duration format, `0` = keep forever) |
 | `MROKI_APP_CLEANUP_INTERVAL` | No | `1h` | Cleanup job interval (Go duration format) |
 | `MROKI_APP_READ_TIMEOUT` | No | `15s` | Server read timeout |

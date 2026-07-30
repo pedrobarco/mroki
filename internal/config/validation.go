@@ -2,10 +2,37 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/pedrobarco/mroki/pkg/logger"
 )
+
+// ValidateCORSOrigins appends error-severity findings for CORS origin
+// misconfiguration. Every non-wildcard origin must be a valid http or https
+// URL.
+//
+// The wildcard "*" is only permitted when allowAuthorization is false: a
+// wildcard origin combined with an allowed Authorization header would let any
+// origin drive authenticated cross-origin requests, so it is rejected at
+// startup rather than silently producing an unsafe policy.
+func ValidateCORSOrigins(verr *ValidationError, origins []string, allowAuthorization bool) {
+	for _, origin := range origins {
+		if origin == "*" {
+			if allowAuthorization {
+				verr.Add(SeverityError, `cors_origins cannot be "*" (wildcard) when the Authorization header is allowed; set explicit origins (e.g. https://hub.example.com) instead`)
+			}
+			continue
+		}
+
+		u, err := url.Parse(origin)
+		if err != nil {
+			verr.Add(SeverityError, fmt.Sprintf("cors_origins contains invalid URL %q: %v", origin, err))
+		} else if u.Scheme != "http" && u.Scheme != "https" {
+			verr.Add(SeverityError, fmt.Sprintf("cors_origins entry %q must use http or https scheme, got %q", origin, u.Scheme))
+		}
+	}
+}
 
 // ValidateLogSettings appends error-severity findings for unrecognised log
 // level or format values, using pkg/logger as the single source of truth for
