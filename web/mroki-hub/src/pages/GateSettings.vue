@@ -4,6 +4,8 @@ import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { getGate, updateGate, deleteGate } from '@/api'
 import type { Gate } from '@/api'
 import { useGateCache } from '@/composables/use-gate-cache'
+import { useAppConfig } from '@/composables/use-app-config'
+import { parseGoDuration, humanizeGoDuration, normalizeToGoDuration } from '@/lib/duration'
 import FieldListEditor from '@/components/gates/FieldListEditor.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -32,11 +34,23 @@ import {
   Trash2,
   Check,
   Info,
+  Clock,
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const { setGate: cacheGate, getCachedGate } = useGateCache()
+const { config: appConfig, load: loadAppConfig } = useAppConfig()
+
+// The global retention floor, shown so users can enter a valid override without
+// guessing. Null until the server config has loaded.
+const globalRetention = computed(() => appConfig.value?.retention ?? null)
+
+// Human-friendly rendering of the floor for display copy (e.g. "30d (720h0m0s)"
+// for round day counts). The raw value stays authoritative for validation.
+const globalRetentionLabel = computed(() =>
+  globalRetention.value ? humanizeGoDuration(globalRetention.value) : null
+)
 
 const gateId = route.params.id as string
 
@@ -58,6 +72,7 @@ const diffIgnoredFields = ref<string[]>([])
 const diffIncludedFields = ref<string[]>([])
 const floatTolerance = ref('')
 const sortArrays = ref(false)
+const retention = ref('')
 
 // Pristine snapshot of the form used to detect unsaved edits. Seeded with the
 // empty-form snapshot so a gate that never loaded is not treated as dirty.
@@ -72,11 +87,78 @@ function snapshot() {
     included: diffIncludedFields.value,
     tol: floatTolerance.value,
     sort: sortArrays.value,
+    retention: retention.value.trim(),
   })
 }
 
 const pristine = ref(snapshot())
 const isDirty = computed(() => snapshot() !== pristine.value)
+
+// Client-side retention validation. Mirrors the server rules so obvious
+// mistakes fail before the round-trip; the API stays the source of truth. An
+// empty value is valid (resets to the global floor).
+const retentionError = computed<string | null>(() => {
+  const value = retention.value.trim()
+  if (value === '') return null
+
+  // Accept day/week shorthands (e.g. 30d, 2w) by expanding to Go units first.
+  const normalized = normalizeToGoDuration(value)
+  const ns = normalized === null ? null : parseGoDuration(normalized)
+  if (ns === null) {
+    return 'Enter a duration like 168h, 30d, 2w, or 1h30m.'
+  }
+  if (ns <= 0) {
+    return 'Retention must be positive. Keep-forever (0) is not supported.'
+  }
+
+  const floorNs = globalRetention.value ? parseGoDuration(globalRetention.value) : null
+  if (floorNs !== null && ns < floorNs) {
+    return `Must be at least the global retention (${globalRetentionLabel.value}).`
+  }
+  return null
+})
+
+// Whether the field has been interacted with. Client errors stay silent until
+// blur so a value being typed does not flash an error mid-entry; Save gating
+// still uses the live validity below.
+const retentionTouched = ref(false)
+
+// A retention rejection from the server (e.g. the client floor check was
+// skipped because /config failed to load). Co-located with the field rather
+// than surfaced in the generic top alert. Cleared on any edit.
+const retentionServerError = ref<string | null>(null)
+
+// The message actually rendered under the field: the server rejection (always
+// shown), else the client error once the field has been touched. Blur and paste
+// both mark the field touched, so a pasted-in invalid value surfaces its reason
+// immediately (rather than leaving Save silently disabled) while mid-typing
+// keystrokes stay quiet.
+const retentionFieldError = computed<string | null>(() => {
+  if (retentionServerError.value) return retentionServerError.value
+  return retentionTouched.value ? retentionError.value : null
+})
+
+function onRetentionInput() {
+  retentionServerError.value = null
+}
+
+// A paste is a complete value, not mid-typing — surface any error right away.
+function onRetentionPaste() {
+  retentionTouched.value = true
+}
+
+function onRetentionBlur() {
+  retentionTouched.value = true
+}
+
+// Save is blocked while a known-invalid retention is entered.
+const canSave = computed(() => isDirty.value && !saving.value && retentionError.value === null)
+
+// Programmatic description for the retention input: the persistent guidance
+// prose, plus the inline error when one is shown.
+const retentionDescribedBy = computed(() =>
+  retentionFieldError.value ? 'gate-retention-desc gate-retention-error' : 'gate-retention-desc'
+)
 
 // Default redacted fields (mirrors domain DefaultRedactedFields)
 const defaultRedactedFields = [
@@ -95,6 +177,7 @@ function populateForm(g: Gate) {
     ? g.diff_config.float_tolerance.toString()
     : ''
   sortArrays.value = g.diff_config?.sort_arrays ?? false
+  retention.value = g.retention ?? ''
   pristine.value = snapshot()
 }
 
@@ -125,8 +208,29 @@ async function loadGate() {
 }
 
 async function handleSave() {
+  // Guard against a programmatic save with known-invalid input; the disabled
+  // button already prevents this in the UI.
+  if (retentionError.value !== null) return
+
+  // Expand any day/week shorthand into Go units the API understands. Empty
+  // stays empty (reset to the global floor). A non-empty value that fails to
+  // normalize can only happen if the validity gate above was bypassed — treat
+  // it as a validation error rather than silently resetting to the global floor.
+  const trimmedRetention = retention.value.trim()
+  let retentionPayload = ''
+  if (trimmedRetention !== '') {
+    const normalized = normalizeToGoDuration(retention.value)
+    if (normalized === null) {
+      retentionServerError.value = 'Enter a duration like 168h, 30d, 2w, or 1h30m.'
+      retentionTouched.value = true
+      return
+    }
+    retentionPayload = normalized
+  }
+
   saving.value = true
   saveError.value = null
+  retentionServerError.value = null
   saveSuccess.value = false
 
   try {
@@ -139,6 +243,7 @@ async function handleSave() {
         sort_arrays: sortArrays.value,
       },
       redacted_fields: redactedAdditionalFields.value,
+      retention: retentionPayload,
     })
 
     gate.value = response.data
@@ -147,7 +252,16 @@ async function handleSave() {
     saveSuccess.value = true
     setTimeout(() => (saveSuccess.value = false), 3000)
   } catch (err) {
-    saveError.value = err instanceof Error ? err.message : 'Failed to update gate'
+    const message = err instanceof Error ? err.message : 'Failed to update gate'
+    // Co-locate retention rejections (the one case client validation can miss,
+    // e.g. when the floor was unknown) with the field; everything else stays in
+    // the top save alert.
+    if (retention.value.trim() !== '' && /retention|duration|floor|at least/i.test(message)) {
+      retentionServerError.value = message
+      retentionTouched.value = true
+    } else {
+      saveError.value = message
+    }
   } finally {
     saving.value = false
   }
@@ -204,6 +318,9 @@ function onBeforeUnload(e: BeforeUnloadEvent) {
 
 onMounted(() => {
   loadGate()
+  // Best-effort: the floor is guidance, so a failed load degrades the copy but
+  // never blocks editing.
+  loadAppConfig().catch(() => {})
   window.addEventListener('beforeunload', onBeforeUnload)
 })
 
@@ -217,10 +334,10 @@ onUnmounted(() => {
     <!-- Back link -->
     <button
       type="button"
-      class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5 cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5 cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       @click="goBack"
     >
-      <ChevronLeft class="h-3.5 w-3.5" />
+      <ChevronLeft class="h-3.5 w-3.5" aria-hidden="true" />
       Back to Gate
     </button>
 
@@ -250,15 +367,16 @@ onUnmounted(() => {
             <code class="text-xs font-mono shrink-0">{{ gate.id }}</code>
           </div>
         </div>
-        <Button :disabled="saving || !isDirty" class="gap-2 shrink-0" @click="handleSave">
-          <Save v-if="!saveSuccess" class="h-3.5 w-3.5" />
-          <Check v-else class="h-3.5 w-3.5" />
+        <Button :disabled="!canSave" class="gap-2 shrink-0" @click="handleSave">
+          <Save v-if="!saveSuccess" class="h-3.5 w-3.5" aria-hidden="true" />
+          <Check v-else class="h-3.5 w-3.5" aria-hidden="true" />
           {{ saving ? 'Saving...' : saveSuccess ? 'Saved' : 'Save Changes' }}
         </Button>
       </div>
 
-      <!-- Save feedback -->
-      <Alert v-if="saveError" variant="destructive" class="mb-6">
+      <!-- Save feedback. Retention is validated client-side before save, so
+           this channel carries non-field failures (name conflicts, network). -->
+      <Alert v-if="saveError" variant="destructive" role="alert" aria-live="assertive" class="mb-6">
         <AlertDescription>{{ saveError }}</AlertDescription>
       </Alert>
 
@@ -286,7 +404,7 @@ onUnmounted(() => {
         <div class="bg-card border border-border rounded-xl overflow-hidden">
           <div class="px-5 py-4 border-b border-border/50">
             <div class="flex items-center gap-2 mb-1">
-              <Lock class="h-4 w-4 text-warning" />
+              <Lock class="h-4 w-4 text-warning" aria-hidden="true" />
               <h2 class="text-sm font-semibold tracking-tight">Field Redaction</h2>
             </div>
             <p class="text-xs text-dim leading-relaxed">
@@ -318,7 +436,7 @@ onUnmounted(() => {
                   :key="field"
                   class="inline-flex items-center gap-1.5 text-xs font-mono bg-background/60 border border-border/50 text-muted-foreground px-3 py-1.5 rounded-lg"
                 >
-                  <Check class="h-2.5 w-2.5 text-success shrink-0" />
+                  <Check class="h-2.5 w-2.5 text-success shrink-0" aria-hidden="true" />
                   {{ field }}
                 </span>
               </div>
@@ -348,11 +466,83 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+        <!-- Section: Data Retention -->
+        <div class="bg-card border border-border rounded-xl overflow-hidden">
+          <div class="px-5 py-4 border-b border-border/50">
+            <div class="flex items-center gap-2 mb-1">
+              <Clock class="h-4 w-4 text-info" aria-hidden="true" />
+              <h2 class="text-sm font-semibold tracking-tight">Data Retention</h2>
+            </div>
+            <p id="gate-retention-desc" class="text-xs text-dim leading-relaxed">
+              How long captured requests for this gate are kept before the cleanup job removes them.
+              Leave empty to use the global retention<template v-if="globalRetentionLabel">
+                of
+                <code class="text-xs font-mono bg-muted px-1 py-0.5 rounded">{{
+                  globalRetentionLabel
+                }}</code></template
+              >. A custom value can be a Go duration (e.g.
+              <code class="text-xs font-mono bg-muted px-1 py-0.5 rounded">168h</code>) or a
+              day/week shorthand (e.g.
+              <code class="text-xs font-mono bg-muted px-1 py-0.5 rounded">30d</code>,
+              <code class="text-xs font-mono bg-muted px-1 py-0.5 rounded">2w</code>), and must be
+              at least the global retention<template v-if="globalRetentionLabel">
+                (<code class="text-xs font-mono bg-muted px-1 py-0.5 rounded">{{
+                  globalRetentionLabel
+                }}</code
+                >)</template
+              >. Keep-forever (<code class="text-xs font-mono bg-muted px-1 py-0.5 rounded">0</code
+              >) is not supported.
+            </p>
+          </div>
+
+          <div class="p-5">
+            <div class="space-y-2 max-w-sm">
+              <Label for="gate-retention">Retention period</Label>
+              <Input
+                id="gate-retention"
+                v-model="retention"
+                type="text"
+                :placeholder="globalRetention ? `\u2265 ${globalRetention}` : 'Global default'"
+                class="font-mono text-xs"
+                :disabled="saving"
+                :aria-invalid="retentionFieldError !== null"
+                :aria-describedby="retentionDescribedBy"
+                @input="onRetentionInput"
+                @paste="onRetentionPaste"
+                @blur="onRetentionBlur"
+              />
+              <p
+                v-if="retentionFieldError"
+                id="gate-retention-error"
+                role="alert"
+                class="flex items-center gap-1.5 text-xs text-destructive"
+              >
+                <TriangleAlert class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {{ retentionFieldError }}
+              </p>
+            </div>
+            <div
+              v-if="!retention.trim()"
+              class="flex items-center gap-3 px-3 py-3 bg-background/60 border border-border/30 rounded-lg mt-3"
+            >
+              <Info class="h-3.5 w-3.5 text-dim shrink-0" aria-hidden="true" />
+              <span class="text-xs text-dim">
+                Using the global retention<template v-if="globalRetentionLabel">
+                  of
+                  <code class="text-xs font-mono bg-background px-1 py-0.5 rounded">{{
+                    globalRetentionLabel
+                  }}</code></template
+                >. Requests are pruned on the global schedule.
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- Section: Diff Configuration -->
         <div class="bg-card border border-border rounded-xl overflow-hidden">
           <div class="px-5 py-4 border-b border-border/50">
             <div class="flex items-center gap-2 mb-1">
-              <GitCompareArrows class="h-4 w-4 text-info" />
+              <GitCompareArrows class="h-4 w-4 text-info" aria-hidden="true" />
               <h2 class="text-sm font-semibold tracking-tight">Diff Configuration</h2>
             </div>
             <p class="text-xs text-dim leading-relaxed">
@@ -401,7 +591,7 @@ onUnmounted(() => {
                 v-if="diffIncludedFields.length === 0"
                 class="flex items-center gap-3 px-3 py-3 bg-background/60 border border-border/30 rounded-lg mt-3"
               >
-                <Info class="h-3.5 w-3.5 text-dim shrink-0" />
+                <Info class="h-3.5 w-3.5 text-dim shrink-0" aria-hidden="true" />
                 <span class="text-xs text-dim">
                   No included fields configured — all fields are compared.
                 </span>
@@ -446,7 +636,7 @@ onUnmounted(() => {
               <div
                 class="flex items-start gap-3 px-3 py-3 bg-background/60 border border-border/30 rounded-lg mt-3"
               >
-                <Info class="h-3.5 w-3.5 text-dim shrink-0 mt-0.5" />
+                <Info class="h-3.5 w-3.5 text-dim shrink-0 mt-0.5" aria-hidden="true" />
                 <span class="text-xs text-dim leading-relaxed">
                   When enabled, arrays are recursively sorted in both responses before comparison.
                   Reported diff indices reflect sorted order, not original order. Changes to this
@@ -461,7 +651,7 @@ onUnmounted(() => {
         <div class="bg-card border border-destructive/20 rounded-xl overflow-hidden">
           <div class="px-5 py-4 border-b border-destructive/10">
             <div class="flex items-center gap-2">
-              <TriangleAlert class="h-4 w-4 text-destructive" />
+              <TriangleAlert class="h-4 w-4 text-destructive" aria-hidden="true" />
               <h2 class="text-sm font-semibold tracking-tight text-destructive">Danger Zone</h2>
             </div>
           </div>
@@ -476,7 +666,7 @@ onUnmounted(() => {
             <AlertDialog v-model:open="deleteDialogOpen">
               <AlertDialogTrigger as-child>
                 <Button variant="outline" class="gap-1.5 text-destructive border-destructive/30">
-                  <Trash2 class="h-3.5 w-3.5" />
+                  <Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
                   Delete gate
                 </Button>
               </AlertDialogTrigger>

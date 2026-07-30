@@ -17,6 +17,7 @@ interface Gate {
   shadow_url: string
   diff_config: DiffConfig
   redacted_fields: string[]
+  retention: string
   created_at: string
 }
 
@@ -24,6 +25,7 @@ interface UpdateGatePayload {
   name?: string
   diff_config?: DiffConfig
   redacted_fields?: string[]
+  retention?: string
 }
 
 interface RequestSummary {
