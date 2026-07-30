@@ -200,7 +200,10 @@ func (m *MrokiGate) Validate() error {
 		if err != nil {
 			return fmt.Errorf("invalid max_body_size: %w", err)
 		}
-		checks = append(checks, proxy.MaxBodySizeCheck(maxBytes))
+		// The max body size governs shadowing/buffering only — live traffic of any
+		// size is always streamed through, so it is applied as a proxy option
+		// rather than as a shadow check.
+		opts = append(opts, proxy.WithMaxBodySize(maxBytes))
 	}
 
 	// Shadow matching rules. User-supplied rules (if any) are evaluated first;
