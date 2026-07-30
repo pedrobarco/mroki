@@ -155,6 +155,14 @@ func TestValidate_cors_origins(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "cors_origins entry \"ftp://bad.com\" must use http or https scheme")
 	})
+
+	t.Run("wildcard origin is rejected", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.CORSOrigins = "*"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `cors_origins cannot be "*" (wildcard) when the Authorization header is allowed`)
+	})
 }
 
 func TestValidate_invalid_retention(t *testing.T) {

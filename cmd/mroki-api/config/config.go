@@ -104,16 +104,11 @@ func (c Config) Validate() error {
 			c.App.WriteTimeout, c.App.IdleTimeout))
 	}
 
-	// Validate CORS origins
+	// Validate CORS origins. The API always allows the Authorization header
+	// (see the CORS setup in cmd/mroki-api/main.go), so a wildcard origin is
+	// rejected to avoid an unsafe credentialed cross-origin policy.
 	if c.App.CORSOrigins != "" {
-		for _, origin := range c.ParseCORSOrigins() {
-			u, err := url.Parse(origin)
-			if err != nil {
-				verr.Add(config.SeverityError, fmt.Sprintf("cors_origins contains invalid URL %q: %v", origin, err))
-			} else if u.Scheme != "http" && u.Scheme != "https" {
-				verr.Add(config.SeverityError, fmt.Sprintf("cors_origins entry %q must use http or https scheme, got %q", origin, u.Scheme))
-			}
-		}
+		config.ValidateCORSOrigins(verr, c.ParseCORSOrigins(), true)
 	}
 
 	// Validate database URL scheme
