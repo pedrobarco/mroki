@@ -34,7 +34,15 @@ const diffs = computed(() => props.gate.stats.diff_count_24h.toLocaleString())
 const diffRate = computed(() => `${props.gate.stats.diff_rate.toFixed(1)}%`)
 const diffRateColor = computed(() => diffRateColorClass(props.gate.stats.diff_rate))
 const lastActive = computed(() => formatRelativeTime(props.gate.stats.last_active))
-const isActive = computed(() => props.gate.stats.last_active !== null)
+
+// A gate reads as "active" only when it has seen traffic recently; otherwise the
+// dot stays static rather than pulsing forever after any past activity.
+const RECENT_MS = 5 * 60_000
+const isRecent = computed(() => {
+  const la = props.gate.stats.last_active
+  return la != null && Date.now() - new Date(la).getTime() < RECENT_MS
+})
+const hasEverBeenActive = computed(() => props.gate.stats.last_active !== null)
 </script>
 
 <template>
@@ -48,8 +56,8 @@ const isActive = computed(() => props.gate.stats.last_active !== null)
     @keydown.space.prevent="handleClick"
   >
     <!-- Top row: name + ID + status + last active -->
-    <div class="flex items-start justify-between mb-4">
-      <div class="flex items-center gap-3">
+    <div class="flex items-start justify-between mb-4 gap-3">
+      <div class="flex items-center gap-3 min-w-0">
         <div
           class="w-9 h-9 rounded-lg bg-accent border border-border flex items-center justify-center"
         >
@@ -67,20 +75,24 @@ const isActive = computed(() => props.gate.stats.last_active !== null)
             <path d="M2 12l10 5 10-5" />
           </svg>
         </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="font-semibold text-sm text-foreground">{{ gateName }}</span>
-            <code class="text-xs font-mono text-dim bg-accent px-1.5 py-0.5 rounded">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="font-semibold text-sm text-foreground truncate min-w-0">{{
+              gateName
+            }}</span>
+            <code class="text-xs font-mono text-dim bg-accent px-1.5 py-0.5 rounded shrink-0">
               {{ truncateId(gate.id) }}
             </code>
             <span
-              class="w-1.5 h-1.5 rounded-full"
-              :class="isActive ? 'bg-success animate-pulse' : 'bg-dim'"
+              class="w-1.5 h-1.5 rounded-full shrink-0"
+              :class="
+                isRecent ? 'bg-success animate-pulse' : hasEverBeenActive ? 'bg-success' : 'bg-dim'
+              "
             />
           </div>
         </div>
       </div>
-      <span class="text-xs" :class="isActive ? 'text-muted-foreground' : 'text-dim'">
+      <span class="text-xs shrink-0" :class="isRecent ? 'text-muted-foreground' : 'text-dim'">
         {{ lastActive }}
       </span>
     </div>

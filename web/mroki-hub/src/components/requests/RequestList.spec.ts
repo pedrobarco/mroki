@@ -122,3 +122,30 @@ describe('RequestList pagination', () => {
     expect(pager.findAll('button')).toHaveLength(2)
   })
 })
+
+describe('RequestList latency formatting', () => {
+  beforeEach(() => {
+    push.mockClear()
+    getRequests.mockReset()
+  })
+
+  it('renders formatted latencies with a single unit', async () => {
+    const wrapper = await mountList([
+      makeRequest({
+        live_response: { status_code: 200, latency_ms: 10 },
+        shadow_response: { status_code: 200, latency_ms: 12 },
+      }),
+    ])
+    expect(wrapper.text()).toContain('10ms / 12ms')
+  })
+
+  it('renders an em dash when a latency is missing', async () => {
+    const wrapper = await mountList([
+      makeRequest({
+        live_response: { status_code: 200, latency_ms: 10 },
+        shadow_response: null,
+      }),
+    ])
+    expect(wrapper.text()).toContain('10ms / —')
+  })
+})
