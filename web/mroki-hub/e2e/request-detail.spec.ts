@@ -364,7 +364,10 @@ test.describe('Request Detail Page', () => {
   // the add value comes from the diff (Go's alphabetical json.Marshal) while the
   // removed old value is reconstructed from the live body (Postgres JSONB, which
   // reorders object keys by length then byte order).
-  test('renders array reorder with valid indices and canonical key order', async ({ page, api }) => {
+  test('renders array reorder with valid indices and canonical key order', async ({
+    page,
+    api,
+  }) => {
     const suffix = Date.now()
     const gate = await api.createGate(
       `reorder-gate-${suffix}`,
@@ -411,5 +414,42 @@ test.describe('Request Detail Page', () => {
     // canonical key order, so the value div title matches on both rows.
     const movedTitle = JSON.stringify(moved)
     await expect(page.locator(`[title='${movedTitle}']`)).toHaveCount(2)
+  })
+
+  test('one-click ignore-field persists the gjson path and shows a toast', async ({
+    page,
+    api,
+  }) => {
+    const suffix = Date.now()
+    const gate = await api.createGate(
+      `ignore-gate-${suffix}`,
+      `https://ignore-live-${suffix}.example.com`,
+      `https://ignore-shadow-${suffix}.example.com`
+    )
+    const req = await api.seedRequest(gate.id, {
+      method: 'GET',
+      path: '/api/ignore-test',
+      liveBody: btoa(JSON.stringify({ user: { name: 'alice' } })),
+      shadowBody: btoa(JSON.stringify({ user: { name: 'bob' } })),
+      liveStatus: 200,
+      shadowStatus: 200,
+      diffContent: [{ op: 'replace', path: '/body/user/name', value: 'bob' }],
+    })
+
+    await page.goto(`/gates/${gate.id}/requests/${req.id}`)
+    await page.getByRole('button', { name: 'Patch' }).click()
+
+    // Click the per-row ignore affordance for /body/user/name.
+    await page.getByRole('button', { name: 'Ignore field /body/user/name' }).click()
+
+    // Toast confirms the gjson-converted path.
+    await expect(page.getByText('Ignoring "body.user.name" in future diffs')).toBeVisible()
+
+    // The gate config now persists the ignored field.
+    const updated = await api.getGate(gate.id)
+    expect(updated.diff_config.ignored_fields).toContain('body.user.name')
+
+    // The affordance disappears once the field is ignored.
+    await expect(page.getByRole('button', { name: 'Ignore field /body/user/name' })).toHaveCount(0)
   })
 })
