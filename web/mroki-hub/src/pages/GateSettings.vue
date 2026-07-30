@@ -414,7 +414,7 @@ onMounted(() => {
               <AlertDialogTrigger as-child>
                 <Button variant="outline" class="gap-1.5 text-destructive border-destructive/30">
                   <Trash2 class="h-3.5 w-3.5" />
-                  Delete Gate
+                  Delete gate
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -433,7 +433,7 @@ onMounted(() => {
                     :disabled="deleting"
                     @click="handleDelete"
                   >
-                    {{ deleting ? 'Deleting...' : 'Delete' }}
+                    {{ deleting ? 'Deleting gate...' : 'Delete gate' }}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

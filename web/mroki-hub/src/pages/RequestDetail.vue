@@ -292,7 +292,7 @@ onMounted(() => {
               <span
                 class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-warning/15 text-warning font-medium"
               >
-                {{ diffCount }} diff{{ diffCount > 1 ? 's' : '' }} found
+                {{ diffCount }} diff{{ diffCount > 1 ? 's' : '' }}
               </span>
             </div>
           </div>

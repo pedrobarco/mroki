@@ -29,10 +29,10 @@ const filters = reactive<GateFilterState>({
 const globalStats = ref<GlobalStats | null>(null)
 
 const stats = computed(() => [
-  { label: 'TOTAL GATES', value: globalStats.value?.total_gates.toLocaleString() ?? '—' },
-  { label: 'REQUESTS (24H)', value: globalStats.value?.total_requests_24h.toLocaleString() ?? '—' },
+  { label: 'Total gates', value: globalStats.value?.total_gates.toLocaleString() ?? '—' },
+  { label: 'Requests 24h', value: globalStats.value?.total_requests_24h.toLocaleString() ?? '—' },
   {
-    label: 'DIFF RATE',
+    label: 'Diff rate',
     value: globalStats.value ? `${globalStats.value.total_diff_rate.toFixed(1)}%` : '—',
     highlight: true,
   },
@@ -79,12 +79,12 @@ onMounted(() => {
         <DialogTrigger as-child>
           <Button class="gap-2">
             <Plus class="h-3.5 w-3.5" />
-            New Gate
+            New gate
           </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Gate</DialogTitle>
+            <DialogTitle>Create gate</DialogTitle>
             <DialogDescription>
               Enter the URLs for your live and shadow services to create a new gate.
             </DialogDescription>

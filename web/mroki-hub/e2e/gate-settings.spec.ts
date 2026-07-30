@@ -156,8 +156,8 @@ test.describe('Gate Settings Page', () => {
 
     await page.goto(`/gates/${gate.id}/settings`)
 
-    // Click Delete Gate button
-    await page.getByRole('button', { name: 'Delete Gate' }).click()
+    // Click Delete gate button
+    await page.getByRole('button', { name: 'Delete gate' }).click()
 
     // Confirmation dialog appears
     const dialog = page.getByRole('alertdialog')
@@ -169,8 +169,8 @@ test.describe('Gate Settings Page', () => {
     await expect(dialog).not.toBeVisible()
 
     // Delete for real
-    await page.getByRole('button', { name: 'Delete Gate' }).click()
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click()
+    await page.getByRole('button', { name: 'Delete gate' }).first().click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete gate' }).click()
 
     await expect(page).toHaveURL('/gates')
   })

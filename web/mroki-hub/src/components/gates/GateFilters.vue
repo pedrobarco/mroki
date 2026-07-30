@@ -34,7 +34,7 @@ let searchTimeout: ReturnType<typeof setTimeout> | null = null
 watch(searchInput, (val) => {
   if (searchTimeout) clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => {
-    emitUpdate({ liveUrl: val, shadowUrl: '' })
+    emitUpdate({ liveUrl: val })
   }, 400)
 })
 
@@ -55,13 +55,13 @@ function emitUpdate(partial: Partial<GateFilterState>) {
 
 <template>
   <div class="flex items-center gap-3">
-    <!-- URL search (filters both live_url and shadow_url) -->
+    <!-- Search filters by live URL substring -->
     <div class="relative flex-1 max-w-sm">
       <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-dim h-3.5 w-3.5" />
       <input
         v-model="searchInput"
         type="text"
-        placeholder="Search gates by URL..."
+        placeholder="Search gates by live URL..."
         class="w-full bg-card border border-border rounded-lg pl-8 pr-4 py-2 text-xs text-foreground placeholder:text-dim focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
       />
     </div>

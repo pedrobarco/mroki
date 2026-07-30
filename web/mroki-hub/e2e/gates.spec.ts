@@ -25,8 +25,8 @@ test.describe('Gates Page', () => {
     await page.goto('/gates')
 
     // Open dialog
-    await page.getByRole('button', { name: 'New Gate' }).click()
-    await expect(page.getByRole('heading', { name: 'Create New Gate' })).toBeVisible()
+    await page.getByRole('button', { name: 'New gate' }).click()
+    await expect(page.getByRole('heading', { name: 'Create gate' })).toBeVisible()
 
     // Fill form
     await page.getByLabel('Name').fill('new-test-gate')
@@ -34,13 +34,13 @@ test.describe('Gates Page', () => {
     await page.getByLabel('Shadow URL').fill('https://new-shadow.example.com')
 
     // Submit
-    await page.locator('form').getByRole('button', { name: 'Create Gate' }).click()
+    await page.locator('form').getByRole('button', { name: 'Create gate' }).click()
 
     // Dialog closes
-    await expect(page.getByRole('heading', { name: 'Create New Gate' })).not.toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Create gate' })).not.toBeVisible()
 
     // Search for the newly created gate by live URL (may not be on page 1 with 5-per-page)
-    await page.getByPlaceholder('Search gates by URL...').fill('new-live')
+    await page.getByPlaceholder('Search gates by live URL...').fill('new-live')
 
     // Wait for debounce (400ms) + API response
     await expect(page.getByText('https://new-live.example.com').first()).toBeVisible({ timeout: 10000 })
@@ -49,9 +49,9 @@ test.describe('Gates Page', () => {
 
   test('create gate form disables submit for invalid URLs', async ({ page }) => {
     await page.goto('/gates')
-    await page.getByRole('button', { name: 'New Gate' }).click()
+    await page.getByRole('button', { name: 'New gate' }).click()
 
-    const submitButton = page.locator('form').getByRole('button', { name: 'Create Gate' })
+    const submitButton = page.locator('form').getByRole('button', { name: 'Create gate' })
 
     // Empty form — submit disabled
     await expect(submitButton).toBeDisabled()
@@ -90,7 +90,7 @@ test.describe('Gates Page', () => {
     )
 
     await page.goto('/gates')
-    const searchBox = page.getByPlaceholder('Search gates by URL...')
+    const searchBox = page.getByPlaceholder('Search gates by live URL...')
 
     // Search for our unique prefix to isolate test data
     await searchBox.fill('xflt-')
@@ -127,7 +127,7 @@ test.describe('Gates Page', () => {
     await page.goto('/gates')
 
     // First isolate our test gates using search
-    await page.getByPlaceholder('Search gates by URL...').fill('xsrt-')
+    await page.getByPlaceholder('Search gates by live URL...').fill('xsrt-')
     await expect(page.getByText('xsrt-zebra').first()).toBeVisible()
 
     // Change sort to Live URL A→Z
@@ -159,7 +159,7 @@ test.describe('Gates Page', () => {
     await page.goto('/gates')
 
     // Filter to only our test gates
-    await page.getByPlaceholder('Search gates by URL...').fill('xpag-')
+    await page.getByPlaceholder('Search gates by live URL...').fill('xpag-')
 
     // Should show pagination info (8 gates, 5 per page = 2 pages)
     await expect(page.getByText('Page 1 of 2')).toBeVisible()
@@ -188,7 +188,7 @@ test.describe('Gates Page', () => {
     await page.goto('/gates')
 
     // Filter to our test gates — 8 results, 2 pages
-    const searchBox = page.getByPlaceholder('Search gates by URL...')
+    const searchBox = page.getByPlaceholder('Search gates by live URL...')
     await searchBox.fill('xrst-')
     await expect(page.getByText('Page 1 of 2')).toBeVisible()
 

@@ -323,7 +323,7 @@ function tokenClass(token: Token): string {
             v-if="diffCount > 0"
             class="text-xs px-2 py-0.5 rounded-md font-mono bg-warning/15 text-warning"
           >
-            {{ diffCount }} change{{ diffCount > 1 ? 's' : '' }}
+            {{ diffCount }} diff{{ diffCount > 1 ? 's' : '' }}
           </span>
           <span v-else class="text-xs px-2 py-0.5 rounded-md font-mono bg-success/15 text-success">
             identical

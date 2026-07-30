@@ -31,9 +31,9 @@ test.describe('@screenshots', () => {
     await page.goto('/gates')
     await expect(page.getByRole('heading', { name: 'Gates' })).toBeVisible()
 
-    // Open the Create Gate dialog
+    // Open the Create gate dialog
     await page.getByRole('button', { name: /new gate/i }).click()
-    await expect(page.getByRole('heading', { name: 'Create New Gate' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Create gate' })).toBeVisible()
     await page.waitForTimeout(300)
 
     // Fill in realistic values so the screenshot looks complete
