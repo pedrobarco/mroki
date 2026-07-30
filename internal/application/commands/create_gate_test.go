@@ -13,7 +13,8 @@ import (
 
 // mockGateRepository is a mock implementation of GateRepository for testing
 type mockGateRepository struct {
-	saveFn func(context.Context, *traffictesting.Gate) error
+	saveFn   func(context.Context, *traffictesting.Gate) error
+	deleteFn func(context.Context, traffictesting.GateID) error
 }
 
 func (m *mockGateRepository) Save(ctx context.Context, gate *traffictesting.Gate) error {
@@ -32,6 +33,9 @@ func (m *mockGateRepository) Update(ctx context.Context, gate *traffictesting.Ga
 }
 
 func (m *mockGateRepository) Delete(ctx context.Context, id traffictesting.GateID) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, id)
+	}
 	return nil
 }
 
