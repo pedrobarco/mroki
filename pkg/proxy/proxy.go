@@ -49,6 +49,7 @@ type Proxy struct {
 
 	liveTimeout   time.Duration
 	shadowTimeout time.Duration
+	maxBodySize   int64
 	checks        []CheckFunc
 	callbackFn    CallbackFunc
 	logger        *slog.Logger
@@ -78,6 +79,23 @@ func WithLiveTimeout(timeout time.Duration) Option {
 func WithShadowTimeout(timeout time.Duration) Option {
 	return func(p *Proxy) {
 		p.shadowTimeout = timeout
+	}
+}
+
+// WithMaxBodySize sets the maximum request body size (in bytes) that will be
+// buffered for shadow replay. The limit governs shadowing and buffering only —
+// live traffic is always forwarded regardless of size:
+//   - Requests whose body exceeds the limit are still forwarded to live by
+//     streaming (no full-body buffering); shadow and comparison are skipped.
+//   - Requests with an unknown Content-Length (chunked) are streamed to live
+//     while at most maxBytes are buffered for shadow; shadow is skipped if the
+//     body turns out to exceed the limit.
+//
+// A value <= 0 means unlimited: the body is fully buffered and shadow is never
+// skipped for size.
+func WithMaxBodySize(maxBytes int64) Option {
+	return func(p *Proxy) {
+		p.maxBodySize = maxBytes
 	}
 }
 
@@ -230,6 +248,83 @@ func (p *Proxy) shouldProxyToShadow(r *http.Request) bool {
 	return true
 }
 
+// bodyPlan describes how the request body should be handled for a request that
+// passed the sampling/shadow-rule checks. When shadow is true the body was fully
+// buffered into body and can be replayed to both live and shadow. When shadow is
+// false the body is too large (or unbounded) to buffer for comparison, so it is
+// streamed to live via liveReader with liveContentLength and shadow is skipped.
+type bodyPlan struct {
+	shadow            bool
+	body              []byte
+	liveReader        io.Reader
+	liveContentLength int64
+}
+
+// planBody decides how to handle the request body based on the configured
+// maxBodySize and the request's Content-Length. It only buffers memory bounded
+// by maxBodySize (or by a known, within-limit Content-Length); oversized or
+// unbounded bodies are streamed to live without full-body buffering. The size
+// limit never rejects live traffic — it only governs whether shadow runs.
+func (p *Proxy) planBody(r *http.Request) (bodyPlan, error) {
+	// Unlimited: buffer the whole body and always allow shadow.
+	if p.maxBodySize <= 0 {
+		body, err := p.readAndCloseBody(r)
+		if err != nil {
+			return bodyPlan{}, err
+		}
+		return bodyPlan{shadow: true, body: body}, nil
+	}
+
+	// Known Content-Length.
+	if r.ContentLength >= 0 {
+		if r.ContentLength > p.maxBodySize {
+			// Stream live directly from the untouched body; skip shadow.
+			return bodyPlan{shadow: false, liveReader: r.Body, liveContentLength: r.ContentLength}, nil
+		}
+		body, err := p.readAndCloseBody(r)
+		if err != nil {
+			return bodyPlan{}, err
+		}
+		return bodyPlan{shadow: true, body: body}, nil
+	}
+
+	// Unknown Content-Length (chunked): buffer at most maxBodySize+1 bytes to
+	// detect whether the body fits within the limit without reading it all.
+	buf, err := io.ReadAll(io.LimitReader(r.Body, p.maxBodySize+1))
+	if err != nil {
+		return bodyPlan{}, err
+	}
+	if int64(len(buf)) <= p.maxBodySize {
+		// Whole body fits within the limit: safe to buffer and shadow.
+		if closeErr := r.Body.Close(); closeErr != nil {
+			p.logger.Warn("failed to close request body", slog.String("error", closeErr.Error()))
+		}
+		return bodyPlan{shadow: true, body: buf}, nil
+	}
+
+	// Body exceeds the limit: stream the buffered prefix plus the remaining body
+	// to live (unknown length), and skip shadow.
+	return bodyPlan{
+		shadow:            false,
+		liveReader:        io.MultiReader(bytes.NewReader(buf), r.Body),
+		liveContentLength: -1,
+	}, nil
+}
+
+// readAndCloseBody reads the full request body and best-effort closes it. A
+// close error is logged but not returned, matching the original behaviour: the
+// body has already been read successfully.
+func (p *Proxy) readAndCloseBody(r *http.Request) ([]byte, error) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	if closeErr := r.Body.Close(); closeErr != nil {
+		p.logger.Warn("failed to close request body", slog.String("error", closeErr.Error()))
+	}
+	return body, nil
+}
+
 // acquireCallbackSlot reserves a slot for a background callback goroutine. It
 // returns true immediately when no limit is configured (nil semaphore) or when
 // a slot is free, and false without blocking when the limit is reached.
@@ -275,7 +370,9 @@ func (p *Proxy) recoverGoroutine(logger *slog.Logger, name string, onPanic func(
 // ServeHTTP implements the http.Handler interface for proxying requests.
 //
 // Request Flow:
-//  1. Reads request body (needed to replay to both services)
+//  1. Decides shadow eligibility and body handling (see planBody): within-limit
+//     bodies are buffered for replay; oversized/unbounded bodies are streamed to
+//     live only, without full-body buffering
 //  2. Launches live request with client context + timeout
 //  3. Launches shadow request (if sampled) with independent context + timeout
 //  4. Waits for live response and returns to client immediately
@@ -307,26 +404,40 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.String("request.path", r.URL.Path),
 	)
 
-	// Check if we should proxy to shadow BEFORE reading body
+	// Check if we should proxy to shadow BEFORE reading body. Sampling and
+	// shadow-rule checks are size-independent, so a skip here streams live
+	// without touching the body.
 	if !p.shouldProxyToShadow(r) {
-		p.proxyToLiveOnly(w, r, reqLogger)
+		p.proxyToLiveOnly(w, r, reqLogger, r.Body, r.ContentLength)
 		return
 	}
 
-	liveCtx, liveCancel := context.WithTimeout(r.Context(), p.liveTimeout)
-	defer liveCancel()
-
-	body, err := io.ReadAll(r.Body)
+	// Decide how to handle the body based on the configured size limit. Oversized
+	// or unbounded (chunked) requests are streamed to live without full-body
+	// buffering and skip shadow; within-limit requests are buffered so they can
+	// be replayed to both live and shadow.
+	plan, err := p.planBody(r)
 	if err != nil {
 		reqLogger.Error("failed to read request body", slog.String("error", err.Error()))
 		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 		return
 	}
-	// Best effort close - log error but don't fail the request
-	// The body has already been read successfully
-	if err := r.Body.Close(); err != nil {
-		reqLogger.Warn("failed to close request body", slog.String("error", err.Error()))
+	if !plan.shadow {
+		// The size limit governs shadowing only; live traffic is never rejected
+		// for size. Preserve the existing skip log for observability.
+		reqLogger.Debug("skipping shadow proxy",
+			slog.String("method", r.Method),
+			slog.String("path", r.URL.Path),
+			slog.Int64("content_length", r.ContentLength),
+		)
+		p.proxyToLiveOnly(w, r, reqLogger, plan.liveReader, plan.liveContentLength)
+		return
 	}
+
+	body := plan.body
+
+	liveCtx, liveCancel := context.WithTimeout(r.Context(), p.liveTimeout)
+	defer liveCancel()
 
 	liveCh := make(chan responseResult, 1)
 	shadowCh := make(chan responseResult, 1)
@@ -339,7 +450,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			liveCh <- responseResult{err: fmt.Errorf("panic in live goroutine: %v", v)}
 		})
 		start := time.Now()
-		resp, err := p.forwardRequest(liveCtx, r, p.Live, body)
+		resp, err := p.forwardRequest(liveCtx, r, p.Live, bytes.NewReader(body), int64(len(body)))
 		if err != nil {
 			liveCh <- responseResult{err: err}
 			return
@@ -377,7 +488,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			shadowCh <- responseResult{err: fmt.Errorf("panic in shadow goroutine: %v", v)}
 		})
 		start := time.Now()
-		resp, err := p.forwardRequest(shadowCtx, shadowReq, p.Shadow, body)
+		resp, err := p.forwardRequest(shadowCtx, shadowReq, p.Shadow, bytes.NewReader(body), int64(len(body)))
 		if err != nil {
 			shadowCh <- responseResult{err: err}
 			return
@@ -494,21 +605,19 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}(liveResp.body)
 }
 
-func (p *Proxy) forwardRequest(ctx context.Context, original *http.Request, target *url.URL, body []byte) (*http.Response, error) {
+// forwardRequest builds and sends a request to target using body as the request
+// body. contentLength is the value set on the outgoing request: a non-negative
+// length lets net/http send a Content-Length header, while -1 streams the body
+// with chunked transfer encoding (unknown length). A nil body sends no body.
+func (p *Proxy) forwardRequest(ctx context.Context, original *http.Request, target *url.URL, body io.Reader, contentLength int64) (*http.Response, error) {
 	url := rewriteRequestURL(original, target)
 
-	var bodyReader io.Reader
-	if body != nil {
-		bodyReader = bytes.NewReader(body)
-	} else {
-		bodyReader = original.Body // Use original body for streaming
-	}
-
-	req, err := http.NewRequestWithContext(ctx, original.Method, url.String(), bodyReader)
+	req, err := http.NewRequestWithContext(ctx, original.Method, url.String(), body)
 	if err != nil {
 		return nil, err
 	}
 	req.Header = original.Header.Clone()
+	req.ContentLength = contentLength
 	p.logger.Debug("forwarding request",
 		slog.String("method", req.Method),
 		slog.String("url", req.URL.String()))
@@ -565,14 +674,17 @@ func defaultCallbackFn() CallbackFunc {
 	}
 }
 
-// proxyToLiveOnly forwards request to live service only, skipping shadow.
-// Used when sampling checks fail (e.g., body size exceeds limit or chunked encoding)
-func (p *Proxy) proxyToLiveOnly(w http.ResponseWriter, r *http.Request, reqLogger *slog.Logger) {
+// proxyToLiveOnly forwards the request to the live service only, skipping shadow.
+// Used when the sampling/shadow-rule checks skip shadow, or when the body is too
+// large (or unbounded) to buffer for comparison. The body is streamed via
+// bodyReader with contentLength (-1 for unknown/chunked), so live traffic of any
+// size passes through without full-body buffering.
+func (p *Proxy) proxyToLiveOnly(w http.ResponseWriter, r *http.Request, reqLogger *slog.Logger, bodyReader io.Reader, contentLength int64) {
 	ctx, cancel := context.WithTimeout(r.Context(), p.liveTimeout)
 	defer cancel()
 
-	// Forward request to live service (pass nil for body to use original body)
-	resp, err := p.forwardRequest(ctx, r, p.Live, nil)
+	// Forward request to live service, streaming the body straight through.
+	resp, err := p.forwardRequest(ctx, r, p.Live, bodyReader, contentLength)
 	if err != nil {
 		reqLogger.Error("live backend error", slog.String("error", err.Error()))
 		http.Error(w, "live backend error: "+err.Error(), http.StatusBadGateway)

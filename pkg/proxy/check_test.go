@@ -10,64 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMaxBodySizeCheck(t *testing.T) {
-	t.Run("allows requests under limit", func(t *testing.T) {
-		check := proxy.MaxBodySizeCheck(100)
-		req := httptest.NewRequest("POST", "/test", nil)
-		req.ContentLength = 50
-
-		assert.True(t, check(req))
-	})
-
-	t.Run("allows requests at exact limit", func(t *testing.T) {
-		check := proxy.MaxBodySizeCheck(100)
-		req := httptest.NewRequest("POST", "/test", nil)
-		req.ContentLength = 100
-
-		assert.True(t, check(req))
-	})
-
-	t.Run("blocks requests over limit", func(t *testing.T) {
-		check := proxy.MaxBodySizeCheck(100)
-		req := httptest.NewRequest("POST", "/test", nil)
-		req.ContentLength = 101
-
-		assert.False(t, check(req))
-	})
-
-	t.Run("blocks chunked encoding requests", func(t *testing.T) {
-		check := proxy.MaxBodySizeCheck(100)
-		req := httptest.NewRequest("POST", "/test", nil)
-		req.ContentLength = -1 // Chunked encoding
-
-		assert.False(t, check(req))
-	})
-
-	t.Run("allows all requests when limit is 0", func(t *testing.T) {
-		check := proxy.MaxBodySizeCheck(0)
-		req := httptest.NewRequest("POST", "/test", nil)
-		req.ContentLength = 999999
-
-		assert.True(t, check(req))
-	})
-
-	t.Run("allows all requests when limit is negative", func(t *testing.T) {
-		check := proxy.MaxBodySizeCheck(-1)
-		req := httptest.NewRequest("POST", "/test", nil)
-		req.ContentLength = 999999
-
-		assert.True(t, check(req))
-	})
-
-	t.Run("allows chunked when limit is 0", func(t *testing.T) {
-		check := proxy.MaxBodySizeCheck(0)
-		req := httptest.NewRequest("POST", "/test", nil)
-		req.ContentLength = -1
-
-		assert.True(t, check(req))
-	})
-}
-
 func TestSamplingRateCheck(t *testing.T) {
 	t.Run("allows all requests when rate is nil", func(t *testing.T) {
 		check := proxy.SamplingRateCheck(nil)
@@ -144,17 +86,19 @@ func TestCheckFunc_Composition(t *testing.T) {
 		assert.False(t, check2(req))
 	})
 
-	t.Run("combining maxBodySize and sampling", func(t *testing.T) {
+	t.Run("combining sampling and shadow rules", func(t *testing.T) {
 		rate, _ := proxy.NewSamplingRate(1.0) // Always sample
-		bodySizeCheck := proxy.MaxBodySizeCheck(100)
 		samplingCheck := proxy.SamplingRateCheck(rate)
+		ruleCheck := proxy.ShadowRulesCheck([]proxy.ShadowRule{
+			mustRule(t, proxy.ShadowRuleAllow, "POST", "/test"),
+		})
 
 		req := httptest.NewRequest("POST", "/test", nil)
 		req.ContentLength = 50
 
 		// Both should pass
-		assert.True(t, bodySizeCheck(req))
 		assert.True(t, samplingCheck(req))
+		assert.True(t, ruleCheck(req))
 	})
 }
 

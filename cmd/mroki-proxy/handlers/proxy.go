@@ -84,12 +84,13 @@ func Proxy(cfg ProxyConfig) http.HandlerFunc {
 	}
 	opts = append(opts, proxy.WithHTTPClient(outboundClient))
 
+	// The max body size governs shadowing/buffering only — live traffic of any
+	// size is always streamed through. It is applied inside the proxy rather than
+	// as a shadow check so oversized/chunked bodies are never fully buffered.
+	opts = append(opts, proxy.WithMaxBodySize(cfg.MaxBodySize))
+
 	// Add shadow proxy checks
 	var checks []proxy.CheckFunc
-
-	if cfg.MaxBodySize > 0 {
-		checks = append(checks, proxy.MaxBodySizeCheck(cfg.MaxBodySize))
-	}
 
 	checks = append(checks, proxy.SamplingRateCheck(cfg.SamplingRate))
 

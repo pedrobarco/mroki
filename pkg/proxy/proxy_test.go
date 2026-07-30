@@ -455,8 +455,11 @@ func TestProxy_ServeHTTP_copies_response_headers(t *testing.T) {
 
 func TestProxy_ServeHTTP_skips_shadow_when_body_too_large(t *testing.T) {
 	var shadowCalled atomic.Bool
+	liveBody := make(chan []byte, 1)
 
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		liveBody <- b
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("live response"))
 	}))
@@ -472,7 +475,7 @@ func TestProxy_ServeHTTP_skips_shadow_when_body_too_large(t *testing.T) {
 	shadowURL, _ := url.Parse(shadowServer.URL)
 
 	// Set max body size to 10 bytes
-	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithShouldProxyToShadow(proxy.MaxBodySizeCheck(10)))
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(10))
 
 	// Create request with 20 bytes body (exceeds limit)
 	body := bytes.Repeat([]byte("a"), 20)
@@ -485,6 +488,15 @@ func TestProxy_ServeHTTP_skips_shadow_when_body_too_large(t *testing.T) {
 	// Should return live response
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "live response", rec.Body.String())
+
+	// Live must have received the FULL body despite exceeding the limit (streamed,
+	// never rejected or truncated).
+	select {
+	case got := <-liveBody:
+		assert.Equal(t, body, got, "live must receive the full oversized body")
+	case <-time.After(time.Second):
+		t.Fatal("live server did not receive the request body")
+	}
 
 	// Shadow should not be called (give it time to process if it was)
 	time.Sleep(50 * time.Millisecond)
@@ -510,7 +522,7 @@ func TestProxy_ServeHTTP_proxies_shadow_when_body_under_limit(t *testing.T) {
 	shadowURL, _ := url.Parse(shadowServer.URL)
 
 	// Set max body size to 100 bytes
-	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithShouldProxyToShadow(proxy.MaxBodySizeCheck(100)))
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(100))
 
 	// Create request with 20 bytes body (under limit)
 	body := bytes.Repeat([]byte("a"), 20)
@@ -528,10 +540,59 @@ func TestProxy_ServeHTTP_proxies_shadow_when_body_under_limit(t *testing.T) {
 	assert.True(t, shadowCalled.Load(), "shadow service should be called for small bodies")
 }
 
-func TestProxy_ServeHTTP_skips_shadow_when_chunked(t *testing.T) {
+func TestProxy_ServeHTTP_shadows_chunked_within_limit(t *testing.T) {
 	var shadowCalled atomic.Bool
+	shadowBody := make(chan []byte, 1)
 
 	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("live response"))
+	}))
+	defer liveServer.Close()
+
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		shadowCalled.Store(true)
+		b, _ := io.ReadAll(r.Body)
+		shadowBody <- b
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer shadowServer.Close()
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+
+	// Set max body size to 100 bytes
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(100))
+
+	// Create request with unknown Content-Length (chunked) that fits the limit.
+	payload := []byte("test body")
+	req := httptest.NewRequest("POST", "/test", bytes.NewReader(payload))
+	req.ContentLength = -1 // Simulate chunked encoding
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	// Should return live response
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Shadow must run for chunked bodies that fit within the limit, and receive
+	// the full buffered body.
+	select {
+	case got := <-shadowBody:
+		assert.Equal(t, payload, got, "shadow must receive the full chunked body")
+	case <-time.After(time.Second):
+		t.Fatal("shadow service was not called for chunked body within limit")
+	}
+	assert.True(t, shadowCalled.Load(), "shadow service should be called for chunked bodies within limit")
+}
+
+func TestProxy_ServeHTTP_streams_chunked_over_limit(t *testing.T) {
+	var shadowCalled atomic.Bool
+	liveBody := make(chan []byte, 1)
+
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		liveBody <- b
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("live response"))
 	}))
@@ -546,12 +607,14 @@ func TestProxy_ServeHTTP_skips_shadow_when_chunked(t *testing.T) {
 	liveURL, _ := url.Parse(liveServer.URL)
 	shadowURL, _ := url.Parse(shadowServer.URL)
 
-	// Set max body size to 100 bytes
-	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithShouldProxyToShadow(proxy.MaxBodySizeCheck(100)))
+	// Set max body size to 10 bytes
+	p := proxy.NewProxy(liveURL, shadowURL, proxy.WithMaxBodySize(10))
 
-	// Create request with chunked encoding (ContentLength = -1)
-	body := bytes.NewReader([]byte("test body"))
-	req := httptest.NewRequest("POST", "/test", body)
+	// Create request with unknown Content-Length (chunked) that exceeds the limit.
+	// The proxy must not buffer it all: it streams the buffered prefix plus the
+	// remainder to live, and skips shadow.
+	payload := bytes.Repeat([]byte("a"), 100)
+	req := httptest.NewRequest("POST", "/test", bytes.NewReader(payload))
 	req.ContentLength = -1 // Simulate chunked encoding
 	rec := httptest.NewRecorder()
 
@@ -559,10 +622,19 @@ func TestProxy_ServeHTTP_skips_shadow_when_chunked(t *testing.T) {
 
 	// Should return live response
 	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "live response", rec.Body.String())
 
-	// Shadow should not be called (give it time to process if it was)
+	// Live must receive the FULL body even though it exceeds the buffer limit.
+	select {
+	case got := <-liveBody:
+		assert.Equal(t, payload, got, "live must receive the full over-limit chunked body")
+	case <-time.After(time.Second):
+		t.Fatal("live server did not receive the request body")
+	}
+
+	// Shadow must be skipped for over-limit chunked bodies.
 	time.Sleep(50 * time.Millisecond)
-	assert.False(t, shadowCalled.Load(), "shadow service should not be called for chunked encoding")
+	assert.False(t, shadowCalled.Load(), "shadow service should not be called for over-limit chunked bodies")
 }
 
 func TestProxy_ServeHTTP_unlimited_when_zero(t *testing.T) {
