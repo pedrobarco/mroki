@@ -152,13 +152,14 @@ onMounted(() => {
 <template>
   <div class="max-w-6xl mx-auto px-6 py-6">
     <!-- Back link -->
-    <a
-      class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5 cursor-pointer"
+    <button
+      type="button"
+      class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5 cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       @click="goBack"
     >
       <ChevronLeft class="h-3.5 w-3.5" />
       Back to Gate
-    </a>
+    </button>
 
     <!-- Loading -->
     <div v-if="loading" class="text-center py-12">
@@ -413,7 +414,7 @@ onMounted(() => {
               <AlertDialogTrigger as-child>
                 <Button variant="outline" class="gap-1.5 text-destructive border-destructive/30">
                   <Trash2 class="h-3.5 w-3.5" />
-                  Delete Gate
+                  Delete gate
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -432,7 +433,7 @@ onMounted(() => {
                     :disabled="deleting"
                     @click="handleDelete"
                   >
-                    {{ deleting ? 'Deleting...' : 'Delete' }}
+                    {{ deleting ? 'Deleting gate...' : 'Delete gate' }}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getGate } from '@/api'
 import type { Gate } from '@/api'
 import { useGateCache } from '@/composables/use-gate-cache'
+import { diffRateColorClass } from '@/lib/utils'
 import RequestList from '@/components/requests/RequestList.vue'
 import RequestFilters from '@/components/requests/RequestFilters.vue'
 import type { FilterState } from '@/components/requests/RequestFilters.vue'
@@ -71,13 +72,14 @@ onMounted(() => {
 <template>
   <div class="max-w-6xl mx-auto px-6 py-6">
     <!-- Back link -->
-    <a
-      class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5 cursor-pointer"
+    <button
+      type="button"
+      class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5 cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       @click="goBack"
     >
       <ChevronLeft class="h-3.5 w-3.5" />
       Back to Gates
-    </a>
+    </button>
 
     <!-- Loading State -->
     <div v-if="loading" class="text-center py-12">
@@ -97,7 +99,7 @@ onMounted(() => {
     <div v-else-if="gate">
       <!-- Gate Info Card -->
       <div class="bg-card border border-border rounded-xl p-5 mb-8">
-        <div class="flex items-start justify-between mb-5">
+        <div class="flex flex-col gap-4 mb-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div class="flex items-center gap-2.5 mb-1.5">
               <h1 class="text-xl font-semibold tracking-tight">{{ gate.name }}</h1>
@@ -116,7 +118,7 @@ onMounted(() => {
         </div>
 
         <!-- Live / Shadow URLs -->
-        <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2">
           <div class="bg-background/60 rounded-lg px-3.5 py-3 border border-border/50">
             <div
               class="text-xs uppercase tracking-widest text-dim mb-1.5 flex items-center gap-1.5"
@@ -161,7 +163,9 @@ onMounted(() => {
           </div>
           <div>
             <span class="text-dim">Diff rate</span>
-            <span class="text-warning ml-1">{{ gate.stats.diff_rate.toFixed(1) }}%</span>
+            <span class="ml-1" :class="diffRateColorClass(gate.stats.diff_rate)"
+              >{{ gate.stats.diff_rate.toFixed(1) }}%</span
+            >
           </div>
         </div>
       </div>

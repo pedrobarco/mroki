@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { truncateId } from '@/lib/utils'
+import { truncateId, diffRateColorClass } from '@/lib/utils'
 import { ChevronRight } from 'lucide-vue-next'
 import type { Gate } from '@/api'
 
@@ -32,14 +32,20 @@ const gateName = computed(() => props.gate.name)
 const requests24h = computed(() => props.gate.stats.request_count_24h.toLocaleString())
 const diffs = computed(() => props.gate.stats.diff_count_24h.toLocaleString())
 const diffRate = computed(() => `${props.gate.stats.diff_rate.toFixed(1)}%`)
+const diffRateColor = computed(() => diffRateColorClass(props.gate.stats.diff_rate))
 const lastActive = computed(() => formatRelativeTime(props.gate.stats.last_active))
 const isActive = computed(() => props.gate.stats.last_active !== null)
 </script>
 
 <template>
   <div
-    class="block bg-card border border-border rounded-xl p-5 cursor-pointer transition-colors hover:border-ring hover:bg-accent"
+    role="button"
+    tabindex="0"
+    :aria-label="`View gate ${gateName}`"
+    class="block bg-card border border-border rounded-xl p-5 cursor-pointer transition-colors hover:border-ring hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     @click="handleClick"
+    @keydown.enter.prevent="handleClick"
+    @keydown.space.prevent="handleClick"
   >
     <!-- Top row: name + ID + status + last active -->
     <div class="flex items-start justify-between mb-4">
@@ -80,7 +86,7 @@ const isActive = computed(() => props.gate.stats.last_active !== null)
     </div>
 
     <!-- Live / Shadow URLs -->
-    <div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2">
       <div class="bg-background/60 rounded-lg px-3 py-2.5 border border-border/50">
         <div class="text-xs uppercase tracking-widest text-dim mb-1.5 flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-success" />
@@ -114,7 +120,7 @@ const isActive = computed(() => props.gate.stats.last_active !== null)
         </div>
         <div>
           <span class="text-dim">Diff rate</span>
-          <span class="text-warning ml-1">{{ diffRate }}</span>
+          <span class="ml-1" :class="diffRateColor">{{ diffRate }}</span>
         </div>
       </div>
       <ChevronRight class="h-4 w-4 text-dim" />

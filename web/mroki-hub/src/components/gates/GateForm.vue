@@ -126,7 +126,7 @@ async function handleSubmit() {
     <!-- Submit Button -->
     <div class="flex justify-end">
       <Button type="submit" :disabled="!canSubmit">
-        {{ submitting ? 'Creating...' : 'Create Gate' }}
+        {{ submitting ? 'Creating gate...' : 'Create gate' }}
       </Button>
     </div>
   </form>

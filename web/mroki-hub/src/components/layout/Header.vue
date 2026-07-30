@@ -35,14 +35,6 @@ function isActive(matchPrefix: string): boolean {
           </router-link>
         </nav>
       </div>
-
-      <div class="flex items-center gap-3">
-        <div
-          class="w-7 h-7 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-medium text-muted-foreground"
-        >
-          DK
-        </div>
-      </div>
     </div>
   </header>
 </template>

@@ -93,11 +93,11 @@ function handleRequestClick(requestId: string) {
 }
 
 const methodColors: Record<string, string> = {
-  GET: 'bg-blue-500/15 text-blue-400',
-  POST: 'bg-green-500/15 text-green-400',
-  PUT: 'bg-amber-500/15 text-amber-400',
-  PATCH: 'bg-amber-500/15 text-amber-400',
-  DELETE: 'bg-red-500/15 text-red-400',
+  GET: 'bg-info/15 text-info',
+  POST: 'bg-success/15 text-success',
+  PUT: 'bg-warning/15 text-warning',
+  PATCH: 'bg-warning/15 text-warning',
+  DELETE: 'bg-danger/15 text-danger',
 }
 
 function getMethodClasses(method: string): string {
@@ -180,8 +180,13 @@ onMounted(() => {
           <div
             v-for="request in requests"
             :key="request.id"
-            class="flex items-center px-5 py-3.5 cursor-pointer transition-colors hover:bg-accent"
+            role="button"
+            tabindex="0"
+            :aria-label="`View request ${request.method} ${request.path}`"
+            class="flex flex-col gap-2 px-5 py-3.5 cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:flex-row sm:items-center sm:gap-0"
             @click="handleRequestClick(request.id)"
+            @keydown.enter.prevent="handleRequestClick(request.id)"
+            @keydown.space.prevent="handleRequestClick(request.id)"
           >
             <div class="flex items-center gap-3 flex-1 min-w-0">
               <span
@@ -229,23 +234,25 @@ onMounted(() => {
                 {{ request.path }}
               </code>
             </div>
-            <div class="flex items-center gap-4 shrink-0 ml-4">
+            <div
+              class="flex items-center gap-x-4 gap-y-1 flex-wrap pl-[4.25rem] sm:flex-nowrap sm:shrink-0 sm:ml-4 sm:pl-0"
+            >
               <!-- Diff badge -->
               <span
                 v-if="request.has_diff"
-                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-400"
+                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-danger/10 text-danger"
               >
-                <span class="w-1 h-1 rounded-full bg-red-400" />
+                <span class="w-1 h-1 rounded-full bg-danger" />
                 Diff
               </span>
               <span
                 v-else
-                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400"
+                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success/10 text-success"
               >
                 No diff
               </span>
               <!-- Status codes -->
-              <span class="text-xs font-mono text-dim w-24 text-right whitespace-nowrap">
+              <span class="text-xs font-mono text-dim whitespace-nowrap sm:w-24 sm:text-right">
                 <span
                   :class="
                     (request.live_response?.status_code ?? 0) < 400
@@ -265,15 +272,15 @@ onMounted(() => {
                 >
               </span>
               <!-- Latency -->
-              <span class="text-xs font-mono text-dim w-36 text-right whitespace-nowrap">
+              <span class="text-xs font-mono text-dim whitespace-nowrap sm:w-36 sm:text-right">
                 {{ request.live_response?.latency_ms ?? '—' }}ms /
                 {{ request.shadow_response?.latency_ms ?? '—' }}ms
               </span>
               <!-- Timestamp -->
-              <div class="text-xs text-dim w-20 text-right">
+              <div class="text-xs text-dim sm:w-20 sm:text-right">
                 {{ formatTimestamp(request.created_at) }}
               </div>
-              <ChevronRight class="h-3.5 w-3.5 text-dim/40 shrink-0" />
+              <ChevronRight class="hidden h-3.5 w-3.5 text-dim/40 shrink-0 sm:block" />
             </div>
           </div>
         </div>
@@ -284,7 +291,7 @@ onMounted(() => {
         <span class="text-dim">Page {{ currentPage }} of {{ totalPages }}</span>
         <div class="flex items-center gap-1">
           <button
-            class="px-3 py-1.5 rounded-lg border border-border bg-card text-dim transition-colors"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg border border-border bg-card text-dim transition-colors"
             :class="
               offset === 0
                 ? 'opacity-40 cursor-not-allowed'
@@ -296,12 +303,12 @@ onMounted(() => {
             Previous
           </button>
           <span
-            class="px-3 py-1.5 rounded-lg border border-border bg-accent text-foreground font-medium"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg border border-border bg-accent text-foreground font-medium"
           >
             {{ currentPage }}
           </span>
           <button
-            class="px-3 py-1.5 rounded-lg border border-border bg-card transition-colors"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg border border-border bg-card transition-colors"
             :class="
               !hasMore
                 ? 'text-dim opacity-40 cursor-not-allowed'

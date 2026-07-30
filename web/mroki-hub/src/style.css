@@ -48,6 +48,12 @@
   --color-danger: var(--danger);
   --color-dim: var(--dim);
   --color-subtle: var(--subtle);
+  --color-syntax-key: var(--syntax-key);
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-number: var(--syntax-number);
+  --color-syntax-boolean: var(--syntax-boolean);
+  --color-syntax-null: var(--syntax-null);
+  --color-syntax-punctuation: var(--syntax-punctuation);
   --font-family-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
   --font-family-sans:
     system-ui, -apple-system, 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', sans-serif;
@@ -95,6 +101,12 @@
   --danger: #ef4444;
   --dim: #71717a;
   --subtle: #f4f4f5;
+  --syntax-key: #0369a1;
+  --syntax-string: #6d28d9;
+  --syntax-number: #047857;
+  --syntax-boolean: #c2410c;
+  --syntax-null: #be185d;
+  --syntax-punctuation: #71717a;
 }
 
 .dark {
@@ -138,6 +150,12 @@
   --danger: #ef4444;
   --dim: #71717a;
   --subtle: #1c1c1f;
+  --syntax-key: #38bdf8;
+  --syntax-string: #a78bfa;
+  --syntax-number: #34d399;
+  --syntax-boolean: #fb923c;
+  --syntax-null: #f472b6;
+  --syntax-punctuation: #8b8b93;
 }
 
 @layer base {
@@ -153,5 +171,16 @@
       'Segoe UI',
       'Roboto',
       sans-serif;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
