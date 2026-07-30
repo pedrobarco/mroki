@@ -183,7 +183,7 @@ onMounted(() => {
             role="button"
             tabindex="0"
             :aria-label="`View request ${request.method} ${request.path}`"
-            class="flex items-center px-5 py-3.5 cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            class="flex flex-col gap-2 px-5 py-3.5 cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:flex-row sm:items-center sm:gap-0"
             @click="handleRequestClick(request.id)"
             @keydown.enter.prevent="handleRequestClick(request.id)"
             @keydown.space.prevent="handleRequestClick(request.id)"
@@ -234,7 +234,9 @@ onMounted(() => {
                 {{ request.path }}
               </code>
             </div>
-            <div class="flex items-center gap-4 shrink-0 ml-4">
+            <div
+              class="flex items-center gap-x-4 gap-y-1 flex-wrap pl-[4.25rem] sm:flex-nowrap sm:shrink-0 sm:ml-4 sm:pl-0"
+            >
               <!-- Diff badge -->
               <span
                 v-if="request.has_diff"
@@ -250,7 +252,7 @@ onMounted(() => {
                 No diff
               </span>
               <!-- Status codes -->
-              <span class="text-xs font-mono text-dim w-24 text-right whitespace-nowrap">
+              <span class="text-xs font-mono text-dim whitespace-nowrap sm:w-24 sm:text-right">
                 <span
                   :class="
                     (request.live_response?.status_code ?? 0) < 400
@@ -270,15 +272,15 @@ onMounted(() => {
                 >
               </span>
               <!-- Latency -->
-              <span class="text-xs font-mono text-dim w-36 text-right whitespace-nowrap">
+              <span class="text-xs font-mono text-dim whitespace-nowrap sm:w-36 sm:text-right">
                 {{ request.live_response?.latency_ms ?? '—' }}ms /
                 {{ request.shadow_response?.latency_ms ?? '—' }}ms
               </span>
               <!-- Timestamp -->
-              <div class="text-xs text-dim w-20 text-right">
+              <div class="text-xs text-dim sm:w-20 sm:text-right">
                 {{ formatTimestamp(request.created_at) }}
               </div>
-              <ChevronRight class="h-3.5 w-3.5 text-dim/40 shrink-0" />
+              <ChevronRight class="hidden h-3.5 w-3.5 text-dim/40 shrink-0 sm:block" />
             </div>
           </div>
         </div>
