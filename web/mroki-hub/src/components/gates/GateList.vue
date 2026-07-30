@@ -4,6 +4,7 @@ import { getGates } from '@/api'
 import type { Gate } from '@/api'
 import type { GateFilterState } from './GateFilters.vue'
 import GateCard from './GateCard.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { GitCompareArrows, Plus } from 'lucide-vue-next'
@@ -147,40 +148,16 @@ onMounted(() => {
       </div>
 
       <!-- Pagination Controls -->
-      <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 text-xs">
-        <span class="text-dim">Page {{ currentPage }} of {{ totalPages }} · {{ total }} gates</span>
-        <div class="flex items-center gap-1">
-          <button
-            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg border border-border bg-card text-dim transition-colors"
-            :class="
-              offset === 0
-                ? 'opacity-40 cursor-not-allowed'
-                : 'text-muted-foreground hover:bg-accent'
-            "
-            :disabled="offset === 0"
-            @click="prevPage"
-          >
-            Previous
-          </button>
-          <span
-            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg border border-border bg-accent text-foreground font-medium"
-          >
-            {{ currentPage }}
-          </span>
-          <button
-            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-4 py-2.5 rounded-lg border border-border bg-card transition-colors"
-            :class="
-              !hasMore
-                ? 'text-dim opacity-40 cursor-not-allowed'
-                : 'text-muted-foreground hover:bg-accent'
-            "
-            :disabled="!hasMore"
-            @click="nextPage"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <Pagination
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :disabled-prev="offset === 0"
+        :disabled-next="!hasMore"
+        @prev="prevPage"
+        @next="nextPage"
+      >
+        <template #meta> · {{ total }} gates</template>
+      </Pagination>
     </div>
   </div>
 </template>

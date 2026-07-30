@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RequestList from './RequestList.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import type { FilterState } from './RequestFilters.vue'
 import type { PaginatedResponse, Request } from '@/api'
 
@@ -93,5 +94,31 @@ describe('RequestList row keyboard operability', () => {
     const wrapper = await mountList([makeRequest({ id: 'req-3' })])
     await wrapper.get('[role="button"]').trigger('click')
     expect(push).toHaveBeenCalledWith('/gates/gate-1/requests/req-3')
+  })
+})
+
+describe('RequestList pagination', () => {
+  beforeEach(() => {
+    push.mockClear()
+    getRequests.mockReset()
+  })
+
+  it('hides the pager when there is a single page', async () => {
+    const wrapper = await mountList([makeRequest()])
+    expect(wrapper.findComponent(Pagination).exists()).toBe(true)
+    // The pager component mounts but renders nothing while totalPages <= 1.
+    expect(wrapper.findComponent(Pagination).find('button').exists()).toBe(false)
+  })
+
+  it('renders the pager when more than one page exists', async () => {
+    getRequests.mockResolvedValue({
+      data: [makeRequest()],
+      pagination: { limit: 20, offset: 0, total: 40, has_more: true },
+    } satisfies PaginatedResponse<Request[]>)
+    const wrapper = mount(RequestList, { props: { gateId: 'gate-1', filters }, global })
+    await flushPromises()
+    const pager = wrapper.findComponent(Pagination)
+    expect(pager.text()).toContain('Page 1 of 2')
+    expect(pager.findAll('button')).toHaveLength(2)
   })
 })
