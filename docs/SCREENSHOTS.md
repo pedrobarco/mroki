@@ -16,13 +16,13 @@ Create a new gate by entering a name and the live/shadow service URLs. The dialo
 
 ## Gate Detail
 
-Browse captured requests for a gate. Filter by HTTP method or path, and see at a glance which requests produced diffs.
+Browse captured requests for a gate. Filter by HTTP method or path, toggle "Has diff only" to focus on requests that produced diffs, and sort the list — each row shows the live/shadow status, latency, and diff state.
 
 ![Gate Detail](assets/screenshots/hub-gate-detail.png)
 
 ## Gate Settings
 
-Configure security and diff behavior per gate. Field redaction replaces sensitive values with `[REDACTED]` before storage — default fields are always active, and you can add per-gate fields using gjson path notation. Diff configuration controls ignored fields, included fields, float tolerance for numeric comparisons, and array sorting.
+Configure security, retention, and diff behavior per gate. Field redaction replaces sensitive values with `[REDACTED]` before storage — default fields are always active, and you can add per-gate fields using gjson path notation. Data retention sets how long captured requests are kept before cleanup, overriding the global default (a per-gate value must be at least the global retention). Diff configuration controls ignored fields, included fields, float tolerance for numeric comparisons, and array sorting.
 
 ![Gate Settings](assets/screenshots/hub-gate-settings.png)
 
