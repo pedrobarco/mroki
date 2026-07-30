@@ -86,6 +86,73 @@ describe('DiffViewer summary header', () => {
   })
 })
 
+describe('DiffViewer patch-op rendering', () => {
+  // The patch list badges each row with an op abbreviation (ADD/REM/REP) and
+  // sign (+/−/~). PatchOp is typed 'add' | 'remove' | 'replace' — there is no
+  // 'move' op to render, so these three cases are the full op surface.
+  // The op badge is a font-semibold span holding a nested sign span plus the
+  // abbreviation text (e.g. "+ ADD"), so match on class and substring.
+  function patchBadge(wrapper: Awaited<ReturnType<typeof mountViewer>>, abbr: string) {
+    return wrapper
+      .findAll('span')
+      .find((s) => s.classes().includes('font-semibold') && s.text().includes(abbr))
+  }
+
+  it('renders an add op with the ADD/+ badge and the new value', async () => {
+    const wrapper = await mountViewer({
+      live: {},
+      shadow: { added: 'hello' },
+      content: [{ op: 'add', path: '/body/added', value: 'hello' }],
+    })
+    const badge = patchBadge(wrapper, 'ADD')
+    expect(badge).toBeTruthy()
+    expect(badge!.text()).toContain('+')
+    expect(wrapper.text()).toContain('/body/added')
+    expect(wrapper.text()).toContain('hello')
+  })
+
+  it('renders a remove op with the REM/− badge and strikes the old value', async () => {
+    const wrapper = await mountViewer({
+      live: { gone: 'bye' },
+      shadow: {},
+      content: [{ op: 'remove', path: '/body/gone' }],
+    })
+    const badge = patchBadge(wrapper, 'REM')
+    expect(badge).toBeTruthy()
+    expect(badge!.text()).toContain('−')
+    const struck = wrapper.findAll('span').find((s) => s.classes().includes('line-through'))
+    expect(struck?.text()).toContain('bye')
+  })
+
+  it('renders a replace op with the REP/~ badge and old → new values', async () => {
+    const wrapper = await mountViewer({
+      live: { name: 'a' },
+      shadow: { name: 'b' },
+      content: [{ op: 'replace', path: '/body/name', value: 'b' }],
+    })
+    const badge = patchBadge(wrapper, 'REP')
+    expect(badge).toBeTruthy()
+    expect(badge!.text()).toContain('~')
+    expect(wrapper.text()).toContain('→')
+    expect(wrapper.text()).toContain('a')
+    expect(wrapper.text()).toContain('b')
+  })
+
+  it('shows the "No differences" empty state when there are no patch ops', async () => {
+    const wrapper = await mountViewer({
+      live: { same: 1 },
+      shadow: { same: 1 },
+      content: [],
+    })
+    expect(wrapper.text()).toContain('No differences')
+    expect(wrapper.text()).toContain('identical')
+    // No op badges should be present in the empty state.
+    expect(wrapper.findAll('span').some((s) => ['ADD', 'REM', 'REP'].includes(s.text()))).toBe(
+      false
+    )
+  })
+})
+
 describe('DiffViewer ignore-field affordance', () => {
   beforeEach(() => {})
 

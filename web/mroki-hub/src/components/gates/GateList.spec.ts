@@ -88,3 +88,72 @@ describe('GateList empty states', () => {
     expect(wrapper.text()).not.toContain('No gates match your current filter')
   })
 })
+
+// A page holds 5 gates; total 12 => 3 pages. Used for pagination + reset tests.
+function pagedResponse(gates: Gate[], total: number, hasMore: boolean): PaginatedResponse<Gate[]> {
+  return { data: gates, pagination: { limit: 5, offset: 0, total, has_more: hasMore } }
+}
+
+function lastGetGatesParams(): { offset?: number; live_url?: string } {
+  return getGates.mock.calls[getGates.mock.calls.length - 1][0] as {
+    offset?: number
+    live_url?: string
+  }
+}
+
+function nextButton(wrapper: Awaited<ReturnType<typeof mountList>>) {
+  return wrapper.findAll('button').find((b) => b.text() === 'Next')
+}
+
+describe('GateList pagination', () => {
+  beforeEach(() => {
+    getGates.mockReset()
+  })
+
+  it('renders the pager with a page indicator when more than one page exists', async () => {
+    getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
+    const wrapper = mount(GateList, { props: { filters: makeFilters() } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Page 1 of 3')
+    expect(nextButton(wrapper)).toBeTruthy()
+  })
+
+  it('advances the offset by the page size when Next is clicked', async () => {
+    getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
+    const wrapper = mount(GateList, { props: { filters: makeFilters() } })
+    await flushPromises()
+
+    await nextButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(lastGetGatesParams().offset).toBe(5)
+    expect(wrapper.text()).toContain('Page 2 of 3')
+  })
+})
+
+describe('GateList reset-on-watch', () => {
+  beforeEach(() => {
+    getGates.mockReset()
+  })
+
+  it('resets pagination to the first page and reloads when filters change', async () => {
+    getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
+    const wrapper = mount(GateList, { props: { filters: makeFilters() } })
+    await flushPromises()
+
+    // Move to page 2 so the reset is observable.
+    await nextButton(wrapper)!.trigger('click')
+    await flushPromises()
+    expect(lastGetGatesParams().offset).toBe(5)
+
+    // Changing the filters must reset the offset and refetch with the new filter.
+    await wrapper.setProps({ filters: makeFilters({ liveUrl: 'checkout' }) })
+    await flushPromises()
+
+    const params = lastGetGatesParams()
+    expect(params.offset).toBe(0)
+    expect(params.live_url).toBe('checkout')
+    expect(wrapper.text()).toContain('Page 1 of 3')
+  })
+})
