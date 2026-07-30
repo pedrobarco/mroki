@@ -28,3 +28,22 @@ export function diffRateColorClass(rate: number): string {
   if (rate >= 1) return 'text-warning'
   return 'text-success'
 }
+
+/**
+ * Convert an RFC 6901 JSON Pointer (as used by diff patch rows) into the
+ * gjson dot-notation path used by a gate's `ignored_fields`.
+ *
+ * Example: `/body/items/0/price` -> `body.items.0.price`,
+ *          `/headers/X-Api-Key`  -> `headers.X-Api-Key`.
+ *
+ * Pointer escapes are decoded per RFC 6901 (`~1` -> `/`, `~0` -> `~`).
+ * @param pointer - An RFC 6901 JSON Pointer, optionally leading with `/`
+ * @returns The equivalent gjson dot-notation path
+ */
+export function pointerToGjson(pointer: string): string {
+  return pointer
+    .replace(/^\//, '')
+    .split('/')
+    .map((s) => s.replace(/~1/g, '/').replace(/~0/g, '~'))
+    .join('.')
+}

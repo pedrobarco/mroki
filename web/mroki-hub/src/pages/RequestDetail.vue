@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getGate, getRequest } from '@/api'
+import { getGate, getRequest, updateGate } from '@/api'
 import type { Gate, RequestDetail } from '@/api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,17 @@ const request = ref<RequestDetail | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const copied = ref(false)
+
+// Lightweight inline toast (no global toast primitive in the hub yet).
+const toast = ref<{ message: string; type: 'success' | 'error' } | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+function notify(message: string, type: 'success' | 'error' = 'success') {
+  if (toastTimer) clearTimeout(toastTimer)
+  toast.value = { message, type }
+  toastTimer = setTimeout(() => {
+    toast.value = null
+  }, 3000)
+}
 
 const gateId = computed(() => route.params.id as string)
 const requestId = computed(() => route.params.rid as string)
@@ -102,6 +113,23 @@ async function loadRequest() {
   }
 }
 
+async function onIgnoreField(gjsonPath: string) {
+  const g = gate.value
+  if (!g) return
+  const ignored = g.diff_config.ignored_fields
+  if (ignored.includes(gjsonPath)) return
+  try {
+    const res = await updateGate(g.id, {
+      diff_config: { ...g.diff_config, ignored_fields: [...ignored, gjsonPath] },
+    })
+    gate.value = res.data
+    cacheGate(res.data)
+    notify(`Ignoring "${gjsonPath}" in future diffs`)
+  } catch (err) {
+    notify(err instanceof Error ? err.message : 'Failed to update gate', 'error')
+  }
+}
+
 function goBack() {
   router.push(`/gates/${gateId.value}`)
 }
@@ -170,10 +198,33 @@ function exportJson() {
 onMounted(() => {
   loadRequest()
 })
+
+onUnmounted(() => {
+  if (toastTimer) clearTimeout(toastTimer)
+})
 </script>
 
 <template>
   <div class="max-w-6xl mx-auto px-6 py-6">
+    <!-- Inline toast notification -->
+    <div
+      v-if="toast"
+      class="fixed bottom-6 right-6 z-50 w-full max-w-sm"
+      role="status"
+      aria-live="polite"
+    >
+      <Alert
+        :variant="toast.type === 'error' ? 'destructive' : 'default'"
+        :class="
+          toast.type === 'success'
+            ? 'border-success/40 shadow-lg *:data-[slot=alert-description]:text-success'
+            : 'shadow-lg'
+        "
+      >
+        <AlertDescription>{{ toast.message }}</AlertDescription>
+      </Alert>
+    </div>
+
     <!-- Back link + breadcrumb -->
     <div class="flex items-center gap-2 mb-5">
       <button
@@ -343,7 +394,8 @@ onMounted(() => {
         :live-response="liveResponse"
         :shadow-response="shadowResponse"
         :diff-content="request.diff.content"
-        :diff-config="request.diff.config"
+        :diff-config="gate?.diff_config ?? request.diff.config"
+        @ignore-field="onIgnoreField"
       />
 
       <!-- Missing Responses Warning -->

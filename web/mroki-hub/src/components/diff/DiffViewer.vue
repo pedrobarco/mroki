@@ -12,7 +12,15 @@ import {
 import type { DiffLine, Token, TokenType, PatchRow } from '@/lib/json-diff'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { WrapText, SlidersHorizontal, ChevronRight, Check, ListFilter } from 'lucide-vue-next'
+import {
+  WrapText,
+  SlidersHorizontal,
+  ChevronRight,
+  Check,
+  ListFilter,
+  EyeOff,
+} from 'lucide-vue-next'
+import { pointerToGjson } from '@/lib/utils'
 
 type ViewMode = 'unified' | 'split' | 'patch'
 const MD_BREAKPOINT = 768
@@ -58,11 +66,29 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const emit = defineEmits<{ (e: 'ignore-field', gjsonPath: string): void }>()
+
 // --- Diff config snapshot (settings used to compute this diff) ---
 const sortArrays = computed(() => props.diffConfig?.sort_arrays ?? false)
 const floatTolerance = computed(() => props.diffConfig?.float_tolerance ?? 0)
 const ignoredFields = computed(() => props.diffConfig?.ignored_fields ?? [])
 const includedFields = computed(() => props.diffConfig?.included_fields ?? [])
+
+// gjson paths already ignored by this diff's config; used to hide the
+// per-row "ignore" affordance for fields that are already suppressed.
+const ignoredSet = computed(() => new Set(ignoredFields.value))
+function isIgnored(row: PatchRow): boolean {
+  return ignoredSet.value.has(pointerToGjson(row.path))
+}
+
+// Change summary: body vs header op counts plus the number of ignored fields,
+// classified from the `/body` / `/headers` pointer prefix combinedOps applies.
+const summary = computed(() => {
+  const ops = props.diffContent ?? []
+  const body = ops.filter((o) => o.path.startsWith('/body')).length
+  const header = ops.filter((o) => o.path.startsWith('/headers')).length
+  return { body, header, ignored: ignoredFields.value.length }
+})
 
 function tryParseJson(str: string): unknown | null {
   try {
@@ -318,6 +344,26 @@ function tokenClass(token: Token): string {
           <span class="text-xs text-dim bg-accent px-2 py-0.5 rounded-md font-mono">
             {{ isJson ? 'json' : 'text' }}
           </span>
+          <div
+            v-if="isJson && !isBinary"
+            class="flex items-center gap-1.5 text-xs text-muted-foreground"
+          >
+            <span class="text-dim">·</span>
+            <span
+              ><span class="font-medium text-info">{{ summary.body }}</span> body</span
+            >
+            <span class="text-dim">·</span>
+            <span
+              ><span class="font-medium text-warning">{{ summary.header }}</span> header</span
+            >
+            <span>change{{ summary.body + summary.header === 1 ? '' : 's' }}</span>
+            <template v-if="summary.ignored > 0">
+              <span class="text-dim">·</span>
+              <span
+                ><span class="font-medium text-dim">{{ summary.ignored }}</span> ignored</span
+              >
+            </template>
+          </div>
         </div>
         <div class="flex items-center gap-3 text-xs">
           <!-- Wrap toggle -->
@@ -611,11 +657,11 @@ function tokenClass(token: Token): string {
         </div>
 
         <!-- Change rows -->
-        <div v-if="filteredPatchRows.length">
+        <TooltipProvider v-if="filteredPatchRows.length" :delay-duration="300">
           <div
             v-for="row in filteredPatchRows"
             :key="row.path"
-            class="grid grid-cols-[auto_auto_1fr] items-start gap-3 px-5 py-2.5 border-b border-border/60 transition-colors"
+            class="group/row grid grid-cols-[auto_auto_1fr_auto] items-start gap-3 px-5 py-2.5 border-b border-border/60 transition-colors"
             :class="opMeta(row.op).rowHover"
           >
             <!-- Expand chevron / spacer -->
@@ -702,8 +748,24 @@ function tokenClass(token: Token): string {
                 </div>
               </div>
             </div>
+
+            <!-- Ignore-field affordance -->
+            <Tooltip v-if="!isIgnored(row)">
+              <TooltipTrigger as-child>
+                <button
+                  type="button"
+                  class="shrink-0 inline-flex items-center justify-center size-6 rounded-md text-dim opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring transition-opacity"
+                  :aria-label="`Ignore field ${row.path}`"
+                  @click.stop="emit('ignore-field', pointerToGjson(row.path))"
+                >
+                  <EyeOff class="size-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left"> Ignore this field in future diffs </TooltipContent>
+            </Tooltip>
+            <span v-else class="w-6 shrink-0" />
           </div>
-        </div>
+        </TooltipProvider>
 
         <!-- Empty states -->
         <div v-else class="flex flex-col items-center justify-center text-center py-14 px-6">
