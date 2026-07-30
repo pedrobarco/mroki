@@ -47,3 +47,26 @@ export function pointerToGjson(pointer: string): string {
     .map((s) => s.replace(/~1/g, '/').replace(/~0/g, '~'))
     .join('.')
 }
+
+/**
+ * Map an HTTP method to its tinted badge classes. GET reads as informational,
+ * POST as a successful create, PUT/PATCH as a warning-toned mutation, DELETE as
+ * destructive; unknown verbs fall back to a muted neutral.
+ * @param method - An HTTP method (case-insensitive)
+ * @returns Tailwind classes for the method badge background and text
+ */
+export function methodColorClass(method: string): string {
+  switch (method.toUpperCase()) {
+    case 'GET':
+      return 'bg-info/15 text-info'
+    case 'POST':
+      return 'bg-success/15 text-success'
+    case 'PUT':
+    case 'PATCH':
+      return 'bg-warning/15 text-warning'
+    case 'DELETE':
+      return 'bg-danger/15 text-danger'
+    default:
+      return 'bg-muted text-muted-foreground'
+  }
+}

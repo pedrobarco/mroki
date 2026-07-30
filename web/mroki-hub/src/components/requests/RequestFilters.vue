@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { AcceptableValue } from 'reka-ui'
 import type { RequestSortField, SortOrder } from '@/api'
 import { Switch } from '@/components/ui/switch'
@@ -42,16 +42,26 @@ watch(pathInput, (val) => {
   }, 400)
 })
 
-const activeMethod = ref<string | null>(null)
+// Methods are a true multi-select: several verbs can be active at once, and
+// "All" is the empty selection (no method restriction).
+const isAll = computed(() => props.modelValue.methods.length === 0)
 
-function selectMethod(method: string | null) {
-  if (activeMethod.value === method) {
-    activeMethod.value = null
-    emitUpdate({ methods: [] })
+function isMethodActive(method: string): boolean {
+  return props.modelValue.methods.includes(method)
+}
+
+function toggleMethod(method: string) {
+  const set = new Set(props.modelValue.methods)
+  if (set.has(method)) {
+    set.delete(method)
   } else {
-    activeMethod.value = method
-    emitUpdate({ methods: method ? [method] : [] })
+    set.add(method)
   }
+  emitUpdate({ methods: [...set] })
+}
+
+function clearMethods() {
+  emitUpdate({ methods: [] })
 }
 
 function onDiffToggle(checked: boolean) {
@@ -80,26 +90,28 @@ function emitUpdate(partial: Partial<FilterState>) {
       class="flex items-center gap-0 text-xs border border-border rounded-lg bg-card overflow-hidden"
     >
       <button
+        type="button"
+        :aria-pressed="isAll"
         class="px-2.5 py-1.5 transition-colors"
         :class="
-          activeMethod === null
-            ? 'bg-accent text-foreground font-medium'
-            : 'text-dim hover:text-muted-foreground'
+          isAll ? 'bg-accent text-foreground font-medium' : 'text-dim hover:text-muted-foreground'
         "
-        @click="selectMethod(null)"
+        @click="clearMethods"
       >
         All
       </button>
       <button
         v-for="method in HTTP_METHODS"
         :key="method"
+        type="button"
+        :aria-pressed="isMethodActive(method)"
         class="px-2.5 py-1.5 transition-colors"
         :class="
-          activeMethod === method
+          isMethodActive(method)
             ? 'bg-accent text-foreground font-medium'
             : 'text-dim hover:text-muted-foreground'
         "
-        @click="selectMethod(method)"
+        @click="toggleMethod(method)"
       >
         {{ method }}
       </button>

@@ -14,7 +14,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import DiffViewer from '@/components/diff/DiffViewer.vue'
 import { ChevronLeft, Copy, Download, ChevronDown, Check } from 'lucide-vue-next'
-import { truncateId } from '@/lib/utils'
+import { truncateId, methodColorClass } from '@/lib/utils'
 import { useGateCache } from '@/composables/use-gate-cache'
 
 const route = useRoute()
@@ -44,18 +44,6 @@ const requestId = computed(() => route.params.rid as string)
 
 const liveResponse = computed(() => request.value?.live_response ?? null)
 const shadowResponse = computed(() => request.value?.shadow_response ?? null)
-
-const methodColors: Record<string, string> = {
-  GET: 'bg-info/15 text-info',
-  POST: 'bg-success/15 text-success',
-  PUT: 'bg-warning/15 text-warning',
-  PATCH: 'bg-warning/15 text-warning',
-  DELETE: 'bg-danger/15 text-danger',
-}
-
-function getMethodClasses(method: string): string {
-  return methodColors[method.toUpperCase()] || 'bg-muted text-muted-foreground'
-}
 
 const diffCount = computed(() => request.value?.diff?.content?.length ?? 0)
 
@@ -294,7 +282,7 @@ onUnmounted(() => {
               <div class="flex items-center gap-3">
                 <span
                   class="inline-flex items-center justify-center text-xs font-bold font-mono px-2.5 py-1 rounded-md tracking-wide shrink-0"
-                  :class="getMethodClasses(request.method)"
+                  :class="methodColorClass(request.method)"
                 >
                   {{ request.method }}
                 </span>
