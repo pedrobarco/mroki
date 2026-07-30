@@ -64,3 +64,6 @@ bin/
 /mroki-api
 /mroki-proxy
 /caddy-mroki
+
+# Impeccable design tooling: track the design.json sidecar, ignore per-run critique artifacts
+.impeccable/critique/

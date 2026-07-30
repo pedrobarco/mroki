@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-30T00:00:00Z",
+  "title": "Design System: mroki-hub",
+  "extensions": {
+    "colorMeta": {
+      "instrument-zinc-bg": { "role": "neutral", "displayName": "Instrument Zinc (surface)", "canonical": "#ffffff", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#e4e4e7", "#fafafa"] },
+      "instrument-zinc-fg": { "role": "neutral", "displayName": "Instrument Zinc (ink)", "canonical": "#09090b", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#e4e4e7", "#fafafa"] },
+      "instrument-zinc-muted": { "role": "neutral", "displayName": "Instrument Zinc (muted)", "canonical": "#71717a", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#e4e4e7", "#fafafa"] },
+      "instrument-zinc-border": { "role": "neutral", "displayName": "Instrument Zinc (border)", "canonical": "#e4e4e7", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#e4e4e7", "#fafafa"] },
+      "instrument-zinc-accent": { "role": "neutral", "displayName": "Instrument Zinc (accent fill)", "canonical": "#f4f4f5", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#e4e4e7", "#fafafa"] },
+      "primary": { "role": "primary", "displayName": "Ink", "canonical": "#18181b", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8"] },
+      "primary-foreground": { "role": "primary", "displayName": "Ink (inverse)", "canonical": "#fafafa", "tonalRamp": ["#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5", "#fafafa"] },
+      "signal-green": { "role": "success", "displayName": "Signal Green", "canonical": "#22c55e", "tonalRamp": ["#052e16", "#14532d", "#166534", "#15803d", "#16a34a", "#22c55e", "#4ade80", "#bbf7d0"] },
+      "signal-blue": { "role": "info", "displayName": "Signal Blue", "canonical": "#3b82f6", "tonalRamp": ["#172554", "#1e3a8a", "#1e40af", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#bfdbfe"] },
+      "signal-amber": { "role": "warning", "displayName": "Signal Amber", "canonical": "#f59e0b", "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fde68a"] },
+      "signal-red": { "role": "danger", "displayName": "Signal Red", "canonical": "#ef4444", "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fecaca"] },
+      "syntax-key": { "role": "syntax", "displayName": "Syntax Key", "canonical": "#0369a1", "tonalRamp": ["#082f49", "#0c4a6e", "#075985", "#0369a1", "#0284c7", "#0ea5e9", "#38bdf8", "#bae6fd"] },
+      "syntax-string": { "role": "syntax", "displayName": "Syntax String", "canonical": "#6d28d9", "tonalRamp": ["#2e1065", "#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#8b5cf6", "#a78bfa", "#ddd6fe"] },
+      "syntax-number": { "role": "syntax", "displayName": "Syntax Number", "canonical": "#047857", "tonalRamp": ["#022c22", "#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#a7f3d0"] },
+      "syntax-boolean": { "role": "syntax", "displayName": "Syntax Boolean", "canonical": "#c2410c", "tonalRamp": ["#431407", "#7c2d12", "#9a3412", "#c2410c", "#ea580c", "#f97316", "#fb923c", "#fed7aa"] },
+      "syntax-null": { "role": "syntax", "displayName": "Syntax Null", "canonical": "#be185d", "tonalRamp": ["#500724", "#831843", "#9d174d", "#be185d", "#db2777", "#ec4899", "#f472b6", "#fbcfe8"] },
+      "syntax-punctuation": { "role": "syntax", "displayName": "Syntax Punctuation", "canonical": "#71717a", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8", "#f4f4f5"] }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "Body", "purpose": "Default interface text and prose." },
+      "label": { "displayName": "Label", "purpose": "Metadata captions and section eyebrows (LIVE / SHADOW), uppercase, wide tracking." },
+      "mono": { "displayName": "Mono", "purpose": "All machine data: URLs, paths, methods, status codes, latencies, JSON." }
+    },
+    "shadows": [
+      { "name": "control-xs", "value": "0 1px 2px 0 rgba(0,0,0,0.05)", "purpose": "Minimal functional shadow on interactive controls only (inputs, outline buttons). Cards never cast shadow at rest (The Flat-By-Default Rule)." }
+    ],
+    "motion": [
+      { "name": "transition-colors", "value": "color/background/border-color 150ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default hover/focus state transition on cards, rows, and controls." },
+      { "name": "reduced-motion", "value": "animations and transitions collapse to 0.01ms", "purpose": "Honors prefers-reduced-motion: reduce globally." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-emphasis action; Ink fill with inverse foreground.",
+      "html": "<button class=\"ds-btn-primary\">Create gate</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.25rem; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; background: var(--primary, #18181b); color: var(--primary-foreground, #fafafa); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: color-mix(in srgb, var(--primary, #18181b) 90%, transparent); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring, #a1a1aa) 50%, transparent); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Low-emphasis action; transparent until hover shifts to the zinc accent fill.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.25rem; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; background: transparent; color: var(--foreground, #09090b); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-ghost:hover { background: var(--accent, #f4f4f5); } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring, #a1a1aa) 50%, transparent); }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Transparent field, 1px zinc border, minimal functional shadow, focus ring.",
+      "html": "<input class=\"ds-input\" placeholder=\"Filter gates\" />",
+      "css": ".ds-input { height: 2.25rem; width: 100%; padding: 0.25rem 0.75rem; border: 1px solid var(--input, #e4e4e7); border-radius: 0.5rem; background: transparent; color: var(--foreground, #09090b); font-size: 0.875rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); transition: color 150ms, box-shadow 150ms; outline: none; } .ds-input::placeholder { color: var(--muted-foreground, #71717a); } .ds-input:focus-visible { border-color: var(--ring, #a1a1aa); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring, #a1a1aa) 50%, transparent); }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Fully-round chip, semantic tint at low alpha over its signal color, paired with a dot.",
+      "html": "<span class=\"ds-badge-diff\"><span class=\"ds-dot\"></span>Diff</span>",
+      "css": ".ds-badge-diff { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.125rem 0.5rem; border-radius: 9999px; background: color-mix(in srgb, var(--danger, #ef4444) 10%, transparent); color: var(--danger, #ef4444); font-size: 0.75rem; font-weight: 500; } .ds-badge-diff .ds-dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; background: var(--danger, #ef4444); }"
+    },
+    {
+      "name": "Method Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Signature: HTTP verb tinted from a fixed map (GET = Signal Blue, POST = Signal Green) in a fixed-width monospace pill.",
+      "html": "<span class=\"ds-method\">GET</span>",
+      "css": ".ds-method { display: inline-flex; align-items: center; justify-content: center; width: 3.5rem; padding: 0.125rem 0; border-radius: 0.375rem; background: color-mix(in srgb, var(--info, #3b82f6) 15%, transparent); color: var(--info, #3b82f6); font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; }"
+    },
+    {
+      "name": "Gate Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat bordered container; hover shifts border and background rather than lifting.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">httpbin</div><code class=\"ds-card-url\">https://httpbin.org</code></div>",
+      "css": ".ds-card { display: block; padding: 1.25rem; border: 1px solid var(--border, #e4e4e7); border-radius: 0.75rem; background: var(--card, #ffffff); color: var(--card-foreground, #09090b); cursor: pointer; transition: border-color 150ms, background 150ms; } .ds-card:hover { border-color: var(--ring, #a1a1aa); background: var(--accent, #f4f4f5); } .ds-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background, #fff), 0 0 0 4px var(--ring, #a1a1aa); } .ds-card-title { font-size: 1rem; font-weight: 600; } .ds-card-url { display: inline-block; margin-top: 0.5rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; background: var(--accent, #f4f4f5); color: var(--muted-foreground, #71717a); font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace; font-size: 0.75rem; }"
+    },
+    {
+      "name": "Diff Rate Readout",
+      "kind": "custom",
+      "refersTo": "signal-red",
+      "description": "Signature: value-driven color (green <1%, amber 1-10%, red >=10%) always shown alongside the numeric value (The Color-Is-Never-Alone Rule).",
+      "html": "<span class=\"ds-diffrate\">12.4%<span class=\"ds-diffrate-label\">diff rate</span></span>",
+      "css": ".ds-diffrate { display: inline-flex; align-items: baseline; gap: 0.375rem; color: var(--danger, #ef4444); font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace; font-size: 1rem; font-weight: 600; } .ds-diffrate-label { color: var(--muted-foreground, #71717a); font-family: system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Control Room",
+    "overview": "mroki-hub is a calm, dark-capable operations dashboard for engineers deciding whether a shadow service behaves like production. It is dense but legible: every pixel earns its place by carrying signal, and decoration is treated as noise. The interface is built almost entirely from a near-monochrome zinc foundation so that the moment a semantic color appears - a red diff rate, a tinted method badge, a highlighted JSON key - it means something. Color is a readout, not a mood.\n\nThe system is quiet and restrained by design. Chrome recedes; data (URLs, paths, status codes, JSON) is set in monospace and given the foreground. It is unmistakably a developer tool - keyboard-operable, information-first - but a composed one, closer to instrumentation than to a terminal. Depth is nearly flat: surfaces are separated by hairline borders and subtle tonal fills rather than shadow.",
+    "keyCharacteristics": [
+      "Near-monochrome zinc base; semantic color reserved for actual signal.",
+      "Flat surfaces, hairline borders, tonal layering instead of elevation.",
+      "Monospace for all machine data; system sans for chrome and prose.",
+      "Full light/dark parity - every token has both values.",
+      "Color never carries meaning alone; it accompanies a number or label."
+    ],
+    "rules": [
+      { "name": "The Signal-Sparingly Rule", "body": "The zinc foundation carries the interface; semantic accents mark only attention - status, method, diff. If a color is not reporting a fact, it does not appear.", "section": "colors" },
+      { "name": "The Color-Is-Never-Alone Rule", "body": "Color is emphasis, never the sole signal. The diff rate always shows its number; status always shows its code. Remove the color and the meaning must survive.", "section": "colors" },
+      { "name": "The Monospace-For-Data Rule", "body": "If a value came from the wire - a URL, path, method, status, latency, or JSON - it is set in monospace. Prose and chrome are never monospace; data never is not.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat. A border or a tonal fill separates layers; a shadow appears only on an interactive control (input, outline button) to signal it can be manipulated - never for decoration or to lift a card.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do build from Instrument Zinc first and add a semantic signal only when it reports a fact (status, method, diff).",
+      "Do set every wire-derived value (URL, path, method, status, latency, JSON) in monospace.",
+      "Do keep surfaces flat - separate layers with a 1px zinc border or a tonal fill, and reserve shadow-xs for interactive controls.",
+      "Do pair every color signal with a number or label so meaning survives without color.",
+      "Do provide a visible 3px focus ring and full keyboard operability on every control.",
+      "Do ship both light and dark values for any new token."
+    ],
+    "donts": [
+      "Don't use a semantic accent for decoration, emphasis, or 'brand color' fills.",
+      "Don't add ambient shadows to cards, lists, or panels to create depth.",
+      "Don't set interface chrome or prose in monospace, or body data in the sans stack.",
+      "Don't introduce a raw Tailwind palette swatch (text-sky-400) - use the semantic or syntax tokens so both themes stay correct.",
+      "Don't convey state with color alone (no bare red dot without its value)."
+    ]
+  }
+}
