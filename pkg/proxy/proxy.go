@@ -3,11 +3,13 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"maps"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -252,6 +254,24 @@ func (p *Proxy) releaseCallbackSlot() {
 	<-p.callbackSem
 }
 
+// recoverGoroutine contains a panic in a best-effort background goroutine so it
+// never terminates the process or affects live traffic. It logs the panic with
+// a stack trace at error level and, when provided, runs onPanic to let the
+// caller unblock any waiter (e.g. by pushing an error onto its result channel).
+// It must be used via defer inside the goroutine it protects.
+func (p *Proxy) recoverGoroutine(logger *slog.Logger, name string, onPanic func(v any)) {
+	if r := recover(); r != nil {
+		logger.Error("recovered from panic in background goroutine",
+			slog.String("goroutine", name),
+			slog.Any("panic", r),
+			slog.String("stack", string(debug.Stack())),
+		)
+		if onPanic != nil {
+			onPanic(r)
+		}
+	}
+}
+
 // ServeHTTP implements the http.Handler interface for proxying requests.
 //
 // Request Flow:
@@ -313,6 +333,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Launch live request
 	go func() {
+		// Contain any panic so it never crashes the process; unblock the
+		// waiter with an error result instead of stalling until the timeout.
+		defer p.recoverGoroutine(reqLogger, "live", func(v any) {
+			liveCh <- responseResult{err: fmt.Errorf("panic in live goroutine: %v", v)}
+		})
 		start := time.Now()
 		resp, err := p.forwardRequest(liveCtx, r, p.Live, body)
 		if err != nil {
@@ -346,6 +371,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Launch shadow request
 	go func() {
+		// Contain any panic so it never crashes the process; unblock the
+		// waiter with an error result instead of stalling until the timeout.
+		defer p.recoverGoroutine(reqLogger, "shadow", func(v any) {
+			shadowCh <- responseResult{err: fmt.Errorf("panic in shadow goroutine: %v", v)}
+		})
 		start := time.Now()
 		resp, err := p.forwardRequest(shadowCtx, shadowReq, p.Shadow, body)
 		if err != nil {
@@ -414,6 +444,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// cancelled before we read from shadowCh.
 		defer p.releaseCallbackSlot()
 		defer shadowCancel()
+		// Registered last so it runs first during unwinding: a panic in the
+		// diff/redaction/API callback is contained and logged. The slot release
+		// and shadow cancel above still run, so there is no slot/context leak.
+		// The live response was already returned, so this never affects the client.
+		defer p.recoverGoroutine(reqLogger, "callback", nil)
 
 		select {
 		case shadowResp := <-shadowCh:

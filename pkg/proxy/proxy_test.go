@@ -870,3 +870,81 @@ func TestProxy_ServeHTTP_unbounded_callbacks_with_zero(t *testing.T) {
 	}
 	close(releaseAll)
 }
+
+// TestProxy_ServeHTTP_recovers_from_callback_panic asserts the core invariant:
+// a panic inside the comparison callback (diff/redaction/API client) is
+// contained — the live response is still returned, the process stays up, and
+// the callback semaphore slot is released so subsequent comparisons still run.
+// Without recovery the first panic would crash the whole test process.
+func TestProxy_ServeHTTP_recovers_from_callback_panic(t *testing.T) {
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("live response"))
+	}))
+	defer liveServer.Close()
+
+	shadowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"source":"shadow"}`))
+	}))
+	defer shadowServer.Close()
+
+	// The panic path logs a stack trace at error level; discard it to keep the
+	// test output clean.
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	var count atomic.Int32
+	invoked := make(chan int32, 16)
+
+	liveURL, _ := url.Parse(liveServer.URL)
+	shadowURL, _ := url.Parse(shadowServer.URL)
+	// Limit to a single slot so a leaked (never-released) slot on the panic path
+	// would permanently starve every subsequent callback.
+	p := proxy.NewProxy(
+		liveURL,
+		shadowURL,
+		proxy.WithMaxConcurrentCallbacks(1),
+		proxy.WithLogger(logger),
+		proxy.WithCallbackFn(func(req proxy.ProxyRequest, live, shadow proxy.ProxyResponse) error {
+			n := count.Add(1)
+			invoked <- n
+			if n == 1 {
+				panic("boom in callback")
+			}
+			return nil
+		}),
+	)
+
+	// First request: the callback panics. The live response must still be
+	// returned to the client unaffected.
+	rec1 := httptest.NewRecorder()
+	p.ServeHTTP(rec1, httptest.NewRequest("GET", "/one", nil))
+	require.Equal(t, http.StatusOK, rec1.Code)
+	require.Equal(t, "live response", rec1.Body.String())
+
+	select {
+	case n := <-invoked:
+		require.Equal(t, int32(1), n, "first callback should have run")
+	case <-time.After(time.Second):
+		t.Fatal("first (panicking) callback was not invoked within timeout")
+	}
+
+	// Reaching here proves the panic was contained (an unrecovered panic in the
+	// background goroutine would have crashed the test process). The slot must
+	// also have been released: subsequent callbacks must still run. Retry since
+	// slot release on the panic path races with the next request.
+	require.Eventually(t, func() bool {
+		rec := httptest.NewRecorder()
+		p.ServeHTTP(rec, httptest.NewRequest("GET", "/two", nil))
+		if rec.Code != http.StatusOK {
+			return false
+		}
+		select {
+		case <-invoked:
+			return true
+		case <-time.After(50 * time.Millisecond):
+			return false
+		}
+	}, 2*time.Second, 10*time.Millisecond,
+		"callback slot was not released after panic; subsequent callbacks never ran")
+}
