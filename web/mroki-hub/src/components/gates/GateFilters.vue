@@ -57,12 +57,14 @@ function emitUpdate(partial: Partial<GateFilterState>) {
   <div class="flex items-center gap-3">
     <!-- Search filters by live URL substring -->
     <div class="relative flex-1 max-w-sm">
+      <label for="gate-url-search" class="sr-only">Search gates</label>
       <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-dim h-3.5 w-3.5" />
       <input
+        id="gate-url-search"
         v-model="searchInput"
         type="text"
         placeholder="Search gates by live URL..."
-        class="w-full bg-card border border-border rounded-lg pl-8 pr-4 py-2 text-xs text-foreground placeholder:text-dim focus:outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+        class="w-full bg-card border border-border rounded-lg pl-8 pr-4 py-2 text-xs text-foreground placeholder:text-dim focus:outline-none focus:border-ring focus-visible:ring-[3px] focus-visible:ring-ring"
       />
     </div>
 

@@ -55,6 +55,7 @@ interface CreateRequestPayload {
 
 export interface ApiHelper {
   createGate(name: string, liveUrl: string, shadowUrl: string): Promise<Gate>
+  getGate(gateId: string): Promise<Gate>
   updateGate(gateId: string, payload: UpdateGatePayload): Promise<Gate>
   createRequest(gateId: string, data: CreateRequestPayload): Promise<RequestSummary>
   seedRequest(
@@ -98,6 +99,10 @@ export const test = base.extend<{ api: ApiHelper }>({
           method: 'POST',
           body: JSON.stringify({ name, live_url: liveUrl, shadow_url: shadowUrl }),
         })
+      },
+
+      async getGate(gateId) {
+        return apiRequest<Gate>(`/gates/${gateId}`)
       },
 
       async updateGate(gateId, payload) {
