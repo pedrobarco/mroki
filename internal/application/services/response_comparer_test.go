@@ -114,18 +114,26 @@ func TestCompare_non_json_bodies(t *testing.T) {
 	redactor := traffictesting.NewRedactor(nil)
 	comparer := services.NewResponseComparer(redactor, nil)
 
+	ct := http.Header{"Content-Type": {"text/html"}}
 	req := services.ResponseData{StatusCode: 200, Body: []byte(`{}`)}
-	live := services.ResponseData{StatusCode: 200, Body: []byte(`<html>hello</html>`)}
-	shadow := services.ResponseData{StatusCode: 200, Body: []byte(`<html>world</html>`)}
+	live := services.ResponseData{StatusCode: 200, Headers: ct, Body: []byte(`<html>hello</html>`)}
+	shadow := services.ResponseData{StatusCode: 200, Headers: ct, Body: []byte(`<html>world</html>`)}
 
 	result, err := comparer.Compare(req, live, shadow)
 
 	require.NoError(t, err)
+	// Non-JSON bodies produce nil BodyParsed (the redactor only parses JSON)...
 	assert.Nil(t, result.Live.BodyParsed)
 	assert.Nil(t, result.Shadow.BodyParsed)
-	// Non-JSON bodies produce nil BodyParsed, so the envelope body is nil for both.
-	// Since both envelope bodies are nil (equal), the diff depends only on other fields.
-	// With same status code and nil headers, ops may be empty.
+	// ...but the text Content-Type makes the envelope embed each body as a raw
+	// string, so the difference now surfaces under /body instead of being lost.
+	require.NotEmpty(t, result.Ops)
+	paths := make(map[string]string)
+	for _, op := range result.Ops {
+		paths[op.Path] = op.Op
+	}
+	assert.Contains(t, paths, "/body")
+	assert.Equal(t, "replace", paths["/body"])
 }
 
 func TestCompare_with_diff_options(t *testing.T) {

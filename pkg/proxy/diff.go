@@ -1,9 +1,6 @@
 package proxy
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
 
@@ -18,29 +15,24 @@ func NewProxyResponseDiffer(opts ...diff.Option) *proxyResponseDiffer {
 	return &proxyResponseDiffer{opts: opts}
 }
 
-// Diff compares two proxy responses using the byte-level diff path.
-// Builds a synthetic JSON envelope from status code, headers, and body bytes,
-// then delegates to diff.JSON.
+// Diff compares two proxy responses by building a synthetic envelope
+// ({"statusCode", "headers", "body"}) for each and comparing them with
+// diff.Parsed. Bodies are embedded per Content-Type via diff.EmbedBody.
 //
-// When pre-parsed trees are available (e.g., after redaction), callers should
-// use diff.BuildEnvelope + diff.Parsed directly for better performance.
+// This is the standalone-proxy fallback used when no redactor is configured; the
+// redacted path goes through the ResponseComparer service and shares the same
+// classification.
 func (p *proxyResponseDiffer) Diff(a, b ProxyResponse) ([]diff.PatchOp, error) {
-	ah, err := json.Marshal(a.Response.Header)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal live response header: %w", err)
-	}
+	live := diff.BuildEnvelope(
+		a.StatusCode,
+		a.Response.Header,
+		diff.EmbedBody(a.Response.Header.Get("Content-Type"), a.Body, nil),
+	)
+	shadow := diff.BuildEnvelope(
+		b.StatusCode,
+		b.Response.Header,
+		diff.EmbedBody(b.Response.Header.Get("Content-Type"), b.Body, nil),
+	)
 
-	bh, err := json.Marshal(b.Response.Header)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal shadow response header: %w", err)
-	}
-
-	live := jsonString(a.StatusCode, ah, a.Body)
-	shadow := jsonString(b.StatusCode, bh, b.Body)
-
-	return diff.JSON(live, shadow, p.opts...)
-}
-
-func jsonString(status int, headers, body []byte) string {
-	return fmt.Sprintf(`{"statusCode": %d, "headers": %s, "body": %s}`, status, headers, body)
+	return diff.Parsed(live, shadow, p.opts...)
 }

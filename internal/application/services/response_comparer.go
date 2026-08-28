@@ -67,9 +67,13 @@ func (c *ResponseComparer) Compare(req, live, shadow ResponseData) (*CompareResu
 		return nil, fmt.Errorf("shadow response redaction: %w", err)
 	}
 
-	// 2. Build envelopes from live and shadow using redacted headers.
-	liveEnvelope := diff.BuildEnvelope(live.StatusCode, liveResult.Headers, liveResult.BodyParsed)
-	shadowEnvelope := diff.BuildEnvelope(shadow.StatusCode, shadowResult.Headers, shadowResult.BodyParsed)
+	// 2. Embed each body per its Content-Type (JSON tree, raw text, or binary
+	// note) so differences surface for every content type, not just JSON.
+	liveBody := diff.EmbedBody(live.Headers.Get("Content-Type"), liveResult.Body, liveResult.BodyParsed)
+	shadowBody := diff.EmbedBody(shadow.Headers.Get("Content-Type"), shadowResult.Body, shadowResult.BodyParsed)
+
+	liveEnvelope := diff.BuildEnvelope(live.StatusCode, liveResult.Headers, liveBody)
+	shadowEnvelope := diff.BuildEnvelope(shadow.StatusCode, shadowResult.Headers, shadowBody)
 
 	// 3. Compute diff — errors are non-fatal.
 	ops, err := diff.Parsed(liveEnvelope, shadowEnvelope, c.diffOpts...)
