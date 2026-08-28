@@ -54,11 +54,11 @@ const globalRetentionLabel = computed(() =>
   globalRetention.value ? humanizeGoDuration(globalRetention.value) : null
 )
 
-const gateId = route.params.id as string
+const gateId = computed(() => route.params.id as string)
 
 // Gate reads flow through the shared query cache (keyed by id), so the detail is
 // reused across GateDetail / RequestDetail without a bespoke in-memory cache.
-const gateQueryResult = useQuery(gateQuery(gateId))
+const gateQueryResult = useQuery(computed(() => gateQuery(gateId.value)))
 const gate = computed<Gate | null>(() => gateQueryResult.data.value ?? null)
 const loading = computed(() => gateQueryResult.isPending.value)
 const error = computed(() =>
@@ -232,7 +232,7 @@ async function handleSave() {
   saveSuccess.value = false
 
   try {
-    const response = await updateGate(gateId, {
+    const response = await updateGate(gateId.value, {
       name: name.value.trim(),
       diff_config: {
         ignored_fields: diffIgnoredFields.value,
@@ -246,7 +246,7 @@ async function handleSave() {
 
     // Write the updated gate straight into the query cache so every consumer
     // (this page, GateDetail, RequestDetail) sees it without a refetch.
-    queryClient.setQueryData(queryKeys.gates.detail(gateId), response.data)
+    queryClient.setQueryData(queryKeys.gates.detail(gateId.value), response.data)
     pristine.value = snapshot()
     saveSuccess.value = true
     setTimeout(() => (saveSuccess.value = false), 3000)
@@ -270,10 +270,10 @@ async function handleDelete() {
   deleting.value = true
   deleteError.value = null
   try {
-    await deleteGate(gateId)
+    await deleteGate(gateId.value)
     // Drop the deleted gate from the cache and refresh the list reads before
     // navigating back so the gone gate never lingers in a stale view.
-    queryClient.removeQueries({ queryKey: queryKeys.gates.detail(gateId) })
+    queryClient.removeQueries({ queryKey: queryKeys.gates.detail(gateId.value) })
     queryClient.invalidateQueries({ queryKey: queryKeys.gates.lists() })
     queryClient.invalidateQueries({ queryKey: queryKeys.stats.global })
     deleteDialogOpen.value = false
@@ -296,7 +296,7 @@ function guardLeave(target: string): boolean {
 }
 
 function goBack() {
-  const target = `/gates/${gateId}`
+  const target = `/gates/${gateId.value}`
   if (guardLeave(target)) router.push(target)
 }
 

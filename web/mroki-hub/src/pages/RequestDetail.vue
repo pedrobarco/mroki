@@ -40,7 +40,7 @@ const error = computed(() => {
     return requestQueryResult.error.value?.message ?? 'Failed to load request'
   }
   if (gateQueryResult.isError.value) {
-    return gateQueryResult.error.value?.message ?? 'Failed to load request'
+    return gateQueryResult.error.value?.message ?? 'Failed to load gate'
   }
   return null
 })
