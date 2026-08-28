@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import Gates from './Gates.vue'
 import type { GlobalStats } from '@/api'
 
 const getGlobalStats = vi.fn()
-vi.mock('@/api', () => ({
+// Mock the underlying API module so the real query-key factory and query
+// adapters (re-exported from '@/api') keep working while the network call is
+// stubbed.
+vi.mock('@/api/gates', () => ({
   getGlobalStats: (...args: unknown[]) => getGlobalStats(...args),
 }))
 
@@ -12,27 +16,32 @@ function makeStats(overrides: Partial<GlobalStats> = {}): GlobalStats {
   return { total_gates: 12, total_requests_24h: 3456, total_diff_rate: 4.2, ...overrides }
 }
 
+// A fresh, retry-free client per mount isolates the stats cache between tests.
+function makeQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } })
+}
+
 // Stub the child feature components and the Dialog primitives so mounting the
 // page exercises only its own stats/polling logic.
-const global = {
-  stubs: {
-    GateList: true,
-    GateForm: true,
-    GateFilters: true,
-    Dialog: true,
-    DialogContent: true,
-    DialogDescription: true,
-    DialogHeader: true,
-    DialogTitle: true,
-    DialogTrigger: true,
-    Button: true,
-    Plus: true,
-    RefreshCw: true,
-  },
+const stubs = {
+  GateList: true,
+  GateForm: true,
+  GateFilters: true,
+  Dialog: true,
+  DialogContent: true,
+  DialogDescription: true,
+  DialogHeader: true,
+  DialogTitle: true,
+  DialogTrigger: true,
+  Button: true,
+  Plus: true,
+  RefreshCw: true,
 }
 
 function mountGates() {
-  return mount(Gates, { global })
+  return mount(Gates, {
+    global: { stubs, plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]] },
+  })
 }
 
 describe('Gates stats bar', () => {

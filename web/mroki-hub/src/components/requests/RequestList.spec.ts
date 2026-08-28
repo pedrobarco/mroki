@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import RequestList from './RequestList.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import type { FilterState } from './RequestFilters.vue'
@@ -11,7 +12,9 @@ vi.mock('vue-router', () => ({
 }))
 
 const getRequests = vi.fn()
-vi.mock('@/api', () => ({
+// Mock the underlying API module so the real query adapter (requestsQuery, from
+// '@/api') keeps working while the network call is stubbed.
+vi.mock('@/api/requests', () => ({
   getRequests: (...args: unknown[]) => getRequests(...args),
 }))
 
@@ -43,24 +46,30 @@ const filters: FilterState = {
   order: 'desc',
 }
 
-// Stub UI components so mounting does not require their internals.
-const global = {
-  stubs: {
-    Alert: true,
-    AlertDescription: true,
-    AlertTitle: true,
-    Button: true,
-    Tooltip: true,
-    TooltipContent: true,
-    TooltipProvider: false,
-    TooltipTrigger: true,
-    ChevronRight: true,
-  },
+// Stub UI components so mounting does not require their internals. A fresh,
+// retry-free client per mount isolates the request-list cache per test so paging
+// assertions always observe a real fetch.
+function makeGlobal() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return {
+    stubs: {
+      Alert: true,
+      AlertDescription: true,
+      AlertTitle: true,
+      Button: true,
+      Tooltip: true,
+      TooltipContent: true,
+      TooltipProvider: false,
+      TooltipTrigger: true,
+      ChevronRight: true,
+    },
+    plugins: [[VueQueryPlugin, { queryClient }]],
+  }
 }
 
 async function mountList(requests: Request[]) {
   getRequests.mockResolvedValue(makeResponse(requests))
-  const wrapper = mount(RequestList, { props: { gateId: 'gate-1', filters }, global })
+  const wrapper = mount(RequestList, { props: { gateId: 'gate-1', filters }, global: makeGlobal() })
   await flushPromises()
   return wrapper
 }
@@ -115,7 +124,10 @@ describe('RequestList pagination', () => {
       data: [makeRequest()],
       pagination: { limit: 20, offset: 0, total: 40, has_more: true },
     } satisfies PaginatedResponse<Request[]>)
-    const wrapper = mount(RequestList, { props: { gateId: 'gate-1', filters }, global })
+    const wrapper = mount(RequestList, {
+      props: { gateId: 'gate-1', filters },
+      global: makeGlobal(),
+    })
     await flushPromises()
     const pager = wrapper.findComponent(Pagination)
     expect(pager.text()).toContain('Page 1 of 2')
@@ -142,7 +154,10 @@ describe('RequestList reset-on-watch', () => {
       data: [makeRequest()],
       pagination: { limit: 20, offset: 0, total: 40, has_more: true },
     } satisfies PaginatedResponse<Request[]>)
-    const wrapper = mount(RequestList, { props: { gateId: 'gate-1', filters }, global })
+    const wrapper = mount(RequestList, {
+      props: { gateId: 'gate-1', filters },
+      global: makeGlobal(),
+    })
     await flushPromises()
 
     // Advance to page 2 so the reset is observable.

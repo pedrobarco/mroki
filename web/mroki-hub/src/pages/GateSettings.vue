@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
-import { getGate, updateGate, deleteGate } from '@/api'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { updateGate, deleteGate, gateQuery, queryKeys } from '@/api'
 import type { Gate } from '@/api'
-import { useGateCache } from '@/composables/use-gate-cache'
 import { useAppConfig } from '@/composables/use-app-config'
 import { parseGoDuration, humanizeGoDuration, normalizeToGoDuration } from '@/lib/duration'
 import FieldListEditor from '@/components/gates/FieldListEditor.vue'
@@ -39,8 +39,10 @@ import {
 
 const route = useRoute()
 const router = useRouter()
-const { setGate: cacheGate, getCachedGate } = useGateCache()
-const { config: appConfig, load: loadAppConfig } = useAppConfig()
+const queryClient = useQueryClient()
+// The floor is best-effort guidance; useAppConfig fetches it once per session
+// and a failed load simply degrades the copy without blocking editing.
+const { config: appConfig } = useAppConfig()
 
 // The global retention floor, shown so users can enter a valid override without
 // guessing. Null until the server config has loaded.
@@ -52,11 +54,22 @@ const globalRetentionLabel = computed(() =>
   globalRetention.value ? humanizeGoDuration(globalRetention.value) : null
 )
 
-const gateId = route.params.id as string
+const gateId = computed(() => route.params.id as string)
 
-const gate = ref<Gate | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
+// Gate reads flow through the shared query cache (keyed by id), so the detail is
+// reused across GateDetail / RequestDetail without a bespoke in-memory cache.
+const gateQueryResult = useQuery(computed(() => gateQuery(gateId.value)))
+const gate = computed<Gate | null>(() => gateQueryResult.data.value ?? null)
+const loading = computed(() => gateQueryResult.isPending.value)
+const error = computed(() =>
+  gateQueryResult.isError.value
+    ? (gateQueryResult.error.value?.message ?? 'Failed to load gate')
+    : null
+)
+function loadGate() {
+  gateQueryResult.refetch()
+}
+
 const saving = ref(false)
 const saveError = ref<string | null>(null)
 const saveSuccess = ref(false)
@@ -181,31 +194,16 @@ function populateForm(g: Gate) {
   pristine.value = snapshot()
 }
 
-async function loadGate() {
-  loading.value = true
-  error.value = null
-
-  // Settings only needs config data — use cache if available
-  const cached = getCachedGate(gateId)
-  if (cached) {
-    gate.value = cached
-    populateForm(cached)
-    loading.value = false
-    return
-  }
-
-  // Cache miss (e.g. direct link) — fetch from API
-  try {
-    const response = await getGate(gateId)
-    gate.value = response.data
-    cacheGate(response.data)
-    populateForm(response.data)
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load gate'
-  } finally {
-    loading.value = false
-  }
-}
+// Seed the form from the fetched gate. A background refetch must not clobber
+// in-progress edits, so re-populating is skipped while the form is dirty; the
+// unsaved-changes guard still protects navigation.
+watch(
+  () => gateQueryResult.data.value,
+  (g) => {
+    if (g && !isDirty.value) populateForm(g)
+  },
+  { immediate: true }
+)
 
 async function handleSave() {
   // Guard against a programmatic save with known-invalid input; the disabled
@@ -234,7 +232,7 @@ async function handleSave() {
   saveSuccess.value = false
 
   try {
-    const response = await updateGate(gateId, {
+    const response = await updateGate(gateId.value, {
       name: name.value.trim(),
       diff_config: {
         ignored_fields: diffIgnoredFields.value,
@@ -246,8 +244,9 @@ async function handleSave() {
       retention: retentionPayload,
     })
 
-    gate.value = response.data
-    cacheGate(response.data)
+    // Write the updated gate straight into the query cache so every consumer
+    // (this page, GateDetail, RequestDetail) sees it without a refetch.
+    queryClient.setQueryData(queryKeys.gates.detail(gateId.value), response.data)
     pristine.value = snapshot()
     saveSuccess.value = true
     setTimeout(() => (saveSuccess.value = false), 3000)
@@ -271,7 +270,12 @@ async function handleDelete() {
   deleting.value = true
   deleteError.value = null
   try {
-    await deleteGate(gateId)
+    await deleteGate(gateId.value)
+    // Drop the deleted gate from the cache and refresh the list reads before
+    // navigating back so the gone gate never lingers in a stale view.
+    queryClient.removeQueries({ queryKey: queryKeys.gates.detail(gateId.value) })
+    queryClient.invalidateQueries({ queryKey: queryKeys.gates.lists() })
+    queryClient.invalidateQueries({ queryKey: queryKeys.stats.global })
     deleteDialogOpen.value = false
     bypassGuard = true
     router.push('/gates')
@@ -292,7 +296,7 @@ function guardLeave(target: string): boolean {
 }
 
 function goBack() {
-  const target = `/gates/${gateId}`
+  const target = `/gates/${gateId.value}`
   if (guardLeave(target)) router.push(target)
 }
 
@@ -317,10 +321,6 @@ function onBeforeUnload(e: BeforeUnloadEvent) {
 }
 
 onMounted(() => {
-  loadGate()
-  // Best-effort: the floor is guidance, so a failed load degrades the copy but
-  // never blocks editing.
-  loadAppConfig().catch(() => {})
   window.addEventListener('beforeunload', onBeforeUnload)
 })
 

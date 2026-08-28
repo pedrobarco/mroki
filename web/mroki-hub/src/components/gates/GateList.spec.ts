@@ -1,17 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import GateList from './GateList.vue'
 import type { GateFilterState } from './GateFilters.vue'
 import type { Gate, PaginatedResponse } from '@/api'
 
 const getGates = vi.fn()
-vi.mock('@/api', () => ({
+// Mock the underlying API module so the real query adapter (gatesQuery, from
+// '@/api') keeps working while the network call is stubbed.
+vi.mock('@/api/gates', () => ({
   getGates: (...args: unknown[]) => getGates(...args),
 }))
 
-// GateCard renders router links; stub it so the list can mount standalone.
+// A fresh, retry-free client per mount isolates the gate-list cache per test so
+// paging assertions always observe a real fetch.
+function mountOpts(props: Record<string, unknown>) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return { props, global: { plugins: [[VueQueryPlugin, { queryClient }]] } }
+}
+
+// GateCard renders router links; stub it so the list can mount standalone. The
+// stub echoes the gate id so tests can assert which page's data is on screen.
 vi.mock('./GateCard.vue', () => ({
-  default: { name: 'GateCard', props: ['gate'], template: '<div class="gate-card-stub" />' },
+  default: {
+    name: 'GateCard',
+    props: ['gate'],
+    template: '<div class="gate-card-stub">{{ gate.id }}</div>',
+  },
 }))
 
 function makeGate(overrides: Partial<Gate> = {}): Gate {
@@ -47,7 +62,7 @@ function makeFilters(overrides: Partial<GateFilterState> = {}): GateFilterState 
 
 async function mountList(gates: Gate[], filters: GateFilterState) {
   getGates.mockResolvedValue(response(gates))
-  const wrapper = mount(GateList, { props: { filters } })
+  const wrapper = mount(GateList, mountOpts({ filters }))
   await flushPromises()
   return wrapper
 }
@@ -113,7 +128,7 @@ describe('GateList pagination', () => {
 
   it('renders the pager with a page indicator when more than one page exists', async () => {
     getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
-    const wrapper = mount(GateList, { props: { filters: makeFilters() } })
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
     await flushPromises()
 
     expect(wrapper.text()).toContain('Page 1 of 3')
@@ -122,7 +137,7 @@ describe('GateList pagination', () => {
 
   it('advances the offset by the page size when Next is clicked', async () => {
     getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
-    const wrapper = mount(GateList, { props: { filters: makeFilters() } })
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
     await flushPromises()
 
     await nextButton(wrapper)!.trigger('click')
@@ -133,6 +148,49 @@ describe('GateList pagination', () => {
   })
 })
 
+describe('GateList pagination stability', () => {
+  beforeEach(() => {
+    getGates.mockReset()
+  })
+
+  // Criterion 5 of #179: paging must not flash empty/loading or render a stale,
+  // out-of-order page. placeholderData: keepPreviousData holds the current page
+  // while the next one loads, and the query re-keys on the new offset.
+  it('keeps the previous page visible while the next page loads and re-keys on offset', async () => {
+    // Page 1 resolves immediately; page 2 is deferred so the in-flight window is
+    // observable. Each page carries a distinct id so we can tell them apart.
+    let resolvePage2!: (value: PaginatedResponse<Gate[]>) => void
+    const page2 = new Promise<PaginatedResponse<Gate[]>>((resolve) => {
+      resolvePage2 = resolve
+    })
+    getGates.mockImplementation((params: { offset?: number }) => {
+      if ((params.offset ?? 0) === 0) {
+        return Promise.resolve(pagedResponse([makeGate({ id: 'gate-p1' })], 12, true))
+      }
+      return page2
+    })
+
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
+    await flushPromises()
+    expect(wrapper.text()).toContain('gate-p1')
+
+    // Advance to page 2. The fetch is still pending, so the query must re-key on
+    // the new offset while keepPreviousData keeps page-1 data on screen.
+    await nextButton(wrapper)!.trigger('click')
+    await flushPromises()
+    expect(lastGetGatesParams().offset).toBe(5)
+    expect(wrapper.text()).toContain('gate-p1')
+    expect(wrapper.text()).not.toContain('gate-p2')
+
+    // Resolving the page-2 fetch swaps the list to the fresh page; the stale
+    // page-1 data is gone (no out-of-order render).
+    resolvePage2(pagedResponse([makeGate({ id: 'gate-p2' })], 12, true))
+    await flushPromises()
+    expect(wrapper.text()).toContain('gate-p2')
+    expect(wrapper.text()).not.toContain('gate-p1')
+  })
+})
+
 describe('GateList reset-on-watch', () => {
   beforeEach(() => {
     getGates.mockReset()
@@ -140,7 +198,7 @@ describe('GateList reset-on-watch', () => {
 
   it('resets pagination to the first page and reloads when filters change', async () => {
     getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
-    const wrapper = mount(GateList, { props: { filters: makeFilters() } })
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
     await flushPromises()
 
     // Move to page 2 so the reset is observable.

@@ -1,18 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { defineComponent } from 'vue'
+import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import type { ApiResponse, AppConfig } from '@/api'
+import { useAppConfig } from './use-app-config'
 
 const getConfig = vi.fn<() => Promise<ApiResponse<AppConfig>>>()
 
-vi.mock('@/api', () => ({
+vi.mock('@/api/config', () => ({
   getConfig: () => getConfig(),
 }))
 
-// The composable caches at module scope, so each test re-imports it fresh to
-// start from an empty cache.
-async function freshComposable() {
-  vi.resetModules()
-  const mod = await import('./use-app-config')
-  return mod.useAppConfig()
+// A fresh QueryClient per test isolates the cache so each starts empty. Retries
+// are disabled so a rejected fetch surfaces immediately.
+function makeClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } })
+}
+
+// Mounts a throwaway component that calls the composable inside setup() (a
+// requirement for useQuery) and exposes its return value on the instance.
+function mountComposable(queryClient = makeClient()) {
+  let api!: ReturnType<typeof useAppConfig>
+  const Harness = defineComponent({
+    setup() {
+      api = useAppConfig()
+      return () => null
+    },
+  })
+  const wrapper = mount(Harness, { global: { plugins: [[VueQueryPlugin, { queryClient }]] } })
+  return { api, wrapper, queryClient }
 }
 
 beforeEach(() => {
@@ -20,65 +36,57 @@ beforeEach(() => {
 })
 
 describe('useAppConfig', () => {
-  it('config is null before the first load', async () => {
-    const { config } = await freshComposable()
-    expect(config.value).toBeNull()
+  it('config is null before the first load resolves', () => {
+    getConfig.mockReturnValue(new Promise(() => {}))
+    const { api } = mountComposable()
+    expect(api.config.value).toBeNull()
   })
 
-  it('load fetches and caches the config', async () => {
+  it('fetches and exposes the config once loaded', async () => {
     getConfig.mockResolvedValue({ data: { retention: '720h0m0s' } })
-    const { config, load } = await freshComposable()
+    const { api } = mountComposable()
+    await flushPromises()
 
-    const result = await load()
-
-    expect(result).toEqual({ retention: '720h0m0s' })
-    expect(config.value).toEqual({ retention: '720h0m0s' })
+    expect(api.config.value).toEqual({ retention: '720h0m0s' })
     expect(getConfig).toHaveBeenCalledTimes(1)
   })
 
-  it('load returns the cached value without refetching', async () => {
+  it('does not refetch a session-cached config on remount', async () => {
     getConfig.mockResolvedValue({ data: { retention: '168h0m0s' } })
-    const { load } = await freshComposable()
+    const client = makeClient()
 
-    await load()
-    await load()
+    const first = mountComposable(client)
+    await flushPromises()
+    first.wrapper.unmount()
 
+    // A second consumer sharing the same client reads the cached value with no
+    // new network call (staleTime: Infinity).
+    const { api } = mountComposable(client)
+    await flushPromises()
+
+    expect(api.config.value).toEqual({ retention: '168h0m0s' })
     expect(getConfig).toHaveBeenCalledTimes(1)
   })
 
-  it('deduplicates concurrent first-time loads into a single fetch', async () => {
+  it('deduplicates concurrent first-time consumers into a single fetch', async () => {
     getConfig.mockResolvedValue({ data: { retention: '720h0m0s' } })
-    const { load } = await freshComposable()
+    const client = makeClient()
 
-    const [a, b] = await Promise.all([load(), load()])
+    const a = mountComposable(client)
+    const b = mountComposable(client)
+    await flushPromises()
 
-    expect(a).toEqual({ retention: '720h0m0s' })
-    expect(b).toEqual({ retention: '720h0m0s' })
+    expect(a.api.config.value).toEqual({ retention: '720h0m0s' })
+    expect(b.api.config.value).toEqual({ retention: '720h0m0s' })
     expect(getConfig).toHaveBeenCalledTimes(1)
   })
 
-  it('retries on the next load after a failed fetch', async () => {
-    getConfig.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce({
-      data: { retention: '720h0m0s' },
-    })
-    const { load } = await freshComposable()
+  it('surfaces the error and leaves config null when the fetch fails', async () => {
+    getConfig.mockRejectedValue(new Error('network'))
+    const { api } = mountComposable()
+    await flushPromises()
 
-    await expect(load()).rejects.toThrow('network')
-    const result = await load()
-
-    expect(result).toEqual({ retention: '720h0m0s' })
-    expect(getConfig).toHaveBeenCalledTimes(2)
-  })
-
-  it('shares the cache across multiple useAppConfig calls', async () => {
-    getConfig.mockResolvedValue({ data: { retention: '720h0m0s' } })
-    vi.resetModules()
-    const mod = await import('./use-app-config')
-
-    const first = mod.useAppConfig()
-    await first.load()
-    const second = mod.useAppConfig()
-
-    expect(second.config.value).toEqual({ retention: '720h0m0s' })
+    expect(api.config.value).toBeNull()
+    expect(api.query.isError.value).toBe(true)
   })
 })

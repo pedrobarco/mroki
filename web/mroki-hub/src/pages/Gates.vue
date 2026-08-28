@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { getGlobalStats } from '@/api'
-import type { GlobalStats } from '@/api'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { globalStatsQuery, queryKeys } from '@/api'
 import { diffRateColorClass } from '@/lib/utils'
 import GateList from '@/components/gates/GateList.vue'
 import GateForm from '@/components/gates/GateForm.vue'
@@ -27,10 +27,24 @@ const filters = reactive<GateFilterState>({
   order: 'desc',
 })
 
-const globalStats = ref<GlobalStats | null>(null)
-const statsUpdatedAt = ref<number | null>(null)
-const statsError = ref(false)
-const statsLoading = ref(false)
+const queryClient = useQueryClient()
+
+// Global stats poll on a 30s interval, matching the previous setInterval cadence
+// but managed by TanStack Query (dedup, cache sharing, cleanup on unmount).
+const statsQuery = useQuery({
+  ...globalStatsQuery(),
+  refetchInterval: 30_000,
+})
+const { data: globalStats, isError: statsError, isFetching: statsLoading } = statsQuery
+
+function loadStats() {
+  statsQuery.refetch()
+}
+
+// Only surface a timestamp once stats have actually landed; until then the age
+// label stays hidden.
+const statsUpdatedAt = computed(() => (globalStats.value ? statsQuery.dataUpdatedAt.value : null))
+
 // Re-render the "updated Xs ago" label on a ticking clock without refetching.
 const now = ref(Date.now())
 
@@ -62,29 +76,13 @@ const stats = computed(() => [
       : 'text-foreground',
   },
 ])
-const listKey = ref(0)
-
-async function loadStats() {
-  statsLoading.value = true
-  try {
-    const response = await getGlobalStats()
-    globalStats.value = response.data
-    statsUpdatedAt.value = Date.now()
-    now.value = statsUpdatedAt.value
-    statsError.value = false
-  } catch {
-    // Stats are non-critical and must never block the page; surface a subtle
-    // note instead of swallowing the failure silently.
-    statsError.value = true
-  } finally {
-    statsLoading.value = false
-  }
-}
-
 function handleGateCreated() {
   dialogOpen.value = false
-  listKey.value++ // Force GateList to reload
-  loadStats() // Refresh stats after gate creation
+  // Refresh the reads affected by the new gate: every gate list variant and the
+  // global stats. Invalidation lets TanStack Query refetch the active queries
+  // rather than remounting the list.
+  queryClient.invalidateQueries({ queryKey: queryKeys.gates.all })
+  queryClient.invalidateQueries({ queryKey: queryKeys.stats.global })
 }
 
 function onFiltersUpdate(newFilters: GateFilterState) {
@@ -96,21 +94,17 @@ function clearFilters() {
 }
 
 let clockTimer: ReturnType<typeof setInterval> | undefined
-let pollTimer: ReturnType<typeof setInterval> | undefined
 
 onMounted(() => {
-  loadStats()
-  // Tick the relative "updated Xs ago" label every second.
+  // Tick the relative "updated Xs ago" label every second. Stats polling itself
+  // is handled by the query's refetchInterval.
   clockTimer = setInterval(() => {
     now.value = Date.now()
   }, 1000)
-  // Poll stats periodically so the bar stays fresh without a manual refresh.
-  pollTimer = setInterval(loadStats, 30000)
 })
 
 onUnmounted(() => {
   if (clockTimer) clearInterval(clockTimer)
-  if (pollTimer) clearInterval(pollTimer)
 })
 </script>
 
@@ -182,11 +176,6 @@ onUnmounted(() => {
     </div>
 
     <!-- Gates List -->
-    <GateList
-      :key="listKey"
-      :filters="filters"
-      @create="dialogOpen = true"
-      @clear-filters="clearFilters"
-    />
+    <GateList :filters="filters" @create="dialogOpen = true" @clear-filters="clearFilters" />
   </div>
 </template>

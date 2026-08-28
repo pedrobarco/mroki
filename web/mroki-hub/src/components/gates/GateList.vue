@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
-import { getGates } from '@/api'
-import type { Gate } from '@/api'
+import { ref, computed, watch } from 'vue'
+import { useQuery, keepPreviousData } from '@tanstack/vue-query'
+import { gatesQuery } from '@/api'
+import type { ListGatesParams } from '@/api'
 import type { GateFilterState } from './GateFilters.vue'
 import GateCard from './GateCard.vue'
 import Pagination from '@/components/common/Pagination.vue'
@@ -24,73 +25,65 @@ const emit = defineEmits<{
 // (first run), or an active URL filter matched nothing.
 const hasActiveFilter = computed(() => Boolean(props.filters.liveUrl || props.filters.shadowUrl))
 
-const gates = ref<Gate[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
-
-// Pagination state
+// Pagination state. `offset` drives the query key, so changing pages simply
+// updates it and TanStack Query fetches (or serves cached) the matching page.
 const limit = 5
 const offset = ref(0)
-const total = ref(0)
-const hasMore = ref(false)
 
-const currentPage = computed(() => Math.floor(offset.value / limit) + 1)
-const totalPages = computed(() => Math.ceil(total.value / limit))
+const queryParams = computed<ListGatesParams>(() => ({
+  limit,
+  offset: offset.value,
+  live_url: props.filters.liveUrl || undefined,
+  shadow_url: props.filters.shadowUrl || undefined,
+  sort: props.filters.sort,
+  order: props.filters.order,
+}))
 
-// Reset pagination and reload when filters change
+// Reset to the first page whenever the filter set changes; the key change from
+// the new params triggers the refetch (no manual reload needed).
 watch(
   () => props.filters,
   () => {
     offset.value = 0
-    loadGates()
   },
   { deep: true }
 )
 
-async function loadGates() {
-  loading.value = true
-  error.value = null
+// keepPreviousData holds the current page on screen while the next one loads,
+// avoiding a loading flash and out-of-order flicker during rapid paging.
+const query = useQuery(
+  computed(() => ({
+    ...gatesQuery(queryParams.value),
+    placeholderData: keepPreviousData,
+  }))
+)
 
-  try {
-    const response = await getGates({
-      limit,
-      offset: offset.value,
-      live_url: props.filters.liveUrl || undefined,
-      shadow_url: props.filters.shadowUrl || undefined,
-      sort: props.filters.sort,
-      order: props.filters.order,
-    })
-    gates.value = response.data
-    total.value = response.pagination.total
-    hasMore.value = response.pagination.has_more
-  } catch (err) {
-    if (err instanceof Error) {
-      error.value = err.message
-    } else {
-      error.value = 'Failed to load gates'
-    }
-  } finally {
-    loading.value = false
-  }
+const gates = computed(() => query.data.value?.data ?? [])
+const total = computed(() => query.data.value?.pagination.total ?? 0)
+const hasMore = computed(() => query.data.value?.pagination.has_more ?? false)
+const loading = computed(() => query.isPending.value)
+const error = computed(() =>
+  query.isError.value ? (query.error.value?.message ?? 'Failed to load gates') : null
+)
+
+function loadGates() {
+  query.refetch()
 }
+
+const currentPage = computed(() => Math.floor(offset.value / limit) + 1)
+const totalPages = computed(() => Math.ceil(total.value / limit))
 
 function nextPage() {
   if (hasMore.value) {
     offset.value += limit
-    loadGates()
   }
 }
 
 function prevPage() {
   if (offset.value > 0) {
     offset.value = Math.max(0, offset.value - limit)
-    loadGates()
   }
 }
-
-onMounted(() => {
-  loadGates()
-})
 </script>
 
 <template>
