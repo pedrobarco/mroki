@@ -1,41 +1,34 @@
-import { ref } from 'vue'
-import { getConfig, type AppConfig } from '@/api'
-
-// Server config is static for the lifetime of the session, so it is cached at
-// module scope: the first caller triggers a single fetch, concurrent callers
-// share the same in-flight promise, and every later caller reads the cache.
-const config = ref<AppConfig | null>(null)
-let inflight: Promise<AppConfig> | null = null
+import { computed } from 'vue'
+import { useQuery } from '@tanstack/vue-query'
+import { configQuery, type AppConfig } from '@/api'
 
 /**
  * Session-cached access to read-only server settings (e.g. the global
  * retention floor).
  *
- * The value is fetched at most once per session. `load()` is idempotent and
- * safe to call from multiple components; it returns the cached value on
- * subsequent calls and deduplicates concurrent first-time fetches.
+ * Backed by TanStack Query: the value is fetched at most once per session and
+ * shared across every caller through the `config` query key. Concurrent
+ * first-time callers are deduplicated by the query cache, so no bespoke
+ * in-flight tracking is needed. `staleTime: Infinity` means the config is never
+ * considered stale during a session (it only changes on a server restart), so
+ * navigating between pages never refetches it.
+ *
+ * Must be called from a component `setup()` so the shared QueryClient can be
+ * injected.
  */
 export function useAppConfig() {
-  async function load(): Promise<AppConfig> {
-    if (config.value) {
-      return config.value
-    }
-    if (!inflight) {
-      inflight = getConfig()
-        .then((response) => {
-          config.value = response.data
-          return response.data
-        })
-        .finally(() => {
-          inflight = null
-        })
-    }
-    return inflight
-  }
+  const query = useQuery({
+    ...configQuery(),
+    staleTime: Infinity,
+    gcTime: Infinity,
+  })
+
+  /** Reactive cached config, or null until the first successful load. */
+  const config = computed<AppConfig | null>(() => query.data.value ?? null)
 
   return {
-    /** Reactive cached config, or null until the first successful load. */
     config,
-    load,
+    /** The underlying query, exposing `refetch`, `error`, `isPending`, etc. */
+    query,
   }
 }

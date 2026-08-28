@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import GateSettings from './GateSettings.vue'
 import type { Gate } from '@/api'
 
@@ -15,17 +16,21 @@ const getGate = vi.fn()
 const updateGate = vi.fn()
 const deleteGate = vi.fn()
 const getConfig = vi.fn()
-vi.mock('@/api', () => ({
+// Mock the underlying API modules so the real query-key factory and query
+// adapters (re-exported from '@/api') keep working while the network is stubbed.
+vi.mock('@/api/gates', () => ({
   getGate: (...a: unknown[]) => getGate(...a),
   updateGate: (...a: unknown[]) => updateGate(...a),
   deleteGate: (...a: unknown[]) => deleteGate(...a),
+}))
+vi.mock('@/api/config', () => ({
   getConfig: (...a: unknown[]) => getConfig(...a),
 }))
 
-const setGate = vi.fn()
-vi.mock('@/composables/use-gate-cache', () => ({
-  useGateCache: () => ({ setGate, getCachedGate: () => null }),
-}))
+// A fresh, retry-free client per mount isolates the gate/config cache per test.
+function makeQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } })
+}
 
 function makeGate(overrides: Partial<Gate> = {}): Gate {
   return {
@@ -47,9 +52,16 @@ function makeGate(overrides: Partial<Gate> = {}): Gate {
   }
 }
 
+function mountShallow() {
+  return mount(GateSettings, {
+    shallow: true,
+    global: { plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]] },
+  })
+}
+
 async function mountSettings() {
   getGate.mockResolvedValue({ data: makeGate() })
-  const wrapper = mount(GateSettings, { shallow: true })
+  const wrapper = mountShallow()
   await flushPromises()
   return wrapper
 }
@@ -121,7 +133,7 @@ describe('GateSettings hardening', () => {
 
   it('populates retention from the gate and stays clean', async () => {
     getGate.mockResolvedValue({ data: makeGate({ retention: '168h' }) })
-    const wrapper = mount(GateSettings, { shallow: true })
+    const wrapper = mountShallow()
     await flushPromises()
 
     expect(wrapper.vm.retention).toBe('168h')
@@ -153,7 +165,7 @@ describe('GateSettings hardening', () => {
 
   it('sends an empty retention to reset to the global default', async () => {
     getGate.mockResolvedValue({ data: makeGate({ retention: '168h' }) })
-    const wrapper = mount(GateSettings, { shallow: true })
+    const wrapper = mountShallow()
     await flushPromises()
     updateGate.mockResolvedValueOnce({ data: makeGate({ retention: '' }) })
 

@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getGate } from '@/api'
-import type { Gate } from '@/api'
-import { useGateCache } from '@/composables/use-gate-cache'
+import { useQuery } from '@tanstack/vue-query'
+import { gateQuery } from '@/api'
 import { diffRateColorClass } from '@/lib/utils'
 import RequestList from '@/components/requests/RequestList.vue'
 import RequestFilters from '@/components/requests/RequestFilters.vue'
@@ -14,20 +13,22 @@ import { ChevronLeft, Settings } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
-const { setGate: cacheGate } = useGateCache()
 
-// GateDetail always fetches — it displays volatile stats that are stale
-// the moment they're cached. After fetching, it writes the cache so that
-// pages that only need config data (Settings, RequestDetail) can read
-// it synchronously without a redundant API call.
-
-const gate = ref<Gate | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
 const requestTotal = ref<number | null>(null)
 const requestShowing = ref<number | null>(null)
 
 const gateId = computed(() => route.params.id as string)
+
+// GateDetail displays volatile stats, so it always reads through the shared
+// query cache. The detail entry is keyed by gate id and reused by Settings and
+// RequestDetail (no bespoke in-memory cache needed).
+const gateQueryResult = useQuery(computed(() => gateQuery(gateId.value)))
+const { data: gate, isPending: loading, refetch: loadGate } = gateQueryResult
+const error = computed(() =>
+  gateQueryResult.isError.value
+    ? (gateQueryResult.error.value?.message ?? 'Failed to load gate')
+    : null
+)
 
 const filters = reactive<FilterState>({
   methods: [],
@@ -41,32 +42,9 @@ function onFiltersUpdate(newFilters: FilterState) {
   Object.assign(filters, newFilters)
 }
 
-async function loadGate() {
-  loading.value = true
-  error.value = null
-
-  try {
-    const response = await getGate(gateId.value)
-    gate.value = response.data
-    cacheGate(response.data)
-  } catch (err) {
-    if (err instanceof Error) {
-      error.value = err.message
-    } else {
-      error.value = 'Failed to load gate'
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
 function goBack() {
   router.push('/gates')
 }
-
-onMounted(() => {
-  loadGate()
-})
 </script>
 
 <template>

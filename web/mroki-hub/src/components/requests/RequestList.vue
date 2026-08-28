@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getRequests } from '@/api'
-import type { Request } from '@/api'
+import { useQuery, keepPreviousData } from '@tanstack/vue-query'
+import { requestsQuery } from '@/api'
+import type { ListRequestsParams } from '@/api'
 import type { FilterState } from '@/components/requests/RequestFilters.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -23,70 +24,75 @@ const emit = defineEmits<{
 }>()
 const router = useRouter()
 
-const requests = ref<Request[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
-
-// Pagination state
+// Pagination state. `offset` feeds the query key, so paging just updates it and
+// TanStack Query fetches (or serves cached) the matching page.
 const limit = 20
 const offset = ref(0)
-const total = ref(0)
-const hasMore = ref(false)
 
-const currentPage = computed(() => Math.floor(offset.value / limit) + 1)
-const totalPages = computed(() => Math.ceil(total.value / limit))
+const queryParams = computed<ListRequestsParams>(() => ({
+  limit,
+  offset: offset.value,
+  method: props.filters.methods.length > 0 ? props.filters.methods : undefined,
+  path: props.filters.path || undefined,
+  has_diff: props.filters.hasDiff,
+  sort: props.filters.sort,
+  order: props.filters.order,
+}))
 
-// Reset pagination and reload when filters change
+// Reset to the first page whenever the filter set changes; the resulting key
+// change triggers the refetch.
 watch(
   () => props.filters,
   () => {
     offset.value = 0
-    loadRequests()
   },
   { deep: true }
 )
 
-async function loadRequests() {
-  loading.value = true
-  error.value = null
+// keepPreviousData holds the current page while the next one loads, preventing a
+// loading flash and out-of-order flicker during rapid paging.
+const query = useQuery(
+  computed(() => ({
+    ...requestsQuery(props.gateId, queryParams.value),
+    placeholderData: keepPreviousData,
+  }))
+)
 
-  try {
-    const response = await getRequests(props.gateId, {
-      limit,
-      offset: offset.value,
-      method: props.filters.methods.length > 0 ? props.filters.methods : undefined,
-      path: props.filters.path || undefined,
-      has_diff: props.filters.hasDiff,
-      sort: props.filters.sort,
-      order: props.filters.order,
-    })
-    requests.value = response.data
-    total.value = response.pagination.total
-    hasMore.value = response.pagination.has_more
-    emit('update:total', total.value)
-    emit('update:showing', requests.value.length)
-  } catch (err) {
-    if (err instanceof Error) {
-      error.value = err.message
-    } else {
-      error.value = 'Failed to load requests'
-    }
-  } finally {
-    loading.value = false
-  }
+const requests = computed(() => query.data.value?.data ?? [])
+const total = computed(() => query.data.value?.pagination.total ?? 0)
+const hasMore = computed(() => query.data.value?.pagination.has_more ?? false)
+const loading = computed(() => query.isPending.value)
+const error = computed(() =>
+  query.isError.value ? (query.error.value?.message ?? 'Failed to load requests') : null
+)
+
+function loadRequests() {
+  query.refetch()
 }
+
+// Bubble the list totals up to the parent header each time a page resolves.
+watch(
+  () => query.data.value,
+  (data) => {
+    if (!data) return
+    emit('update:total', data.pagination.total)
+    emit('update:showing', data.data.length)
+  },
+  { immediate: true }
+)
+
+const currentPage = computed(() => Math.floor(offset.value / limit) + 1)
+const totalPages = computed(() => Math.ceil(total.value / limit))
 
 function nextPage() {
   if (hasMore.value) {
     offset.value += limit
-    loadRequests()
   }
 }
 
 function prevPage() {
   if (offset.value > 0) {
     offset.value = Math.max(0, offset.value - limit)
-    loadRequests()
   }
 }
 
@@ -133,10 +139,6 @@ const truncatedQueries = computed(() => {
     map.set(r.id, smartTruncateQuery(r.path, r.raw_query))
   }
   return map
-})
-
-onMounted(() => {
-  loadRequests()
 })
 </script>
 

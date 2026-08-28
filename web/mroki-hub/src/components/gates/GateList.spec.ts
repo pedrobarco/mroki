@@ -1,13 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import GateList from './GateList.vue'
 import type { GateFilterState } from './GateFilters.vue'
 import type { Gate, PaginatedResponse } from '@/api'
 
 const getGates = vi.fn()
-vi.mock('@/api', () => ({
+// Mock the underlying API module so the real query adapter (gatesQuery, from
+// '@/api') keeps working while the network call is stubbed.
+vi.mock('@/api/gates', () => ({
   getGates: (...args: unknown[]) => getGates(...args),
 }))
+
+// A fresh, retry-free client per mount isolates the gate-list cache per test so
+// paging assertions always observe a real fetch.
+function mountOpts(props: Record<string, unknown>) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return { props, global: { plugins: [[VueQueryPlugin, { queryClient }]] } }
+}
 
 // GateCard renders router links; stub it so the list can mount standalone.
 vi.mock('./GateCard.vue', () => ({
@@ -47,7 +57,7 @@ function makeFilters(overrides: Partial<GateFilterState> = {}): GateFilterState 
 
 async function mountList(gates: Gate[], filters: GateFilterState) {
   getGates.mockResolvedValue(response(gates))
-  const wrapper = mount(GateList, { props: { filters } })
+  const wrapper = mount(GateList, mountOpts({ filters }))
   await flushPromises()
   return wrapper
 }
@@ -113,7 +123,7 @@ describe('GateList pagination', () => {
 
   it('renders the pager with a page indicator when more than one page exists', async () => {
     getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
-    const wrapper = mount(GateList, { props: { filters: makeFilters() } })
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
     await flushPromises()
 
     expect(wrapper.text()).toContain('Page 1 of 3')
@@ -122,7 +132,7 @@ describe('GateList pagination', () => {
 
   it('advances the offset by the page size when Next is clicked', async () => {
     getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
-    const wrapper = mount(GateList, { props: { filters: makeFilters() } })
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
     await flushPromises()
 
     await nextButton(wrapper)!.trigger('click')
@@ -140,7 +150,7 @@ describe('GateList reset-on-watch', () => {
 
   it('resets pagination to the first page and reloads when filters change', async () => {
     getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
-    const wrapper = mount(GateList, { props: { filters: makeFilters() } })
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
     await flushPromises()
 
     // Move to page 2 so the reset is observable.

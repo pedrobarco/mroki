@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getGate, getRequest, updateGate } from '@/api'
-import type { Gate, RequestDetail } from '@/api'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { updateGate, gateQuery, requestQuery, queryKeys } from '@/api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,17 +15,35 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import DiffViewer from '@/components/diff/DiffViewer.vue'
 import { ChevronLeft, Copy, Download, ChevronDown, Check } from 'lucide-vue-next'
 import { truncateId, methodColorClass, formatLatency } from '@/lib/utils'
-import { useGateCache } from '@/composables/use-gate-cache'
 
 const route = useRoute()
 const router = useRouter()
-const { getCachedGate, setGate: cacheGate } = useGateCache()
+const queryClient = useQueryClient()
 
-const gate = ref<Gate | null>(null)
+const gateId = computed(() => route.params.id as string)
+const requestId = computed(() => route.params.rid as string)
+
+// Gate and request reads both flow through the shared query cache. The gate
+// detail is keyed by id, so a gate already fetched by GateDetail is reused here
+// with no extra request; the two queries otherwise run in parallel.
+const gateQueryResult = useQuery(computed(() => gateQuery(gateId.value)))
+const requestQueryResult = useQuery(computed(() => requestQuery(gateId.value, requestId.value)))
+
+const gate = computed(() => gateQueryResult.data.value ?? null)
 const gateName = computed(() => gate.value?.name ?? null)
-const request = ref<RequestDetail | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
+const request = computed(() => requestQueryResult.data.value ?? null)
+const loading = computed(
+  () => gateQueryResult.isPending.value || requestQueryResult.isPending.value
+)
+const error = computed(() => {
+  if (requestQueryResult.isError.value) {
+    return requestQueryResult.error.value?.message ?? 'Failed to load request'
+  }
+  if (gateQueryResult.isError.value) {
+    return gateQueryResult.error.value?.message ?? 'Failed to load request'
+  }
+  return null
+})
 const copied = ref(false)
 
 // Lightweight inline toast (no global toast primitive in the hub yet).
@@ -38,9 +56,6 @@ function notify(message: string, type: 'success' | 'error' = 'success') {
     toast.value = null
   }, 3000)
 }
-
-const gateId = computed(() => route.params.id as string)
-const requestId = computed(() => route.params.rid as string)
 
 const liveResponse = computed(() => request.value?.live_response ?? null)
 const shadowResponse = computed(() => request.value?.shadow_response ?? null)
@@ -73,34 +88,6 @@ const truncatedQuery = computed(() => {
   return smartTruncateQuery(request.value.path, request.value.raw_query)
 })
 
-async function loadRequest() {
-  loading.value = true
-  error.value = null
-
-  try {
-    // RequestDetail only needs the gate name/URLs — use cache if available
-    const cached = getCachedGate(gateId.value)
-    if (cached) {
-      gate.value = cached
-      const requestResponse = await getRequest(gateId.value, requestId.value)
-      request.value = requestResponse.data
-    } else {
-      // Cache miss (e.g. direct link) — fetch both in parallel
-      const [gateResponse, requestResponse] = await Promise.all([
-        getGate(gateId.value),
-        getRequest(gateId.value, requestId.value),
-      ])
-      gate.value = gateResponse.data
-      cacheGate(gateResponse.data)
-      request.value = requestResponse.data
-    }
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load request'
-  } finally {
-    loading.value = false
-  }
-}
-
 async function onIgnoreField(gjsonPath: string) {
   const g = gate.value
   if (!g) return
@@ -110,8 +97,9 @@ async function onIgnoreField(gjsonPath: string) {
     const res = await updateGate(g.id, {
       diff_config: { ...g.diff_config, ignored_fields: [...ignored, gjsonPath] },
     })
-    gate.value = res.data
-    cacheGate(res.data)
+    // Push the updated gate into the query cache so this page and any other
+    // consumer of the gate detail reflect the new ignore list without a refetch.
+    queryClient.setQueryData(queryKeys.gates.detail(g.id), res.data)
     notify(`Ignoring "${gjsonPath}" in future diffs`)
   } catch (err) {
     notify(err instanceof Error ? err.message : 'Failed to update gate', 'error')
@@ -182,10 +170,6 @@ function exportJson() {
 
   URL.revokeObjectURL(url)
 }
-
-onMounted(() => {
-  loadRequest()
-})
 
 onUnmounted(() => {
   if (toastTimer) clearTimeout(toastTimer)

@@ -1,15 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import RequestDetail from './RequestDetail.vue'
 import type { Gate, RequestDetail as RequestDetailType, Response } from '@/api'
 
 const getGate = vi.fn()
 const getRequest = vi.fn()
 const updateGate = vi.fn()
-vi.mock('@/api', () => ({
+// Mock the underlying API modules so the real query adapters keep working while
+// the network is stubbed.
+vi.mock('@/api/gates', () => ({
   getGate: (...a: unknown[]) => getGate(...a),
-  getRequest: (...a: unknown[]) => getRequest(...a),
   updateGate: (...a: unknown[]) => updateGate(...a),
+}))
+vi.mock('@/api/requests', () => ({
+  getRequest: (...a: unknown[]) => getRequest(...a),
 }))
 
 const push = vi.fn()
@@ -18,10 +23,10 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push }),
 }))
 
-// Force the cache-miss path so both gate + request are fetched in parallel.
-vi.mock('@/composables/use-gate-cache', () => ({
-  useGateCache: () => ({ getCachedGate: () => null, setGate: vi.fn() }),
-}))
+// A fresh, retry-free client per mount isolates the gate/request cache per test.
+function makeQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } })
+}
 
 function makeGate(overrides: Partial<Gate> = {}): Gate {
   return {
@@ -98,7 +103,12 @@ const global = {
 async function mountDetail(request = makeRequest(), gate = makeGate()) {
   getGate.mockResolvedValue({ data: gate })
   getRequest.mockResolvedValue({ data: request })
-  const wrapper = mount(RequestDetail, { global })
+  const wrapper = mount(RequestDetail, {
+    global: {
+      ...global,
+      plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
+    },
+  })
   await flushPromises()
   return wrapper
 }

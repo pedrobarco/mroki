@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import GateDetail from './GateDetail.vue'
 import RequestDetail from './RequestDetail.vue'
 import GateSettings from './GateSettings.vue'
@@ -11,17 +12,19 @@ vi.mock('vue-router', () => ({
   onBeforeRouteLeave: vi.fn(),
 }))
 
-// Reject API calls so each page settles into its error branch, keeping the
-// mount lightweight while still rendering the back button in the template.
-vi.mock('@/api', () => ({
+// Reject the underlying API calls so each page settles into its error branch,
+// keeping the mount lightweight while still rendering the back button (which
+// lives outside the loading/error/content branches).
+vi.mock('@/api/gates', () => ({
   getGate: vi.fn().mockRejectedValue(new Error('stub')),
-  getRequest: vi.fn().mockRejectedValue(new Error('stub')),
   updateGate: vi.fn(),
   deleteGate: vi.fn(),
 }))
-
-vi.mock('@/composables/use-gate-cache', () => ({
-  useGateCache: () => ({ getCachedGate: () => null, setGate: vi.fn() }),
+vi.mock('@/api/requests', () => ({
+  getRequest: vi.fn().mockRejectedValue(new Error('stub')),
+}))
+vi.mock('@/api/config', () => ({
+  getConfig: vi.fn().mockRejectedValue(new Error('stub')),
 }))
 
 beforeEach(() => {
@@ -29,7 +32,11 @@ beforeEach(() => {
 })
 
 async function mountPage(component: unknown) {
-  const wrapper = mount(component as never, { shallow: true })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const wrapper = mount(component as never, {
+    shallow: true,
+    global: { plugins: [[VueQueryPlugin, { queryClient }]] },
+  })
   await flushPromises()
   return wrapper
 }
