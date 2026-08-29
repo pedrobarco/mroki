@@ -2,8 +2,10 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuery, keepPreviousData } from '@tanstack/vue-query'
+import { useVueTable, getCoreRowModel } from '@tanstack/vue-table'
+import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/vue-table'
 import { requestsQuery } from '@/api'
-import type { ListRequestsParams } from '@/api'
+import type { ListRequestsParams, Request } from '@/api'
 import type { FilterState } from '@/components/requests/RequestFilters.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -24,13 +26,15 @@ const emit = defineEmits<{
 }>()
 const router = useRouter()
 
-// Pagination state. `offset` feeds the query key, so paging just updates it and
-// TanStack Query fetches (or serves cached) the matching page.
-const limit = 20
-const offset = ref(0)
+// Pagination lives in a TanStack Table state object (pageIndex/pageSize) and is
+// the single source of paging truth; `offset` is derived from it and feeds the
+// query key, so paging fetches (or serves cached) the matching page.
+const pageSize = 20
+const pagination = ref<PaginationState>({ pageIndex: 0, pageSize })
+const offset = computed(() => pagination.value.pageIndex * pagination.value.pageSize)
 
 const queryParams = computed<ListRequestsParams>(() => ({
-  limit,
+  limit: pageSize,
   offset: offset.value,
   method: props.filters.methods.length > 0 ? props.filters.methods : undefined,
   path: props.filters.path || undefined,
@@ -44,7 +48,7 @@ const queryParams = computed<ListRequestsParams>(() => ({
 watch(
   () => props.filters,
   () => {
-    offset.value = 0
+    pagination.value = { pageIndex: 0, pageSize }
   },
   { deep: true }
 )
@@ -70,30 +74,76 @@ function loadRequests() {
   query.refetch()
 }
 
+// Sorting is owned by the filter bar (RequestFilters) and sent to the server, so
+// we mirror it into the table's sorting state read-only — the row layout has no
+// clickable column headers to drive it.
+const sorting = computed<SortingState>(() => [
+  { id: props.filters.sort, desc: props.filters.order === 'desc' },
+])
+
+// Minimal column defs: the list renders custom rows, not table cells, so columns
+// only need accessor keys matching the server-sortable fields to back the row
+// model. The generated ui/table primitives don't fit the row/mobile layout, so
+// vue-table is adopted headlessly (state only) rather than for rendering.
+const columns: ColumnDef<Request>[] = [
+  { accessorKey: 'method' },
+  { accessorKey: 'path' },
+  { accessorKey: 'created_at' },
+]
+
+// Manual (server-driven) mode: the server owns paging and sorting, so the table
+// is a headless state layer over the fetched page. `rowCount` comes from the
+// server total so getPageCount() matches the real page count.
+const table = useVueTable({
+  data: requests,
+  columns,
+  getCoreRowModel: getCoreRowModel(),
+  manualPagination: true,
+  manualSorting: true,
+  get rowCount() {
+    return total.value
+  },
+  state: {
+    get pagination() {
+      return pagination.value
+    },
+    get sorting() {
+      return sorting.value
+    },
+  },
+  onPaginationChange: (updater: Updater<PaginationState>) => {
+    pagination.value = typeof updater === 'function' ? updater(pagination.value) : updater
+  },
+  // Filters own sorting; the table never mutates it, so this no-op keeps the
+  // controlled sorting state without a "missing onSortingChange" warning.
+  onSortingChange: () => {},
+})
+
 // Bubble the list totals up to the parent header each time a page resolves.
+// `update:total` needs the server total, while `update:showing` is sourced from
+// the table row model — the same source the template renders and
+// `truncatedQueries` iterates — so the visible count can never diverge from the
+// rows actually on screen. Keyed off `query.data` (the real reactive trigger)
+// because `getRowModel()` is memoized and does not track the fetch on its own.
 watch(
   () => query.data.value,
   (data) => {
     if (!data) return
     emit('update:total', data.pagination.total)
-    emit('update:showing', data.data.length)
+    emit('update:showing', table.getRowModel().rows.length)
   },
   { immediate: true }
 )
 
-const currentPage = computed(() => Math.floor(offset.value / limit) + 1)
-const totalPages = computed(() => Math.ceil(total.value / limit))
+const currentPage = computed(() => table.getState().pagination.pageIndex + 1)
+const totalPages = computed(() => table.getPageCount())
 
 function nextPage() {
-  if (hasMore.value) {
-    offset.value += limit
-  }
+  table.nextPage()
 }
 
 function prevPage() {
-  if (offset.value > 0) {
-    offset.value = Math.max(0, offset.value - limit)
-  }
+  table.previousPage()
 }
 
 function handleRequestClick(requestId: string) {
@@ -133,9 +183,11 @@ function formatTimestamp(timestamp: string): string {
   return date.toLocaleDateString()
 }
 
+// Keyed off the table's row model (the same source the template renders) so the
+// truncation map and the visible rows never diverge.
 const truncatedQueries = computed(() => {
   const map = new Map<string, ReturnType<typeof smartTruncateQuery>>()
-  for (const r of requests.value) {
+  for (const { original: r } of table.getRowModel().rows) {
     map.set(r.id, smartTruncateQuery(r.path, r.raw_query))
   }
   return map
@@ -170,7 +222,7 @@ const truncatedQueries = computed(() => {
       <TooltipProvider :delay-duration="300">
         <div class="bg-card border border-border rounded-xl divide-y divide-border">
           <div
-            v-for="request in requests"
+            v-for="{ original: request } in table.getRowModel().rows"
             :key="request.id"
             role="button"
             tabindex="0"

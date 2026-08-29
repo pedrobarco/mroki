@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useQuery, keepPreviousData } from '@tanstack/vue-query'
+import { useVueTable, getCoreRowModel } from '@tanstack/vue-table'
+import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/vue-table'
 import { gatesQuery } from '@/api'
-import type { ListGatesParams } from '@/api'
+import type { Gate, ListGatesParams } from '@/api'
 import type { GateFilterState } from './GateFilters.vue'
 import GateCard from './GateCard.vue'
 import Pagination from '@/components/common/Pagination.vue'
@@ -25,13 +27,15 @@ const emit = defineEmits<{
 // (first run), or an active URL filter matched nothing.
 const hasActiveFilter = computed(() => Boolean(props.filters.liveUrl || props.filters.shadowUrl))
 
-// Pagination state. `offset` drives the query key, so changing pages simply
-// updates it and TanStack Query fetches (or serves cached) the matching page.
-const limit = 5
-const offset = ref(0)
+// Pagination lives in a TanStack Table state object (pageIndex/pageSize) and is
+// the single source of paging truth; `offset` is derived from it and drives the
+// query key, so changing pages fetches (or serves cached) the matching page.
+const pageSize = 5
+const pagination = ref<PaginationState>({ pageIndex: 0, pageSize })
+const offset = computed(() => pagination.value.pageIndex * pagination.value.pageSize)
 
 const queryParams = computed<ListGatesParams>(() => ({
-  limit,
+  limit: pageSize,
   offset: offset.value,
   live_url: props.filters.liveUrl || undefined,
   shadow_url: props.filters.shadowUrl || undefined,
@@ -44,7 +48,7 @@ const queryParams = computed<ListGatesParams>(() => ({
 watch(
   () => props.filters,
   () => {
-    offset.value = 0
+    pagination.value = { pageIndex: 0, pageSize }
   },
   { deep: true }
 )
@@ -70,19 +74,61 @@ function loadGates() {
   query.refetch()
 }
 
-const currentPage = computed(() => Math.floor(offset.value / limit) + 1)
-const totalPages = computed(() => Math.ceil(total.value / limit))
+// Sorting is owned by the filter dropdown (GateFilters) and sent to the server,
+// so we mirror it into the table's sorting state read-only — the card layout has
+// no clickable column headers to drive it.
+const sorting = computed<SortingState>(() => [
+  { id: props.filters.sort, desc: props.filters.order === 'desc' },
+])
+
+// Minimal column defs: the list renders GateCard, not table cells, so columns
+// only need accessor keys matching the server-sortable fields to back the row
+// model. The generated ui/table primitives don't fit the card/mobile layout, so
+// vue-table is adopted headlessly (state only) rather than for rendering.
+const columns: ColumnDef<Gate>[] = [
+  { accessorKey: 'name' },
+  { accessorKey: 'live_url' },
+  { accessorKey: 'shadow_url' },
+  { accessorKey: 'created_at' },
+]
+
+// Manual (server-driven) mode: the server owns paging and sorting, so the table
+// is a headless state layer over the fetched page. `rowCount` comes from the
+// server total so getPageCount() matches the real page count.
+const table = useVueTable({
+  data: gates,
+  columns,
+  getCoreRowModel: getCoreRowModel(),
+  manualPagination: true,
+  manualSorting: true,
+  get rowCount() {
+    return total.value
+  },
+  state: {
+    get pagination() {
+      return pagination.value
+    },
+    get sorting() {
+      return sorting.value
+    },
+  },
+  onPaginationChange: (updater: Updater<PaginationState>) => {
+    pagination.value = typeof updater === 'function' ? updater(pagination.value) : updater
+  },
+  // Filters own sorting; the table never mutates it, so this no-op keeps the
+  // controlled sorting state without a "missing onSortingChange" warning.
+  onSortingChange: () => {},
+})
+
+const currentPage = computed(() => table.getState().pagination.pageIndex + 1)
+const totalPages = computed(() => table.getPageCount())
 
 function nextPage() {
-  if (hasMore.value) {
-    offset.value += limit
-  }
+  table.nextPage()
 }
 
 function prevPage() {
-  if (offset.value > 0) {
-    offset.value = Math.max(0, offset.value - limit)
-  }
+  table.previousPage()
 }
 </script>
 
@@ -137,7 +183,11 @@ function prevPage() {
     <!-- Gates List -->
     <div v-else>
       <div class="space-y-3">
-        <GateCard v-for="gate in gates" :key="gate.id" :gate="gate" />
+        <GateCard
+          v-for="row in table.getRowModel().rows"
+          :key="row.original.id"
+          :gate="row.original"
+        />
       </div>
 
       <!-- Pagination Controls -->
