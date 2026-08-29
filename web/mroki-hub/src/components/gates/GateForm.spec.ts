@@ -1,14 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import GateForm from './GateForm.vue'
 
+// Mock only the network layer so the real create mutation (re-exported from
+// '@/api') runs against a stubbed createGate and drives cache invalidation.
 const createGate = vi.fn()
-vi.mock('@/api', () => ({
+vi.mock('@/api/gates', () => ({
   createGate: (...args: unknown[]) => createGate(...args),
 }))
 
+// A fresh, retry-free client per mount isolates the cache per test.
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+}
+
 function mountForm() {
-  return mount(GateForm)
+  return mount(GateForm, {
+    global: { plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]] },
+  })
 }
 
 async function fillValid(wrapper: ReturnType<typeof mountForm>) {

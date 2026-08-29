@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { updateGate, deleteGate, gateQuery, queryKeys } from '@/api'
+import { useQuery } from '@tanstack/vue-query'
+import { gateQuery, useUpdateGateMutation, useDeleteGateMutation } from '@/api'
 import type { Gate } from '@/api'
 import { useAppConfig } from '@/composables/use-app-config'
 import { parseGoDuration, humanizeGoDuration, normalizeToGoDuration } from '@/lib/duration'
@@ -39,7 +39,11 @@ import {
 
 const route = useRoute()
 const router = useRouter()
-const queryClient = useQueryClient()
+
+// Update and delete flow through mutation composables that own cache
+// invalidation on success; this page keeps only form/validation/UI state.
+const updateMutation = useUpdateGateMutation()
+const deleteMutation = useDeleteGateMutation()
 // The floor is best-effort guidance; useAppConfig fetches it once per session
 // and a failed load simply degrades the copy without blocking editing.
 const { config: appConfig } = useAppConfig()
@@ -70,10 +74,10 @@ function loadGate() {
   gateQueryResult.refetch()
 }
 
-const saving = ref(false)
+const saving = computed(() => updateMutation.isPending.value)
 const saveError = ref<string | null>(null)
 const saveSuccess = ref(false)
-const deleting = ref(false)
+const deleting = computed(() => deleteMutation.isPending.value)
 const deleteError = ref<string | null>(null)
 const deleteDialogOpen = ref(false)
 const leaveDialogOpen = ref(false)
@@ -226,27 +230,29 @@ async function handleSave() {
     retentionPayload = normalized
   }
 
-  saving.value = true
   saveError.value = null
   retentionServerError.value = null
   saveSuccess.value = false
 
   try {
-    const response = await updateGate(gateId.value, {
-      name: name.value.trim(),
-      diff_config: {
-        ignored_fields: diffIgnoredFields.value,
-        included_fields: diffIncludedFields.value,
-        float_tolerance: floatTolerance.value ? parseFloat(floatTolerance.value) : 0,
-        sort_arrays: sortArrays.value,
+    await updateMutation.mutateAsync({
+      id: gateId.value,
+      payload: {
+        name: name.value.trim(),
+        diff_config: {
+          ignored_fields: diffIgnoredFields.value,
+          included_fields: diffIncludedFields.value,
+          float_tolerance: floatTolerance.value ? parseFloat(floatTolerance.value) : 0,
+          sort_arrays: sortArrays.value,
+        },
+        redacted_fields: redactedAdditionalFields.value,
+        retention: retentionPayload,
       },
-      redacted_fields: redactedAdditionalFields.value,
-      retention: retentionPayload,
     })
 
-    // Write the updated gate straight into the query cache so every consumer
-    // (this page, GateDetail, RequestDetail) sees it without a refetch.
-    queryClient.setQueryData(queryKeys.gates.detail(gateId.value), response.data)
+    // The mutation invalidates the gate detail and list caches on success, so
+    // every consumer (this page, GateDetail, RequestDetail) refetches the
+    // canonical gate rather than reading a hand-written copy.
     pristine.value = snapshot()
     saveSuccess.value = true
     setTimeout(() => (saveSuccess.value = false), 3000)
@@ -261,28 +267,20 @@ async function handleSave() {
     } else {
       saveError.value = message
     }
-  } finally {
-    saving.value = false
   }
 }
 
 async function handleDelete() {
-  deleting.value = true
   deleteError.value = null
   try {
-    await deleteGate(gateId.value)
-    // Drop the deleted gate from the cache and refresh the list reads before
-    // navigating back so the gone gate never lingers in a stale view.
-    queryClient.removeQueries({ queryKey: queryKeys.gates.detail(gateId.value) })
-    queryClient.invalidateQueries({ queryKey: queryKeys.gates.lists() })
-    queryClient.invalidateQueries({ queryKey: queryKeys.stats.global })
+    await deleteMutation.mutateAsync(gateId.value)
+    // The mutation drops the deleted gate's detail and refreshes the list and
+    // stats reads on success, so the gone gate never lingers in a stale view.
     deleteDialogOpen.value = false
     bypassGuard = true
     router.push('/gates')
   } catch (err) {
     deleteError.value = err instanceof Error ? err.message : 'Failed to delete gate'
-  } finally {
-    deleting.value = false
   }
 }
 
