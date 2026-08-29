@@ -276,6 +276,14 @@ func main() {
 		logger.Info("CORS enabled", "origins", origins)
 	}
 
+	// Wrap the whole handler with security headers as the outermost layer so
+	// every response — including /health and /metrics — carries them. HSTS is
+	// only emitted when explicitly enabled (mroki does not terminate TLS).
+	handler = middleware.SecurityHeaders(middleware.SecurityHeadersOptions{
+		HSTSEnabled: cfg.App.HSTSEnabled,
+		HSTSMaxAge:  cfg.App.HSTSMaxAge,
+	})(handler)
+
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
 		Handler:      handler,

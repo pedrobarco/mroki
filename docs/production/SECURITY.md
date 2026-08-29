@@ -113,6 +113,37 @@ The internal network between the proxy and the API should be trusted (e.g. same 
 
 ---
 
+## Security Headers
+
+The API emits standard security response headers on **every** response — including unauthenticated endpoints such as `/health` and `/metrics`, and error responses. The following headers are always sent:
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `X-Content-Type-Options` | `nosniff` | Stops browsers from MIME-sniffing responses away from the declared `Content-Type` |
+| `X-Frame-Options` | `DENY` | Prevents the responses from being framed (clickjacking protection) |
+| `Referrer-Policy` | `no-referrer` | Prevents the `Referer` header from leaking API URLs to third parties |
+
+### HSTS (Strict-Transport-Security)
+
+`Strict-Transport-Security` is **off by default** because mroki does not terminate TLS. Enabling it while the API is reachable over plain HTTP can make clients unreachable, so only turn it on once a TLS-terminating reverse proxy is confirmed in front of the API. mroki never auto-detects TLS from the request; the header is emitted solely based on the config toggle.
+
+```bash
+# Only enable behind TLS termination
+MROKI_APP_HSTS_ENABLED=true
+# max-age advertised to browsers (Go duration, default 8760h = 365d)
+MROKI_APP_HSTS_MAX_AGE=8760h
+```
+
+When enabled, the API sends:
+
+```
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+```
+
+`MROKI_APP_HSTS_MAX_AGE` must be positive when HSTS is enabled, otherwise the API rejects the configuration at startup.
+
+---
+
 ## Database Security
 
 ```bash
@@ -159,6 +190,7 @@ The wildcard origin `*` is **not** permitted. Because the API always allows the 
 
 - **Strong API key** — at least 16 characters, randomly generated (`openssl rand -base64 32`)
 - **TLS termination** — place a reverse proxy or load balancer in front of the API
+- **Enable HSTS** — once TLS termination is confirmed, set `MROKI_APP_HSTS_ENABLED=true` (see [Security Headers](#security-headers))
 - **Database SSL** — append `?sslmode=require` to `MROKI_APP_DATABASE_URL`
 - **Restrict network access** — firewall the API and database; deploy the proxy in an isolated network
 - **Configure CORS origins** — set `MROKI_APP_CORS_ORIGINS` to only the domains that need access
