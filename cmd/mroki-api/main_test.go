@@ -12,10 +12,55 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
 	"github.com/pedrobarco/mroki/internal/application/events"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
 )
+
+// stubHealthChecker implements handlers.HealthChecker with a configurable Ping
+// result so the readiness probe can be exercised without a real database.
+type stubHealthChecker struct{ err error }
+
+func (s stubHealthChecker) Ping(context.Context) error { return s.err }
+
+// TestSecurityHeaders_infraRoutes verifies the assembled handler chain: the
+// security-headers middleware wrapping the real mux with the health and metrics
+// routes mounted exactly as main() wires them (not a stub next handler). Every
+// infrastructure endpoint must carry the always-on security headers, and HSTS
+// must stay off by default since mroki does not terminate TLS.
+func TestSecurityHeaders_infraRoutes(t *testing.T) {
+	// sql.Open is lazy and never dials, so a real connection isn't required to
+	// build the metrics platform whose /metrics handler we mount below.
+	db, err := sql.Open("pgx", "postgres://user:pass@127.0.0.1:5432/mroki?sslmode=disable")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	platform, _, err := newAPIMetrics(true, db)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = platform.Shutdown(context.Background()) })
+
+	mux := http.NewServeMux()
+	mountInfraRoutes(mux, stubHealthChecker{}, platform.MetricsHandler())
+
+	// A zero-value config keeps HSTS disabled, mirroring the safe default.
+	var cfg config.Config
+	handler := withSecurityHeaders(mux, cfg)
+
+	for _, path := range []string{"/health/live", "/health/ready", "/metrics"} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+			assert.Equal(t, "DENY", rec.Header().Get("X-Frame-Options"))
+			assert.Equal(t, "no-referrer", rec.Header().Get("Referrer-Policy"))
+			assert.Empty(t, rec.Header().Get("Strict-Transport-Security"))
+		})
+	}
+}
 
 func TestNewAPIMetrics_Disabled(t *testing.T) {
 	platform, recorder, err := newAPIMetrics(false, nil)

@@ -239,15 +239,9 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// Health check endpoints (no middleware to avoid logging noise)
-	mux.Handle("GET /health/live", handlers.Liveness())
-	mux.Handle("GET /health/ready", handlers.Readiness(healthChecker{db: db}))
-
-	// Metrics endpoint (no auth, no middleware) so Prometheus can scrape it the
-	// same way as the health probes. Only mounted when metrics are enabled.
-	if h := metricsPlatform.MetricsHandler(); h != nil {
-		mux.Handle("GET /metrics", h)
-	}
+	// Infrastructure endpoints (health probes + metrics) are mounted without the
+	// API middleware chain so probes stay quiet and Prometheus can scrape freely.
+	mountInfraRoutes(mux, healthChecker{db: db}, metricsPlatform.MetricsHandler())
 
 	// API endpoints (with middleware). Each route handler is also wrapped with
 	// otelhttp, which records the semconv http_server_* metrics and derives the
@@ -279,10 +273,7 @@ func main() {
 	// Wrap the whole handler with security headers as the outermost layer so
 	// every response — including /health and /metrics — carries them. HSTS is
 	// only emitted when explicitly enabled (mroki does not terminate TLS).
-	handler = middleware.SecurityHeaders(middleware.SecurityHeadersOptions{
-		HSTSEnabled: cfg.App.HSTSEnabled,
-		HSTSMaxAge:  cfg.App.HSTSMaxAge,
-	})(handler)
+	handler = withSecurityHeaders(handler, cfg)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
@@ -354,6 +345,30 @@ func newAPIMetrics(enabled bool, db *sql.DB) (*metrics.Platform, *diffmetrics.Re
 		return nil, nil, fmt.Errorf("create comparison recorder: %w", err)
 	}
 	return platform, recorder, nil
+}
+
+// mountInfraRoutes mounts the unauthenticated infrastructure endpoints — the
+// health probes and, when metrics are enabled, the Prometheus scrape endpoint —
+// onto mux. These deliberately skip the API middleware chain so probes stay
+// quiet and scrapes stay unauthenticated. metricsHandler may be nil (metrics
+// disabled), in which case /metrics is not mounted.
+func mountInfraRoutes(mux *http.ServeMux, hc handlers.HealthChecker, metricsHandler http.Handler) {
+	mux.Handle("GET /health/live", handlers.Liveness())
+	mux.Handle("GET /health/ready", handlers.Readiness(hc))
+	if metricsHandler != nil {
+		mux.Handle("GET /metrics", metricsHandler)
+	}
+}
+
+// withSecurityHeaders wraps h with the security-headers middleware using the
+// configured HSTS settings. It is applied as the outermost layer so every
+// response — including the infrastructure endpoints — carries the always-on
+// security headers. HSTS is only emitted when explicitly enabled.
+func withSecurityHeaders(h http.Handler, cfg config.Config) http.Handler {
+	return middleware.SecurityHeaders(middleware.SecurityHeadersOptions{
+		HSTSEnabled: cfg.App.HSTSEnabled,
+		HSTSMaxAge:  cfg.App.HSTSMaxAge,
+	})(h)
 }
 
 // healthChecker wraps *sql.DB to implement the handlers.HealthChecker interface.
