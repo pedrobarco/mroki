@@ -27,9 +27,12 @@ vi.mock('@/api/config', () => ({
   getConfig: (...a: unknown[]) => getConfig(...a),
 }))
 
-// A fresh, retry-free client per mount isolates the gate/config cache per test.
+// A fresh, retry-free client per mount isolates the gate/config cache per test
+// and keeps error-path mutations (e.g. delete failure) from retrying.
 function makeQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
 }
 
 function makeGate(overrides: Partial<Gate> = {}): Gate {

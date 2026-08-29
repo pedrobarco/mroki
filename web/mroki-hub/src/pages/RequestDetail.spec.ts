@@ -23,9 +23,12 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push }),
 }))
 
-// A fresh, retry-free client per mount isolates the gate/request cache per test.
+// A fresh, retry-free client per mount isolates the gate/request cache per test
+// and keeps error-path mutations (e.g. update failure) from retrying.
 function makeQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
 }
 
 function makeGate(overrides: Partial<Gate> = {}): Gate {
