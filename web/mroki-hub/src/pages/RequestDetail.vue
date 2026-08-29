@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { updateGate, gateQuery, requestQuery, queryKeys } from '@/api'
+import { useQuery } from '@tanstack/vue-query'
+import { gateQuery, requestQuery, useUpdateGateMutation } from '@/api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,7 +18,10 @@ import { truncateId, methodColorClass, formatLatency } from '@/lib/utils'
 
 const route = useRoute()
 const router = useRouter()
-const queryClient = useQueryClient()
+
+// Quick "ignore field" edits reuse the shared update mutation, which invalidates
+// the gate detail so this page refetches the new ignore list on success.
+const updateMutation = useUpdateGateMutation()
 
 const gateId = computed(() => route.params.id as string)
 const requestId = computed(() => route.params.rid as string)
@@ -94,12 +97,10 @@ async function onIgnoreField(gjsonPath: string) {
   const ignored = g.diff_config.ignored_fields
   if (ignored.includes(gjsonPath)) return
   try {
-    const res = await updateGate(g.id, {
-      diff_config: { ...g.diff_config, ignored_fields: [...ignored, gjsonPath] },
+    await updateMutation.mutateAsync({
+      id: g.id,
+      payload: { diff_config: { ...g.diff_config, ignored_fields: [...ignored, gjsonPath] } },
     })
-    // Push the updated gate into the query cache so this page and any other
-    // consumer of the gate detail reflect the new ignore list without a refetch.
-    queryClient.setQueryData(queryKeys.gates.detail(g.id), res.data)
     notify(`Ignoring "${gjsonPath}" in future diffs`)
   } catch (err) {
     notify(err instanceof Error ? err.message : 'Failed to update gate', 'error')

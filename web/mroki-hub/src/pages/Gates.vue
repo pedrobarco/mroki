@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { globalStatsQuery, queryKeys } from '@/api'
+import { useQuery } from '@tanstack/vue-query'
+import { globalStatsQuery } from '@/api'
 import { diffRateColorClass } from '@/lib/utils'
 import GateList from '@/components/gates/GateList.vue'
 import GateForm from '@/components/gates/GateForm.vue'
@@ -26,8 +26,6 @@ const filters = reactive<GateFilterState>({
   sort: 'created_at',
   order: 'desc',
 })
-
-const queryClient = useQueryClient()
 
 // Global stats poll on a 30s interval, matching the previous setInterval cadence
 // but managed by TanStack Query (dedup, cache sharing, cleanup on unmount).
@@ -77,12 +75,9 @@ const stats = computed(() => [
   },
 ])
 function handleGateCreated() {
+  // The create mutation refreshes the gate list and global stats reads on
+  // success, so this handler only has to close the dialog.
   dialogOpen.value = false
-  // Refresh the reads affected by the new gate: every gate list variant and the
-  // global stats. Invalidation lets TanStack Query refetch the active queries
-  // rather than remounting the list.
-  queryClient.invalidateQueries({ queryKey: queryKeys.gates.all })
-  queryClient.invalidateQueries({ queryKey: queryKeys.stats.global })
 }
 
 function onFiltersUpdate(newFilters: GateFilterState) {

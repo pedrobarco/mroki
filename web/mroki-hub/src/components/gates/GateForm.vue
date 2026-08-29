@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { createGate } from '@/api'
+import { useCreateGateMutation } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,8 +13,12 @@ const emit = defineEmits<{
 const name = ref('')
 const liveUrl = ref('')
 const shadowUrl = ref('')
-const submitting = ref(false)
 const error = ref<string | null>(null)
+
+// The create mutation owns cache invalidation on success (gate lists + global
+// stats); this component keeps only form state and error routing.
+const createMutation = useCreateGateMutation()
+const submitting = computed(() => createMutation.isPending.value)
 
 function isValidUrl(url: string): boolean {
   if (!url) return false
@@ -40,11 +44,10 @@ const canSubmit = computed(() => {
 async function handleSubmit() {
   if (!canSubmit.value) return
 
-  submitting.value = true
   error.value = null
 
   try {
-    await createGate({
+    await createMutation.mutateAsync({
       name: name.value.trim(),
       live_url: liveUrl.value,
       shadow_url: shadowUrl.value,
@@ -63,8 +66,6 @@ async function handleSubmit() {
     } else {
       error.value = 'Failed to create gate'
     }
-  } finally {
-    submitting.value = false
   }
 }
 </script>
