@@ -74,17 +74,6 @@ function loadRequests() {
   query.refetch()
 }
 
-// Bubble the list totals up to the parent header each time a page resolves.
-watch(
-  () => query.data.value,
-  (data) => {
-    if (!data) return
-    emit('update:total', data.pagination.total)
-    emit('update:showing', data.data.length)
-  },
-  { immediate: true }
-)
-
 // Sorting is owned by the filter bar (RequestFilters) and sent to the server, so
 // we mirror it into the table's sorting state read-only — the row layout has no
 // clickable column headers to drive it.
@@ -129,6 +118,22 @@ const table = useVueTable({
   // controlled sorting state without a "missing onSortingChange" warning.
   onSortingChange: () => {},
 })
+
+// Bubble the list totals up to the parent header each time a page resolves.
+// `update:total` needs the server total, while `update:showing` is sourced from
+// the table row model — the same source the template renders and
+// `truncatedQueries` iterates — so the visible count can never diverge from the
+// rows actually on screen. Keyed off `query.data` (the real reactive trigger)
+// because `getRowModel()` is memoized and does not track the fetch on its own.
+watch(
+  () => query.data.value,
+  (data) => {
+    if (!data) return
+    emit('update:total', data.pagination.total)
+    emit('update:showing', table.getRowModel().rows.length)
+  },
+  { immediate: true }
+)
 
 const currentPage = computed(() => table.getState().pagination.pageIndex + 1)
 const totalPages = computed(() => table.getPageCount())

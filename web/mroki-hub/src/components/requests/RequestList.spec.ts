@@ -177,6 +177,22 @@ describe('RequestList reset-on-watch', () => {
   })
 })
 
+describe('RequestList showing count', () => {
+  beforeEach(() => {
+    push.mockClear()
+    getRequests.mockReset()
+  })
+
+  it('emits the showing count from the rendered table row model', async () => {
+    const wrapper = await mountList([makeRequest({ id: 'req-1' }), makeRequest({ id: 'req-2' })])
+    // The emitted count matches the rows actually rendered from the row model.
+    expect(wrapper.findAll('[role="button"]')).toHaveLength(2)
+    const showing = wrapper.emitted('update:showing')
+    expect(showing).toBeTruthy()
+    expect(showing!.at(-1)).toEqual([2])
+  })
+})
+
 describe('RequestList latency formatting', () => {
   beforeEach(() => {
     push.mockClear()
