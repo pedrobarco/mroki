@@ -26,6 +26,11 @@ type Config config.Config[struct {
 	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT, default=30s"`
 	IdleTimeout     time.Duration `env:"IDLE_TIMEOUT, default=60s"`
 	MetricsEnabled  bool          `env:"METRICS_ENABLED, default=true"` // expose /metrics for Prometheus scraping
+	// HSTS (Strict-Transport-Security). Off by default because mroki does not
+	// terminate TLS; only enable once a TLS-terminating reverse proxy is in
+	// front of the API. When enabled, HSTSMaxAge must be > 0.
+	HSTSEnabled bool          `env:"HSTS_ENABLED, default=false"`
+	HSTSMaxAge  time.Duration `env:"HSTS_MAX_AGE, default=8760h"` // max-age for the HSTS header (default 365d)
 	// Logging: level is one of debug, info, warn, error; format is text or json.
 	// When left empty the effective defaults are derived from APP_ENV via
 	// EffectiveLogLevel/EffectiveLogFormat (development: debug/text,
@@ -104,6 +109,13 @@ func (c Config) Validate() error {
 	if c.App.WriteTimeout > 0 && c.App.IdleTimeout > 0 && c.App.WriteTimeout >= c.App.IdleTimeout {
 		verr.Add(config.SeverityError, fmt.Sprintf("write_timeout (%s) must be less than idle_timeout (%s)",
 			c.App.WriteTimeout, c.App.IdleTimeout))
+	}
+
+	// Validate HSTS. The max-age must be positive when HSTS is enabled so the
+	// emitted Strict-Transport-Security header is meaningful. When disabled the
+	// value is ignored and the header is never sent.
+	if c.App.HSTSEnabled && c.App.HSTSMaxAge <= 0 {
+		verr.Add(config.SeverityError, fmt.Sprintf("hsts_max_age must be positive when hsts is enabled, got %s", c.App.HSTSMaxAge))
 	}
 
 	// Validate CORS origins. The API always allows the Authorization header

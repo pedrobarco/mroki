@@ -217,6 +217,40 @@ func TestValidate_app_env(t *testing.T) {
 	})
 }
 
+func TestValidate_hsts(t *testing.T) {
+	t.Run("disabled is valid regardless of max-age", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.HSTSEnabled = false
+		cfg.App.HSTSMaxAge = 0
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("enabled with positive max-age is valid", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.HSTSEnabled = true
+		cfg.App.HSTSMaxAge = 8760 * time.Hour
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("enabled with zero max-age is rejected", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.HSTSEnabled = true
+		cfg.App.HSTSMaxAge = 0
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hsts_max_age must be positive when hsts is enabled")
+	})
+
+	t.Run("enabled with negative max-age is rejected", func(t *testing.T) {
+		cfg := validConfig()
+		cfg.App.HSTSEnabled = true
+		cfg.App.HSTSMaxAge = -1 * time.Hour
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hsts_max_age must be positive when hsts is enabled")
+	})
+}
+
 func TestValidate_invalid_database_url(t *testing.T) {
 	cfg := validConfig()
 	cfg.App.Database.URL = mustURL("ftp://localhost/db")
