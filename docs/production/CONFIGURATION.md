@@ -12,6 +12,20 @@ This is the single source of truth for all mroki configuration. Each component i
 
 ---
 
+## API URL variables
+
+Three similarly named variables tell the proxy and hub where to reach **mroki-api**. They belong to **different components and are not interchangeable** — set the one that matches the component you are configuring:
+
+| Component | Variable | Points at |
+|-----------|----------|-----------|
+| mroki-proxy (API mode) | `MROKI_APP_API_URL` | mroki-api server URL — see [mroki-proxy → API Mode](#api-mode-recommended) |
+| mroki-hub (production, Docker) | `MROKI_APP_API_BASE_URL` | mroki-api base URL — see [mroki-hub](#mroki-hub) |
+| mroki-hub (development, Vite) | `VITE_API_BASE_URL` | mroki-api base URL — see [mroki-hub](#mroki-hub) |
+
+> **Not interchangeable:** the proxy's `MROKI_APP_API_URL` and the hub's `MROKI_APP_API_BASE_URL` are distinct variables for distinct components. Setting `MROKI_APP_API_BASE_URL` on the proxy — or `MROKI_APP_API_URL` on the hub — has no effect.
+
+---
+
 ## mroki-api
 
 | Variable | Required | Default | Description |
