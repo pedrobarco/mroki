@@ -57,6 +57,7 @@ MROKI_APP_API_KEY=dev-test-key-min-16-chars
 MROKI_APP_LIVE_URL=https://api.production.example.com
 MROKI_APP_SHADOW_URL=https://api.shadow.example.com
 ```
+> Wiring up proxy and hub together? `MROKI_APP_API_URL` is the proxy's variable — the hub uses a different one. See [API URL variables](production/CONFIGURATION.md#api-url-variables).
 
 ---
 
@@ -246,6 +247,7 @@ VITE_API_KEY=your-api-key
 # Verify the API is reachable
 curl http://localhost:8090/health/live
 ```
+> The hub's `VITE_API_BASE_URL` (dev) and `MROKI_APP_API_BASE_URL` (production) are distinct from the proxy's `MROKI_APP_API_URL`. See [API URL variables](production/CONFIGURATION.md#api-url-variables).
 
 ---
 

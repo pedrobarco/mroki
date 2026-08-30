@@ -122,6 +122,8 @@ containers:
       secretKeyRef: { name: mroki-secrets, key: api-key }
 ```
 
+> `MROKI_APP_API_URL` is the proxy's API-mode variable — the hub uses `MROKI_APP_API_BASE_URL` instead. See [API URL variables](CONFIGURATION.md#api-url-variables).
+
 Service: `ClusterIP` port 80 → 8080.
 
 ### PostgreSQL
