@@ -175,7 +175,7 @@ MROKI_APP_SHADOW_RULES="deny *:/health/*,deny *:/admin/*,allow POST:/api/v1/sear
 |----------|----------|---------|-------------|
 | `MROKI_APP_SHADOW_RULES` | No | _(none — base rules deny POST/PUT/DELETE/PATCH)_ | Comma-separated `ACTION METHOD:path` rules. First match wins; unmatched requests are shadowed. Evaluated before the always-present base rules. |
 
-> **Note:** Not needed for the Caddy module — Caddy's native route matchers already handle selective shadowing.
+> **Note:** The `caddy-mroki` module also accepts a `shadow_rules` directive with identical semantics (including the always-appended write-protection base rules). Caddy's native route matchers are an alternative way to scope shadowing per route.
 
 ### Diff Options
 
@@ -226,11 +226,19 @@ mroki_gate {
     [live_timeout <duration>]
     [shadow_timeout <duration>]
     [max_body_size <bytes>]
+    [shadow_rules <comma-separated "ACTION METHOD:path">]
     [max_concurrent_callbacks <int>]
+    [http_client {
+        [max_idle_conns <int>]
+        [max_idle_conns_per_host <int>]
+        [max_conns_per_host <int>]
+        [idle_conn_timeout <duration>]
+    }]
     [diff_ignored_fields <comma-separated>]
     [diff_included_fields <comma-separated>]
     [diff_float_tolerance <float>]
     [diff_sort_arrays <bool>]
+    [redacted_fields <comma-separated>]
 }
 ```
 
@@ -244,11 +252,25 @@ mroki_gate {
 | `live_timeout` | No | `5s` | Live request timeout |
 | `shadow_timeout` | No | `10s` | Shadow request timeout |
 | `max_body_size` | No | _(unlimited)_ | Skip shadow for requests above this size in bytes (`0` = unlimited) |
+| `shadow_rules` | No | _(none — base rules deny POST/PUT/DELETE/PATCH)_ | Comma-separated allow/deny rules controlling which requests are shadowed (see [Shadow Matching Rules](#shadow-matching-rules)) |
 | `max_concurrent_callbacks` | No | `200` | Max concurrent background shadow-comparison callbacks (`0` = unbounded). When full, comparisons are dropped with a warning |
+| `http_client` | No | — | Nested block for outbound connection-pool tuning (see [`http_client` block](#http_client-block)) |
 | `diff_ignored_fields` | No | _(none)_ | Comma-separated fields to ignore in diff (gjson syntax) |
 | `diff_included_fields` | No | _(none)_ | Comma-separated fields to include in diff (whitelist) |
 | `diff_float_tolerance` | No | _(exact)_ | Float comparison tolerance |
 | `diff_sort_arrays` | No | `false` | Sort arrays before comparison so element order is ignored (`false` = positional, reorders show as remove/add pairs) |
+| `redacted_fields` | No | _(none)_ | Comma-separated fields to redact from diff output |
+
+#### `http_client` block
+
+Outbound connection-pool tuning for the shared HTTP client. Grouped under an `http_client` block to mirror the proxy binary's `MROKI_APP_HTTP_CLIENT_*` environment variables. Omit the block to use the defaults.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_idle_conns` | `100` | Outbound idle connection pool size across all hosts (0 = unlimited) |
+| `max_idle_conns_per_host` | `10` | Outbound idle connections kept per host (0 = Go default of 2) |
+| `max_conns_per_host` | `100` | Limit on total outbound connections per host (0 = unlimited) |
+| `idle_conn_timeout` | `90s` | How long an idle outbound connection is kept before closing (0 = no timeout) |
 
 ---
 
