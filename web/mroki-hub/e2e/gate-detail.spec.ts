@@ -2,23 +2,25 @@ import { test, expect } from './fixtures'
 
 test.describe('Gate Detail Page', () => {
   test('displays gate info', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'detail-gate',
-      'https://detail-live.example.com',
-      'https://detail-shadow.example.com'
+      `detail-gate-${suffix}`,
+      `https://detail-live-${suffix}.example.com`,
+      `https://detail-shadow-${suffix}.example.com`
     )
 
     await page.goto(`/gates/${gate.id}`)
-    await expect(page.getByText('https://detail-live.example.com')).toBeVisible()
-    await expect(page.getByText('https://detail-shadow.example.com')).toBeVisible()
+    await expect(page.getByText(`https://detail-live-${suffix}.example.com`)).toBeVisible()
+    await expect(page.getByText(`https://detail-shadow-${suffix}.example.com`)).toBeVisible()
     await expect(page.getByText(gate.id)).toBeVisible()
   })
 
   test('shows empty state when no requests', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'empty-gate',
-      'https://empty-live.example.com',
-      'https://empty-shadow.example.com'
+      `empty-gate-${suffix}`,
+      `https://empty-live-${suffix}.example.com`,
+      `https://empty-shadow-${suffix}.example.com`
     )
 
     await page.goto(`/gates/${gate.id}`)
@@ -28,10 +30,11 @@ test.describe('Gate Detail Page', () => {
   })
 
   test('displays seeded requests in table', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'reqs-gate',
-      'https://reqs-live.example.com',
-      'https://reqs-shadow.example.com'
+      `reqs-gate-${suffix}`,
+      `https://reqs-live-${suffix}.example.com`,
+      `https://reqs-shadow-${suffix}.example.com`
     )
     await api.seedRequest(gate.id, { method: 'GET', path: '/api/users' })
     await api.seedRequest(gate.id, { method: 'POST', path: '/api/orders' })
@@ -45,10 +48,11 @@ test.describe('Gate Detail Page', () => {
   })
 
   test('filter by HTTP method', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'filter-gate',
-      'https://filter-live.example.com',
-      'https://filter-shadow.example.com'
+      `filter-gate-${suffix}`,
+      `https://filter-live-${suffix}.example.com`,
+      `https://filter-shadow-${suffix}.example.com`
     )
     await api.seedRequest(gate.id, { method: 'GET', path: '/api/filter-get' })
     await api.seedRequest(gate.id, { method: 'POST', path: '/api/filter-post' })
@@ -69,10 +73,11 @@ test.describe('Gate Detail Page', () => {
   })
 
   test('filter by path', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'pathf-gate',
-      'https://pathf-live.example.com',
-      'https://pathf-shadow.example.com'
+      `pathf-gate-${suffix}`,
+      `https://pathf-live-${suffix}.example.com`,
+      `https://pathf-shadow-${suffix}.example.com`
     )
     await api.seedRequest(gate.id, { method: 'GET', path: '/api/alpha' })
     await api.seedRequest(gate.id, { method: 'GET', path: '/api/beta' })
@@ -129,10 +134,11 @@ test.describe('Gate Detail Page', () => {
   })
 
   test('pagination works with many requests', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'page-gate',
-      'https://page-live.example.com',
-      'https://page-shadow.example.com'
+      `page-gate-${suffix}`,
+      `https://page-live-${suffix}.example.com`,
+      `https://page-shadow-${suffix}.example.com`
     )
 
     // Seed 25 requests (page size is 20)
@@ -162,10 +168,11 @@ test.describe('Gate Detail Page', () => {
   })
 
   test('displays query parameters in request list', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'query-gate',
-      'https://query-live.example.com',
-      'https://query-shadow.example.com'
+      `query-gate-${suffix}`,
+      `https://query-live-${suffix}.example.com`,
+      `https://query-shadow-${suffix}.example.com`
     )
     await api.seedRequest(gate.id, {
       method: 'GET',
@@ -184,10 +191,11 @@ test.describe('Gate Detail Page', () => {
   })
 
   test('click request navigates to detail', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'nav-gate',
-      'https://nav-live.example.com',
-      'https://nav-shadow.example.com'
+      `nav-gate-${suffix}`,
+      `https://nav-live-${suffix}.example.com`,
+      `https://nav-shadow-${suffix}.example.com`
     )
     const req = await api.seedRequest(gate.id, { method: 'GET', path: '/api/nav-test' })
 
@@ -197,10 +205,11 @@ test.describe('Gate Detail Page', () => {
   })
 
   test('back button navigates to gates list', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'back-gate-detail',
-      'https://backdet-live.example.com',
-      'https://backdet-shadow.example.com'
+      `back-gate-detail-${suffix}`,
+      `https://backdet-live-${suffix}.example.com`,
+      `https://backdet-shadow-${suffix}.example.com`
     )
 
     await page.goto(`/gates/${gate.id}`)
