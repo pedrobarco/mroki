@@ -2,9 +2,8 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
-import { gateQuery, useUpdateGateMutation, useDeleteGateMutation } from '@/api'
+import { gateQuery, configQuery, useUpdateGateMutation, useDeleteGateMutation } from '@/api'
 import type { Gate } from '@/api'
-import { useAppConfig } from '@/composables/use-app-config'
 import { parseGoDuration, humanizeGoDuration, normalizeToGoDuration } from '@/lib/duration'
 import FieldListEditor from '@/components/gates/FieldListEditor.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -44,13 +43,19 @@ const router = useRouter()
 // invalidation on success; this page keeps only form/validation/UI state.
 const updateMutation = useUpdateGateMutation()
 const deleteMutation = useDeleteGateMutation()
-// The floor is best-effort guidance; useAppConfig fetches it once per session
-// and a failed load simply degrades the copy without blocking editing.
-const { config: appConfig } = useAppConfig()
+// The floor is best-effort guidance, so it reads through the shared config query
+// (staleTime: Infinity — it only changes on a server restart) rather than a
+// bespoke cache. Unlike the gate read it has no loading/error branch: a failed
+// /config must never block editing, it just degrades the copy.
+const configQueryResult = useQuery({
+  ...configQuery(),
+  staleTime: Infinity,
+  gcTime: Infinity,
+})
 
 // The global retention floor, shown so users can enter a valid override without
-// guessing. Null until the server config has loaded.
-const globalRetention = computed(() => appConfig.value?.retention ?? null)
+// guessing. Null until the server config has loaded (or if it failed to).
+const globalRetention = computed(() => configQueryResult.data.value?.retention ?? null)
 
 // Human-friendly rendering of the floor for display copy (e.g. "30d (720h0m0s)"
 // for round day counts). The raw value stays authoritative for validation.
