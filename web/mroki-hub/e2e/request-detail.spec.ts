@@ -2,10 +2,11 @@ import { test, expect } from './fixtures'
 
 test.describe('Request Detail Page', () => {
   test('displays request info and diff viewer', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'reqdetail-gate',
-      'https://reqdetail-live.example.com',
-      'https://reqdetail-shadow.example.com'
+      `reqdetail-gate-${suffix}`,
+      `https://reqdetail-live-${suffix}.example.com`,
+      `https://reqdetail-shadow-${suffix}.example.com`
     )
     const req = await api.seedRequest(gate.id, {
       method: 'POST',
@@ -31,10 +32,11 @@ test.describe('Request Detail Page', () => {
   })
 
   test('shows live and shadow status codes', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'status-gate',
-      'https://status-live.example.com',
-      'https://status-shadow.example.com'
+      `status-gate-${suffix}`,
+      `https://status-live-${suffix}.example.com`,
+      `https://status-shadow-${suffix}.example.com`
     )
     const req = await api.seedRequest(gate.id, {
       method: 'GET',
@@ -53,10 +55,11 @@ test.describe('Request Detail Page', () => {
   })
 
   test('back button navigates to gate detail', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'back-gate',
-      'https://back-live.example.com',
-      'https://back-shadow.example.com'
+      `back-gate-${suffix}`,
+      `https://back-live-${suffix}.example.com`,
+      `https://back-shadow-${suffix}.example.com`
     )
     const req = await api.seedRequest(gate.id, { method: 'GET', path: '/api/back-test' })
 
@@ -106,10 +109,11 @@ test.describe('Request Detail Page', () => {
   })
 
   test('displays query parameters in request header', async ({ page, api }) => {
+    const suffix = Date.now()
     const gate = await api.createGate(
-      'qp-detail-gate',
-      'https://qp-live.example.com',
-      'https://qp-shadow.example.com'
+      `qp-detail-gate-${suffix}`,
+      `https://qp-live-${suffix}.example.com`,
+      `https://qp-shadow-${suffix}.example.com`
     )
     const req = await api.seedRequest(gate.id, {
       method: 'GET',
