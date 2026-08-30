@@ -56,6 +56,17 @@ func WithRequestID(id RequestID) requestOption {
 	}
 }
 
+// ValidateCreatedAt rejects a request timestamp that lies further than
+// maxClockSkew beyond the current time. Callers can use it to fail fast on the
+// ingest path before doing expensive work; NewRequest enforces the same
+// invariant for every request that reaches the aggregate.
+func ValidateCreatedAt(createdAt time.Time) error {
+	if createdAt.After(time.Now().Add(maxClockSkew)) {
+		return fmt.Errorf("%w: %s is in the future", ErrCreatedAtInFuture, createdAt)
+	}
+	return nil
+}
+
 func NewRequest(
 	gateID GateID,
 	method HTTPMethod,
@@ -69,8 +80,8 @@ func NewRequest(
 	diff Diff,
 	opts ...requestOption,
 ) (*Request, error) {
-	if createdAt.After(time.Now().Add(maxClockSkew)) {
-		return nil, fmt.Errorf("%w: %s is in the future", ErrCreatedAtInFuture, createdAt)
+	if err := ValidateCreatedAt(createdAt); err != nil {
+		return nil, err
 	}
 
 	request := &Request{
