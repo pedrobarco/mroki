@@ -74,6 +74,8 @@ func CreateRequest(handler *commands.CreateRequestHandler) AppHandler {
 				return dto.InvalidGateID(gateIDStr)
 			case errors.Is(err, traffictesting.ErrInvalidRequestID):
 				return dto.InvalidRequestID(cmd.ID)
+			case errors.Is(err, traffictesting.ErrCreatedAtInFuture):
+				return dto.InvalidCreatedAt(err)
 			default:
 				return dto.NewError(
 					http.StatusInternalServerError,

@@ -2,10 +2,17 @@ package traffictesting
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/pedrobarco/mroki/internal/domain/event"
 )
+
+// maxClockSkew bounds how far a request's CreatedAt may exceed the current
+// time before it is rejected on ingest. It absorbs minor clock differences
+// between clients/proxies and the API while preventing far-future timestamps
+// from corrupting stats and TTL-based retention cleanup.
+const maxClockSkew = 5 * time.Minute
 
 type RequestMethod string
 
@@ -49,6 +56,17 @@ func WithRequestID(id RequestID) requestOption {
 	}
 }
 
+// ValidateCreatedAt rejects a request timestamp that lies further than
+// maxClockSkew beyond the current time. Callers can use it to fail fast on the
+// ingest path before doing expensive work; NewRequest enforces the same
+// invariant for every request that reaches the aggregate.
+func ValidateCreatedAt(createdAt time.Time) error {
+	if createdAt.After(time.Now().Add(maxClockSkew)) {
+		return fmt.Errorf("%w: %s is in the future", ErrCreatedAtInFuture, createdAt)
+	}
+	return nil
+}
+
 func NewRequest(
 	gateID GateID,
 	method HTTPMethod,
@@ -62,6 +80,10 @@ func NewRequest(
 	diff Diff,
 	opts ...requestOption,
 ) (*Request, error) {
+	if err := ValidateCreatedAt(createdAt); err != nil {
+		return nil, err
+	}
+
 	request := &Request{
 		GateID:         gateID,
 		Method:         method,

@@ -58,3 +58,48 @@ func TestNewRequest_with_custom_id(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, customID.String(), request.ID.String())
 }
+
+func TestNewRequest_created_at_bounds(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+	method, _ := traffictesting.NewHTTPMethod("GET")
+	path, _ := traffictesting.ParsePath("/api/test")
+
+	tests := []struct {
+		name      string
+		createdAt time.Time
+		wantErr   bool
+	}{
+		{name: "now is accepted", createdAt: time.Now(), wantErr: false},
+		{name: "past is accepted", createdAt: time.Now().Add(-time.Hour), wantErr: false},
+		{name: "zero value is accepted", createdAt: time.Time{}, wantErr: false},
+		{name: "within skew tolerance is accepted", createdAt: time.Now().Add(4 * time.Minute), wantErr: false},
+		{name: "beyond skew tolerance is rejected", createdAt: time.Now().Add(10 * time.Minute), wantErr: true},
+		{name: "far future is rejected", createdAt: time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC), wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request, err := traffictesting.NewRequest(
+				gateID,
+				method,
+				path,
+				"",
+				traffictesting.NewHeaders(nil),
+				nil,
+				tt.createdAt,
+				traffictesting.Response{},
+				traffictesting.Response{},
+				traffictesting.Diff{},
+			)
+
+			if tt.wantErr {
+				assert.ErrorIs(t, err, traffictesting.ErrCreatedAtInFuture)
+				assert.Nil(t, request)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.NotNil(t, request)
+		})
+	}
+}

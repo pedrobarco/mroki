@@ -363,6 +363,37 @@ func TestCreateRequestHandler_Handle_invalid_shadow_status_code(t *testing.T) {
 	assert.Contains(t, err.Error(), "shadow response")
 }
 
+func TestCreateRequestHandler_Handle_future_created_at(t *testing.T) {
+	// Arrange: gate repo fails the test if consulted, proving the guard
+	// rejects before any expensive work (gate fetch, redaction, diffing).
+	repo := &mockRequestRepository{}
+	gateRepo := &mockGateRepoForRequest{
+		getByIDFn: func(ctx context.Context, id traffictesting.GateID) (*traffictesting.Gate, error) {
+			t.Fatalf("gate repo should not be consulted for a future-dated request")
+			return nil, nil
+		},
+	}
+	handler := NewCreateRequestHandler(repo, gateRepo)
+
+	gateID := traffictesting.NewGateID()
+	cmd := CreateRequestCommand{
+		GateID:         gateID.String(),
+		Method:         "GET",
+		Path:           "/test",
+		CreatedAt:      time.Now().Add(time.Hour),
+		LiveResponse:   CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
+		ShadowResponse: CreateRequestResponseProps{StatusCode: 200, CreatedAt: time.Now()},
+	}
+
+	// Act
+	req, err := handler.Handle(context.Background(), cmd)
+
+	// Assert
+	require.Error(t, err)
+	assert.Nil(t, req)
+	assert.ErrorIs(t, err, traffictesting.ErrCreatedAtInFuture)
+}
+
 func TestCreateRequestHandler_Handle_repository_error(t *testing.T) {
 	// Arrange
 	expectedErr := errors.New("database connection failed")
