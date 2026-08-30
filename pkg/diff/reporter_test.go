@@ -327,6 +327,32 @@ func TestPatchReporter_complex_nested_structure(t *testing.T) {
 	assert.True(t, paths["/body/data/tags/1"])
 }
 
+func TestPatchReporter_empty_to_non_empty_object(t *testing.T) {
+	a := `{"a":{}}`
+	b := `{"a":{"b":1}}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "add", ops[0].Op)
+	assert.Equal(t, "/a/b", ops[0].Path)
+	assert.Equal(t, float64(1), ops[0].Value)
+}
+
+func TestPatchReporter_empty_to_non_empty_array(t *testing.T) {
+	a := `{"a":[]}`
+	b := `{"a":[1]}`
+
+	ops, err := diff.JSON(a, b)
+
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "add", ops[0].Op)
+	assert.Equal(t, "/a/0", ops[0].Path)
+	assert.Equal(t, float64(1), ops[0].Value)
+}
+
 func TestPatchReporter_empty_diff_returns_empty_ops(t *testing.T) {
 	a := `{"name":"alice","age":30}`
 	b := `{"name":"alice","age":30}`
