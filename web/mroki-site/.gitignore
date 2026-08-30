@@ -1,0 +1,20 @@
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Dependencies
+node_modules
+.pnpm-store
+
+# VitePress
+.vitepress/cache
+.vitepress/dist
+.vitepress/generated
+
+# Generated symlinks to the canonical docs/ tree (Option B)
+guide/
+
+# Editor / OS
+.DS_Store
+*.local

@@ -1,0 +1,8 @@
+node_modules
+.vitepress/cache
+.vitepress/dist
+.vitepress/generated
+guide
+pnpm-lock.yaml
+*.min.js
+*.min.css
