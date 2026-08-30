@@ -191,6 +191,50 @@ describe('GateList pagination stability', () => {
   })
 })
 
+describe('GateList loading and error states', () => {
+  beforeEach(() => {
+    getGates.mockReset()
+  })
+
+  it('shows the loading state while the first page is in flight', () => {
+    // A never-resolving fetch keeps the query pending so the loading branch is
+    // observable (no data yet, so keepPreviousData has nothing to hold).
+    getGates.mockReturnValue(new Promise(() => {}))
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
+
+    expect(wrapper.text()).toContain('Loading gates...')
+    expect(wrapper.text()).not.toContain('Create your first gate')
+  })
+
+  it('shows the error alert with the failure message when the fetch rejects', async () => {
+    getGates.mockRejectedValue(new Error('boom'))
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Error')
+    expect(wrapper.text()).toContain('boom')
+    expect(wrapper.text()).not.toContain('Loading gates...')
+  })
+
+  it('refetches when Retry is clicked and recovers to the list on success', async () => {
+    getGates.mockRejectedValueOnce(new Error('boom'))
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
+    await flushPromises()
+    expect(wrapper.text()).toContain('boom')
+
+    // The retry path calls query.refetch(); the next fetch resolves, so the
+    // error clears and the gate cards render.
+    getGates.mockResolvedValue(response([makeGate()]))
+    const retry = wrapper.findAll('button').find((b) => b.text().includes('Retry'))
+    expect(retry).toBeTruthy()
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('boom')
+    expect(wrapper.findAll('.gate-card-stub')).toHaveLength(1)
+  })
+})
+
 describe('GateList reset-on-watch', () => {
   beforeEach(() => {
     getGates.mockReset()

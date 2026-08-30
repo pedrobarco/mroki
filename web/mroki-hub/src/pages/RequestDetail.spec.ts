@@ -116,6 +116,50 @@ async function mountDetail(request = makeRequest(), gate = makeGate()) {
   return wrapper
 }
 
+describe('RequestDetail loading and error states', () => {
+  beforeEach(() => {
+    getGate.mockReset()
+    getRequest.mockReset()
+  })
+
+  it('shows the loading state while either query is in flight', () => {
+    // The gate resolves but the request never does, so the combined
+    // loading = gatePending || requestPending stays true.
+    getGate.mockResolvedValue({ data: makeGate() })
+    getRequest.mockReturnValue(new Promise(() => {}))
+    const wrapper = mount(RequestDetail, {
+      global: { ...global, plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]] },
+    })
+
+    expect(wrapper.text()).toContain('Loading request...')
+    expect(wrapper.findComponent({ name: 'DiffViewer' }).exists()).toBe(false)
+  })
+
+  it('surfaces the request error message when the request fetch rejects', async () => {
+    getGate.mockResolvedValue({ data: makeGate() })
+    getRequest.mockRejectedValue(new Error('request boom'))
+    const wrapper = mount(RequestDetail, {
+      global: { ...global, plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]] },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Error')
+    expect(wrapper.text()).toContain('request boom')
+    expect(wrapper.findComponent({ name: 'DiffViewer' }).exists()).toBe(false)
+  })
+
+  it('falls back to the gate error message when only the gate fetch rejects', async () => {
+    getGate.mockRejectedValue(new Error('gate boom'))
+    getRequest.mockResolvedValue({ data: makeRequest() })
+    const wrapper = mount(RequestDetail, {
+      global: { ...global, plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]] },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('gate boom')
+  })
+})
+
 describe('RequestDetail copy cURL', () => {
   const writeText = vi.fn()
   beforeEach(() => {

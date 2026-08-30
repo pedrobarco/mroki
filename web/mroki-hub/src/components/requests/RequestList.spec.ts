@@ -219,3 +219,87 @@ describe('RequestList latency formatting', () => {
     expect(wrapper.text()).toContain('10ms / —')
   })
 })
+
+describe('RequestList loading, error, and empty states', () => {
+  beforeEach(() => {
+    push.mockClear()
+    getRequests.mockReset()
+  })
+
+  // The error branch renders the Alert (title + message) and a Retry button, so
+  // these are passthrough stubs (slots rendered) rather than the `true` stubs
+  // used elsewhere; the loading/empty branches are plain divs and need none.
+  const passthrough = { template: '<div><slot /></div>' }
+  function stateGlobal() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return {
+      stubs: {
+        Alert: passthrough,
+        AlertDescription: passthrough,
+        AlertTitle: passthrough,
+        Button: { template: '<button><slot /></button>' },
+        Tooltip: true,
+        TooltipContent: true,
+        TooltipProvider: false,
+        TooltipTrigger: true,
+        ChevronRight: true,
+      },
+      plugins: [[VueQueryPlugin, { queryClient }]],
+    }
+  }
+
+  it('shows the loading state while the first page is in flight', () => {
+    // A never-resolving fetch keeps the query pending so the loading branch is
+    // observable (no previous data for keepPreviousData to hold).
+    getRequests.mockReturnValue(new Promise(() => {}))
+    const wrapper = mount(RequestList, {
+      props: { gateId: 'gate-1', filters },
+      global: stateGlobal(),
+    })
+
+    expect(wrapper.text()).toContain('Loading requests...')
+  })
+
+  it('shows the empty state when the gate has no captured requests', async () => {
+    getRequests.mockResolvedValue(makeResponse([]))
+    const wrapper = mount(RequestList, {
+      props: { gateId: 'gate-1', filters },
+      global: stateGlobal(),
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('No requests captured yet')
+    expect(wrapper.find('[role="button"]').exists()).toBe(false)
+  })
+
+  it('shows the error alert with the failure message when the fetch rejects', async () => {
+    getRequests.mockRejectedValue(new Error('kaboom'))
+    const wrapper = mount(RequestList, {
+      props: { gateId: 'gate-1', filters },
+      global: stateGlobal(),
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Error')
+    expect(wrapper.text()).toContain('kaboom')
+  })
+
+  it('refetches when Retry is clicked and recovers to the rows on success', async () => {
+    getRequests.mockRejectedValueOnce(new Error('kaboom'))
+    const wrapper = mount(RequestList, {
+      props: { gateId: 'gate-1', filters },
+      global: stateGlobal(),
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('kaboom')
+
+    getRequests.mockResolvedValue(makeResponse([makeRequest({ id: 'req-ok' })]))
+    const retry = wrapper.findAll('button').find((b) => b.text().includes('Retry'))
+    expect(retry).toBeTruthy()
+    await retry!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('kaboom')
+    expect(wrapper.findAll('[role="button"]')).toHaveLength(1)
+  })
+})
