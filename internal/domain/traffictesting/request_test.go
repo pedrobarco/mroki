@@ -103,25 +103,3 @@ func TestNewRequest_created_at_bounds(t *testing.T) {
 		})
 	}
 }
-
-func TestNewRequest_future_created_at_raises_no_event(t *testing.T) {
-	gateID := traffictesting.NewGateID()
-	method, _ := traffictesting.NewHTTPMethod("GET")
-	path, _ := traffictesting.ParsePath("/api/test")
-
-	request, err := traffictesting.NewRequest(
-		gateID,
-		method,
-		path,
-		"",
-		traffictesting.NewHeaders(nil),
-		nil,
-		time.Now().Add(time.Hour),
-		traffictesting.Response{},
-		traffictesting.Response{},
-		traffictesting.Diff{},
-	)
-
-	assert.ErrorIs(t, err, traffictesting.ErrCreatedAtInFuture)
-	assert.Nil(t, request)
-}

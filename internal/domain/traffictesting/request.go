@@ -70,7 +70,7 @@ func NewRequest(
 	opts ...requestOption,
 ) (*Request, error) {
 	if createdAt.After(time.Now().Add(maxClockSkew)) {
-		return nil, fmt.Errorf("%w: %s exceeds now by more than %s", ErrCreatedAtInFuture, createdAt, maxClockSkew)
+		return nil, fmt.Errorf("%w: %s is in the future", ErrCreatedAtInFuture, createdAt)
 	}
 
 	request := &Request{
