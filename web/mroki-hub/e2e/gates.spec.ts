@@ -30,13 +30,14 @@ test.describe('Gates Page', () => {
     await page.getByRole('button', { name: 'New gate' }).click()
     await expect(page.getByRole('heading', { name: 'Create gate' })).toBeVisible()
 
-    // Fill form
-    await page.getByLabel('Name').fill(`new-test-gate-${suffix}`)
-    await page.getByLabel('Live URL').fill(`https://new-live-${suffix}.example.com`)
-    await page.getByLabel('Shadow URL').fill(`https://new-shadow-${suffix}.example.com`)
+    // Fill form (scope to the form so a gate card's aria-label can't collide)
+    const form = page.locator('form')
+    await form.getByLabel('Name').fill(`new-test-gate-${suffix}`)
+    await form.getByLabel('Live URL').fill(`https://new-live-${suffix}.example.com`)
+    await form.getByLabel('Shadow URL').fill(`https://new-shadow-${suffix}.example.com`)
 
     // Submit
-    await page.locator('form').getByRole('button', { name: 'Create gate' }).click()
+    await form.getByRole('button', { name: 'Create gate' }).click()
 
     // Dialog closes
     await expect(page.getByRole('heading', { name: 'Create gate' })).not.toBeVisible()
@@ -55,20 +56,21 @@ test.describe('Gates Page', () => {
     await page.goto('/gates')
     await page.getByRole('button', { name: 'New gate' }).click()
 
-    const submitButton = page.locator('form').getByRole('button', { name: 'Create gate' })
+    const form = page.locator('form')
+    const submitButton = form.getByRole('button', { name: 'Create gate' })
 
     // Empty form — submit disabled
     await expect(submitButton).toBeDisabled()
 
     // Invalid live URL (with name filled)
-    await page.getByLabel('Name').fill('test-gate')
-    await page.getByLabel('Live URL').fill('not-a-url')
-    await page.getByLabel('Shadow URL').fill('https://shadow.example.com')
+    await form.getByLabel('Name').fill('test-gate')
+    await form.getByLabel('Live URL').fill('not-a-url')
+    await form.getByLabel('Shadow URL').fill('https://shadow.example.com')
     await expect(submitButton).toBeDisabled()
     await expect(page.getByText('Please enter a valid URL')).toBeVisible()
 
     // Fix live URL — submit enabled
-    await page.getByLabel('Live URL').fill('https://live.example.com')
+    await form.getByLabel('Live URL').fill('https://live.example.com')
     await expect(submitButton).toBeEnabled()
   })
 
