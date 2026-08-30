@@ -192,7 +192,6 @@ func TestCompare_different_status_codes(t *testing.T) {
 	assert.Equal(t, "replace", paths["/statusCode"])
 }
 
-
 func TestCompare_nil_redactor(t *testing.T) {
 	comparer := services.NewResponseComparer(nil, nil)
 	_, err := comparer.Compare(
@@ -276,7 +275,7 @@ func TestCompare_redaction_never_leaks_headers(t *testing.T) {
 		if strings.HasPrefix(op.Path, "/headers/X-Trace") {
 			sawTrace = true
 		}
-		assert.NotContains(t, op.Path, "Authorization/", "redacted header must not produce a value op")
+		assert.NotContains(t, op.Path, "Authorization", "redacted header must not produce any op")
 	}
 	assert.True(t, sawTrace, "non-redacted header diff should surface")
 	assertOpsFreeOfSecrets(t, result.Ops, "live-token", "shadow-token")

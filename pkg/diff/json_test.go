@@ -59,7 +59,7 @@ func TestJSON_invalid_second_input_returns_error(t *testing.T) {
 
 // Type-change and null edge cases
 
-func TestJSON_IntVsFloat_SameValue_NoDiff(t *testing.T) {
+func TestJSON_int_vs_float_same_value_no_diff(t *testing.T) {
 	// JSON numbers decode to float64, so 1 and 1.0 are the same value.
 	a := `{"v": 1}`
 	b := `{"v": 1.0}`
@@ -70,7 +70,7 @@ func TestJSON_IntVsFloat_SameValue_NoDiff(t *testing.T) {
 	assert.Empty(t, ops, "integer and float literals of the same value should not diff")
 }
 
-func TestJSON_NumberVsString_TypeChange(t *testing.T) {
+func TestJSON_number_vs_string_type_change(t *testing.T) {
 	a := `{"v": 1}`
 	b := `{"v": "1"}`
 
@@ -83,7 +83,7 @@ func TestJSON_NumberVsString_TypeChange(t *testing.T) {
 	assert.Equal(t, "1", ops[0].Value)
 }
 
-func TestJSON_NullArrayElement_Replace(t *testing.T) {
+func TestJSON_null_array_element_replace(t *testing.T) {
 	a := `{"a": [1]}`
 	b := `{"a": [null]}`
 

@@ -396,7 +396,6 @@ func TestPatchReporter_json_pointer_format(t *testing.T) {
 	assert.Equal(t, "bob", ops[0].Value)
 }
 
-
 func TestPatchReporter_add_operation(t *testing.T) {
 	a := `{"name":"alice"}`
 	b := `{"name":"alice","age":30}`
