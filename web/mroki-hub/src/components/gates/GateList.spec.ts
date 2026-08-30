@@ -235,6 +235,33 @@ describe('GateList loading and error states', () => {
   })
 })
 
+describe('GateList pager total tracks a narrowing filter', () => {
+  beforeEach(() => {
+    getGates.mockReset()
+  })
+
+  // Regression for the totalPages fix: the page count derives from the reactive
+  // server total (Math.ceil(total / pageSize)) rather than table.getPageCount(),
+  // whose memo can keep the previous, larger rowCount after a filter narrows the
+  // result set — leaving a stale "of N".
+  it('shrinks the page count (no stale "of N") when a filter narrows the total', async () => {
+    // First load: 12 gates over a page size of 5 => 3 pages.
+    getGates.mockResolvedValue(pagedResponse([makeGate()], 12, true))
+    const wrapper = mount(GateList, mountOpts({ filters: makeFilters() }))
+    await flushPromises()
+    expect(wrapper.text()).toContain('Page 1 of 3')
+
+    // A filter narrows the set to 6 gates => 2 pages. The pager must reflect the
+    // new, smaller total rather than the stale 3-page count.
+    getGates.mockResolvedValue(pagedResponse([makeGate()], 6, true))
+    await wrapper.setProps({ filters: makeFilters({ liveUrl: 'checkout' }) })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Page 1 of 2')
+    expect(wrapper.text()).not.toContain('Page 1 of 3')
+  })
+})
+
 describe('GateList reset-on-watch', () => {
   beforeEach(() => {
     getGates.mockReset()

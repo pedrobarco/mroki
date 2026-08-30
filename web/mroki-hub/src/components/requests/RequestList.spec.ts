@@ -177,6 +177,44 @@ describe('RequestList reset-on-watch', () => {
   })
 })
 
+describe('RequestList pager total tracks a narrowing filter', () => {
+  beforeEach(() => {
+    push.mockClear()
+    getRequests.mockReset()
+  })
+
+  // Regression for the totalPages fix: the page count derives from the reactive
+  // server total (Math.ceil(total / pageSize)) rather than table.getPageCount(),
+  // whose memo can keep the previous, larger rowCount after a filter narrows the
+  // result set — leaving a stale "of N".
+  it('shrinks the page count (no stale "of N") when a filter narrows the total', async () => {
+    // First load: 60 requests over a page size of 20 => 3 pages.
+    getRequests.mockResolvedValue({
+      data: [makeRequest()],
+      pagination: { limit: 20, offset: 0, total: 60, has_more: true },
+    } satisfies PaginatedResponse<Request[]>)
+    const wrapper = mount(RequestList, {
+      props: { gateId: 'gate-1', filters },
+      global: makeGlobal(),
+    })
+    await flushPromises()
+    expect(wrapper.findComponent(Pagination).text()).toContain('Page 1 of 3')
+
+    // A filter narrows the set to 40 requests => 2 pages. The pager must reflect
+    // the new, smaller total rather than the stale 3-page count.
+    getRequests.mockResolvedValue({
+      data: [makeRequest()],
+      pagination: { limit: 20, offset: 0, total: 40, has_more: true },
+    } satisfies PaginatedResponse<Request[]>)
+    await wrapper.setProps({ filters: { ...filters, path: '/api/orders' } })
+    await flushPromises()
+
+    const pager = wrapper.findComponent(Pagination)
+    expect(pager.text()).toContain('Page 1 of 2')
+    expect(pager.text()).not.toContain('Page 1 of 3')
+  })
+})
+
 describe('RequestList showing count', () => {
   beforeEach(() => {
     push.mockClear()
