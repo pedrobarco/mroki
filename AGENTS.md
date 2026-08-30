@@ -23,7 +23,7 @@ See [Architecture Overview](docs/architecture/OVERVIEW.md) for data flow and des
 ```
 cmd/                 Executables (mroki-api, mroki-proxy, caddy-mroki)
 internal/            Private API code (DDD + CQRS layering, see below)
-pkg/                 Public libraries: proxy, diff, client, dto, logger, ratelimit, jsontree, caddymodule
+pkg/                 Public libraries: proxy, diff, client, dto, logger, ratelimit, jsontree, caddymodule, metrics
 ent/                 GENERATED Ent code + schema/ + migrate/migrations/ (see Database)
 web/mroki-hub/       Vue 3 + TypeScript SPA (pnpm)
 docs/                Documentation (getting-started, production, api, architecture, development)
