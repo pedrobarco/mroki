@@ -103,6 +103,13 @@ func (h *CreateRequestHandler) Handle(ctx context.Context, cmd CreateRequestComm
 		return nil, err
 	}
 
+	// Reject future-dated timestamps before doing any expensive work (gate
+	// fetch, redaction, diffing). NewRequest enforces the same invariant, so
+	// this is purely a fail-fast guard.
+	if err := traffictesting.ValidateCreatedAt(cmd.CreatedAt); err != nil {
+		return nil, err
+	}
+
 	// Fetch gate for redacted fields and diff config
 	gate, gateErr := h.gateRepo.GetByID(ctx, gateID)
 	if gateErr != nil && !errors.Is(gateErr, traffictesting.ErrGateNotFound) {
