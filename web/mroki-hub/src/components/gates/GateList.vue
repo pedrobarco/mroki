@@ -121,7 +121,11 @@ const table = useVueTable({
 })
 
 const currentPage = computed(() => table.getState().pagination.pageIndex + 1)
-const totalPages = computed(() => table.getPageCount())
+// Derive the page count from the reactive server total rather than
+// table.getPageCount(): the table's page-count memo can lag when the total
+// drops after a filter change (it keeps the previous, larger rowCount), leaving
+// a stale "of N". `total`/`pageSize` are the source of truth for paging here.
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
 
 function nextPage() {
   table.nextPage()
