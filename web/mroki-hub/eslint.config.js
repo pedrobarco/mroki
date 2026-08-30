@@ -53,6 +53,13 @@ export default tseslint.config(
     },
   },
   {
+    // Playwright fixtures rely on empty object destructuring, e.g. `async ({}, use) => {}`
+    files: ['e2e/**'],
+    rules: {
+      'no-empty-pattern': 'off',
+    },
+  },
+  {
     ignores: [
       'dist/**',
       'node_modules/**',
@@ -60,7 +67,6 @@ export default tseslint.config(
       '*.config.ts',
       '.vite/**',
       'src/components/ui/**',
-      'e2e/**',
     ],
   }
 )

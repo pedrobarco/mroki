@@ -69,7 +69,11 @@ const orderShadow = {
 }
 
 const orderDiffOps = [
-  { op: 'add', path: '/body/items/2', value: { sku: 'PROMO-100', name: 'Welcome Gift', qty: 1, unit_price: 0.0 } },
+  {
+    op: 'add',
+    path: '/body/items/2',
+    value: { sku: 'PROMO-100', name: 'Welcome Gift', qty: 1, unit_price: 0.0 },
+  },
   { op: 'add', path: '/body/totals/discount', value: 15.0 },
   { op: 'replace', path: '/body/totals/tax', value: 17.46 },
   { op: 'replace', path: '/body/totals/total', value: 211.44 },
@@ -152,9 +156,21 @@ export async function seedScreenshotData(api: ApiHelper): Promise<{
   paymentsGate: SeededGate
 }> {
   // Create all gates
-  const ordersGateData = await api.createGate(gates.orders.name, gates.orders.liveUrl, gates.orders.shadowUrl)
-  const usersGateData = await api.createGate(gates.users.name, gates.users.liveUrl, gates.users.shadowUrl)
-  const paymentsGateData = await api.createGate(gates.payments.name, gates.payments.liveUrl, gates.payments.shadowUrl)
+  const ordersGateData = await api.createGate(
+    gates.orders.name,
+    gates.orders.liveUrl,
+    gates.orders.shadowUrl
+  )
+  const usersGateData = await api.createGate(
+    gates.users.name,
+    gates.users.liveUrl,
+    gates.users.shadowUrl
+  )
+  const paymentsGateData = await api.createGate(
+    gates.payments.name,
+    gates.payments.liveUrl,
+    gates.payments.shadowUrl
+  )
 
   // Configure the orders gate with realistic diff + redaction settings *before*
   // seeding its requests, so each request's diff config snapshot reflects these
@@ -181,7 +197,7 @@ export async function seedScreenshotData(api: ApiHelper): Promise<{
         liveStatus: req.liveStatus,
         shadowStatus: req.shadowStatus,
         diffContent: req.diffOps,
-      }),
+      })
     )
   }
 

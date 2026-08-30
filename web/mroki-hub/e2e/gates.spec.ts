@@ -43,7 +43,9 @@ test.describe('Gates Page', () => {
     await page.getByPlaceholder('Search gates by live URL...').fill('new-live')
 
     // Wait for debounce (400ms) + API response
-    await expect(page.getByText('https://new-live.example.com').first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('https://new-live.example.com').first()).toBeVisible({
+      timeout: 10000,
+    })
     await expect(page.getByText('https://new-shadow.example.com').first()).toBeVisible()
   })
 
