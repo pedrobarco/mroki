@@ -1,0 +1,6 @@
+type: string
+title: HealthStatus
+description: |
+  A plain-text health probe body. `OK` when healthy; otherwise a short
+  diagnostic message.
+example: "OK"

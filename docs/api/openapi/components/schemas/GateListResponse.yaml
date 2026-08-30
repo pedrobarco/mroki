@@ -1,0 +1,15 @@
+type: object
+title: GateListResponse
+description: Paginated envelope wrapping a list of Gate objects.
+additionalProperties: false
+required:
+  - data
+  - pagination
+properties:
+  data:
+    type: array
+    description: The gates in this page.
+    items:
+      $ref: "./Gate.yaml"
+  pagination:
+    $ref: "./PaginationMeta.yaml"

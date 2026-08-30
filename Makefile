@@ -2,7 +2,7 @@ HUB_DIR := web/mroki-hub
 DEV_COMPOSE := build/dev/compose.yaml
 
 .PHONY: help build test lint clean \
-	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-sqlc api-migrate api-clean \
+	api-build api-test api-test-verbose api-test-coverage api-fmt api-lint api-docs-lint api-docs api-docs-check api-sqlc api-migrate api-clean \
 	proxy-build proxy-test proxy-clean \
 	hub-build hub-test hub-test-unit hub-test-ui hub-test-setup hub-screenshots hub-dev hub-install hub-preview hub-fmt hub-lint hub-clean \
 	dev-up dev-up-backend dev-up-frontend dev-up-telemetry dev-down dev-reset
@@ -26,7 +26,10 @@ help:
 	@echo "  api-test-verbose   Run API tests (verbose)"
 	@echo "  api-test-coverage  Run API tests with coverage"
 	@echo "  api-fmt            Format Go code"
-	@echo "  api-lint           Run golangci-lint"
+	@echo "  api-lint           Run golangci-lint + OpenAPI spec lint"
+	@echo "  api-docs-lint      Lint the OpenAPI spec (Speakeasy)"
+	@echo "  api-docs           Generate docs/api/REFERENCE.md from the OpenAPI spec"
+	@echo "  api-docs-check     Verify docs/api/REFERENCE.md matches the OpenAPI spec"
 	@echo "  api-sqlc           Generate Go code from SQL"
 	@echo "  api-migrate        Generate new migration file (usage: make api-migrate name=<name>)"
 	@echo "  api-clean          Remove API build artifacts"
@@ -94,9 +97,21 @@ api-fmt:
 	@echo "Formatting Go code..."
 	go fmt ./...
 
-api-lint:
+api-lint: api-docs-lint
 	@echo "Running golangci-lint..."
 	golangci-lint run
+
+api-docs-lint:
+	@echo "Linting OpenAPI spec..."
+	go tool openapi spec lint --config docs/api/openapi/lint.yaml docs/api/openapi/openapi.yaml
+
+api-docs:
+	@echo "Generating API reference from OpenAPI spec..."
+	go run ./internal/apidocs/cmd/apidocs
+
+api-docs-check:
+	@echo "Checking API reference is up to date..."
+	go run ./internal/apidocs/cmd/apidocs -check
 
 api-sqlc:
 	@echo "Generating Go code from SQL..."

@@ -1,0 +1,16 @@
+get:
+  operationId: getLiveness
+  summary: Liveness probe
+  description: |
+    Always responds with `200 OK` while the process is running. Intended for
+    Kubernetes liveness probes. Unauthenticated; bypasses the API middleware.
+  tags:
+    - Health
+  security: []
+  responses:
+    "200":
+      description: The process is alive.
+      content:
+        text/plain:
+          schema:
+            $ref: "../components/schemas/HealthStatus.yaml"

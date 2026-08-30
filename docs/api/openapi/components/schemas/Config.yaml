@@ -1,0 +1,16 @@
+type: object
+title: Config
+description: |
+  Read-only, server-wide settings the hub needs to render its UI. It is not
+  tied to any gate; it reflects the API's own configuration.
+additionalProperties: false
+required:
+  - retention
+properties:
+  retention:
+    type: string
+    description: |
+      The global retention floor as a Go duration string (e.g. `720h`). Every
+      gate is pruned no sooner than this, and any per-gate override must be at
+      least this value.
+    example: "720h"

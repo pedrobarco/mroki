@@ -1,0 +1,10 @@
+name: limit
+in: query
+required: false
+description: Maximum number of items to return. Defaults to 50; capped at 100.
+schema:
+  type: integer
+  minimum: 1
+  maximum: 100
+  default: 50
+example: 50

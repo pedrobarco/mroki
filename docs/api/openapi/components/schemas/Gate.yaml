@@ -1,0 +1,57 @@
+type: object
+title: Gate
+description: A traffic-testing gate with live and shadow URLs.
+additionalProperties: false
+required:
+  - id
+  - name
+  - live_url
+  - shadow_url
+  - diff_config
+  - redacted_fields
+  - retention
+  - created_at
+  - stats
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique gate identifier.
+    example: "9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f"
+  name:
+    type: string
+    description: Human-readable gate name (unique across gates).
+    example: "users-service"
+  live_url:
+    type: string
+    format: uri
+    description: Base URL of the live (production) service.
+    example: "https://live.example.com"
+  shadow_url:
+    type: string
+    format: uri
+    description: Base URL of the shadow (candidate) service.
+    example: "https://shadow.example.com"
+  diff_config:
+    $ref: "./DiffConfig.yaml"
+  redacted_fields:
+    type: array
+    description: JSON paths whose values are redacted before storage.
+    items:
+      type: string
+    example:
+      - "/password"
+      - "/token"
+  retention:
+    type: string
+    description: |
+      Per-gate retention as a Go duration string (e.g. `168h`). An empty string
+      means the gate uses the global retention floor.
+    example: "168h"
+  created_at:
+    type: string
+    format: date-time
+    description: When the gate was created (RFC 3339).
+    example: "2024-04-20T09:00:00Z"
+  stats:
+    $ref: "./GateStats.yaml"

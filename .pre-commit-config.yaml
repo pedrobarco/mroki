@@ -9,7 +9,7 @@ repos:
       - id: go-mod-tidy-repo
 
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.11.4
+    rev: v2.13.2
     hooks:
       - id: golangci-lint
 
@@ -46,5 +46,14 @@ repos:
         entry: bash -c 'cd web/mroki-hub && pnpm lint'
         language: system
         files: ^web/mroki-hub/src/.*\.(vue|ts|js)$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # Ensure the generated API reference stays in sync with the OpenAPI spec.
+      - id: mroki-api-docs-check
+        name: Check API reference is in sync with OpenAPI spec
+        entry: make api-docs-check
+        language: system
+        files: ^(docs/api/openapi/.*|docs/api/REFERENCE\.md|internal/apidocs/.*)$
         pass_filenames: false
         stages: [pre-commit]

@@ -1,0 +1,16 @@
+get:
+  operationId: getMetrics
+  summary: Prometheus metrics
+  description: |
+    Exposes metrics in the Prometheus text exposition format. Only mounted when
+    metrics are enabled. Unauthenticated; bypasses the API middleware.
+  tags:
+    - Metrics
+  security: []
+  responses:
+    "200":
+      description: Metrics in the Prometheus text exposition format.
+      content:
+        text/plain:
+          schema:
+            $ref: "../components/schemas/PrometheusMetrics.yaml"

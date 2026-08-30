@@ -1,0 +1,9 @@
+name: method
+in: query
+required: false
+description: |
+  Filter by HTTP method. Accepts a comma-separated list to match any of the
+  listed methods (e.g. `GET,POST`).
+schema:
+  type: string
+example: "GET,POST"

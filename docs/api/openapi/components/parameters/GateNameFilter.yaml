@@ -1,0 +1,7 @@
+name: name
+in: query
+required: false
+description: Filter gates whose name contains this substring.
+schema:
+  type: string
+example: "users"

@@ -1,0 +1,11 @@
+name: order
+in: query
+required: false
+description: Sort direction.
+schema:
+  type: string
+  enum:
+    - asc
+    - desc
+  default: desc
+example: desc

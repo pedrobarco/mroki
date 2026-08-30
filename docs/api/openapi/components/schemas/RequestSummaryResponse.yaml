@@ -1,0 +1,9 @@
+type: object
+title: RequestSummaryResponse
+description: Envelope wrapping a single Request summary object.
+additionalProperties: false
+required:
+  - data
+properties:
+  data:
+    $ref: "./Request.yaml"

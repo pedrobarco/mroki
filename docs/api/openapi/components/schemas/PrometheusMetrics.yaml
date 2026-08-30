@@ -1,0 +1,7 @@
+type: string
+title: PrometheusMetrics
+description: Metrics in the Prometheus text exposition format.
+example: |
+  # HELP http_server_request_duration_seconds Duration of HTTP server requests.
+  # TYPE http_server_request_duration_seconds histogram
+  http_server_request_duration_seconds_count{http_route="/gates"} 42

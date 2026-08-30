@@ -1,0 +1,144 @@
+get:
+  operationId: getGate
+  summary: Get a gate
+  description: Returns a single gate by its identifier.
+  tags:
+    - Gates
+  parameters:
+    - $ref: "../components/parameters/GateIDPath.yaml"
+  responses:
+    "200":
+      description: The requested gate.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/GateResponse.yaml"
+    "400":
+      description: The request was malformed (invalid gate id).
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "401":
+      description: Authentication failed because the bearer token was missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "404":
+      description: No gate exists with the given id.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "429":
+      description: The client has exceeded the rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "500":
+      description: An unexpected error occurred while processing the request.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+patch:
+  operationId: updateGate
+  summary: Update a gate
+  description: |
+    Updates a gate. All fields are optional; omitted fields are left unchanged.
+  tags:
+    - Gates
+  parameters:
+    - $ref: "../components/parameters/GateIDPath.yaml"
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../components/schemas/UpdateGateRequest.yaml"
+  responses:
+    "200":
+      description: The updated gate.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/GateResponse.yaml"
+    "400":
+      description: The request was malformed (invalid body or gate id).
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "401":
+      description: Authentication failed because the bearer token was missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "404":
+      description: No gate exists with the given id.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "409":
+      description: The update conflicts with an existing gate (duplicate name or URL pair).
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "429":
+      description: The client has exceeded the rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "500":
+      description: An unexpected error occurred while processing the request.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+delete:
+  operationId: deleteGate
+  summary: Delete a gate
+  description: Deletes a gate and all of its captured requests.
+  tags:
+    - Gates
+  parameters:
+    - $ref: "../components/parameters/GateIDPath.yaml"
+  responses:
+    "204":
+      description: The gate was deleted.
+    "400":
+      description: The request was malformed (invalid gate id).
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "401":
+      description: Authentication failed because the bearer token was missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "404":
+      description: No gate exists with the given id.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "429":
+      description: The client has exceeded the rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "500":
+      description: An unexpected error occurred while processing the request.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"

@@ -1,0 +1,24 @@
+get:
+  operationId: getReadiness
+  summary: Readiness probe
+  description: |
+    Checks database connectivity within a 1-second timeout. Returns `200 OK`
+    when reachable, or `503` with a diagnostic message otherwise. Intended for
+    Kubernetes readiness and startup probes. Unauthenticated; bypasses the API
+    middleware.
+  tags:
+    - Health
+  security: []
+  responses:
+    "200":
+      description: The service is ready to accept traffic.
+      content:
+        text/plain:
+          schema:
+            $ref: "../components/schemas/HealthStatus.yaml"
+    "503":
+      description: The service is not ready (database unreachable).
+      content:
+        text/plain:
+          schema:
+            $ref: "../components/schemas/HealthStatus.yaml"

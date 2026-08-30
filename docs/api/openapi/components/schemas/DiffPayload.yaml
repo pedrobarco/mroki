@@ -1,0 +1,12 @@
+type: object
+title: DiffPayload
+description: The computed difference between two responses.
+additionalProperties: false
+required:
+  - content
+properties:
+  content:
+    type: array
+    description: RFC 6902 JSON Patch operations.
+    items:
+      $ref: "./PatchOp.yaml"

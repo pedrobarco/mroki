@@ -1,0 +1,35 @@
+type: object
+title: DiffConfig
+description: Per-gate diff computation settings.
+additionalProperties: false
+required:
+  - ignored_fields
+  - included_fields
+  - float_tolerance
+  - sort_arrays
+properties:
+  ignored_fields:
+    type: array
+    description: JSON paths excluded from comparison.
+    items:
+      type: string
+    example:
+      - "/timestamp"
+      - "/request_id"
+  included_fields:
+    type: array
+    description: |
+      JSON paths to compare exclusively. When non-empty, only these paths are
+      compared and everything else is ignored.
+    items:
+      type: string
+    example: []
+  float_tolerance:
+    type: number
+    format: double
+    description: Absolute tolerance applied when comparing floating-point numbers.
+    example: 0.0001
+  sort_arrays:
+    type: boolean
+    description: Whether arrays are sorted before comparison so element order is ignored.
+    example: false

@@ -1,0 +1,9 @@
+type: object
+title: RequestDetailResponse
+description: Envelope wrapping a single RequestDetail object.
+additionalProperties: false
+required:
+  - data
+properties:
+  data:
+    $ref: "./RequestDetail.yaml"

@@ -1,0 +1,8 @@
+name: gate_id
+in: path
+required: true
+description: The unique identifier of the gate.
+schema:
+  type: string
+  format: uuid
+example: "9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f"

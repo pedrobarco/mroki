@@ -1,1218 +1,1534 @@
-# API Reference
+# mroki API Reference
 
-> For a guided introduction, see the [API Walkthrough](WALKTHROUGH.md).
-
-This document specifies the REST API provided by `mroki-api`, including endpoints, request/response formats, and error handling.
+This file is generated from the OpenAPI specification under `docs/api/openapi/`. **Do not edit it by hand** — run `make api-docs` to regenerate it.
 
 ## Base URL
 
-```
-http://localhost:8090
-```
-
-## Response Format
-
-All successful API responses follow this structure:
-
-```json
-{
-  "data": <response_data>
-}
-```
-
-All error responses follow RFC 7807 (Problem Details for HTTP APIs):
-
-```json
-{
-  "type": "/errors/invalid-request-body",
-  "title": "Invalid Request Body",
-  "status": 400,
-  "detail": "live_url is required",
-  "instance": "/gates"
-}
-```
-
-**RFC 7807 Error Fields:**
-- `type` - URI identifying the error type (relative path)
-- `title` - Short, human-readable summary of the error type
-- `status` - HTTP status code (matches response status)
-- `detail` - Human-readable explanation specific to this occurrence
-- `instance` - URI reference identifying the specific request (populated for 4xx errors only)
-
----
+The local development server is available at `http://localhost:8090`.
 
 ## Authentication
 
-All API endpoints (except health checks) require bearer token authentication.
+Every endpoint except the infrastructure endpoints (`/health/live`, `/health/ready`, `/metrics`) requires a bearer token supplied as `Authorization: Bearer <your-api-key>`.
 
-### Authorization Header Format
+## Response envelope
 
-```
-Authorization: Bearer <your-api-key>
-```
+Successful responses wrap their payload in a `data` field. List endpoints add a `pagination` object (`limit`, `offset`, `total`, `has_more`).
 
-### Authentication Errors
+## Errors
 
-**Missing Authorization Header:**
+Errors are returned as `application/json` following [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) with the fields `type`, `title`, `status`, `detail`, and (for 4xx) `instance`. The `type` is a relative URI such as `/errors/not-found`, `/errors/invalid-request-body`, `/errors/invalid-query-param`, `/errors/unauthorized`, `/errors/conflict`, `/errors/rate-limit-exceeded`, or `/errors/internal-error`. See the `Problem` schema below.
+
+## Table of Contents
+
+HTTP Request | Description
+-------------|------------
+GET [/config](#getconfig) | Get server configuration
+GET [/stats](#getstats) | Get global statistics
+GET [/gates](#getgates) | List gates
+POST [/gates](#postgates) | Create a gate
+GET [/gates/{gate_id}](#getgatesgateid) | Get a gate
+PATCH [/gates/{gate_id}](#patchgatesgateid) | Update a gate
+DELETE [/gates/{gate_id}](#deletegatesgateid) | Delete a gate
+GET [/gates/{gate_id}/requests](#getgatesgateidrequests) | List requests for a gate
+POST [/gates/{gate_id}/requests](#postgatesgateidrequests) | Create a request
+GET [/gates/{gate_id}/requests/{request_id}](#getgatesgateidrequestsrequestid) | Get a request
+GET [/health/live](#gethealthlive) | Liveness probe
+GET [/health/ready](#gethealthready) | Readiness probe
+GET [/metrics](#getmetrics) | Prometheus metrics
+
+## Config
+
+### GET /config
+
+Returns the read-only, server-wide configuration the hub needs.
+
+### Responses
+
+#### 200 Response
+
+The server configuration.
+
 ```json
 {
-  "type": "/errors/unauthorized",
-  "title": "Missing Authorization Header",
-  "status": 401,
-  "detail": "Authorization header is required",
-  "instance": "/gates"
+   "data": {
+      "retention": "720h"
+   }
 }
 ```
 
-**Invalid Authorization Format:**
+#### Field Definitions
+
+- `data` *(Config, required)* Read-only, server-wide settings the hub needs to render its UI. It is not
+tied to any gate; it reflects the API's own configuration.
+
+
+**Config**
+- `retention` *(string, required)*: The global retention floor as a Go duration string (e.g. `720h`). Every
+gate is pruned no sooner than this, and any per-gate override must be at
+least this value.
+
+
+#### 401 Response
+
+Authentication failed because the bearer token was missing or invalid.
+
 ```json
 {
-  "type": "/errors/unauthorized",
-  "title": "Invalid Authorization Format",
-  "status": 401,
-  "detail": "Authorization header must use format: Bearer <token>",
-  "instance": "/gates"
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
 }
 ```
 
-**Invalid API Key:**
+#### 429 Response
+
+The client has exceeded the rate limit.
+
 ```json
 {
-  "type": "/errors/unauthorized",
-  "title": "Invalid API Key",
-  "status": 401,
-  "detail": "The provided API key is not valid",
-  "instance": "/gates"
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
 }
 ```
 
-### Excluded Endpoints
+#### 500 Response
 
-The following endpoints do not require authentication:
-- `GET /health/live` - Liveness probe
-- `GET /health/ready` - Readiness probe
+An unexpected error occurred while processing the request.
 
----
-
-## Request ID
-
-All API responses include an `X-Request-ID` header. If the client sends an `X-Request-ID` header, the same value is echoed back. If no header is provided, the API generates a UUID v4 and returns it.
-
-This ID is logged with every request (`request.id` field) and enables end-to-end correlation when used with mroki-proxy, which generates and propagates the same ID across live/shadow services and API calls.
-
-For `POST /gates/:gate_id/requests`, if no `id` field is provided in the request body, the `X-Request-ID` header value is used as the domain Request ID, ensuring the same UUID traces the entire flow from proxy through to the stored entity.
-
----
-
-## Endpoints
-
-### Health Checks
-
-#### GET /health/live
-
-**Purpose:** Kubernetes liveness probe - checks if process is running
-
-**Response:**
-- `200 OK` - Process is alive
-- Body: `OK` (plain text)
-
-**Example:**
-```bash
-curl http://localhost:8090/health/live
-```
-
----
-
-#### GET /health/ready
-
-**Purpose:** Kubernetes readiness probe - checks if service can handle traffic
-
-**Response:**
-- `200 OK` - Service is ready (database connected)
-- `503 Service Unavailable` - Service not ready (database unreachable)
-- Body: `OK` or error message (plain text)
-
-**Example:**
-```bash
-curl http://localhost:8090/health/ready
-```
-
----
-
-### Global Stats
-
-#### GET /stats
-
-**Purpose:** Retrieve global aggregate statistics across all gates
-
-**Response:**
-- `200 OK` on success
-- `500 Internal Server Error` on failure
-
-**Success Response Body:**
 ```json
 {
-  "data": {
-    "total_gates": 4,
-    "total_requests_24h": 12847,
-    "total_diff_rate": 4.2
-  }
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
 }
 ```
 
-**Fields:**
+## Gates
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `total_gates` | `int64` | Total number of gates |
-| `total_requests_24h` | `int64` | Request count in the last 24 hours across all gates |
-| `total_diff_rate` | `float64` | `total_diffs_24h / total_requests_24h * 100`, `0.0` when no requests |
+### GET /gates
 
-**Example:**
-```bash
-curl -H "Authorization: Bearer your-api-key" \
-  http://localhost:8090/stats
-```
+Returns a paginated list of gates with optional filtering and sorting.
 
----
+#### Query Parameters
 
-### Config
+- `limit` *(integer)* Maximum number of items to return. Defaults to 50; capped at 100.
 
-#### GET /config
+- `offset` *(integer)* Number of items to skip before the returned page. Defaults to 0.
 
-**Purpose:** Retrieve read-only, server-wide settings the hub needs to render its UI (not tied to any gate)
+- `name` *(string)* Filter gates whose name contains this substring.
 
-**Response:**
-- `200 OK` on success
+- `live_url` *(string)* Filter gates whose live URL contains this substring.
 
-**Success Response Body:**
-```json
-{
-  "data": {
-    "retention": "720h0m0s"
-  }
-}
-```
+- `shadow_url` *(string)* Filter gates whose shadow URL contains this substring.
 
-**Fields:**
+- `sort` *(string)* Field to sort gates by. Enums: `id`, `name`, `live_url`, `shadow_url`, `created_at`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `retention` | `string` | Global retention floor as a Go duration string (from `MROKI_APP_RETENTION`). Every gate is pruned no sooner than this, and any per-gate override must be at least this value |
+- `order` *(string)* Sort direction. Enums: `asc`, `desc`
 
-**Example:**
-```bash
-curl -H "Authorization: Bearer your-api-key" \
-  http://localhost:8090/config
-```
+### Responses
 
----
+#### 200 Response
 
-### Gates
-
-#### POST /gates
-
-**Purpose:** Create a new gate (live/shadow service pair)
-
-**Request Body:**
-```json
-{
-  "name": "checkout-api",
-  "live_url": "https://api.production.example.com",
-  "shadow_url": "https://api.shadow.example.com"
-}
-```
-
-**Validation:**
-- `name` is required, non-empty, max 255 characters, must be unique across all gates
-- `live_url` is required, must be valid HTTP/HTTPS URL, immutable after creation
-- `shadow_url` is required, must be valid HTTP/HTTPS URL, immutable after creation
-- The `(live_url, shadow_url)` pair must be unique across all gates
-
-**Response:**
-- `201 Created` on success
-- `400 Bad Request` if validation fails
-- `409 Conflict` if name or URL pair already exists
-
-**Success Response Body:**
-```json
-{
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "checkout-api",
-    "live_url": "https://api.production.example.com",
-    "shadow_url": "https://api.shadow.example.com",
-    "diff_config": {
-      "ignored_fields": [],
-      "included_fields": [],
-      "float_tolerance": 0,
-      "sort_arrays": false
-    },
-    "redacted_fields": [],
-    "retention": "",
-    "created_at": "2026-03-29T09:00:00Z",
-    "stats": {
-      "request_count_24h": 0,
-      "diff_count_24h": 0,
-      "diff_rate": 0,
-      "last_active": null
-    }
-  }
-}
-```
-
-> **Note:** Newly created gates have zero stats, default diff config, and empty redacted fields. Stats are populated as requests are captured. Default redacted fields (`headers.Authorization`, `headers.Cookie`, `headers.Set-Cookie`, `headers.X-Api-Key`) are always applied — `redacted_fields` adds per-gate fields on top.
-
-**Error Response Examples:**
-```json
-{
-  "type": "/errors/invalid-request-body",
-  "title": "Invalid Gate URL",
-  "status": 400,
-  "detail": "live_url and shadow_url must use http or https scheme",
-  "instance": "/gates"
-}
-```
+A paginated list of gates.
 
 ```json
 {
-  "type": "/errors/conflict",
-  "title": "Duplicate Gate Name",
-  "status": 409,
-  "detail": "a gate with this name already exists",
-  "instance": "/gates"
-}
-```
-
-```json
-{
-  "type": "/errors/conflict",
-  "title": "Duplicate Gate URLs",
-  "status": 409,
-  "detail": "a gate with this live_url and shadow_url pair already exists",
-  "instance": "/gates"
-}
-```
-
-**Example:**
-```bash
-curl -X POST http://localhost:8090/gates \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "httpbin-test",
-    "live_url": "https://httpbin.org/anything?service=live",
-    "shadow_url": "https://httpbin.org/anything?service=shadow"
-  }'
-```
-
----
-
-#### GET /gates/:gate_id
-
-**Purpose:** Retrieve a specific gate by ID
-
-**Path Parameters:**
-- `gate_id` (UUID) - Gate identifier
-
-**Response:**
-- `200 OK` on success
-- `400 Bad Request` if gate_id is invalid UUID
-- `404 Not Found` if gate doesn't exist
-
-**Success Response Body:**
-```json
-{
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "checkout-api",
-    "live_url": "https://api.production.example.com",
-    "shadow_url": "https://api.shadow.example.com",
-    "diff_config": {
-      "ignored_fields": ["timestamp", "request_id"],
-      "included_fields": [],
-      "float_tolerance": 0.001,
-      "sort_arrays": true
-    },
-    "redacted_fields": ["headers.X-Internal-Token"],
-    "retention": "",
-    "created_at": "2026-03-29T09:00:00Z",
-    "stats": {
-      "request_count_24h": 5241,
-      "diff_count_24h": 162,
-      "diff_rate": 3.09,
-      "last_active": "2026-03-29T14:32:05Z"
-    }
-  }
-}
-```
-
-**Diff config fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `ignored_fields` | `string[]` | JSON field paths to exclude from diff computation (supports wildcards) |
-| `included_fields` | `string[]` | JSON field paths to include exclusively in diff computation (supports wildcards) |
-| `float_tolerance` | `float64` | Absolute tolerance for floating-point comparisons (`0` = exact match) |
-| `sort_arrays` | `boolean` | Sort arrays before comparison so element order does not produce diffs (`false` = positional comparison) |
-
-**Stats fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `request_count_24h` | `int64` | Request count in the last 24 hours |
-| `diff_count_24h` | `int64` | Number of requests with diffs in the last 24 hours |
-| `diff_rate` | `float64` | `diff_count_24h / request_count_24h * 100`, `0.0` when no requests |
-| `last_active` | `string?` | RFC 3339 timestamp of the most recent request, `null` if no requests |
-
-**Example:**
-```bash
-curl -H "Authorization: Bearer your-api-key" \
-  http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000
-```
-
----
-
-#### GET /gates
-
-**Purpose:** List all gates with optional filtering and sorting
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `limit` | integer | 50 | Results per page (max: 100) |
-| `offset` | integer | 0 | Number of results to skip |
-| `name` | string | — | Filter by name substring (case-insensitive) |
-| `live_url` | string | — | Filter by live URL substring (case-insensitive) |
-| `shadow_url` | string | — | Filter by shadow URL substring (case-insensitive) |
-| `sort` | string | `created_at` | Sort field: `id`, `name`, `live_url`, `shadow_url`, or `created_at` |
-| `order` | string | `desc` | Sort direction: `asc` or `desc` |
-
-**Response:**
-- `200 OK` on success
-- `400 Bad Request` if query parameters are invalid
-- Returns empty array if no gates match
-
-**Success Response Body:**
-```json
-{
-  "data": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "checkout-api",
-      "live_url": "https://api.production.example.com",
-      "shadow_url": "https://api.shadow.example.com",
-      "diff_config": {
-        "ignored_fields": ["timestamp"],
-        "included_fields": [],
-        "float_tolerance": 0.001,
-        "sort_arrays": true
-      },
-      "redacted_fields": ["headers.X-Internal-Token"],
-      "retention": "168h",
-      "created_at": "2026-03-29T09:00:00Z",
-      "stats": {
-        "request_count_24h": 5241,
-        "diff_count_24h": 162,
-        "diff_rate": 3.09,
-        "last_active": "2026-03-29T14:32:05Z"
-      }
-    },
-    {
-      "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-      "name": "user-service",
-      "live_url": "https://api2.production.example.com",
-      "shadow_url": "https://api2.shadow.example.com",
-      "diff_config": {
-        "ignored_fields": [],
-        "included_fields": [],
-        "float_tolerance": 0,
-        "sort_arrays": false
-      },
-      "redacted_fields": [],
-      "retention": "",
-      "created_at": "2026-03-28T14:30:00Z",
-      "stats": {
-        "request_count_24h": 832,
-        "diff_count_24h": 25,
-        "diff_rate": 3.0,
-        "last_active": "2026-03-29T14:28:00Z"
-      }
-    }
-  ],
-  "pagination": {
-    "limit": 50,
-    "offset": 0,
-    "total": 2,
-    "has_more": false
-  }
-}
-```
-
-**Examples:**
-```bash
-# List all gates (default: 50 per page, sorted by created_at desc)
-curl -H "Authorization: Bearer your-api-key" \
-  http://localhost:8090/gates
-
-# Filter by name containing "checkout"
-curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates?name=checkout"
-
-# Filter by live URL containing "production"
-curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates?live_url=production"
-
-# Sort by name ascending
-curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates?sort=name&order=asc"
-
-# Paginate with limit and offset
-curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates?limit=10&offset=20&sort=created_at&order=desc"
-```
-
----
-
-#### PATCH /gates/:gate_id
-
-**Purpose:** Update a gate's name, diff configuration, redacted fields, and/or retention
-
-**Path Parameters:**
-- `gate_id` (UUID) - Gate identifier
-
-**Request Body** (all fields optional — only provided fields are updated):
-```json
-{
-  "name": "checkout-api-v2",
-  "diff_config": {
-    "ignored_fields": ["timestamp", "request_id"],
-    "included_fields": [],
-    "float_tolerance": 0.001,
-    "sort_arrays": true
-  },
-  "redacted_fields": ["headers.X-Internal-Token", "headers.X-Session-Id"],
-  "retention": "168h"
-}
-```
-
-**Validation:**
-- `name` (if provided) must be non-empty, max 255 characters, must be unique across all gates
-- `diff_config.ignored_fields` entries must be non-empty strings (supports wildcards)
-- `diff_config.included_fields` entries must be non-empty strings (supports wildcards)
-- `diff_config.float_tolerance` must be non-negative
-- `diff_config.sort_arrays` must be a boolean
-- `redacted_fields` entries must be non-empty strings prefixed with `headers.` (for HTTP headers, e.g. `headers.X-Internal-Token`) or `body.` (for JSON body paths, e.g. `body.user.password`)
-- `retention` (if provided) is a per-gate override: a Go duration string (e.g. `168h`) that must be positive and at least the global `MROKI_APP_RETENTION` floor. Surrounding whitespace is trimmed. The field is tri-state: omitting it leaves the current value unchanged, `null` or an empty string (`""`) resets the gate to the global retention, and a duration string sets a custom value. Retention cannot be disabled per gate
-
-**Response:**
-- `200 OK` on success
-- `400 Bad Request` if validation fails
-- `404 Not Found` if gate doesn't exist
-- `409 Conflict` if new name conflicts with existing gate
-
-**Success Response Body:**
-```json
-{
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "checkout-api-v2",
-    "live_url": "https://api.production.example.com",
-    "shadow_url": "https://api.shadow.example.com",
-    "diff_config": {
-      "ignored_fields": ["timestamp", "request_id"],
-      "included_fields": [],
-      "float_tolerance": 0.001,
-      "sort_arrays": true
-    },
-    "redacted_fields": ["headers.X-Internal-Token", "headers.X-Session-Id"],
-    "retention": "168h",
-    "created_at": "2026-03-29T09:00:00Z",
-    "stats": {
-      "request_count_24h": 5241,
-      "diff_count_24h": 162,
-      "diff_rate": 3.09,
-      "last_active": "2026-03-29T14:32:05Z"
-    }
-  }
-}
-```
-
-> **Note:** `live_url` and `shadow_url` are immutable after creation and cannot be changed via PATCH. Stats are returned in the response but computed from the read side. `retention` is returned as an empty string when the gate uses the global retention floor.
-
-**Error Response Examples:**
-```json
-{
-  "type": "/errors/invalid-request-body",
-  "title": "Invalid Diff Config",
-  "status": 400,
-  "detail": "diff_config is invalid: float_tolerance must be non-negative",
-  "instance": "/gates/550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-```json
-{
-  "type": "/errors/conflict",
-  "title": "Duplicate Gate Name",
-  "status": 409,
-  "detail": "a gate with this name already exists",
-  "instance": "/gates/550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-**Example:**
-```bash
-# Update gate name
-curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "checkout-api-v2"}'
-
-# Update diff config only
-curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "diff_config": {
-      "ignored_fields": ["timestamp"],
-      "included_fields": [],
-      "float_tolerance": 0.001,
-      "sort_arrays": true
-    }
-  }'
-
-# Set a custom retention (must be >= the global MROKI_APP_RETENTION floor)
-curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"retention": "168h"}'
-
-# Reset a gate back to the global retention
-curl -X PATCH http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"retention": ""}'
-```
-
----
-
-#### DELETE /gates/:gate_id
-
-**Purpose:** Delete a gate and all its related data (requests, responses, diffs) via cascade delete
-
-**Path Parameters:**
-- `gate_id` (UUID) - Gate identifier
-
-**Response:**
-- `204 No Content` on success
-- `400 Bad Request` if gate_id is invalid UUID
-- `404 Not Found` if gate doesn't exist
-
-**Example:**
-```bash
-curl -X DELETE http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000 \
-  -H "Authorization: Bearer your-api-key"
-```
-
-> **Note:** This operation is irreversible. All requests, responses, and diffs associated with the gate will be permanently deleted via database cascade.
-
----
-
-### Requests
-
-#### POST /gates/:gate_id/requests
-
-**Purpose:** Create a captured request (called by mroki-proxy)
-
-**Path Parameters:**
-- `gate_id` (UUID) - Parent gate identifier
-
-**Request Body:**
-```json
-{
-  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "method": "POST",
-  "path": "/api/users",
-  "raw_query": "page=2&limit=10",
-  "headers": {
-    "Content-Type": ["application/json"],
-    "User-Agent": ["curl/7.68.0"]
-  },
-  "body": "{\"name\":\"Alice\",\"age\":30}",
-  "created_at": "2026-01-31T20:00:00Z",
-  "live_response": {
-    "id": "8d0e7780-8536-51ef-a55c-f18fd2f91bf8",
-    "status_code": 200,
-    "headers": {
-      "Content-Type": ["application/json"]
-    },
-    "body": "{\"id\":123,\"name\":\"Alice\",\"age\":30}",
-    "latency_ms": 142,
-    "created_at": "2026-01-31T20:00:01Z"
-  },
-  "shadow_response": {
-    "id": "9e1f8891-9647-62f0-b66d-027fe3f02cf9",
-    "status_code": 200,
-    "headers": {
-      "Content-Type": ["application/json"]
-    },
-    "body": "{\"id\":456,\"name\":\"Alice\",\"age\":30}",
-    "latency_ms": 187,
-    "created_at": "2026-01-31T20:00:01Z"
-  },
-  "diff": {                          // ← optional: omit to let mroki-api compute it
-    "content": [
+   "data": [
       {
-        "op": "replace",
-        "path": "/id",
-        "value": 456
+         "created_at": "2024-04-20T09:00:00Z",
+         "diff_config": {
+            "float_tolerance": 0.0001,
+            "ignored_fields": [
+               "/timestamp",
+               "/request_id"
+            ],
+            "included_fields": [],
+            "sort_arrays": false
+         },
+         "id": "9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+         "live_url": "https://live.example.com",
+         "name": "users-service",
+         "redacted_fields": [
+            "/password",
+            "/token"
+         ],
+         "retention": "168h",
+         "shadow_url": "https://shadow.example.com",
+         "stats": {
+            "diff_count_24h": 6,
+            "diff_rate": 0.025,
+            "last_active": "2024-05-01T12:34:56Z",
+            "request_count_24h": 240
+         }
       }
-    ]
-  }
+   ],
+   "pagination": {
+      "has_more": true,
+      "limit": 50,
+      "offset": 0,
+      "total": 128
+   }
 }
 ```
 
-> **Note:** The `diff` field is optional. When omitted, mroki-api computes the diff server-side by comparing the live and shadow response bodies. This is the default behavior for proxies running in API mode. Pre-computed diffs are accepted for backward compatibility.
+#### Field Definitions
 
-**Field Descriptions:**
-- `id` (optional) - Request UUID, generated if omitted
-- `method` (required) - HTTP method (GET, POST, etc.)
-- `path` (required) - Request path
-- `raw_query` (optional) - Raw URL query string, without the leading `?` (e.g., `page=2&limit=10`)
-- `headers` (required) - Request headers
-- `body` (required) - Request body (Base64 encoded string)
-- `created_at` (required) - Request timestamp
-- `live_response` (required) - HTTP response from the live service
-  - `id` (optional) - Response UUID, generated if omitted
-  - `status_code` (required) - HTTP status code
-  - `headers` (required) - Response headers
-  - `body` (required) - Response body (Base64 encoded string)
-  - `latency_ms` (required) - Round-trip latency in milliseconds
-  - `created_at` (required) - Response timestamp
-- `shadow_response` (required) - HTTP response from the shadow service (same structure as `live_response`)
-- `diff` (optional) - Pre-computed difference (value object, no ID). If omitted, mroki-api computes the diff server-side from the response bodies.
-  - `content` (required if `diff` is present) - Array of RFC 6902 JSON Patch operations (empty array `[]` when no differences)
+- `data` *(array of Gate, required)* The gates in this page.
+- `pagination` *(PaginationMeta, required)* Pagination metadata for list responses.
 
-**Response:**
-- `201 Created` on success
-- `400 Bad Request` if validation fails
+**Gate**
+- `id` *(string, required)*: Unique gate identifier.
+- `name` *(string, required)*: Human-readable gate name (unique across gates).
+- `live_url` *(string, required)*: Base URL of the live (production) service.
+- `shadow_url` *(string, required)*: Base URL of the shadow (candidate) service.
+- `diff_config` *(DiffConfig, required)*: Per-gate diff computation settings.
+- `redacted_fields` *(string array, required)*: JSON paths whose values are redacted before storage.
+- `retention` *(string, required)*: Per-gate retention as a Go duration string (e.g. `168h`). An empty string
+means the gate uses the global retention floor.
 
-**Success Response Body:**
+- `created_at` *(string, required)*: When the gate was created (RFC 3339).
+- `stats` *(GateStats, required)*: Computed statistics for a single gate.
+
+**DiffConfig**
+- `ignored_fields` *(string array, required)*: JSON paths excluded from comparison.
+- `included_fields` *(string array, required)*: JSON paths to compare exclusively. When non-empty, only these paths are
+compared and everything else is ignored.
+
+- `float_tolerance` *(number, required)*: Absolute tolerance applied when comparing floating-point numbers.
+- `sort_arrays` *(boolean, required)*: Whether arrays are sorted before comparison so element order is ignored.
+
+**GateStats**
+- `request_count_24h` *(integer, required)*: Number of requests captured for this gate in the last 24 hours.
+- `diff_count_24h` *(integer, required)*: Number of requests that produced a diff in the last 24 hours.
+- `diff_rate` *(number, required)*: Fraction of requests that produced a diff in the last 24 hours (0.0–1.0).
+- `last_active` *(string, required)*: Timestamp of the most recent captured request, or null if none.
+
+**PaginationMeta**
+- `limit` *(integer, required)*: Maximum number of items returned in this page.
+- `offset` *(integer, required)*: Number of items skipped before this page.
+- `total` *(integer, required)*: Total number of items matching the query.
+- `has_more` *(boolean, required)*: Whether more items are available beyond this page.
+
+#### 400 Response
+
+The request was malformed (invalid query parameter).
+
 ```json
 {
-  "data": {
-    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "method": "POST",
-    "path": "/api/users",
-    "raw_query": "page=2&limit=10",
-    "created_at": "2026-01-31T20:00:00Z"
-  }
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
 }
 ```
 
-**Example:**
-```bash
-curl -X POST http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/requests \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d @captured_request.json
-```
+#### 401 Response
 
----
+Authentication failed because the bearer token was missing or invalid.
 
-#### GET /gates/:gate_id/requests/:request_id
-
-**Purpose:** Retrieve a specific captured request with full details
-
-**Path Parameters:**
-- `gate_id` (UUID) - Parent gate identifier
-- `request_id` (UUID) - Request identifier
-
-**Response:**
-- `200 OK` on success
-- `400 Bad Request` if IDs are invalid UUIDs
-- `404 Not Found` if request or gate doesn't exist
-
-**Success Response Body:**
 ```json
 {
-  "data": {
-    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "method": "POST",
-    "path": "/api/users",
-    "raw_query": "page=2&limit=10",
-    "headers": {
-      "Content-Type": ["application/json"],
-      "User-Agent": ["curl/7.68.0"]
-    },
-    "body": "{\"name\":\"Alice\",\"age\":30}",
-    "created_at": "2026-01-31T20:00:00Z",
-    "live_response": {
-      "id": "8d0e7780-8536-51ef-a55c-f18fd2f91bf8",
-      "status_code": 200,
-      "headers": {
-        "Content-Type": ["application/json"]
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 429 Response
+
+The client has exceeded the rate limit.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 500 Response
+
+An unexpected error occurred while processing the request.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+### POST /gates
+
+Creates a new gate with live and shadow URLs.
+
+### Request
+
+```json
+{
+   "live_url": "https://live.example.com",
+   "name": "users-service",
+   "shadow_url": "https://shadow.example.com"
+}
+```
+
+#### Field Definitions
+
+- `name` *(string, required)* Human-readable gate name (must be unique across gates).
+- `live_url` *(string, required)* Base URL of the live (production) service.
+- `shadow_url` *(string, required)* Base URL of the shadow (candidate) service.
+
+### Responses
+
+#### 201 Response
+
+The created gate.
+
+```json
+{
+   "data": {
+      "created_at": "2024-04-20T09:00:00Z",
+      "diff_config": {
+         "float_tolerance": 0.0001,
+         "ignored_fields": [
+            "/timestamp",
+            "/request_id"
+         ],
+         "included_fields": [],
+         "sort_arrays": false
       },
-      "body": "{\"id\":123,\"name\":\"Alice\",\"age\":30}",
-      "latency_ms": 142,
-      "created_at": "2026-01-31T20:00:01Z"
-    },
-    "shadow_response": {
-      "id": "9e1f8891-9647-62f0-b66d-027fe3f02cf9",
-      "status_code": 200,
-      "headers": {
-        "Content-Type": ["application/json"]
-      },
-      "body": "{\"id\":456,\"name\":\"Alice\",\"age\":30}",
-      "latency_ms": 187,
-      "created_at": "2026-01-31T20:00:01Z"
-    },
-    "diff": {
-      "content": [
-        {
-          "op": "replace",
-          "path": "/id",
-          "value": 456
-        }
+      "id": "9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+      "live_url": "https://live.example.com",
+      "name": "users-service",
+      "redacted_fields": [
+         "/password",
+         "/token"
       ],
-      "config": {
-        "ignored_fields": [],
-        "included_fields": [],
-        "float_tolerance": 0,
-        "sort_arrays": false
+      "retention": "168h",
+      "shadow_url": "https://shadow.example.com",
+      "stats": {
+         "diff_count_24h": 6,
+         "diff_rate": 0.025,
+         "last_active": "2024-05-01T12:34:56Z",
+         "request_count_24h": 240
       }
-    }
-  }
-}
+   }
 }
 ```
 
-**Example:**
-```bash
-curl -H "Authorization: Bearer your-api-key" \
-  http://localhost:8090/gates/550e8400-e29b-41d4-a716-446655440000/requests/7c9e6679-7425-40de-944b-e07fc1f90ae7
-```
+#### Field Definitions
 
----
+See [GateResponse](#gateresponse)
 
-#### GET /gates/:gate_id/requests
+#### 400 Response
 
-**Purpose:** List captured requests for a gate with optional filtering and sorting
+The request was malformed (invalid or missing body field).
 
-**Path Parameters:**
-- `gate_id` (UUID) - Parent gate identifier
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `limit` | integer | 50 | Results per page (max: 100) |
-| `offset` | integer | 0 | Number of results to skip |
-| `method` | string | — | Filter by HTTP method(s), comma-separated (e.g., `GET,POST`) |
-| `path` | string | — | Filter by path. Matched as a substring (not anchored to the start); `*` matches any sequence of characters (e.g., `/api/users/*`). Matching is case-sensitive. |
-| `from` | RFC3339 | — | Filter requests created on or after this timestamp |
-| `to` | RFC3339 | — | Filter requests created on or before this timestamp |
-| `has_diff` | boolean | — | Filter by whether the responses differ (`true` = only requests with a non-empty diff, `false` = only requests whose responses are identical) |
-| `sort` | string | `created_at` | Sort field: `created_at`, `method`, or `path` |
-| `order` | string | `desc` | Sort direction: `asc` or `desc` |
-
-**Response:**
-- `200 OK` on success
-- `400 Bad Request` if gate_id is invalid UUID or query parameters are invalid
-- Returns empty array if no requests match
-
-**Success Response Body:**
 ```json
 {
-  "data": [
-    {
-      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-      "method": "POST",
-      "path": "/api/users",
-      "raw_query": "page=1&limit=50",
-      "created_at": "2026-01-31T20:00:00Z",
-      "live_response": { "status_code": 200, "latency_ms": 142 },
-      "shadow_response": { "status_code": 200, "latency_ms": 187 },
-      "has_diff": true
-    },
-    {
-      "id": "8d9f7890-8536-51ef-a55c-f18fd2f91bf9",
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 401 Response
+
+Authentication failed because the bearer token was missing or invalid.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 409 Response
+
+A gate with the same name or live/shadow URL pair already exists.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 429 Response
+
+The client has exceeded the rate limit.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 500 Response
+
+An unexpected error occurred while processing the request.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+### GET /gates/{gate_id}
+
+Returns a single gate by its identifier.
+
+#### Path Parameters
+
+- `gate_id` *(string, required)* The unique identifier of the gate.
+
+### Responses
+
+#### 200 Response
+
+The requested gate.
+
+```json
+{
+   "data": {
+      "created_at": "2024-04-20T09:00:00Z",
+      "diff_config": {
+         "float_tolerance": 0.0001,
+         "ignored_fields": [
+            "/timestamp",
+            "/request_id"
+         ],
+         "included_fields": [],
+         "sort_arrays": false
+      },
+      "id": "9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+      "live_url": "https://live.example.com",
+      "name": "users-service",
+      "redacted_fields": [
+         "/password",
+         "/token"
+      ],
+      "retention": "168h",
+      "shadow_url": "https://shadow.example.com",
+      "stats": {
+         "diff_count_24h": 6,
+         "diff_rate": 0.025,
+         "last_active": "2024-05-01T12:34:56Z",
+         "request_count_24h": 240
+      }
+   }
+}
+```
+
+#### Field Definitions
+
+See [GateResponse](#gateresponse)
+
+#### 400 Response
+
+The request was malformed (invalid gate id).
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 401 Response
+
+Authentication failed because the bearer token was missing or invalid.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 404 Response
+
+No gate exists with the given id.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 429 Response
+
+The client has exceeded the rate limit.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 500 Response
+
+An unexpected error occurred while processing the request.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+### PATCH /gates/{gate_id}
+
+Updates a gate. All fields are optional; omitted fields are left unchanged.
+
+
+#### Path Parameters
+
+- `gate_id` *(string, required)* The unique identifier of the gate.
+
+### Request
+
+```json
+{
+   "diff_config": {
+      "float_tolerance": 0.0001,
+      "ignored_fields": [
+         "/timestamp",
+         "/request_id"
+      ],
+      "included_fields": [],
+      "sort_arrays": false
+   },
+   "name": "users-service-v2",
+   "redacted_fields": [
+      "/password"
+   ],
+   "retention": "168h"
+}
+```
+
+#### Field Definitions
+
+- `name` *(string)* New gate name.
+- `diff_config` *(DiffConfig)* Per-gate diff computation settings.
+- `redacted_fields` *(string array)* Replacement list of JSON paths to redact before storage.
+- `retention` *(string)* Per-gate retention as a Go duration string. This field is tri-state:
+omit it to leave the value unchanged; send `null` or an empty string to
+reset to the global retention floor; send a duration (e.g. `168h`) to set
+a custom value.
+
+
+**DiffConfig**
+- `ignored_fields` *(string array, required)*: JSON paths excluded from comparison.
+- `included_fields` *(string array, required)*: JSON paths to compare exclusively. When non-empty, only these paths are
+compared and everything else is ignored.
+
+- `float_tolerance` *(number, required)*: Absolute tolerance applied when comparing floating-point numbers.
+- `sort_arrays` *(boolean, required)*: Whether arrays are sorted before comparison so element order is ignored.
+
+### Responses
+
+#### 200 Response
+
+The updated gate.
+
+```json
+{
+   "data": {
+      "created_at": "2024-04-20T09:00:00Z",
+      "diff_config": {
+         "float_tolerance": 0.0001,
+         "ignored_fields": [
+            "/timestamp",
+            "/request_id"
+         ],
+         "included_fields": [],
+         "sort_arrays": false
+      },
+      "id": "9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+      "live_url": "https://live.example.com",
+      "name": "users-service",
+      "redacted_fields": [
+         "/password",
+         "/token"
+      ],
+      "retention": "168h",
+      "shadow_url": "https://shadow.example.com",
+      "stats": {
+         "diff_count_24h": 6,
+         "diff_rate": 0.025,
+         "last_active": "2024-05-01T12:34:56Z",
+         "request_count_24h": 240
+      }
+   }
+}
+```
+
+#### Field Definitions
+
+See [GateResponse](#gateresponse)
+
+#### 400 Response
+
+The request was malformed (invalid body or gate id).
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 401 Response
+
+Authentication failed because the bearer token was missing or invalid.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 404 Response
+
+No gate exists with the given id.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 409 Response
+
+The update conflicts with an existing gate (duplicate name or URL pair).
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 429 Response
+
+The client has exceeded the rate limit.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 500 Response
+
+An unexpected error occurred while processing the request.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+### DELETE /gates/{gate_id}
+
+Deletes a gate and all of its captured requests.
+
+#### Path Parameters
+
+- `gate_id` *(string, required)* The unique identifier of the gate.
+
+### Responses
+
+#### 204 Response
+
+The gate was deleted.
+
+#### 400 Response
+
+The request was malformed (invalid gate id).
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 401 Response
+
+Authentication failed because the bearer token was missing or invalid.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 404 Response
+
+No gate exists with the given id.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 429 Response
+
+The client has exceeded the rate limit.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 500 Response
+
+An unexpected error occurred while processing the request.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+## Health
+
+### GET /health/live
+
+Always responds with `200 OK` while the process is running. Intended for
+Kubernetes liveness probes. Unauthenticated; bypasses the API middleware.
+
+
+### Responses
+
+#### 200 Response
+
+The process is alive.
+
+### GET /health/ready
+
+Checks database connectivity within a 1-second timeout. Returns `200 OK`
+when reachable, or `503` with a diagnostic message otherwise. Intended for
+Kubernetes readiness and startup probes. Unauthenticated; bypasses the API
+middleware.
+
+
+### Responses
+
+#### 200 Response
+
+The service is ready to accept traffic.
+
+#### 503 Response
+
+The service is not ready (database unreachable).
+
+## Metrics
+
+### GET /metrics
+
+Exposes metrics in the Prometheus text exposition format. Only mounted when
+metrics are enabled. Unauthenticated; bypasses the API middleware.
+
+
+### Responses
+
+#### 200 Response
+
+Metrics in the Prometheus text exposition format.
+
+## Requests
+
+### GET /gates/{gate_id}/requests
+
+Returns a paginated list of requests captured for a gate, with optional filtering and sorting.
+
+#### Path Parameters
+
+- `gate_id` *(string, required)* The unique identifier of the gate.
+
+#### Query Parameters
+
+- `limit` *(integer)* Maximum number of items to return. Defaults to 50; capped at 100.
+
+- `offset` *(integer)* Number of items to skip before the returned page. Defaults to 0.
+
+- `method` *(string)* Filter by HTTP method. Accepts a comma-separated list to match any of the
+listed methods (e.g. `GET,POST`).
+
+
+- `path` *(string)* Filter requests whose path contains this substring.
+
+- `from` *(string)* Only include requests created at or after this timestamp (RFC 3339).
+
+- `to` *(string)* Only include requests created at or before this timestamp (RFC 3339).
+
+- `has_diff` *(boolean)* Filter by whether a request produced a diff.
+
+- `sort` *(string)* Field to sort requests by. Enums: `created_at`, `method`, `path`
+
+- `order` *(string)* Sort direction. Enums: `asc`, `desc`
+
+### Responses
+
+#### 200 Response
+
+A paginated list of request summaries.
+
+```json
+{
+   "data": [
+      {
+         "created_at": "2024-05-01T12:34:56Z",
+         "has_diff": false,
+         "id": "3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+         "live_response": {
+            "latency_ms": 42,
+            "status_code": 200
+         },
+         "method": "GET",
+         "path": "/api/users/123",
+         "raw_query": "page=2\u0026limit=10",
+         "shadow_response": {
+            "latency_ms": 42,
+            "status_code": 200
+         }
+      }
+   ],
+   "pagination": {
+      "has_more": true,
+      "limit": 50,
+      "offset": 0,
+      "total": 128
+   }
+}
+```
+
+#### Field Definitions
+
+- `data` *(array of Request, required)* The requests in this page.
+- `pagination` *(PaginationMeta, required)* Pagination metadata for list responses.
+
+**Request**
+- `id` *(string, required)*: Unique request identifier.
+- `method` *(string, required)*: HTTP method of the captured request.
+- `path` *(string, required)*: Request path.
+- `raw_query` *(string)*: Raw query string, omitted when empty.
+- `created_at` *(string, required)*: When the request was captured (RFC 3339).
+- `live_response` *(ResponseSummary, required)*: Lightweight response summary used in request listings.
+- `shadow_response` *(ResponseSummary, required)*: Lightweight response summary used in request listings.
+- `has_diff` *(boolean, required)*: Whether a diff was detected between the live and shadow responses.
+
+**ResponseSummary**
+- `status_code` *(integer, required)*: HTTP status code of the response.
+- `latency_ms` *(integer, required)*: Response time in milliseconds.
+
+**ResponseSummary**
+- `status_code` *(integer, required)*: HTTP status code of the response.
+- `latency_ms` *(integer, required)*: Response time in milliseconds.
+
+**PaginationMeta**
+- `limit` *(integer, required)*: Maximum number of items returned in this page.
+- `offset` *(integer, required)*: Number of items skipped before this page.
+- `total` *(integer, required)*: Total number of items matching the query.
+- `has_more` *(boolean, required)*: Whether more items are available beyond this page.
+
+#### 400 Response
+
+The request was malformed (invalid query or path parameter).
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 401 Response
+
+Authentication failed because the bearer token was missing or invalid.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 404 Response
+
+No gate exists with the given id.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 429 Response
+
+The client has exceeded the rate limit.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 500 Response
+
+An unexpected error occurred while processing the request.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+### POST /gates/{gate_id}/requests
+
+Submits a captured request with its live and shadow responses. If a diff is
+not supplied, the API computes it server-side.
+
+
+#### Path Parameters
+
+- `gate_id` *(string, required)* The unique identifier of the gate.
+
+### Request
+
+```json
+{
+   "body": "",
+   "created_at": "2024-05-01T12:34:56Z",
+   "diff": {
+      "content": [
+         {
+            "op": "replace",
+            "path": "/data/name",
+            "value": "new-value"
+         }
+      ]
+   },
+   "headers": {
+      "Accept": [
+         "application/json"
+      ]
+   },
+   "id": "3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+   "live_response": {
+      "body": "eyJvayI6dHJ1ZX0=",
+      "created_at": "2024-05-01T12:34:56Z",
+      "headers": {
+         "Content-Type": [
+            "application/json"
+         ]
+      },
+      "id": "7a8b9c0d-1e2f-4a3b-9c8d-7e6f5a4b3c2d",
+      "latency_ms": 42,
+      "status_code": 200
+   },
+   "method": "GET",
+   "path": "/api/users/123",
+   "raw_query": "page=2\u0026limit=10",
+   "shadow_response": {
+      "body": "eyJvayI6dHJ1ZX0=",
+      "created_at": "2024-05-01T12:34:56Z",
+      "headers": {
+         "Content-Type": [
+            "application/json"
+         ]
+      },
+      "id": "7a8b9c0d-1e2f-4a3b-9c8d-7e6f5a4b3c2d",
+      "latency_ms": 42,
+      "status_code": 200
+   }
+}
+```
+
+#### Field Definitions
+
+- `id` *(string)* Optional request identifier. When omitted, the API uses the `X-Request-ID`
+header if present, otherwise it generates one.
+
+- `method` *(string, required)* HTTP method of the captured request.
+- `path` *(string, required)* Request path.
+- `raw_query` *(string)* Raw query string, omitted when empty.
+- `headers` *(object, required)* Request headers as a map of header name to a list of values.
+- `body` *(string, required)* Base64-encoded request body.
+- `created_at` *(string, required)* When the request was captured (RFC 3339).
+- `live_response` *(ResponsePayload, required)* A single HTTP response submitted by a proxy.
+- `shadow_response` *(ResponsePayload, required)* A single HTTP response submitted by a proxy.
+- `diff` *(DiffPayload)* The computed difference between two responses.
+
+**ResponsePayload**
+- `id` *(string)*: Optional response identifier; generated by the API when omitted.
+- `status_code` *(integer, required)*: HTTP status code of the response.
+- `headers` *(object, required)*: Response headers as a map of header name to a list of values.
+- `body` *(string, required)*: Base64-encoded response body.
+- `latency_ms` *(integer, required)*: Response time in milliseconds.
+- `created_at` *(string, required)*: When the response was captured (RFC 3339).
+
+**ResponsePayload**
+- `id` *(string)*: Optional response identifier; generated by the API when omitted.
+- `status_code` *(integer, required)*: HTTP status code of the response.
+- `headers` *(object, required)*: Response headers as a map of header name to a list of values.
+- `body` *(string, required)*: Base64-encoded response body.
+- `latency_ms` *(integer, required)*: Response time in milliseconds.
+- `created_at` *(string, required)*: When the response was captured (RFC 3339).
+
+**DiffPayload**
+- `content` *(array of PatchOp, required)*: RFC 6902 JSON Patch operations.
+
+**PatchOp**
+- `op` *(string, required)*: The JSON Patch operation.. Enums: `add`, `remove`, `replace`
+- `path` *(string, required)*: JSON Pointer (RFC 6901) to the location that differs.
+- `value`: The value associated with the operation. Present for `add` and `replace`
+operations; omitted for `remove`. May be any JSON type.
+
+
+### Responses
+
+#### 201 Response
+
+The created request summary.
+
+```json
+{
+   "data": {
+      "created_at": "2024-05-01T12:34:56Z",
+      "has_diff": false,
+      "id": "3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+      "live_response": {
+         "latency_ms": 42,
+         "status_code": 200
+      },
       "method": "GET",
       "path": "/api/users/123",
-      "created_at": "2026-01-31T20:01:00Z",
-      "live_response": { "status_code": 200, "latency_ms": 38 },
-      "shadow_response": { "status_code": 200, "latency_ms": 41 },
-      "has_diff": false
-    }
-  ],
-  "pagination": {
-    "limit": 50,
-    "offset": 0,
-    "total": 2,
-    "has_more": false
-  }
+      "raw_query": "page=2\u0026limit=10",
+      "shadow_response": {
+         "latency_ms": 42,
+         "status_code": 200
+      }
+   }
 }
 ```
 
-**List item fields:**
+#### Field Definitions
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `raw_query` | `string?` | Raw URL query string, without the leading `?`. Omitted when empty |
-| `live_response` | `ResponseSummary?` | Live response summary (`null` if not yet received) |
-| `shadow_response` | `ResponseSummary?` | Shadow response summary (`null` if not yet received) |
-| `has_diff` | `bool` | Whether the live and shadow responses differ (`true` when the computed diff is non-empty) |
+- `data` *(Request, required)* Summary of a captured request, used in listings.
 
-**ResponseSummary:**
+**Request**
+- `id` *(string, required)*: Unique request identifier.
+- `method` *(string, required)*: HTTP method of the captured request.
+- `path` *(string, required)*: Request path.
+- `raw_query` *(string)*: Raw query string, omitted when empty.
+- `created_at` *(string, required)*: When the request was captured (RFC 3339).
+- `live_response` *(ResponseSummary, required)*: Lightweight response summary used in request listings.
+- `shadow_response` *(ResponseSummary, required)*: Lightweight response summary used in request listings.
+- `has_diff` *(boolean, required)*: Whether a diff was detected between the live and shadow responses.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `status_code` | `int` | HTTP status code |
-| `latency_ms` | `int64` | Round-trip latency in milliseconds |
+**ResponseSummary**
+- `status_code` *(integer, required)*: HTTP status code of the response.
+- `latency_ms` *(integer, required)*: Response time in milliseconds.
 
-**Examples:**
-```bash
-# List all requests (default: newest first, 50 per page)
-curl -H "Authorization: Bearer your-api-key" \
-  http://localhost:8090/gates/$GATE_ID/requests
+**ResponseSummary**
+- `status_code` *(integer, required)*: HTTP status code of the response.
+- `latency_ms` *(integer, required)*: Response time in milliseconds.
 
-# Filter by method and path pattern
-curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates/$GATE_ID/requests?method=GET,POST&path=/api/users/*"
+#### 400 Response
 
-# Filter by date range and only requests with diffs
-curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates/$GATE_ID/requests?from=2026-01-31T00:00:00Z&to=2026-02-01T00:00:00Z&has_diff=true"
-
-# Sort by path ascending, second page
-curl -H "Authorization: Bearer your-api-key" \
-  "http://localhost:8090/gates/$GATE_ID/requests?sort=path&order=asc&limit=20&offset=20"
-```
-
----
-
-## Error Handling
-
-### Error Response Format
-
-All errors follow RFC 7807 (Problem Details for HTTP APIs):
+The request was malformed (invalid or missing body field).
 
 ```json
 {
-  "type": "/errors/not-found",
-  "title": "Gate Not Found",
-  "status": 404,
-  "detail": "gate with id \"550e8400-e29b-41d4-a716-446655440000\" does not exist",
-  "instance": "/gates/550e8400-e29b-41d4-a716-446655440000"
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
 }
 ```
 
-**Field Descriptions:**
-- `type` - URI reference identifying the problem type (e.g., `/errors/invalid-request-body`)
-- `title` - Short, human-readable summary that remains consistent for this error type
-- `status` - HTTP status code (always matches the response status header)
-- `detail` - Human-readable explanation specific to this occurrence of the error
-- `instance` - URI reference to the specific resource/request (auto-populated for 4xx errors, empty for 5xx)
+#### 401 Response
 
-### Error Types
-
-The API uses the following generic error types:
-
-| Type | Title | Status | Usage |
-|------|-------|--------|-------|
-| `/errors/invalid-request-body` | Invalid Request Body | 400 | Malformed JSON, validation failures, invalid IDs/URLs |
-| `/errors/missing-body-field` | Missing Required Field | 400 | Required body field is missing |
-| `/errors/missing-path-param` | Missing Path Parameter | 400 | Required path parameter is missing |
-| `/errors/missing-query-param` | Missing Query Parameter | 400 | Required query parameter is missing |
-| `/errors/invalid-query-param` | Invalid Query Parameter | 400 | Invalid pagination, filters, or sort parameters |
-| `/errors/missing-header` | Missing Required Header | 400 | Required header is missing |
-| `/errors/unauthorized` | Unauthorized | 401 | Missing or invalid API key |
-| `/errors/not-found` | Resource Not Found | 404 | Gate or Request doesn't exist |
-| `/errors/conflict` | Conflict | 409 | Duplicate gate name or URL pair |
-| `/errors/rate-limit-exceeded` | Rate Limit Exceeded | 429 | Too many requests from this IP |
-| `/errors/internal-error` | Internal Server Error | 500 | Unexpected server errors |
-
-### HTTP Status Codes
-
-- `200 OK` - Request succeeded
-- `201 Created` - Resource created successfully
-- `204 No Content` - Resource deleted successfully
-- `400 Bad Request` - Invalid request data (validation failed)
-- `401 Unauthorized` - Missing or invalid API key
-- `404 Not Found` - Resource not found
-- `409 Conflict` - Duplicate gate name or URL pair
-- `429 Too Many Requests` - Rate limit exceeded
-- `500 Internal Server Error` - Server error
-- `503 Service Unavailable` - Service not ready (health check failed)
-
-### Common Error Scenarios
-
-#### Invalid UUID Format
-```json
-{
-  "type": "/errors/invalid-request-body",
-  "title": "Invalid Gate ID",
-  "status": 400,
-  "detail": "gate_id must be a valid UUID, got \"not-a-uuid\"",
-  "instance": "/gates/not-a-uuid"
-}
-```
-
-#### Missing Required Field
-```json
-{
-  "type": "/errors/missing-body-field",
-  "title": "Missing Required Field",
-  "status": 400,
-  "detail": "live_url is required",
-  "instance": "/gates"
-}
-```
-
-#### Resource Not Found
-```json
-{
-  "type": "/errors/not-found",
-  "title": "Gate Not Found",
-  "status": 404,
-  "detail": "gate with id \"550e8400-e29b-41d4-a716-446655440000\" does not exist",
-  "instance": "/gates/550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-#### Invalid URL
-```json
-{
-  "type": "/errors/invalid-request-body",
-  "title": "Invalid Gate URL",
-  "status": 400,
-  "detail": "live_url and shadow_url must use http or https scheme: invalid gate URL: scheme must be http or https, got \"ftp\"",
-  "instance": "/gates"
-}
-```
-
-#### Invalid Pagination
-```json
-{
-  "type": "/errors/invalid-query-param",
-  "title": "Invalid Query Parameter",
-  "status": 400,
-  "detail": "limit and offset must be non-negative integers: invalid pagination parameters: limit must be non-negative, got -10",
-  "instance": "/gates"
-}
-```
-
-#### Internal Server Error
-```json
-{
-  "type": "/errors/internal-error",
-  "title": "Internal Server Error",
-  "status": 500,
-  "detail": "An unknown error occurred. Please try again later."
-}
-```
-**Note:** 5xx errors do NOT include the `instance` field for security reasons.
-
----
-
-## Data Types
-
-### UUID Format
-
-All IDs use UUID v4 format:
-
-```
-550e8400-e29b-41d4-a716-446655440000
-```
-
-### Timestamp Format
-
-All timestamps use RFC3339 format with timezone:
-
-```
-2026-01-31T20:00:00Z
-```
-
-### Headers Format
-
-Headers are represented as maps with string arrays (to support multiple values):
+Authentication failed because the bearer token was missing or invalid.
 
 ```json
 {
-  "Content-Type": ["application/json"],
-  "X-Custom-Header": ["value1", "value2"]
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
 }
 ```
 
-### Diff Format
+#### 404 Response
 
-Diffs use RFC 6902 JSON Patch format. The `content` field is an array of patch operations describing the differences between the live and shadow responses. Diffs are computed server-side by mroki-api when the `diff` field is omitted from the request payload.
-
-Each operation has the following structure:
+No gate exists with the given id.
 
 ```json
 {
-  "op": "replace",
-  "path": "/id",
-  "value": 456
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
 }
 ```
 
-**Operation types:**
-- `add` — A field exists in the shadow response but not in the live response
-- `remove` — A field exists in the live response but not in the shadow response
-- `replace` — A field exists in both but has a different value
+#### 429 Response
 
-**Fields:**
-- `op` (string, required) — The operation type
-- `path` (string, required) — JSON Pointer (RFC 6901) to the affected field
-- `value` (any, optional) — The shadow response value (omitted for `remove` operations)
-
-**Example (no differences):**
-```json
-[]
-```
-
-**Example (with differences):**
-```json
-[
-  {
-    "op": "replace",
-    "path": "/id",
-    "value": 456
-  },
-  {
-    "op": "add",
-    "path": "/new_field",
-    "value": "some_value"
-  },
-  {
-    "op": "remove",
-    "path": "/old_field"
-  }
-]
-```
-
----
-
-<!-- Authentication details are documented in the Authentication section above -->
-
----
-
-## Rate Limiting
-
-**Status:** ✅ Implemented
-
-Per-IP rate limiting using token bucket algorithm.
-
-- Default: 1000 requests per minute per IP
-- Configurable via `MROKI_API_RATE_LIMIT` (or `MROKI_APP_RATE_LIMIT`)
-- Honors `X-Forwarded-For` only from trusted proxies (`MROKI_APP_TRUSTED_PROXIES`); see [Configuration → Trusted proxies](../production/CONFIGURATION.md#trusted-proxies)
-- Returns `429 Too Many Requests` with `Retry-After` header when exceeded
-
-**Rate limit error response:**
-```json
-{
-  "type": "/errors/rate-limit-exceeded",
-  "title": "Rate Limit Exceeded",
-  "status": 429,
-  "detail": "Rate limit exceeded. Please retry after 60 seconds (Retry-After: 60).",
-  "instance": "/gates"
-}
-```
-
----
-
-## Pagination
-
-**Status:** ✅ Implemented
-
-Query parameters:
-- `limit` - Results per page (default: 50, max: 100)
-- `offset` - Skip N results (default: 0)
-
-Response includes pagination metadata:
+The client has exceeded the rate limit.
 
 ```json
 {
-  "data": [...],
-  "pagination": {
-    "limit": 50,
-    "offset": 0,
-    "total": 250,
-    "has_more": true
-  }
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
 }
 ```
 
-**Paginated endpoints:**
-- `GET /gates`
-- `GET /gates/:gate_id/requests`
+#### 500 Response
 
----
+An unexpected error occurred while processing the request.
 
-## CORS
-
-**Status:** ✅ Implemented
-
-CORS is configurable via the `MROKI_APP_CORS_ORIGINS` environment variable. When configured, the following headers are set using the `rs/cors` library:
-
-```
-Access-Control-Allow-Origin: <configured origin>
-Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
-Access-Control-Allow-Headers: Content-Type, Authorization
-Access-Control-Max-Age: 86400
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
 ```
 
-**Configuration:**
-```bash
-# Comma-separated list of allowed origins (empty = CORS disabled)
-MROKI_APP_CORS_ORIGINS=http://localhost:5173,https://hub.example.com
+### GET /gates/{gate_id}/requests/{request_id}
+
+Returns a single captured request with full responses and diff.
+
+#### Path Parameters
+
+- `gate_id` *(string, required)* The unique identifier of the gate.
+
+- `request_id` *(string, required)* The unique identifier of the request.
+
+### Responses
+
+#### 200 Response
+
+The requested request detail.
+
+```json
+{
+   "data": {
+      "created_at": "2024-05-01T12:34:56Z",
+      "diff": {
+         "config": {
+            "float_tolerance": 0.0001,
+            "ignored_fields": [
+               "/timestamp",
+               "/request_id"
+            ],
+            "included_fields": [],
+            "sort_arrays": false
+         },
+         "content": [
+            {
+               "op": "replace",
+               "path": "/data/name",
+               "value": "new-value"
+            }
+         ]
+      },
+      "headers": {
+         "Accept": [
+            "application/json"
+         ]
+      },
+      "id": "3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+      "live_response": {
+         "body": "eyJvayI6dHJ1ZX0=",
+         "created_at": "2024-05-01T12:34:56Z",
+         "headers": {
+            "Content-Type": [
+               "application/json"
+            ]
+         },
+         "id": "7a8b9c0d-1e2f-4a3b-9c8d-7e6f5a4b3c2d",
+         "latency_ms": 42,
+         "status_code": 200
+      },
+      "method": "GET",
+      "path": "/api/users/123",
+      "raw_query": "page=2\u0026limit=10",
+      "shadow_response": {
+         "body": "eyJvayI6dHJ1ZX0=",
+         "created_at": "2024-05-01T12:34:56Z",
+         "headers": {
+            "Content-Type": [
+               "application/json"
+            ]
+         },
+         "id": "7a8b9c0d-1e2f-4a3b-9c8d-7e6f5a4b3c2d",
+         "latency_ms": 42,
+         "status_code": 200
+      }
+   }
+}
 ```
 
-The wildcard origin `*` is rejected at startup: because the API allows the `Authorization` header, a wildcard origin would permit any site to drive authenticated cross-origin requests. Set explicit origins instead.
+#### Field Definitions
 
----
+- `data` *(RequestDetail, required)* A complete request with full responses and diff.
 
-## Example Workflows
+**RequestDetail**
+- `id` *(string, required)*: Unique request identifier.
+- `method` *(string, required)*: HTTP method of the captured request.
+- `path` *(string, required)*: Request path.
+- `raw_query` *(string)*: Raw query string, omitted when empty.
+- `headers` *(object, required)*: Request headers as a map of header name to a list of values.
+- `body` *(string, required)*: Base64-encoded request body, or null when absent.
+- `created_at` *(string, required)*: When the request was captured (RFC 3339).
+- `live_response` *(ResponseDetail, required)*: A response with full details, used in the request detail view.
+- `shadow_response` *(ResponseDetail, required)*: A response with full details, used in the request detail view.
+- `diff` *(DiffDetail, required)*: Diff content and the diff config snapshot used to compute it.
 
-### Create Gate and Capture Traffic
+**ResponseDetail**
+- `id` *(string, required)*: Unique response identifier.
+- `status_code` *(integer, required)*: HTTP status code of the response.
+- `headers` *(object, required)*: Response headers as a map of header name to a list of values.
+- `body` *(string, required)*: Base64-encoded response body, or null when absent.
+- `latency_ms` *(integer, required)*: Response time in milliseconds.
+- `created_at` *(string, required)*: When the response was captured (RFC 3339).
 
-```bash
-# 1. Create a gate
-GATE_RESPONSE=$(curl -s -X POST http://localhost:8090/gates \
-  -H "Authorization: Bearer your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "httpbin-test",
-    "live_url": "https://httpbin.org/anything?service=live",
-    "shadow_url": "https://httpbin.org/anything?service=shadow"
-  }')
+**ResponseDetail**
+- `id` *(string, required)*: Unique response identifier.
+- `status_code` *(integer, required)*: HTTP status code of the response.
+- `headers` *(object, required)*: Response headers as a map of header name to a list of values.
+- `body` *(string, required)*: Base64-encoded response body, or null when absent.
+- `latency_ms` *(integer, required)*: Response time in milliseconds.
+- `created_at` *(string, required)*: When the response was captured (RFC 3339).
 
-GATE_ID=$(echo $GATE_RESPONSE | jq -r '.data.id')
-echo "Gate ID: $GATE_ID"
+**DiffDetail**
+- `content` *(array of PatchOp, required)*: RFC 6902 JSON Patch operations describing the differences.
+- `config` *(DiffConfig, required)*: Per-gate diff computation settings.
 
-# 2. Configure proxy with gate ID (see mroki-proxy docs)
+**PatchOp**
+- `op` *(string, required)*: The JSON Patch operation.. Enums: `add`, `remove`, `replace`
+- `path` *(string, required)*: JSON Pointer (RFC 6901) to the location that differs.
+- `value`: The value associated with the operation. Present for `add` and `replace`
+operations; omitted for `remove`. May be any JSON type.
 
-# 3. Send traffic through proxy (proxy will POST to API)
 
-# 4. List captured requests
-curl -H "Authorization: Bearer your-api-key" \
-  http://localhost:8090/gates/$GATE_ID/requests | jq .
+**DiffConfig**
+- `ignored_fields` *(string array, required)*: JSON paths excluded from comparison.
+- `included_fields` *(string array, required)*: JSON paths to compare exclusively. When non-empty, only these paths are
+compared and everything else is ignored.
 
-# 5. Get specific request details
-REQUEST_ID="7c9e6679-7425-40de-944b-e07fc1f90ae7"
-curl -H "Authorization: Bearer your-api-key" \
-  http://localhost:8090/gates/$GATE_ID/requests/$REQUEST_ID | jq .
+- `float_tolerance` *(number, required)*: Absolute tolerance applied when comparing floating-point numbers.
+- `sort_arrays` *(boolean, required)*: Whether arrays are sorted before comparison so element order is ignored.
+
+#### 400 Response
+
+The request was malformed (invalid gate or request id).
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
 ```
 
----
+#### 401 Response
 
-## Related Documentation
+Authentication failed because the bearer token was missing or invalid.
 
-- [Architecture Overview](../architecture/OVERVIEW.md)
-- [API Walkthrough](WALKTHROUGH.md)
-- [Configuration](../production/CONFIGURATION.md)
-- [Troubleshooting](../TROUBLESHOOTING.md)
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 404 Response
+
+No request exists with the given id for this gate.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 429 Response
+
+The client has exceeded the rate limit.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 500 Response
+
+An unexpected error occurred while processing the request.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+## Stats
+
+### GET /stats
+
+Returns cross-gate aggregate statistics.
+
+### Responses
+
+#### 200 Response
+
+The global statistics.
+
+```json
+{
+   "data": {
+      "total_diff_rate": 0.042,
+      "total_gates": 12,
+      "total_requests_24h": 3480
+   }
+}
+```
+
+#### Field Definitions
+
+- `data` *(GlobalStats, required)* Cross-gate aggregate statistics.
+
+**GlobalStats**
+- `total_gates` *(integer, required)*: Total number of gates.
+- `total_requests_24h` *(integer, required)*: Total number of requests captured across all gates in the last 24 hours.
+- `total_diff_rate` *(number, required)*: Fraction of requests in the last 24 hours that produced a diff (0.0–1.0).
+
+#### 401 Response
+
+Authentication failed because the bearer token was missing or invalid.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 429 Response
+
+The client has exceeded the rate limit.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+#### 500 Response
+
+An unexpected error occurred while processing the request.
+
+```json
+{
+   "detail": "no gate exists with the given id",
+   "instance": "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f",
+   "status": 404,
+   "title": "Not Found",
+   "type": "/errors/not-found"
+}
+```
+
+## Shared Schema Definitions
+
+### GateResponse
+
+Used in: GET /gates/{gate_id}, PATCH /gates/{gate_id}, POST /gates
+
+- `data` *(Gate, required)* A traffic-testing gate with live and shadow URLs.
+
+**Gate**
+- `id` *(string, required)*: Unique gate identifier.
+- `name` *(string, required)*: Human-readable gate name (unique across gates).
+- `live_url` *(string, required)*: Base URL of the live (production) service.
+- `shadow_url` *(string, required)*: Base URL of the shadow (candidate) service.
+- `diff_config` *(DiffConfig, required)*: Per-gate diff computation settings.
+- `redacted_fields` *(string array, required)*: JSON paths whose values are redacted before storage.
+- `retention` *(string, required)*: Per-gate retention as a Go duration string (e.g. `168h`). An empty string
+means the gate uses the global retention floor.
+
+- `created_at` *(string, required)*: When the gate was created (RFC 3339).
+- `stats` *(GateStats, required)*: Computed statistics for a single gate.
+
+**DiffConfig**
+- `ignored_fields` *(string array, required)*: JSON paths excluded from comparison.
+- `included_fields` *(string array, required)*: JSON paths to compare exclusively. When non-empty, only these paths are
+compared and everything else is ignored.
+
+- `float_tolerance` *(number, required)*: Absolute tolerance applied when comparing floating-point numbers.
+- `sort_arrays` *(boolean, required)*: Whether arrays are sorted before comparison so element order is ignored.
+
+**GateStats**
+- `request_count_24h` *(integer, required)*: Number of requests captured for this gate in the last 24 hours.
+- `diff_count_24h` *(integer, required)*: Number of requests that produced a diff in the last 24 hours.
+- `diff_rate` *(number, required)*: Fraction of requests that produced a diff in the last 24 hours (0.0–1.0).
+- `last_active` *(string, required)*: Timestamp of the most recent captured request, or null if none.
+
+### Problem
+
+Used in: DELETE /gates/{gate_id}, GET /config, GET /gates, GET /gates/{gate_id}, GET /gates/{gate_id}/requests, GET /gates/{gate_id}/requests/{request_id}, GET /stats, PATCH /gates/{gate_id}, POST /gates, POST /gates/{gate_id}/requests
+
+- `type` *(string, required)* A relative URI reference identifying the error type.
+- `title` *(string, required)* A short, human-readable summary of the error type.
+- `status` *(integer, required)* The HTTP status code, matching the response status.
+- `detail` *(string)* A human-readable explanation specific to this occurrence.
+- `instance` *(string)* A relative URI reference identifying the specific request. Populated for
+4xx errors only.
+
+

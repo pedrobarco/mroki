@@ -1,0 +1,32 @@
+type: object
+title: GateStats
+description: Computed statistics for a single gate.
+additionalProperties: false
+required:
+  - request_count_24h
+  - diff_count_24h
+  - diff_rate
+  - last_active
+properties:
+  request_count_24h:
+    type: integer
+    format: int64
+    description: Number of requests captured for this gate in the last 24 hours.
+    example: 240
+  diff_count_24h:
+    type: integer
+    format: int64
+    description: Number of requests that produced a diff in the last 24 hours.
+    example: 6
+  diff_rate:
+    type: number
+    format: double
+    description: Fraction of requests that produced a diff in the last 24 hours (0.0–1.0).
+    example: 0.025
+  last_active:
+    type:
+      - string
+      - "null"
+    format: date-time
+    description: Timestamp of the most recent captured request, or null if none.
+    example: "2024-05-01T12:34:56Z"

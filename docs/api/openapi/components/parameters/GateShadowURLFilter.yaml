@@ -1,0 +1,7 @@
+name: shadow_url
+in: query
+required: false
+description: Filter gates whose shadow URL contains this substring.
+schema:
+  type: string
+example: "shadow.example.com"

@@ -1,0 +1,31 @@
+get:
+  operationId: getConfig
+  summary: Get server configuration
+  description: Returns the read-only, server-wide configuration the hub needs.
+  tags:
+    - Config
+  responses:
+    "200":
+      description: The server configuration.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/ConfigResponse.yaml"
+    "401":
+      description: Authentication failed because the bearer token was missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "429":
+      description: The client has exceeded the rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "500":
+      description: An unexpected error occurred while processing the request.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"

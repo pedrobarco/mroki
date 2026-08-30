@@ -1,0 +1,25 @@
+type: object
+title: PatchOp
+description: A single RFC 6902 JSON Patch operation describing one difference.
+additionalProperties: false
+required:
+  - op
+  - path
+properties:
+  op:
+    type: string
+    description: The JSON Patch operation.
+    enum:
+      - add
+      - remove
+      - replace
+    example: "replace"
+  path:
+    type: string
+    description: JSON Pointer (RFC 6901) to the location that differs.
+    example: "/data/name"
+  value:
+    description: |
+      The value associated with the operation. Present for `add` and `replace`
+      operations; omitted for `remove`. May be any JSON type.
+    example: "new-value"

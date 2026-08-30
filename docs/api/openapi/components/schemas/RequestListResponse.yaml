@@ -1,0 +1,15 @@
+type: object
+title: RequestListResponse
+description: Paginated envelope wrapping a list of Request summary objects.
+additionalProperties: false
+required:
+  - data
+  - pagination
+properties:
+  data:
+    type: array
+    description: The requests in this page.
+    items:
+      $ref: "./Request.yaml"
+  pagination:
+    $ref: "./PaginationMeta.yaml"
