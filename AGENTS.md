@@ -106,6 +106,16 @@ Work inside `web/mroki-hub` with `pnpm` (see its [README](web/mroki-hub/README.m
   `text-muted-foreground`, …) — never hardcoded colors like `bg-white`/`text-gray-900`.
 - Run `pnpm lint` and `pnpm format` before committing. Unit tests: `pnpm test:unit` (vitest);
   e2e: `pnpm test:e2e` (Playwright, spins up the backend stack).
+- **Read server state through TanStack Query** (`@tanstack/vue-query`) — never call raw `@/api`
+  fetch functions from components or build bespoke reactive caches. Reads consume the `queryOptions`
+  factories in `src/api/queries.ts`; writes use the `useMutation` composables in `src/api/mutations.ts`
+  (which invalidate on success). Keys come from the hierarchical `queryKeys` factory in
+  `src/api/query-keys.ts` — never hand-write a key array.
+- **Every list/detail view renders all three query states**: loading (`isPending`), error (`isError`
+  + `error.message`, with a Retry that calls `refetch()`), and empty. Lists page/sort server-side via
+  headless `@tanstack/vue-table` with `placeholderData: keepPreviousData`.
+- **Tests** mock the underlying `@/api/*` module and mount with a fresh, retry-free `QueryClient` per
+  test; e2e forces the states with `page.route()` (`e2e/query-states.spec.ts`).
 
 ## Database: Ent schema + migrations
 
