@@ -76,6 +76,66 @@ export interface ApiHelper {
   ): Promise<RequestSummary>
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+// Encodes a top-level object key as an RFC 6901 JSON Pointer, escaping the
+// reserved '~' and '/' characters ('~' first, per the spec).
+function toJsonPointer(key: string): string {
+  return `/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`
+}
+
+// Order-insensitive JSON serialization: recursively sorts object keys so that a
+// mere key reordering isn't mistaken for a value change during comparison.
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`
+  }
+  if (isPlainObject(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+// Derives a shallow RFC 6902 patch from base64-encoded JSON bodies so the
+// default seeded diff stays consistent with overridden live/shadow bodies.
+// Only top-level keys are compared: a nested difference collapses to a single
+// replace of the whole subtree. Callers needing finer-grained or nested diffs
+// should pass an explicit diffContent. Falls back to an empty patch for
+// non-JSON or non-object bodies.
+function deriveDiffContent(
+  liveBody: string,
+  shadowBody: string
+): { op: string; path: string; value?: unknown }[] {
+  let live: unknown
+  let shadow: unknown
+  try {
+    live = JSON.parse(atob(liveBody))
+    shadow = JSON.parse(atob(shadowBody))
+  } catch {
+    return []
+  }
+  if (!isPlainObject(live) || !isPlainObject(shadow)) {
+    return []
+  }
+  const ops: { op: string; path: string; value?: unknown }[] = []
+  for (const key of new Set([...Object.keys(live), ...Object.keys(shadow)])) {
+    const path = toJsonPointer(key)
+    if (!(key in shadow)) {
+      ops.push({ op: 'remove', path })
+    } else if (!(key in live)) {
+      ops.push({ op: 'add', path, value: shadow[key] })
+    } else if (stableStringify(live[key]) !== stableStringify(shadow[key])) {
+      ops.push({ op: 'replace', path, value: shadow[key] })
+    }
+  }
+  return ops
+}
+
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
@@ -130,7 +190,7 @@ export const test = base.extend<{ api: ApiHelper }>({
           shadowBody = btoa('{"result":"shadow"}'),
           liveStatus = 200,
           shadowStatus = 200,
-          diffContent = [{ op: 'replace', path: '/result', value: 'shadow' }],
+          diffContent = deriveDiffContent(liveBody, shadowBody),
           createdAt = new Date().toISOString(),
         } = options
 
