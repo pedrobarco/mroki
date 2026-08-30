@@ -98,7 +98,7 @@ func main() {
 
 	// Infrastructure Layer: Repository implementations
 	gateRepo := ent.NewGateRepository(client)
-	reqRepo := ent.NewRequestRepository(client)
+	reqRepo := ent.NewRequestRepository(client, ent.WithLogger(logger))
 	statsRepo := ent.NewStatsRepository(client)
 
 	// Application Layer: in-process domain event bus. The CreateRequest handler
