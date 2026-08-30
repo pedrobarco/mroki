@@ -1,0 +1,63 @@
+openapi: 3.1.0
+info:
+  title: mroki API
+  version: 1.0.0
+  summary: REST API for the mroki traffic-testing service.
+  description: |
+    The REST API provided by `mroki-api`. It manages traffic-testing gates and
+    the requests captured against them, and exposes server configuration and
+    aggregate statistics.
+
+    All successful responses are wrapped in a `data` envelope. Error responses
+    follow RFC 7807 (Problem Details for HTTP APIs). All endpoints except the
+    infrastructure endpoints (`/health/*`, `/metrics`) require bearer-token
+    authentication.
+  license:
+    name: MIT
+    url: https://github.com/pedrobarco/mroki/blob/main/LICENSE
+  contact:
+    name: mroki
+    url: https://github.com/pedrobarco/mroki
+servers:
+  - url: http://localhost:8090
+    description: Local development server
+security:
+  - bearerAuth: []
+tags:
+  - name: Config
+    description: Read-only, server-wide configuration.
+  - name: Stats
+    description: Cross-gate aggregate statistics.
+  - name: Gates
+    description: Traffic-testing gates with live and shadow URLs.
+  - name: Requests
+    description: Requests captured and compared against a gate.
+  - name: Health
+    description: Kubernetes liveness and readiness probes (unauthenticated).
+  - name: Metrics
+    description: Prometheus metrics scrape endpoint (unauthenticated).
+paths:
+  /config:
+    $ref: "./paths/config.yaml"
+  /stats:
+    $ref: "./paths/stats.yaml"
+  /gates:
+    $ref: "./paths/gates.yaml"
+  /gates/{gate_id}:
+    $ref: "./paths/gates_gate_id.yaml"
+  /gates/{gate_id}/requests:
+    $ref: "./paths/gates_gate_id_requests.yaml"
+  /gates/{gate_id}/requests/{request_id}:
+    $ref: "./paths/gates_gate_id_requests_request_id.yaml"
+  /health/live:
+    $ref: "./paths/health_live.yaml"
+  /health/ready:
+    $ref: "./paths/health_ready.yaml"
+  /metrics:
+    $ref: "./paths/metrics.yaml"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "API key supplied as `Authorization: Bearer <your-api-key>`."

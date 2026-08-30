@@ -1,0 +1,8 @@
+name: to
+in: query
+required: false
+description: Only include requests created at or before this timestamp (RFC 3339).
+schema:
+  type: string
+  format: date-time
+example: "2024-05-02T00:00:00Z"

@@ -2,6 +2,11 @@
 
 Step-by-step guide to using the mroki API — from creating your first gate to querying diffs.
 
+> This is a hand-written, task-oriented guide. For the complete, per-endpoint
+> specification — parameters, schemas, and error responses — see the
+> [API Reference](REFERENCE.md), which is generated from the OpenAPI spec under
+> [`openapi/`](openapi/openapi.yaml).
+
 ## Prerequisites
 
 - **mroki-api running** — see [Full Stack](../getting-started/FULL_STACK.md) or [Docker Compose](../production/DOCKER_COMPOSE.md) setup guides
@@ -301,6 +306,6 @@ Redacted field paths use a `headers.` or `body.` prefix. For example, `body.user
 
 ## What's Next
 
-- [API Reference](REFERENCE.md) — full endpoint specification, error codes, and pagination details
+- [API Reference](REFERENCE.md) — full endpoint specification, error codes, and pagination details (generated from the [OpenAPI spec](openapi/openapi.yaml))
 - [Configuration](../production/CONFIGURATION.md) — all environment variables for mroki-api and mroki-proxy
 - [Security](../production/SECURITY.md) — API key management, TLS, and network hardening

@@ -1,0 +1,9 @@
+type: object
+title: GlobalStatsResponse
+description: Envelope wrapping a single GlobalStats object.
+additionalProperties: false
+required:
+  - data
+properties:
+  data:
+    $ref: "./GlobalStats.yaml"

@@ -1,0 +1,23 @@
+type: object
+title: CreateGateRequest
+description: Request body for creating a gate.
+additionalProperties: false
+required:
+  - name
+  - live_url
+  - shadow_url
+properties:
+  name:
+    type: string
+    description: Human-readable gate name (must be unique across gates).
+    example: "users-service"
+  live_url:
+    type: string
+    format: uri
+    description: Base URL of the live (production) service.
+    example: "https://live.example.com"
+  shadow_url:
+    type: string
+    format: uri
+    description: Base URL of the shadow (candidate) service.
+    example: "https://shadow.example.com"

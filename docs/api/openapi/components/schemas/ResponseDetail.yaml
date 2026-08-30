@@ -1,0 +1,47 @@
+type: object
+title: ResponseDetail
+description: A response with full details, used in the request detail view.
+additionalProperties: false
+required:
+  - id
+  - status_code
+  - headers
+  - body
+  - latency_ms
+  - created_at
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique response identifier.
+    example: "7a8b9c0d-1e2f-4a3b-9c8d-7e6f5a4b3c2d"
+  status_code:
+    type: integer
+    description: HTTP status code of the response.
+    example: 200
+  headers:
+    type: object
+    description: Response headers as a map of header name to a list of values.
+    additionalProperties:
+      type: array
+      items:
+        type: string
+    example:
+      Content-Type:
+        - "application/json"
+  body:
+    type:
+      - string
+      - "null"
+    description: Base64-encoded response body, or null when absent.
+    example: "eyJvayI6dHJ1ZX0="
+  latency_ms:
+    type: integer
+    format: int64
+    description: Response time in milliseconds.
+    example: 42
+  created_at:
+    type: string
+    format: date-time
+    description: When the response was captured (RFC 3339).
+    example: "2024-05-01T12:34:56Z"

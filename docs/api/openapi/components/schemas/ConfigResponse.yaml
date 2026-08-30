@@ -1,0 +1,9 @@
+type: object
+title: ConfigResponse
+description: Envelope wrapping a single Config object.
+additionalProperties: false
+required:
+  - data
+properties:
+  data:
+    $ref: "./Config.yaml"

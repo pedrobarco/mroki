@@ -1,0 +1,7 @@
+name: path
+in: query
+required: false
+description: Filter requests whose path contains this substring.
+schema:
+  type: string
+example: "/api/users"

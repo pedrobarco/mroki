@@ -1,0 +1,12 @@
+name: sort
+in: query
+required: false
+description: Field to sort requests by.
+schema:
+  type: string
+  enum:
+    - created_at
+    - method
+    - path
+  default: created_at
+example: created_at

@@ -1,0 +1,7 @@
+name: live_url
+in: query
+required: false
+description: Filter gates whose live URL contains this substring.
+schema:
+  type: string
+example: "example.com"

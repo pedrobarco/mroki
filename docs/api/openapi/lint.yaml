@@ -1,0 +1,12 @@
+# Speakeasy OpenAPI linter configuration for the mroki API spec.
+# The `recommended` ruleset is used rather than the default `all` ruleset, which
+# applies full OWASP hardening (maxLength on every string, rate-limit headers on
+# every response, etc.) that is inappropriate for a documentation spec.
+extends: recommended
+
+rules:
+  # The documented base URL is the local development server, which is served
+  # over plain HTTP. mroki does not terminate TLS itself (a reverse proxy does),
+  # so requiring an HTTPS server URL here does not apply.
+  - id: owasp-security-hosts-https-oas3
+    disabled: true

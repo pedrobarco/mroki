@@ -1,0 +1,59 @@
+type: object
+title: CreateRequestPayload
+description: |
+  Payload for creating a request with its live and shadow responses and an
+  optional pre-computed diff. Sent from proxies to the API.
+additionalProperties: false
+required:
+  - method
+  - path
+  - headers
+  - body
+  - created_at
+  - live_response
+  - shadow_response
+properties:
+  id:
+    type: string
+    format: uuid
+    description: |
+      Optional request identifier. When omitted, the API uses the `X-Request-ID`
+      header if present, otherwise it generates one.
+    example: "3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f"
+  method:
+    type: string
+    description: HTTP method of the captured request.
+    example: "GET"
+  path:
+    type: string
+    description: Request path.
+    example: "/api/users/123"
+  raw_query:
+    type: string
+    description: Raw query string, omitted when empty.
+    example: "page=2&limit=10"
+  headers:
+    type: object
+    description: Request headers as a map of header name to a list of values.
+    additionalProperties:
+      type: array
+      items:
+        type: string
+    example:
+      Accept:
+        - "application/json"
+  body:
+    type: string
+    description: Base64-encoded request body.
+    example: ""
+  created_at:
+    type: string
+    format: date-time
+    description: When the request was captured (RFC 3339).
+    example: "2024-05-01T12:34:56Z"
+  live_response:
+    $ref: "./ResponsePayload.yaml"
+  shadow_response:
+    $ref: "./ResponsePayload.yaml"
+  diff:
+    $ref: "./DiffPayload.yaml"

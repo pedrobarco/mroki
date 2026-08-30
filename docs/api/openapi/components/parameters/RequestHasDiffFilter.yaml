@@ -1,0 +1,7 @@
+name: has_diff
+in: query
+required: false
+description: Filter by whether a request produced a diff.
+schema:
+  type: boolean
+example: true

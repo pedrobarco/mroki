@@ -1,0 +1,107 @@
+get:
+  operationId: listRequests
+  summary: List requests for a gate
+  description: Returns a paginated list of requests captured for a gate, with optional filtering and sorting.
+  tags:
+    - Requests
+  parameters:
+    - $ref: "../components/parameters/GateIDPath.yaml"
+    - $ref: "../components/parameters/LimitParam.yaml"
+    - $ref: "../components/parameters/OffsetParam.yaml"
+    - $ref: "../components/parameters/RequestMethodFilter.yaml"
+    - $ref: "../components/parameters/RequestPathFilter.yaml"
+    - $ref: "../components/parameters/RequestFromFilter.yaml"
+    - $ref: "../components/parameters/RequestToFilter.yaml"
+    - $ref: "../components/parameters/RequestHasDiffFilter.yaml"
+    - $ref: "../components/parameters/RequestSortParam.yaml"
+    - $ref: "../components/parameters/OrderParam.yaml"
+  responses:
+    "200":
+      description: A paginated list of request summaries.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/RequestListResponse.yaml"
+    "400":
+      description: The request was malformed (invalid query or path parameter).
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "401":
+      description: Authentication failed because the bearer token was missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "404":
+      description: No gate exists with the given id.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "429":
+      description: The client has exceeded the rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "500":
+      description: An unexpected error occurred while processing the request.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+post:
+  operationId: createRequest
+  summary: Create a request
+  description: |
+    Submits a captured request with its live and shadow responses. If a diff is
+    not supplied, the API computes it server-side.
+  tags:
+    - Requests
+  parameters:
+    - $ref: "../components/parameters/GateIDPath.yaml"
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../components/schemas/CreateRequestPayload.yaml"
+  responses:
+    "201":
+      description: The created request summary.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/RequestSummaryResponse.yaml"
+    "400":
+      description: The request was malformed (invalid or missing body field).
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "401":
+      description: Authentication failed because the bearer token was missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "404":
+      description: No gate exists with the given id.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "429":
+      description: The client has exceeded the rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "500":
+      description: An unexpected error occurred while processing the request.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"

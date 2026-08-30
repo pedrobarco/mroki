@@ -1,0 +1,9 @@
+type: object
+title: GateResponse
+description: Envelope wrapping a single Gate object.
+additionalProperties: false
+required:
+  - data
+properties:
+  data:
+    $ref: "./Gate.yaml"

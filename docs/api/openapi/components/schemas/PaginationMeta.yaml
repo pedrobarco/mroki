@@ -1,0 +1,27 @@
+type: object
+title: PaginationMeta
+description: Pagination metadata for list responses.
+additionalProperties: false
+required:
+  - limit
+  - offset
+  - total
+  - has_more
+properties:
+  limit:
+    type: integer
+    description: Maximum number of items returned in this page.
+    example: 50
+  offset:
+    type: integer
+    description: Number of items skipped before this page.
+    example: 0
+  total:
+    type: integer
+    format: int64
+    description: Total number of items matching the query.
+    example: 128
+  has_more:
+    type: boolean
+    description: Whether more items are available beyond this page.
+    example: true

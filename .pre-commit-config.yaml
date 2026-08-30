@@ -48,3 +48,12 @@ repos:
         files: ^web/mroki-hub/src/.*\.(vue|ts|js)$
         pass_filenames: false
         stages: [pre-commit]
+
+      # Ensure the generated API reference stays in sync with the OpenAPI spec.
+      - id: mroki-api-docs-check
+        name: Check API reference is in sync with OpenAPI spec
+        entry: make api-docs-check
+        language: system
+        files: ^(docs/api/openapi/.*|docs/api/REFERENCE\.md|internal/apidocs/.*)$
+        pass_filenames: false
+        stages: [pre-commit]

@@ -1,0 +1,17 @@
+type: object
+title: ResponseSummary
+description: Lightweight response summary used in request listings.
+additionalProperties: false
+required:
+  - status_code
+  - latency_ms
+properties:
+  status_code:
+    type: integer
+    description: HTTP status code of the response.
+    example: 200
+  latency_ms:
+    type: integer
+    format: int64
+    description: Response time in milliseconds.
+    example: 42

@@ -1,0 +1,14 @@
+name: sort
+in: query
+required: false
+description: Field to sort gates by.
+schema:
+  type: string
+  enum:
+    - id
+    - name
+    - live_url
+    - shadow_url
+    - created_at
+  default: created_at
+example: created_at

@@ -1,0 +1,24 @@
+type: object
+title: GlobalStats
+description: Cross-gate aggregate statistics.
+additionalProperties: false
+required:
+  - total_gates
+  - total_requests_24h
+  - total_diff_rate
+properties:
+  total_gates:
+    type: integer
+    format: int64
+    description: Total number of gates.
+    example: 12
+  total_requests_24h:
+    type: integer
+    format: int64
+    description: Total number of requests captured across all gates in the last 24 hours.
+    example: 3480
+  total_diff_rate:
+    type: number
+    format: double
+    description: Fraction of requests in the last 24 hours that produced a diff (0.0–1.0).
+    example: 0.042

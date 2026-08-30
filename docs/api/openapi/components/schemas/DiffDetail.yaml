@@ -1,0 +1,15 @@
+type: object
+title: DiffDetail
+description: Diff content and the diff config snapshot used to compute it.
+additionalProperties: false
+required:
+  - content
+  - config
+properties:
+  content:
+    type: array
+    description: RFC 6902 JSON Patch operations describing the differences.
+    items:
+      $ref: "./PatchOp.yaml"
+  config:
+    $ref: "./DiffConfig.yaml"

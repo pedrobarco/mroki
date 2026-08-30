@@ -1,0 +1,46 @@
+get:
+  operationId: getRequest
+  summary: Get a request
+  description: Returns a single captured request with full responses and diff.
+  tags:
+    - Requests
+  parameters:
+    - $ref: "../components/parameters/GateIDPath.yaml"
+    - $ref: "../components/parameters/RequestIDPath.yaml"
+  responses:
+    "200":
+      description: The requested request detail.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/RequestDetailResponse.yaml"
+    "400":
+      description: The request was malformed (invalid gate or request id).
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "401":
+      description: Authentication failed because the bearer token was missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "404":
+      description: No request exists with the given id for this gate.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "429":
+      description: The client has exceeded the rate limit.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"
+    "500":
+      description: An unexpected error occurred while processing the request.
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas/Problem.yaml"

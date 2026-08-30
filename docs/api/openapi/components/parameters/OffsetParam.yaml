@@ -1,0 +1,9 @@
+name: offset
+in: query
+required: false
+description: Number of items to skip before the returned page. Defaults to 0.
+schema:
+  type: integer
+  minimum: 0
+  default: 0
+example: 0

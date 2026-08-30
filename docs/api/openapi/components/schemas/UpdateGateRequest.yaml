@@ -1,0 +1,30 @@
+type: object
+title: UpdateGateRequest
+description: |
+  Request body for updating a gate. All fields are optional; omitted fields are
+  left unchanged.
+additionalProperties: false
+properties:
+  name:
+    type: string
+    description: New gate name.
+    example: "users-service-v2"
+  diff_config:
+    $ref: "./DiffConfig.yaml"
+  redacted_fields:
+    type: array
+    description: Replacement list of JSON paths to redact before storage.
+    items:
+      type: string
+    example:
+      - "/password"
+  retention:
+    type:
+      - string
+      - "null"
+    description: |
+      Per-gate retention as a Go duration string. This field is tri-state:
+      omit it to leave the value unchanged; send `null` or an empty string to
+      reset to the global retention floor; send a duration (e.g. `168h`) to set
+      a custom value.
+    example: "168h"

@@ -43,6 +43,7 @@ make test          # Run all tests (api + proxy + hub unit + hub e2e)
 make lint          # golangci-lint + hub lint
 make api-test      # go test ./cmd/mroki-api/... ./internal/... ./pkg/...
 make proxy-test    # go test ./cmd/mroki-proxy/...
+make api-docs      # Regenerate docs/api/REFERENCE.md from the OpenAPI spec
 ```
 
 Prerequisites: Go 1.26+, Docker + Docker Compose, **Node.js 22 (LTS)** with **pnpm 10**, Make. Node 22
@@ -127,12 +128,29 @@ Work inside `web/mroki-hub` with `pnpm` (see its [README](web/mroki-hub/README.m
 - Storage: headers JSONB, bodies JSONB, diff content TEXT (RFC 6902 JSON Patch). All relations
   `ON DELETE CASCADE`.
 
+## API documentation (spec-first)
+
+The REST API is documented **spec-first**: the source of truth is the multi-file
+OpenAPI 3.1 spec under `docs/api/openapi/` (`openapi.yaml` + `paths/` + `components/`),
+and `docs/api/REFERENCE.md` is generated from it and committed. When you change a route,
+request/response shape, or error, edit the spec — never `REFERENCE.md` — then run
+`make api-docs` and commit both.
+
+- Lint/validate with `make api-docs-lint` (Speakeasy, folded into `make api-lint`). A Go
+  test (`internal/apidocs`) also lints the spec under `go test ./...`, so CI enforces it
+  with no extra job.
+- `make api-docs-check` fails if `REFERENCE.md` has drifted from the spec (also a
+  pre-commit hook).
+- `docs/api/WALKTHROUGH.md` is hand-written prose; only `REFERENCE.md` is generated.
+
 ## Generated code — do not hand-edit
 
 - All of `ent/` **except** `ent/schema/`, `ent/generate.go`, and `ent/migrate/main.go` is generated.
 - Mock files under `internal/mocks/`.
 - `web/mroki-hub/src/components/ui/` (shadcn-vue) is generated.
-Change the source (schema, `//go:generate` target, component generator) and regenerate instead.
+- `docs/api/REFERENCE.md` is generated from the OpenAPI spec (`make api-docs`).
+Change the source (schema, `//go:generate` target, component generator, OpenAPI spec) and
+regenerate instead.
 
 ## Testing
 
@@ -160,7 +178,8 @@ changelog via `cliff.toml`). Make sure `make lint` and `make test` pass locally 
 ## Documentation map
 
 - Getting started: `docs/getting-started/` (FULL_STACK, STANDALONE_PROXY, CADDY_MODULE)
-- API: `docs/api/` (REFERENCE, WALKTHROUGH)
+- API: `docs/api/` — OpenAPI spec in `openapi/` (source of truth), generated `REFERENCE.md`,
+  hand-written `WALKTHROUGH`
 - Architecture: `docs/architecture/` (OVERVIEW, DIFF_ANALYSIS)
 - Production: `docs/production/` (CONFIGURATION for all env vars, SECURITY, MONITORING, deploys)
 - Development: `docs/development/` (DEVELOPMENT, CONTRIBUTING)

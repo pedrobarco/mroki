@@ -1,0 +1,40 @@
+type: object
+title: Problem
+description: |
+  An error response following RFC 7807 (Problem Details for HTTP APIs). The
+  `status` field always matches the HTTP response status, and `type` is a
+  relative URI such as `/errors/not-found` or `/errors/invalid-request-body`.
+additionalProperties: false
+required:
+  - type
+  - title
+  - status
+properties:
+  type:
+    type: string
+    description: A relative URI reference identifying the error type.
+    example: "/errors/not-found"
+  title:
+    type: string
+    description: A short, human-readable summary of the error type.
+    example: "Not Found"
+  status:
+    type: integer
+    description: The HTTP status code, matching the response status.
+    example: 404
+  detail:
+    type: string
+    description: A human-readable explanation specific to this occurrence.
+    example: "no gate exists with the given id"
+  instance:
+    type: string
+    description: |
+      A relative URI reference identifying the specific request. Populated for
+      4xx errors only.
+    example: "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f"
+example:
+  type: "/errors/not-found"
+  title: "Not Found"
+  status: 404
+  detail: "no gate exists with the given id"
+  instance: "/gates/9b2e6f0e-6b7a-4c1d-8f3a-2a1b0c9d8e7f"
