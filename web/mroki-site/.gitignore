@@ -12,8 +12,8 @@ node_modules
 .vitepress/dist
 .vitepress/generated
 
-# Generated symlinks to the canonical docs/ tree (Option B)
-guide/
+# Generated copies of the canonical docs/ tree (surfaced at build time)
+docs/
 
 # Editor / OS
 .DS_Store

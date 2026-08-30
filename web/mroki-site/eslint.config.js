@@ -32,7 +32,7 @@ export default tseslint.config(
   {
     ignores: [
       'node_modules/**',
-      'guide/**',
+      'docs/**',
       '.vitepress/cache/**',
       '.vitepress/dist/**',
       '.vitepress/generated/**',

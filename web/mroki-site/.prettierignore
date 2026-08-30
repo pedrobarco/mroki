@@ -2,7 +2,7 @@ node_modules
 .vitepress/cache
 .vitepress/dist
 .vitepress/generated
-guide
+docs
 pnpm-lock.yaml
 *.min.js
 *.min.css
