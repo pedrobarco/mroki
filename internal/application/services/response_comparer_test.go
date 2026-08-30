@@ -1,7 +1,9 @@
 package services_test
 
 import (
+	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/pedrobarco/mroki/internal/application/services"
@@ -10,6 +12,22 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// assertOpsFreeOfSecrets fails if any patch op's path or value contains one of
+// the given raw secret strings. Values are JSON-marshaled so nested secrets are
+// caught regardless of type.
+func assertOpsFreeOfSecrets(t *testing.T, ops []diff.PatchOp, secrets ...string) {
+	t.Helper()
+	for _, op := range ops {
+		valBytes, err := json.Marshal(op.Value)
+		require.NoError(t, err)
+		serialized := op.Op + " " + op.Path + " " + string(valBytes)
+		for _, secret := range secrets {
+			assert.NotContains(t, serialized, secret,
+				"redacted raw value %q leaked into patch op %s", secret, serialized)
+		}
+	}
+}
 
 func TestCompare_identical_json_responses(t *testing.T) {
 	redactor := traffictesting.NewRedactor(nil)
@@ -174,7 +192,6 @@ func TestCompare_different_status_codes(t *testing.T) {
 	assert.Equal(t, "replace", paths["/statusCode"])
 }
 
-
 func TestCompare_nil_redactor(t *testing.T) {
 	comparer := services.NewResponseComparer(nil, nil)
 	_, err := comparer.Compare(
@@ -202,4 +219,64 @@ func TestCompare_redaction_error_includes_context(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Empty(t, result.Ops)
+}
+
+func TestCompare_redaction_never_leaks_body(t *testing.T) {
+	// A redacted body field whose raw value DIFFERS between live and shadow must
+	// never reach result.Ops: both sides collapse to [REDACTED] before diffing,
+	// so no op is produced for it. A non-redacted field that genuinely differs
+	// still surfaces, proving real diffs are unaffected.
+	redactor := traffictesting.NewRedactor([]string{"body.password"})
+	comparer := services.NewResponseComparer(redactor, nil)
+
+	req := services.ResponseData{StatusCode: 200, Body: []byte(`{}`)}
+	live := services.ResponseData{StatusCode: 200, Body: []byte(`{"password":"live-secret","name":"Alice"}`)}
+	shadow := services.ResponseData{StatusCode: 200, Body: []byte(`{"password":"shadow-secret","name":"Bob"}`)}
+
+	result, err := comparer.Compare(req, live, shadow)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Ops)
+
+	paths := make(map[string]string)
+	for _, op := range result.Ops {
+		paths[op.Path] = op.Op
+	}
+	assert.Equal(t, "replace", paths["/body/name"], "non-redacted field diff should surface")
+	assert.NotContains(t, paths, "/body/password", "redacted field must not produce an op")
+	assertOpsFreeOfSecrets(t, result.Ops, "live-secret", "shadow-secret")
+}
+
+func TestCompare_redaction_never_leaks_headers(t *testing.T) {
+	// A redacted response header whose raw value DIFFERS between live and shadow
+	// must never reach result.Ops. A non-redacted differing header still surfaces.
+	redactor := traffictesting.NewRedactor([]string{"headers.Authorization"})
+	comparer := services.NewResponseComparer(redactor, nil)
+
+	req := services.ResponseData{StatusCode: 200, Body: []byte(`{}`)}
+	live := services.ResponseData{
+		StatusCode: 200,
+		Headers:    http.Header{"Authorization": {"live-token"}, "X-Trace": {"live"}},
+		Body:       []byte(`{}`),
+	}
+	shadow := services.ResponseData{
+		StatusCode: 200,
+		Headers:    http.Header{"Authorization": {"shadow-token"}, "X-Trace": {"shadow"}},
+		Body:       []byte(`{}`),
+	}
+
+	result, err := comparer.Compare(req, live, shadow)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Ops)
+
+	var sawTrace bool
+	for _, op := range result.Ops {
+		if strings.HasPrefix(op.Path, "/headers/X-Trace") {
+			sawTrace = true
+		}
+		assert.NotContains(t, op.Path, "Authorization", "redacted header must not produce any op")
+	}
+	assert.True(t, sawTrace, "non-redacted header diff should surface")
+	assertOpsFreeOfSecrets(t, result.Ops, "live-token", "shadow-token")
 }

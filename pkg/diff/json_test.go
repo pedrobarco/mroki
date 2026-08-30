@@ -57,6 +57,45 @@ func TestJSON_invalid_second_input_returns_error(t *testing.T) {
 	assert.Contains(t, err.Error(), "second input")
 }
 
+// Type-change and null edge cases
+
+func TestJSON_int_vs_float_same_value_no_diff(t *testing.T) {
+	// JSON numbers decode to float64, so 1 and 1.0 are the same value.
+	a := `{"v": 1}`
+	b := `{"v": 1.0}`
+
+	ops, err := diff.JSON(a, b)
+
+	assert.NoError(t, err)
+	assert.Empty(t, ops, "integer and float literals of the same value should not diff")
+}
+
+func TestJSON_number_vs_string_type_change(t *testing.T) {
+	a := `{"v": 1}`
+	b := `{"v": "1"}`
+
+	ops, err := diff.JSON(a, b)
+
+	assert.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "replace", ops[0].Op)
+	assert.Equal(t, "/v", ops[0].Path)
+	assert.Equal(t, "1", ops[0].Value)
+}
+
+func TestJSON_null_array_element_replace(t *testing.T) {
+	a := `{"a": [1]}`
+	b := `{"a": [null]}`
+
+	ops, err := diff.JSON(a, b)
+
+	assert.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "replace", ops[0].Op)
+	assert.Equal(t, "/a/0", ops[0].Path)
+	assert.Nil(t, ops[0].Value)
+}
+
 // Field filtering tests
 
 func TestJSON_IgnoredFields(t *testing.T) {
