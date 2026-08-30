@@ -23,6 +23,7 @@ var (
 	// Validation errors
 	ErrInvalidStatusCode = errors.New("invalid HTTP status code")
 	ErrInvalidPath       = errors.New("invalid path")
+	ErrCreatedAtInFuture = errors.New("request created_at is in the future")
 
 	// Filtering and sorting errors
 	ErrInvalidFilters     = errors.New("invalid request filters")

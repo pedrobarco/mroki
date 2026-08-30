@@ -306,6 +306,55 @@ func TestCreateRequest_InvalidGateID(t *testing.T) {
 	}
 }
 
+func TestCreateRequest_CreatedAtInFuture(t *testing.T) {
+	gateID := traffictesting.NewGateID()
+	repo := &mockRequestRepository{}
+	handler := commands.NewCreateRequestHandler(repo, &mockGateRepoForRequestHandlers{})
+
+	future := time.Now().Add(time.Hour)
+	body := map[string]interface{}{
+		"method":     "GET",
+		"path":       "/api/test",
+		"headers":    map[string][]string{},
+		"body":       "",
+		"created_at": future.Format(time.RFC3339Nano),
+		"live_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{},
+			"body":        "",
+			"latency_ms":  0,
+			"created_at":  future.Format(time.RFC3339Nano),
+		},
+		"shadow_response": map[string]interface{}{
+			"status_code": 200,
+			"headers":     map[string][]string{},
+			"body":        "",
+			"latency_ms":  0,
+			"created_at":  future.Format(time.RFC3339Nano),
+		},
+		"diff": map[string]interface{}{
+			"content": []map[string]interface{}{},
+		},
+	}
+
+	jsonBody, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/gates/"+gateID.String()+"/requests", bytes.NewBuffer(jsonBody))
+	req.SetPathValue("gate_id", gateID.String())
+	rec := httptest.NewRecorder()
+
+	appHandler := CreateRequest(handler)
+	err := appHandler(rec, req)
+
+	apiErr, ok := err.(*dto.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+
+	if apiErr.Status != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", apiErr.Status)
+	}
+}
+
 func TestCreateRequest_RepositoryError(t *testing.T) {
 	gateID := traffictesting.NewGateID()
 	repo := &mockRequestRepository{

@@ -385,6 +385,22 @@ func RequestNotFound(id string) *APIError {
 	)
 }
 
+// InvalidCreatedAt returns an RFC 7807 error for a request created_at that is
+// in the future beyond the allowed clock-skew tolerance.
+func InvalidCreatedAt(err error) *APIError {
+	detail := "created_at must not be in the future"
+	if err != nil {
+		detail = fmt.Sprintf("%s: %v", detail, err)
+	}
+	return NewError(
+		http.StatusBadRequest,
+		ErrorTypeInvalidRequestBody,
+		"Invalid Created At",
+		detail,
+		err,
+	)
+}
+
 // InvalidRequestPagination returns an RFC 7807 error for invalid pagination parameters.
 // Used when limit or offset query parameters are invalid for request listing.
 func InvalidRequestPagination(err error) *APIError {
