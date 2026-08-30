@@ -142,6 +142,28 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 `MROKI_APP_HSTS_MAX_AGE` must be positive when HSTS is enabled, otherwise the API rejects the configuration at startup.
 
+### Hub (static server) security headers
+
+The hub is a static Vue SPA served by Caddy (`build/package/mroki-hub/Caddyfile`). It emits security response headers on every SPA response (the `/health` endpoint is left untouched):
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `X-Content-Type-Options` | `nosniff` | Stops browsers from MIME-sniffing responses away from the declared `Content-Type` |
+| `X-Frame-Options` | `DENY` | Prevents the hub from being framed (clickjacking protection), paired with CSP `frame-ancestors 'none'` |
+| `Referrer-Policy` | `no-referrer` | Prevents the `Referer` header from leaking URLs to third parties |
+| `Content-Security-Policy` | see below | Restricts the origins the SPA may load resources from and connect to |
+
+The Content-Security-Policy is:
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' {$MROKI_APP_API_BASE_URL}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+```
+
+- `style-src 'unsafe-inline'` is required because Vue/reka-ui emit runtime inline `style` attributes for positioning.
+- `connect-src` is widened at container start with the deploy-time API origin (`MROKI_APP_API_BASE_URL`) so the SPA's `fetch`/XHR calls to mroki-api are allowed. If unset, it falls back to `connect-src 'self'`.
+
+Unlike the API, the hub emits `Strict-Transport-Security: max-age=31536000; includeSubDomains` **unconditionally**. This is safe because browsers ignore HSTS over plain HTTP and only honor it over HTTPS — it assumes TLS is terminated by an upstream reverse proxy (the hub, like the rest of mroki, does not terminate TLS itself).
+
 ---
 
 ## Database Security
