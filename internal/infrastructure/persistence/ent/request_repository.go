@@ -2,7 +2,9 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -19,12 +21,30 @@ import (
 
 type requestRepository struct {
 	client *ent.Client
+	logger *slog.Logger
 }
 
 var _ traffictesting.RequestRepository = (*requestRepository)(nil)
 
-func NewRequestRepository(client *ent.Client) *requestRepository {
-	return &requestRepository{client: client}
+// RequestRepositoryOption configures a requestRepository.
+type RequestRepositoryOption func(*requestRepository)
+
+// WithLogger sets the logger used to report rollback failures during panic
+// recovery. When unset, slog.Default() is used.
+func WithLogger(l *slog.Logger) RequestRepositoryOption {
+	return func(r *requestRepository) {
+		if l != nil {
+			r.logger = l
+		}
+	}
+}
+
+func NewRequestRepository(client *ent.Client, opts ...RequestRepositoryOption) *requestRepository {
+	r := &requestRepository{client: client, logger: slog.Default()}
+	for _, o := range opts {
+		o(r)
+	}
+	return r
 }
 
 func (r *requestRepository) Save(ctx context.Context, req *traffictesting.Request) error {
@@ -33,35 +53,43 @@ func (r *requestRepository) Save(ctx context.Context, req *traffictesting.Reques
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() {
-		if err := recover(); err != nil {
-			_ = tx.Rollback()
-			panic(err)
+		if p := recover(); p != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				r.logger.Error("failed to roll back transaction after panic", slog.String("error", rbErr.Error()))
+			}
+			panic(p)
 		}
 	}()
 
 	if err := r.saveRequest(ctx, tx, req); err != nil {
-		_ = tx.Rollback()
-		return err
+		return rollback(tx, err)
 	}
 
 	if err := r.saveResponse(ctx, tx, req.ID.UUID(), req.LiveResponse, "live"); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("failed to save live response: %w", err)
+		return rollback(tx, fmt.Errorf("failed to save live response: %w", err))
 	}
 	if err := r.saveResponse(ctx, tx, req.ID.UUID(), req.ShadowResponse, "shadow"); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("failed to save shadow response: %w", err)
+		return rollback(tx, fmt.Errorf("failed to save shadow response: %w", err))
 	}
 
 	if err := r.saveDiff(ctx, tx, req); err != nil {
-		_ = tx.Rollback()
-		return err
+		return rollback(tx, err)
 	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
+}
+
+// rollback rolls back tx and returns err. If the rollback itself fails, its
+// error is joined with err (via errors.Join) so both failures surface while
+// errors.Is/As still match the original err, which remains the primary error.
+func rollback(tx *ent.Tx, err error) error {
+	if rbErr := tx.Rollback(); rbErr != nil {
+		return errors.Join(err, fmt.Errorf("rollback failed: %w", rbErr))
+	}
+	return err
 }
 
 func (r *requestRepository) saveRequest(ctx context.Context, tx *ent.Tx, req *traffictesting.Request) error {
