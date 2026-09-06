@@ -28,6 +28,11 @@ grouped by tag.
 | ----------------- | ----------------------- |
 | Local development | `http://localhost:8090` |
 
+Each operation page has an interactive playground whose **server dropdown**
+includes a **Custom** entry — pick it to point requests at your own instance's
+base URL. Your `mroki-api` must allow the docs-site origin via CORS, and you
+supply your own API key in the playground's authorization field.
+
 ## Operations by tag
 
 | Tag          | Description                                                 |
