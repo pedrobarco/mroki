@@ -57,9 +57,9 @@ const brandSrcDir = resolve(repoDocsDir, 'assets/brand')
 const publicBrandDir = resolve(publicDir, 'brand')
 const brandAssets = ['mroki-logo-icon-light.png', 'mroki-logo-icon-dark.png']
 
-// Single favicon staged at the site root as /favicon.ico (see copyBrandAssets),
-// which browsers request automatically. The white orb reads against the dark
-// browser chrome most of mroki's dev-tool audience runs.
+// Single favicon, staged at the site root as /favicon.ico (see copyBrandAssets)
+// because browsers request that path automatically. The white orb is chosen to
+// read against dark browser chrome.
 const rootFavicon = 'favicon-dark.ico'
 
 // Base URL for canonical-docs links that point at repo artifacts outside the
@@ -207,13 +207,12 @@ function copyBrandAssets() {
   // /favicon.ico automatically, so this single file is the whole favicon setup
   // (no <head> link tags, no prefers-color-scheme variants). It also fixes dev,
   // where VitePress serves a bare HTML shell and the pre-JS request would 404.
-  if (!existsSync(resolve(brandSrcDir, rootFavicon))) {
-    console.error(
-      `[bundle-openapi] missing root favicon: ${relative(repoRoot, resolve(brandSrcDir, rootFavicon))}`
-    )
+  const rootFaviconSrc = resolve(brandSrcDir, rootFavicon)
+  if (!existsSync(rootFaviconSrc)) {
+    console.error(`[bundle-openapi] missing root favicon: ${relative(repoRoot, rootFaviconSrc)}`)
     process.exit(1)
   }
-  cpSync(resolve(brandSrcDir, rootFavicon), resolve(publicDir, 'favicon.ico'))
+  cpSync(rootFaviconSrc, resolve(publicDir, 'favicon.ico'))
   console.log(
     `[bundle-openapi] copied ${brandAssets.length} brand assets to ${relative(repoRoot, publicBrandDir)}`
   )

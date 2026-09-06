@@ -62,10 +62,11 @@ const config = withMermaid(
     title: 'mroki',
     titleTemplate: ':title · mroki',
     description: 'Documentation for the mroki traffic-testing service',
-    // The favicon is a single /favicon.ico staged at the site root by the
-    // bundle-openapi prebuild (copied from docs/assets/brand/). Browsers request
-    // that path automatically, so no <head> link tags are needed — which also
-    // sidesteps VitePress not base-prepending head hrefs for #218.
+    // No favicon <head> tags: the bundle-openapi prebuild stages a single
+    // /favicon.ico at the site root (copied from docs/assets/brand/), which
+    // browsers request automatically. This also avoids VitePress not
+    // base-prepending head hrefs (see #218).
+
     // Map the per-operation params emitted by operations/[operationId].paths.js
     // onto each dynamic page's <title> and <meta name="description">.
     transformPageData(pageData) {
