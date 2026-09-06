@@ -15,11 +15,10 @@
 //    manifests, the root README, the raw OpenAPI spec) become absolute GitHub
 //    URLs, and links to the generated API reference (excluded from the copy and
 //    superseded by the live /api renderer) are pointed at /api.
-// 3. Copies the brand assets (navbar logos + favicons) referenced by
-//    .vitepress/config.ts into a git-ignored public/brand/ so VitePress emits
-//    them, and stages the un-scoped .ico at the site root as /favicon.ico. They
-//    are sourced from the canonical docs/assets/brand/; no copies are committed
-//    under web/mroki-site.
+// 3. Copies the navbar logo assets referenced by .vitepress/config.ts into a
+//    git-ignored public/brand/ so VitePress emits them, and stages a single
+//    favicon at the site root as /favicon.ico. They are sourced from the
+//    canonical docs/assets/brand/; no copies are committed under web/mroki-site.
 import {
   cpSync,
   existsSync,
@@ -56,19 +55,12 @@ const docsDir = resolve(siteRoot, 'docs') // git-ignored build-time copy
 // a missing source fails the build (same fail-fast rule as the link resolver).
 const brandSrcDir = resolve(repoDocsDir, 'assets/brand')
 const publicBrandDir = resolve(publicDir, 'brand')
-const brandAssets = [
-  'mroki-logo-icon-light.png',
-  'mroki-logo-icon-dark.png',
-  'favicon-light-16x16.png',
-  'favicon-light-32x32.png',
-  'favicon-dark-16x16.png',
-  'favicon-dark-32x32.png',
-  'favicon-light.ico',
-]
+const brandAssets = ['mroki-logo-icon-light.png', 'mroki-logo-icon-dark.png']
 
-// The un-scoped .ico, also staged at the site root as /favicon.ico (see
-// copyBrandAssets) so the browser's default favicon request resolves in dev.
-const rootFavicon = 'favicon-light.ico'
+// Single favicon staged at the site root as /favicon.ico (see copyBrandAssets),
+// which browsers request automatically. The white orb reads against the dark
+// browser chrome most of mroki's dev-tool audience runs.
+const rootFavicon = 'favicon-dark.ico'
 
 // Base URL for canonical-docs links that point at repo artifacts outside the
 // copied tree (deployment manifests, the root README, the raw OpenAPI spec).
@@ -211,10 +203,16 @@ function copyBrandAssets() {
     }
     cpSync(src, resolve(publicBrandDir, name))
   }
-  // Stage the un-scoped .ico at the site root as /favicon.ico. In dev, VitePress
-  // serves a bare HTML shell and injects the icon <link> tags client-side, so the
-  // browser's automatic pre-JS request for /favicon.ico would otherwise 404 and
-  // leave a stale/default icon in the tab. Sourced from the same validated asset.
+  // Stage the favicon at the site root as /favicon.ico. Browsers request
+  // /favicon.ico automatically, so this single file is the whole favicon setup
+  // (no <head> link tags, no prefers-color-scheme variants). It also fixes dev,
+  // where VitePress serves a bare HTML shell and the pre-JS request would 404.
+  if (!existsSync(resolve(brandSrcDir, rootFavicon))) {
+    console.error(
+      `[bundle-openapi] missing root favicon: ${relative(repoRoot, resolve(brandSrcDir, rootFavicon))}`
+    )
+    process.exit(1)
+  }
   cpSync(resolve(brandSrcDir, rootFavicon), resolve(publicDir, 'favicon.ico'))
   console.log(
     `[bundle-openapi] copied ${brandAssets.length} brand assets to ${relative(repoRoot, publicBrandDir)}`

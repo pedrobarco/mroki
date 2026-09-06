@@ -62,53 +62,10 @@ const config = withMermaid(
     title: 'mroki',
     titleTemplate: ':title · mroki',
     description: 'Documentation for the mroki traffic-testing service',
-    // Favicons served from the git-ignored public/brand/ (copied from
-    // docs/assets/brand/ by the bundle-openapi prebuild). Light/dark variants
-    // swap via prefers-color-scheme. NOTE: VitePress does not base-prepend head
-    // link hrefs, so these need withBase() once a non-root base lands (#218).
-    head: [
-      [
-        'link',
-        {
-          rel: 'icon',
-          type: 'image/png',
-          sizes: '32x32',
-          href: '/brand/favicon-light-32x32.png',
-          media: '(prefers-color-scheme: light)',
-        },
-      ],
-      [
-        'link',
-        {
-          rel: 'icon',
-          type: 'image/png',
-          sizes: '16x16',
-          href: '/brand/favicon-light-16x16.png',
-          media: '(prefers-color-scheme: light)',
-        },
-      ],
-      [
-        'link',
-        {
-          rel: 'icon',
-          type: 'image/png',
-          sizes: '32x32',
-          href: '/brand/favicon-dark-32x32.png',
-          media: '(prefers-color-scheme: dark)',
-        },
-      ],
-      [
-        'link',
-        {
-          rel: 'icon',
-          type: 'image/png',
-          sizes: '16x16',
-          href: '/brand/favicon-dark-16x16.png',
-          media: '(prefers-color-scheme: dark)',
-        },
-      ],
-      ['link', { rel: 'icon', href: '/brand/favicon-light.ico', sizes: 'any' }],
-    ],
+    // The favicon is a single /favicon.ico staged at the site root by the
+    // bundle-openapi prebuild (copied from docs/assets/brand/). Browsers request
+    // that path automatically, so no <head> link tags are needed — which also
+    // sidesteps VitePress not base-prepending head hrefs for #218.
     // Map the per-operation params emitted by operations/[operationId].paths.js
     // onto each dynamic page's <title> and <meta name="description">.
     transformPageData(pageData) {
