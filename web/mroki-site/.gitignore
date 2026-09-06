@@ -17,6 +17,7 @@ public/openapi.json
 
 # Brand assets copied from docs/assets/brand/ at build time (see bundle-openapi.mjs)
 public/brand/
+public/favicon.ico
 
 # Generated copies of the canonical docs/ tree (surfaced at build time)
 docs/
