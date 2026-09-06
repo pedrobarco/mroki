@@ -15,6 +15,9 @@ node_modules
 # Bundled OpenAPI spec served as a static download (regenerated at build time)
 public/openapi.json
 
+# Brand assets copied from docs/assets/brand/ at build time (see bundle-openapi.mjs)
+public/brand/
+
 # Generated copies of the canonical docs/ tree (surfaced at build time)
 docs/
 

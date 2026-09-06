@@ -15,6 +15,10 @@
 //    manifests, the root README, the raw OpenAPI spec) become absolute GitHub
 //    URLs, and links to the generated API reference (excluded from the copy and
 //    superseded by the live /api renderer) are pointed at /api.
+// 3. Copies the brand assets (navbar logos + favicons) referenced by
+//    .vitepress/config.ts into a git-ignored public/brand/ so VitePress emits
+//    them. They are sourced from the canonical docs/assets/brand/; no copies are
+//    committed under web/mroki-site.
 import {
   cpSync,
   existsSync,
@@ -45,6 +49,21 @@ const publicSpecFile = resolve(publicDir, 'openapi.json')
 
 const repoDocsDir = resolve(repoRoot, 'docs') // canonical source of truth
 const docsDir = resolve(siteRoot, 'docs') // git-ignored build-time copy
+
+// Brand assets sourced from the canonical docs/assets/brand/ and emitted through
+// a git-ignored public/brand/. Only the files config.ts references are copied;
+// a missing source fails the build (same fail-fast rule as the link resolver).
+const brandSrcDir = resolve(repoDocsDir, 'assets/brand')
+const publicBrandDir = resolve(publicDir, 'brand')
+const brandAssets = [
+  'mroki-logo-icon-light.png',
+  'mroki-logo-icon-dark.png',
+  'favicon-light-16x16.png',
+  'favicon-light-32x32.png',
+  'favicon-dark-16x16.png',
+  'favicon-dark-32x32.png',
+  'favicon-light.ico',
+]
 
 // Base URL for canonical-docs links that point at repo artifacts outside the
 // copied tree (deployment manifests, the root README, the raw OpenAPI spec).
@@ -172,6 +191,26 @@ function copyDocsTree() {
   console.log(`[bundle-openapi] copied docs/ tree to ${relative(repoRoot, docsDir)}`)
 }
 
+function copyBrandAssets() {
+  if (!existsSync(brandSrcDir)) {
+    console.error(`[bundle-openapi] missing brand assets dir: ${relative(repoRoot, brandSrcDir)}`)
+    process.exit(1)
+  }
+  rmSync(publicBrandDir, { recursive: true, force: true })
+  mkdirSync(publicBrandDir, { recursive: true })
+  for (const name of brandAssets) {
+    const src = resolve(brandSrcDir, name)
+    if (!existsSync(src)) {
+      console.error(`[bundle-openapi] missing brand asset: ${relative(repoRoot, src)}`)
+      process.exit(1)
+    }
+    cpSync(src, resolve(publicBrandDir, name))
+  }
+  console.log(
+    `[bundle-openapi] copied ${brandAssets.length} brand assets to ${relative(repoRoot, publicBrandDir)}`
+  )
+}
+
 async function bundleSpec() {
   try {
     const bundled = await SwaggerParser.bundle(specEntry)
@@ -191,4 +230,5 @@ async function bundleSpec() {
 }
 
 copyDocsTree()
+copyBrandAssets()
 await bundleSpec()
