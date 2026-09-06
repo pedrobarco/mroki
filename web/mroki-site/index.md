@@ -2,18 +2,30 @@
 layout: home
 hero:
   name: mroki
-  text: Traffic-testing documentation
-  tagline: Walking-skeleton docs site (VitePress + Mermaid + OpenAPI)
+  text: Safe shadow traffic testing
+  tagline: Mirror live HTTP traffic to a shadow service, diff the JSON responses, and surface the differences — so you can validate changes against real production behavior before rolling out.
   actions:
     - theme: brand
-      text: Architecture Overview
-      link: /docs/overview
+      text: Get Started
+      link: /docs/getting-started/FULL_STACK
     - theme: alt
       text: API Reference
       link: /api
 features:
-  - title: Docs
-    details: Rendered from the canonical docs/ tree, including Mermaid diagrams.
-  - title: API Reference
-    details: Generated from the multi-file OpenAPI 3.1 spec via vitepress-openapi.
+  - title: Getting Started
+    details: Run the full stack with Docker Compose, the standalone proxy, or as an embedded Caddy module.
+    link: /docs/getting-started/FULL_STACK
+    linkText: Full Stack setup
+  - title: Production
+    details: Deploy with Docker Compose or Kubernetes, and configure security, monitoring, and every environment variable.
+    link: /docs/production/DOCKER_COMPOSE
+    linkText: Production guides
+  - title: API
+    details: Create a gate, capture traffic, and query diffs — a task-oriented walkthrough plus a live OpenAPI reference.
+    link: /docs/api/WALKTHROUGH
+    linkText: API walkthrough
+  - title: Reference
+    details: Understand the system architecture, the response diff pipeline, and how to troubleshoot common issues.
+    link: /docs/architecture/OVERVIEW
+    linkText: Architecture overview
 ---

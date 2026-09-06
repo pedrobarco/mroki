@@ -1,5 +1,7 @@
 ---
 title: API Reference
+# Spec output, not prose: excluded from the local search index.
+search: false
 ---
 
 # API Reference
@@ -12,6 +14,9 @@ This reference is generated from the multi-file **OpenAPI 3.1** spec
 (`docs/api/openapi/`), bundled at prebuild time with every external `$ref`
 resolved. Use the **sidebar** to open any single operation on its own page,
 grouped by tag.
+
+<small>Need the raw spec? Open the fully resolved
+<a href="/openapi.json" target="_blank" rel="noreferrer">openapi.json</a>.</small>
 
 ## Conventions
 

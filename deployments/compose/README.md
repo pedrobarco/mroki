@@ -1,56 +1,20 @@
 # Compose Deployment
 
-> **Full docs:** see [Production: Docker Compose](../../docs/production/DOCKER_COMPOSE.md) for all deployment options.
+> **Full guide:** [Production: Docker Compose](../../docs/production/DOCKER_COMPOSE.md) — configuration, systemd, backup/recovery, and updates.
 
-Full-stack deployment of mroki using Docker Compose.
+Ready-to-use Docker Compose stack for mroki: PostgreSQL, DB migrator, API, proxy, and hub.
 
 ## Files
 
-- `full-stack.yaml` - Complete deployment with PostgreSQL, API, and Proxy
+- `full-stack.yaml` — complete stack (PostgreSQL, DB migrator, API, proxy, hub)
 
-## Usage
+## Quick start
 
-1. **Create `.env` file:**
-   ```bash
-   DB_PASSWORD=your_secure_password
-   LIVE_URL=https://api.production.example.com
-   SHADOW_URL=https://api.shadow.example.com
-   GATE_ID=550e8400-e29b-41d4-a716-446655440000
-   ```
+Provide `DB_PASSWORD`, `LIVE_URL`, `SHADOW_URL`, and `GATE_ID` (plus optional `MROKI_APP_API_BASE_URL` and `MROKI_APP_API_KEY`) via a `.env` file or the environment, then:
 
-2. **Deploy:**
-   ```bash
-   docker compose -f full-stack.yaml up -d
-   ```
+```bash
+docker compose -f full-stack.yaml up -d
+docker compose -f full-stack.yaml ps
+```
 
-3. **Check status:**
-   ```bash
-   docker compose -f full-stack.yaml ps
-   ```
-
-4. **View logs:**
-   ```bash
-   docker compose -f full-stack.yaml logs -f
-   ```
-
-5. **Stop:**
-   ```bash
-   docker compose -f full-stack.yaml down
-   ```
-
-## Services
-
-- **mroki-db**: PostgreSQL 15 database on port 5432
-- **mroki-api**: API server on port 8090
-- **mroki-proxy**: Proxy on port 8080
-
-## Requirements
-
-- Docker 20.10+
-- Docker Compose v2+
-
-## Notes
-
-- Data persists in `mroki-db-data` volume
-- All services restart automatically unless stopped
-- Configure firewall rules for production deployments
+See the [full guide](../../docs/production/DOCKER_COMPOSE.md) for configuration, backups, and updates.

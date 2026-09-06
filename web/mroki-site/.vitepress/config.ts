@@ -17,6 +17,45 @@ const apiSidebar = [
   ...useSidebar({ spec }).generateSidebarGroups(),
 ]
 
+// Sidebar groups for /docs/, mirroring the README documentation table (the IA
+// source of truth). The API Reference links to the live /api renderer.
+const docGroups = [
+  {
+    text: 'Getting Started',
+    items: [
+      { text: 'Full Stack', link: '/docs/getting-started/FULL_STACK' },
+      { text: 'Standalone Proxy', link: '/docs/getting-started/STANDALONE_PROXY' },
+      { text: 'Caddy Module', link: '/docs/getting-started/CADDY_MODULE' },
+    ],
+  },
+  {
+    text: 'Production',
+    items: [
+      { text: 'Docker Compose', link: '/docs/production/DOCKER_COMPOSE' },
+      { text: 'Kubernetes', link: '/docs/production/KUBERNETES' },
+      { text: 'Configuration', link: '/docs/production/CONFIGURATION' },
+      { text: 'Security', link: '/docs/production/SECURITY' },
+      { text: 'Monitoring', link: '/docs/production/MONITORING' },
+    ],
+  },
+  {
+    text: 'API',
+    items: [
+      { text: 'Walkthrough', link: '/docs/api/WALKTHROUGH' },
+      { text: 'Reference', link: '/api' },
+    ],
+  },
+  {
+    text: 'Reference',
+    items: [
+      { text: 'Architecture', link: '/docs/architecture/OVERVIEW' },
+      { text: 'Diff Pipeline', link: '/docs/architecture/DIFF_ANALYSIS' },
+      { text: 'Troubleshooting', link: '/docs/TROUBLESHOOTING' },
+      { text: 'Roadmap', link: 'https://github.com/pedrobarco/mroki/issues' },
+    ],
+  },
+]
+
 // https://vitepress.dev/reference/site-config
 const config = withMermaid(
   defineConfig({
@@ -32,28 +71,27 @@ const config = withMermaid(
         pageData.description = pageData.params.description
       }
     },
-    // The docs/ pages are git-ignored copies of the canonical docs/ tree,
-    // whose relative cross-links do not resolve in this skeleton layout.
-    ignoreDeadLinks: true,
+    // Enforce link integrity, except for the localhost dev-server URLs that the
+    // canonical docs reference as content (hub, Grafana, Prometheus). VitePress
+    // cannot reach those at build time; every other link is still validated.
+    ignoreDeadLinks: [/^https?:\/\/localhost(:\d+)?/],
     themeConfig: {
+      // Top-level destinations only; the docs IA lives in the sidebar. GitHub
+      // also serves as the support/community channel (Issues, Discussions).
       nav: [
-        { text: 'Docs', link: '/docs/overview' },
+        { text: 'Docs', link: '/docs/getting-started/FULL_STACK' },
         { text: 'API', link: '/api' },
       ],
-      // Path-keyed sidebars: the docs pages keep their own nav, while the API
-      // Overview (/api) and the per-operation pages (/operations/*) share the
-      // tag-grouped sidebar generated from the OpenAPI spec.
+      socialLinks: [{ icon: 'github', link: 'https://github.com/pedrobarco/mroki' }],
+      // Local search scoped to /docs/: the theme shows the box only there
+      // (theme/index.ts + custom.css), and /api and /operations opt out of the
+      // index via `search: false`.
+      search: { provider: 'local' },
+      // Path-keyed sidebars: the copied doc pages share the four-group IA, while
+      // the API Overview (/api) and the per-operation pages (/operations/*)
+      // share the tag-grouped sidebar generated from the OpenAPI spec.
       sidebar: {
-        '/docs/': [
-          {
-            text: 'Docs',
-            items: [
-              { text: 'Architecture Overview', link: '/docs/overview' },
-              { text: 'Full Stack Setup', link: '/docs/full-stack' },
-              { text: 'Development', link: '/docs/development' },
-            ],
-          },
-        ],
+        '/docs/': docGroups,
         '/api': apiSidebar,
         '/operations/': apiSidebar,
       },

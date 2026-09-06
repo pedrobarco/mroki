@@ -19,6 +19,8 @@ For larger or multi-node deployments, see [Kubernetes](KUBERNETES.md).
 
 ## Deploy
 
+> A ready-to-use Compose file is committed at [`deployments/compose/full-stack.yaml`](../../deployments/compose/full-stack.yaml). It pulls the published images and reads `DB_PASSWORD`, `LIVE_URL`, `SHADOW_URL`, and `GATE_ID` from your environment. The steps below build an equivalent stack from scratch — use whichever you prefer.
+
 ### 1. Create a `.env` file
 
 ```bash

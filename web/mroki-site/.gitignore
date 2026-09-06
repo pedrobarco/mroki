@@ -12,6 +12,9 @@ node_modules
 .vitepress/dist
 .vitepress/generated
 
+# Bundled OpenAPI spec served as a static download (regenerated at build time)
+public/openapi.json
+
 # Generated copies of the canonical docs/ tree (surfaced at build time)
 docs/
 
