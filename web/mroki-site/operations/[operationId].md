@@ -1,6 +1,8 @@
 ---
 aside: false
 outline: false
+# Spec output, not prose: excluded from the local search index.
+search: false
 ---
 
 <!-- No Markdown heading: OAOperation renders the title; SEO tags come from

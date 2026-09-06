@@ -1,0 +1,8 @@
+/* Show the navbar search box only on /docs/ (see theme/index.ts). */
+.VPNavBarSearch {
+  display: none;
+}
+
+html.is-docs-route .VPNavBarSearch {
+  display: flex;
+}

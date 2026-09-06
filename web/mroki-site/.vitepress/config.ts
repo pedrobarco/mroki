@@ -17,11 +17,8 @@ const apiSidebar = [
   ...useSidebar({ spec }).generateSidebarGroups(),
 ]
 
-// The documentation groups mirror the README documentation table (the IA source
-// of truth). Copied doc pages are served under /docs/, preserving the canonical
-// docs/ directory structure; the API Reference points at the live /api renderer,
-// not a Markdown page. The same groups drive both the nav dropdowns and the
-// /docs/ sidebar.
+// Sidebar groups for /docs/, mirroring the README documentation table (the IA
+// source of truth). The API Reference links to the live /api renderer.
 const docGroups = [
   {
     text: 'Getting Started',
@@ -79,9 +76,17 @@ const config = withMermaid(
     // cannot reach those at build time; every other link is still validated.
     ignoreDeadLinks: [/^https?:\/\/localhost(:\d+)?/],
     themeConfig: {
-      // Top-level nav mirrors the four README documentation groups as dropdowns;
-      // the API group carries the live /api Reference entry.
-      nav: docGroups,
+      // Top-level destinations only; the docs IA lives in the sidebar. GitHub
+      // also serves as the support/community channel (Issues, Discussions).
+      nav: [
+        { text: 'Docs', link: '/docs/getting-started/FULL_STACK' },
+        { text: 'API', link: '/api' },
+      ],
+      socialLinks: [{ icon: 'github', link: 'https://github.com/pedrobarco/mroki' }],
+      // Local search scoped to /docs/: the theme shows the box only there
+      // (theme/index.ts + custom.css), and /api and /operations opt out of the
+      // index via `search: false`.
+      search: { provider: 'local' },
       // Path-keyed sidebars: the copied doc pages share the four-group IA, while
       // the API Overview (/api) and the per-operation pages (/operations/*)
       // share the tag-grouped sidebar generated from the OpenAPI spec.

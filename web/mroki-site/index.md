@@ -22,8 +22,8 @@ features:
     linkText: Production guides
   - title: API
     details: Create a gate, capture traffic, and query diffs — a task-oriented walkthrough plus a live OpenAPI reference.
-    link: /api
-    linkText: API reference
+    link: /docs/api/WALKTHROUGH
+    linkText: API walkthrough
   - title: Reference
     details: Understand the system architecture, the response diff pipeline, and how to troubleshoot common issues.
     link: /docs/architecture/OVERVIEW
