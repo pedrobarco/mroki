@@ -3,7 +3,8 @@ aside: false
 outline: false
 ---
 
-# {{ $params.pageTitle }}
+<!-- No Markdown heading: OAOperation renders the title; SEO tags come from
+transformPageData() in .vitepress/config.ts. -->
 
 <ClientOnly>
   <OAOperation :operation-id="$params.operationId" />
