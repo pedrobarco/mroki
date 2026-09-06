@@ -113,5 +113,5 @@ See the [Development Guide](DEVELOPMENT.md#project-structure) for a full breakdo
 
 ## Questions?
 
-- Check the [documentation](./README.md)
+- Check the [documentation](../../README.md)
 - Open a [discussion](https://github.com/pedrobarco/mroki/discussions) on GitHub

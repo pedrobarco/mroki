@@ -13,6 +13,12 @@ Use Kubernetes when you need:
 
 For simpler single-host setups, see [Docker Compose](DOCKER_COMPOSE.md).
 
+## Prerequisites
+
+- Kubernetes 1.20+
+- `kubectl` configured for your cluster
+- A persistent volume provisioner (for in-cluster PostgreSQL storage)
+
 ## Helm Chart
 
 The recommended approach. Chart source: [`deployments/kubernetes/charts/mroki/`](../../deployments/kubernetes/charts/mroki/).
@@ -128,7 +134,7 @@ Service: `ClusterIP` port 80 → 8080.
 
 ### PostgreSQL
 
-Use a managed database (Cloud SQL, RDS, Azure Database) in production. For an in-cluster instance, see [`postgres.yaml`](../../deployments/kubernetes/postgres.yaml).
+Use a managed database (Cloud SQL, RDS, Azure Database) in production. For an in-cluster instance, see [`postgres.yaml`](../../deployments/kubernetes/postgres.yaml) — a StatefulSet backed by a 20Gi persistent volume, so data survives pod restarts.
 
 ## Sidecar Pattern
 
@@ -180,6 +186,16 @@ kubectl scale deployment mroki-proxy --replicas=10 -n mroki
 ```
 
 Or use a HorizontalPodAutoscaler targeting CPU/memory. **PostgreSQL is the bottleneck** — use connection pooling (PgBouncer) and read replicas (`MROKI_APP_DATABASE_READ_URL`) for high-throughput workloads.
+
+## Uninstall
+
+Remove resources in reverse dependency order:
+
+```bash
+kubectl delete -f deployments/kubernetes/{proxy,api,postgres,secrets,namespace}.yaml
+```
+
+**Warning:** deleting `postgres.yaml` and its PersistentVolumeClaim destroys all stored data, including the database.
 
 ## What's Next
 
