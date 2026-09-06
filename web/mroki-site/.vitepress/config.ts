@@ -17,6 +17,48 @@ const apiSidebar = [
   ...useSidebar({ spec }).generateSidebarGroups(),
 ]
 
+// The documentation groups mirror the README documentation table (the IA source
+// of truth). Copied doc pages are served under /docs/, preserving the canonical
+// docs/ directory structure; the API Reference points at the live /api renderer,
+// not a Markdown page. The same groups drive both the nav dropdowns and the
+// /docs/ sidebar.
+const docGroups = [
+  {
+    text: 'Getting Started',
+    items: [
+      { text: 'Full Stack', link: '/docs/getting-started/FULL_STACK' },
+      { text: 'Standalone Proxy', link: '/docs/getting-started/STANDALONE_PROXY' },
+      { text: 'Caddy Module', link: '/docs/getting-started/CADDY_MODULE' },
+    ],
+  },
+  {
+    text: 'Production',
+    items: [
+      { text: 'Docker Compose', link: '/docs/production/DOCKER_COMPOSE' },
+      { text: 'Kubernetes', link: '/docs/production/KUBERNETES' },
+      { text: 'Configuration', link: '/docs/production/CONFIGURATION' },
+      { text: 'Security', link: '/docs/production/SECURITY' },
+      { text: 'Monitoring', link: '/docs/production/MONITORING' },
+    ],
+  },
+  {
+    text: 'API',
+    items: [
+      { text: 'Walkthrough', link: '/docs/api/WALKTHROUGH' },
+      { text: 'Reference', link: '/api' },
+    ],
+  },
+  {
+    text: 'Reference',
+    items: [
+      { text: 'Architecture', link: '/docs/architecture/OVERVIEW' },
+      { text: 'Diff Pipeline', link: '/docs/architecture/DIFF_ANALYSIS' },
+      { text: 'Troubleshooting', link: '/docs/TROUBLESHOOTING' },
+      { text: 'Roadmap', link: 'https://github.com/pedrobarco/mroki/issues' },
+    ],
+  },
+]
+
 // https://vitepress.dev/reference/site-config
 const config = withMermaid(
   defineConfig({
@@ -32,28 +74,19 @@ const config = withMermaid(
         pageData.description = pageData.params.description
       }
     },
-    // The docs/ pages are git-ignored copies of the canonical docs/ tree,
-    // whose relative cross-links do not resolve in this skeleton layout.
-    ignoreDeadLinks: true,
+    // Enforce link integrity, except for the localhost dev-server URLs that the
+    // canonical docs reference as content (hub, Grafana, Prometheus). VitePress
+    // cannot reach those at build time; every other link is still validated.
+    ignoreDeadLinks: [/^https?:\/\/localhost(:\d+)?/],
     themeConfig: {
-      nav: [
-        { text: 'Docs', link: '/docs/overview' },
-        { text: 'API', link: '/api' },
-      ],
-      // Path-keyed sidebars: the docs pages keep their own nav, while the API
-      // Overview (/api) and the per-operation pages (/operations/*) share the
-      // tag-grouped sidebar generated from the OpenAPI spec.
+      // Top-level nav mirrors the four README documentation groups as dropdowns;
+      // the API group carries the live /api Reference entry.
+      nav: docGroups,
+      // Path-keyed sidebars: the copied doc pages share the four-group IA, while
+      // the API Overview (/api) and the per-operation pages (/operations/*)
+      // share the tag-grouped sidebar generated from the OpenAPI spec.
       sidebar: {
-        '/docs/': [
-          {
-            text: 'Docs',
-            items: [
-              { text: 'Architecture Overview', link: '/docs/overview' },
-              { text: 'Full Stack Setup', link: '/docs/full-stack' },
-              { text: 'Development', link: '/docs/development' },
-            ],
-          },
-        ],
+        '/docs/': docGroups,
         '/api': apiSidebar,
         '/operations/': apiSidebar,
       },

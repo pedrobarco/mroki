@@ -1,16 +1,18 @@
-// Prebuild step for the mroki docs skeleton.
+// Prebuild step for the mroki docs site.
 //
 // 1. Bundles the multi-file OpenAPI 3.1 spec (docs/api/openapi/) into a single
 //    JSON document that vitepress-openapi can consume. Fails loudly on any
 //    unresolvable $ref so a broken spec never ships silently.
-// 2. (Re)creates git-ignored copies under docs/ that surface a curated set of
-//    pages from the canonical, read-only docs/ tree. Copies (not symlinks) are
+// 2. (Re)creates a git-ignored, structure-preserving copy of the canonical,
+//    read-only docs/ tree under this site's docs/. Copies (not symlinks) are
 //    used deliberately: VitePress resolves a symlink's pageData.relativePath to
 //    its realpath outside the site root, which breaks path-keyed sidebar
 //    matching for the /docs/ section. Real files inside the site root resolve to
-//    docs/<page>.md and match correctly.
-import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, relative, resolve } from 'node:path'
+//    docs/<page>.md and match correctly. A handful of links that point outside
+//    the copied tree (or at content excluded from the copy) are rewritten in
+//    place afterwards so the site builds with dead-link checking enabled.
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { basename, dirname, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import SwaggerParser from '@apidevtools/swagger-parser'
 
@@ -23,26 +25,66 @@ const specEntry = resolve(repoRoot, 'docs/api/openapi/openapi.yaml')
 const generatedDir = resolve(siteRoot, '.vitepress/generated')
 const outFile = resolve(generatedDir, 'openapi.json')
 
-const docsDir = resolve(siteRoot, 'docs')
-// Curated skeleton pages surfaced from the canonical docs/ tree.
-const docsPages = {
-  'overview.md': 'docs/architecture/OVERVIEW.md',
-  'full-stack.md': 'docs/getting-started/FULL_STACK.md',
-  'development.md': 'docs/development/DEVELOPMENT.md',
+const repoDocsDir = resolve(repoRoot, 'docs') // canonical source of truth
+const docsDir = resolve(siteRoot, 'docs') // git-ignored build-time copy
+
+// Base URL for links that must resolve on GitHub rather than inside the site
+// (source files outside docs/, and the raw OpenAPI spec).
+const githubBlob = 'https://github.com/pedrobarco/mroki/blob/main'
+
+// Paths (relative to docs/) excluded from the copy. The raw OpenAPI spec is
+// bundled separately by bundleSpec(); the generated API reference is superseded
+// by the live /api renderer and would otherwise ship as a huge duplicate page.
+const excludedPaths = ['api/openapi', 'api/REFERENCE.md']
+const excludedNames = new Set(['.DS_Store', '.gitkeep'])
+
+function shouldCopy(src) {
+  const rel = relative(repoDocsDir, src)
+  if (rel === '') return true // the docs/ root itself
+  if (excludedNames.has(basename(src))) return false
+  return !excludedPaths.some((ex) => rel === ex || rel.startsWith(ex + sep))
 }
 
-function copyDocsPages() {
-  rmSync(docsDir, { recursive: true, force: true })
-  mkdirSync(docsDir, { recursive: true })
-  for (const [linkName, target] of Object.entries(docsPages)) {
-    const absTarget = resolve(repoRoot, target)
-    if (!existsSync(absTarget)) {
-      console.error(`[bundle-openapi] missing source doc: ${target}`)
-      process.exit(1)
+// Post-copy link rewrites, keyed by path relative to docs/. Each replacement is
+// a literal [find, replace] pair applied to the copied file only; canonical
+// docs/ stays untouched. A find string that no longer matches fails the build,
+// so these can't silently rot when the source docs change.
+const linkRewrites = {
+  'production/KUBERNETES.md': [
+    ['](../../deployments/kubernetes/', `](${githubBlob}/deployments/kubernetes/`],
+  ],
+  'api/WALKTHROUGH.md': [
+    ['](REFERENCE.md)', '](/api)'],
+    ['](openapi/openapi.yaml)', `](${githubBlob}/docs/api/openapi/openapi.yaml)`],
+  ],
+  'architecture/OVERVIEW.md': [['](../api/REFERENCE.md)', '](/api)']],
+  'development/CONTRIBUTING.md': [['](./README.md)', `](${githubBlob}/README.md)`]],
+}
+
+function rewriteLinks() {
+  for (const [relPath, replacements] of Object.entries(linkRewrites)) {
+    const file = resolve(docsDir, relPath)
+    let content = readFileSync(file, 'utf8')
+    for (const [find, replace] of replacements) {
+      if (!content.includes(find)) {
+        console.error(`[bundle-openapi] link rewrite no longer matches in ${relPath}: ${find}`)
+        process.exit(1)
+      }
+      content = content.replaceAll(find, replace)
     }
-    copyFileSync(absTarget, resolve(docsDir, linkName))
+    writeFileSync(file, content)
   }
-  console.log(`[bundle-openapi] copied ${Object.keys(docsPages).length} docs page(s)`)
+}
+
+function copyDocsTree() {
+  if (!existsSync(repoDocsDir)) {
+    console.error(`[bundle-openapi] missing canonical docs dir: ${relative(repoRoot, repoDocsDir)}`)
+    process.exit(1)
+  }
+  rmSync(docsDir, { recursive: true, force: true })
+  cpSync(repoDocsDir, docsDir, { recursive: true, filter: shouldCopy })
+  rewriteLinks()
+  console.log(`[bundle-openapi] copied docs/ tree to ${relative(repoRoot, docsDir)}`)
 }
 
 async function bundleSpec() {
@@ -58,5 +100,5 @@ async function bundleSpec() {
   }
 }
 
-copyDocsPages()
+copyDocsTree()
 await bundleSpec()
