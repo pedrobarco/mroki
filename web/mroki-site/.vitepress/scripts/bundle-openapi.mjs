@@ -15,6 +15,10 @@
 //    manifests, the root README, the raw OpenAPI spec) become absolute GitHub
 //    URLs, and links to the generated API reference (excluded from the copy and
 //    superseded by the live /api renderer) are pointed at /api.
+// 3. Copies the navbar logo assets referenced by .vitepress/config.ts into a
+//    git-ignored public/brand/ so VitePress emits them, and stages a single
+//    favicon at the site root as /favicon.ico. They are sourced from the
+//    canonical docs/assets/brand/; no copies are committed under web/mroki-site.
 import {
   cpSync,
   existsSync,
@@ -45,6 +49,18 @@ const publicSpecFile = resolve(publicDir, 'openapi.json')
 
 const repoDocsDir = resolve(repoRoot, 'docs') // canonical source of truth
 const docsDir = resolve(siteRoot, 'docs') // git-ignored build-time copy
+
+// Brand assets sourced from the canonical docs/assets/brand/ and emitted through
+// a git-ignored public/brand/. Only the files config.ts references are copied;
+// a missing source fails the build (same fail-fast rule as the link resolver).
+const brandSrcDir = resolve(repoDocsDir, 'assets/brand')
+const publicBrandDir = resolve(publicDir, 'brand')
+const brandAssets = ['mroki-logo-icon-light.png', 'mroki-logo-icon-dark.png']
+
+// Single favicon, staged at the site root as /favicon.ico (see copyBrandAssets)
+// because browsers request that path automatically. The white orb is chosen to
+// read against dark browser chrome.
+const rootFavicon = 'favicon-dark.ico'
 
 // Base URL for canonical-docs links that point at repo artifacts outside the
 // copied tree (deployment manifests, the root README, the raw OpenAPI spec).
@@ -172,6 +188,36 @@ function copyDocsTree() {
   console.log(`[bundle-openapi] copied docs/ tree to ${relative(repoRoot, docsDir)}`)
 }
 
+function copyBrandAssets() {
+  if (!existsSync(brandSrcDir)) {
+    console.error(`[bundle-openapi] missing brand assets dir: ${relative(repoRoot, brandSrcDir)}`)
+    process.exit(1)
+  }
+  rmSync(publicBrandDir, { recursive: true, force: true })
+  mkdirSync(publicBrandDir, { recursive: true })
+  for (const name of brandAssets) {
+    const src = resolve(brandSrcDir, name)
+    if (!existsSync(src)) {
+      console.error(`[bundle-openapi] missing brand asset: ${relative(repoRoot, src)}`)
+      process.exit(1)
+    }
+    cpSync(src, resolve(publicBrandDir, name))
+  }
+  // Stage the favicon at the site root as /favicon.ico. Browsers request
+  // /favicon.ico automatically, so this single file is the whole favicon setup
+  // (no <head> link tags, no prefers-color-scheme variants). It also fixes dev,
+  // where VitePress serves a bare HTML shell and the pre-JS request would 404.
+  const rootFaviconSrc = resolve(brandSrcDir, rootFavicon)
+  if (!existsSync(rootFaviconSrc)) {
+    console.error(`[bundle-openapi] missing root favicon: ${relative(repoRoot, rootFaviconSrc)}`)
+    process.exit(1)
+  }
+  cpSync(rootFaviconSrc, resolve(publicDir, 'favicon.ico'))
+  console.log(
+    `[bundle-openapi] copied ${brandAssets.length} brand assets to ${relative(repoRoot, publicBrandDir)}`
+  )
+}
+
 async function bundleSpec() {
   try {
     const bundled = await SwaggerParser.bundle(specEntry)
@@ -191,4 +237,5 @@ async function bundleSpec() {
 }
 
 copyDocsTree()
+copyBrandAssets()
 await bundleSpec()

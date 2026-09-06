@@ -60,7 +60,13 @@ const docGroups = [
 const config = withMermaid(
   defineConfig({
     title: 'mroki',
+    titleTemplate: ':title · mroki',
     description: 'Documentation for the mroki traffic-testing service',
+    // No favicon <head> tags: the bundle-openapi prebuild stages a single
+    // /favicon.ico at the site root (copied from docs/assets/brand/), which
+    // browsers request automatically. This also avoids VitePress not
+    // base-prepending head hrefs (see #218).
+
     // Map the per-operation params emitted by operations/[operationId].paths.js
     // onto each dynamic page's <title> and <meta name="description">.
     transformPageData(pageData) {
@@ -76,6 +82,12 @@ const config = withMermaid(
     // cannot reach those at build time; every other link is still validated.
     ignoreDeadLinks: [/^https?:\/\/localhost(:\d+)?/],
     themeConfig: {
+      // Navbar logo; the default theme base-prepends this and swaps by color
+      // mode. Sourced from public/brand/ (copied from docs/assets/brand/).
+      logo: {
+        light: '/brand/mroki-logo-icon-light.png',
+        dark: '/brand/mroki-logo-icon-dark.png',
+      },
       // Top-level destinations only; the docs IA lives in the sidebar. GitHub
       // also serves as the support/community channel (Issues, Discussions).
       nav: [
