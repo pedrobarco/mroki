@@ -88,6 +88,8 @@ const iconEye = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const iconServer = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>`
 // Shield + check: the hero safety-promise glyph.
 export const iconShieldCheck = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>`
+// Up-right arrow: marks a CTA/link that opens in a new tab.
+export const iconExternal = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>`
 
 export const hero: Hero = {
   name: 'mroki',
@@ -97,25 +99,28 @@ export const hero: Hero = {
     { text: 'Get Started', link: '/docs/getting-started/FULL_STACK', theme: 'brand' },
     { text: 'API Reference', link: '/api', theme: 'alt' },
   ],
-  promise: 'Live traffic never waits on mroki, and never breaks when the shadow does.',
+  promise: 'Live traffic never waits on mroki.',
 }
 
-// Illustrative hero diff motif: a tiny unified diff showing mroki's core job
+// Illustrative hero diff motif: a compact unified diff showing mroki's core job
 // (live vs shadow, field by field) rendered with the signal palette. The values
 // are an example, not live data — the caption says so for assistive tech.
 export const heroDiff: HeroDiff = {
   label: 'live vs shadow',
-  badge: '1 field changed',
+  badge: '2 fields changed',
   lines: [
     { kind: 'context', text: '{' },
-    { kind: 'context', text: '  "status": "ok",' },
-    { kind: 'removed', text: '  "total": 42,' },
-    { kind: 'added', text: '  "total": 41,' },
-    { kind: 'context', text: '  "currency": "USD"' },
+    { kind: 'context', text: '  "order": "9f2c1b",' },
+    { kind: 'context', text: '  "status": "confirmed",' },
+    { kind: 'removed', text: '  "total": 4200,' },
+    { kind: 'added', text: '  "total": 4180,' },
+    { kind: 'context', text: '  "currency": "USD",' },
+    { kind: 'removed', text: '  "items": 3' },
+    { kind: 'added', text: '  "items": 2' },
     { kind: 'context', text: '}' },
   ],
   caption:
-    'Example response diff: the shadow service returned total 41 where the live service returned 42.',
+    'Example response diff: the shadow service returned total 4180 and items 2 where the live service returned 4200 and 3.',
 }
 
 // Heading for the features grid, so the section is scannable and takes a proper
@@ -130,13 +135,7 @@ export const features: Feature[] = [
     icon: iconShield,
     title: 'Live traffic comes first',
     detail:
-      'Your users always get the live response. Shadow mirroring runs to the side and never delays or breaks production.',
-  },
-  {
-    icon: iconDiff,
-    title: 'Diffing lives in the API',
-    detail:
-      'mroki-api diffs the two responses and stores each change as an RFC 6902 patch. Re-diff later with new rules — no replay needed.',
+      'Your users always get the live response. Shadow mirroring runs to the side and never delays or breaks production — every diff, API call, and error stays best-effort.',
   },
   {
     icon: iconEye,
@@ -150,6 +149,12 @@ export const features: Feature[] = [
     detail:
       'Everything runs on your own infrastructure. No traffic leaves your network, no account to create, MIT-licensed.',
   },
+  {
+    icon: iconDiff,
+    title: 'Diffing lives in the API',
+    detail:
+      'mroki-api diffs the two responses and stores each change as an RFC 6902 patch. Re-diff later with new rules — no replay needed.',
+  },
 ]
 
 // Product showcase: a real hub screenshot (the dark-only Control Room) framed
@@ -159,7 +164,7 @@ export const showcase: Showcase = {
   title: 'Live vs shadow, field by field.',
   lede: 'Every mirrored request becomes a side-by-side comparison, with added, removed, and changed fields highlighted inline.',
   image: '/screenshots/hub-request-detail-split.png',
-  alt: 'mroki hub request detail: a side-by-side split view comparing a live and shadow JSON response, with added, removed, and changed fields highlighted.',
+  alt: 'Hub request detail: a live and shadow JSON response side by side, with changed fields highlighted.',
   action: { text: 'How diffing works', link: '/docs/architecture/DIFF_ANALYSIS', theme: 'alt' },
 }
 

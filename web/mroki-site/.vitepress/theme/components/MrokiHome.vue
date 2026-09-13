@@ -9,6 +9,7 @@ import {
   closing,
   footer,
   iconShieldCheck,
+  iconExternal,
   type HomeAction,
 } from '../home-content'
 
@@ -17,6 +18,11 @@ import {
 function href(action: HomeAction): string {
   return action.external ? action.link : withBase(action.link)
 }
+
+// External anchors open in a new tab; announce that to assistive tech.
+function ariaLabel(action: HomeAction): string | undefined {
+  return action.external ? `${action.text} (opens in new tab)` : undefined
+}
 </script>
 
 <template>
@@ -24,27 +30,37 @@ function href(action: HomeAction): string {
     <!-- Hero -->
     <section class="mh-hero">
       <div class="mh-container mh-hero-inner">
-        <h1 class="mh-hero-heading">
-          <span class="mh-hero-name">{{ hero.name }}</span>
-          <span class="mh-hero-tagline">{{ hero.tagline }}</span>
-        </h1>
-        <p class="mh-hero-lede">{{ hero.lede }}</p>
-        <div class="mh-actions">
-          <a
-            v-for="action in hero.actions"
-            :key="action.text"
-            class="mh-cta"
-            :class="`mh-cta--${action.theme}`"
-            :href="href(action)"
-            :target="action.external ? '_blank' : undefined"
-            :rel="action.external ? 'noopener noreferrer' : undefined"
-            >{{ action.text }}</a
-          >
+        <div class="mh-hero-copy">
+          <h1 class="mh-hero-heading">
+            <span class="mh-hero-name">{{ hero.name }}</span>
+            <span class="mh-hero-tagline">{{ hero.tagline }}</span>
+          </h1>
+          <p class="mh-hero-lede">{{ hero.lede }}</p>
+          <p class="mh-promise">
+            <span class="mh-promise-icon" aria-hidden="true" v-html="iconShieldCheck" />
+            <span>{{ hero.promise }}</span>
+          </p>
+          <div class="mh-actions">
+            <a
+              v-for="action in hero.actions"
+              :key="action.text"
+              class="mh-cta"
+              :class="`mh-cta--${action.theme}`"
+              :href="href(action)"
+              :target="action.external ? '_blank' : undefined"
+              :rel="action.external ? 'noopener noreferrer' : undefined"
+              :aria-label="ariaLabel(action)"
+            >
+              <span>{{ action.text }}</span>
+              <span
+                v-if="action.external"
+                class="mh-cta-ext"
+                aria-hidden="true"
+                v-html="iconExternal"
+              />
+            </a>
+          </div>
         </div>
-        <p class="mh-promise">
-          <span class="mh-promise-icon" aria-hidden="true" v-html="iconShieldCheck" />
-          <span>{{ hero.promise }}</span>
-        </p>
         <figure class="mh-herodiff" role="img" :aria-label="heroDiff.caption">
           <div class="mh-herodiff-bar" aria-hidden="true">
             <span class="mh-herodiff-label">{{ heroDiff.label }}</span>
@@ -132,8 +148,16 @@ function href(action: HomeAction): string {
             :href="href(action)"
             :target="action.external ? '_blank' : undefined"
             :rel="action.external ? 'noopener noreferrer' : undefined"
-            >{{ action.text }}</a
+            :aria-label="ariaLabel(action)"
           >
+            <span>{{ action.text }}</span>
+            <span
+              v-if="action.external"
+              class="mh-cta-ext"
+              aria-hidden="true"
+              v-html="iconExternal"
+            />
+          </a>
         </div>
       </div>
     </section>
@@ -148,8 +172,16 @@ function href(action: HomeAction): string {
             :href="link.external ? link.link : withBase(link.link)"
             :target="link.external ? '_blank' : undefined"
             :rel="link.external ? 'noopener noreferrer' : undefined"
-            >{{ link.text }}</a
+            :aria-label="link.external ? `${link.text} (opens in new tab)` : undefined"
           >
+            <span>{{ link.text }}</span>
+            <span
+              v-if="link.external"
+              class="mh-footer-ext"
+              aria-hidden="true"
+              v-html="iconExternal"
+            />
+          </a>
         </nav>
         <p class="mh-footer-copyright">{{ footer.copyright }}</p>
       </div>
@@ -169,12 +201,16 @@ function href(action: HomeAction): string {
 .mh-hero {
   position: relative;
   padding-block: clamp(72px, 12vh, 140px) clamp(48px, 8vw, 88px);
-  text-align: center;
 }
 
 .mh-hero-inner {
   position: relative;
   z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: center;
+  text-align: left;
 }
 
 .mh-hero-heading {
@@ -185,7 +221,7 @@ function href(action: HomeAction): string {
 }
 
 .mh-hero-name {
-  font-size: clamp(2.75rem, 6vw, 4.5rem);
+  font-size: clamp(2.5rem, 5vw, 4rem);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -201,8 +237,8 @@ function href(action: HomeAction): string {
 }
 
 .mh-hero-lede {
-  margin: 1.25rem auto 0;
-  max-width: 60ch;
+  margin: 1.25rem 0 0;
+  max-width: 52ch;
   font-size: 1.125rem;
   line-height: 1.6;
   color: var(--vp-c-text-2);
@@ -212,12 +248,12 @@ function href(action: HomeAction): string {
 .mh-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 }
 
 .mh-hero .mh-actions {
-  justify-content: center;
-  margin-top: 2rem;
+  justify-content: flex-start;
+  margin-top: 1.75rem;
 }
 
 .mh-cta {
@@ -263,12 +299,24 @@ function href(action: HomeAction): string {
   outline-offset: 2px;
 }
 
+/* External-link glyph inside a CTA. */
+.mh-cta-ext {
+  display: inline-grid;
+  place-items: center;
+  margin-left: 6px;
+}
+
+.mh-cta-ext :deep(svg) {
+  width: 15px;
+  height: 15px;
+}
+
 /* ---- Hero safety promise (subordinate to the CTAs) -------------- */
 .mh-promise {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin: 1.5rem auto 0;
+  margin: 1.5rem 0 0;
   padding: 8px 16px;
   border: 1px solid var(--vp-c-border);
   border-radius: 999px;
@@ -292,14 +340,16 @@ function href(action: HomeAction): string {
 
 /* ---- Hero diff motif (mroki's core job, shown once) ------------- */
 .mh-herodiff {
-  margin: 2.5rem auto 0;
-  width: min(420px, 100%);
+  margin: 0;
+  width: 100%;
+  max-width: 520px;
+  justify-self: end;
   border: 1px solid var(--vp-c-border);
   border-radius: 12px;
   overflow: hidden;
   background: var(--vp-c-bg-soft);
   text-align: left;
-  box-shadow: 0 12px 32px -16px rgba(9, 9, 11, 0.28);
+  box-shadow: 0 20px 48px -24px rgba(9, 9, 11, 0.4);
 }
 
 .mh-herodiff-bar {
@@ -333,7 +383,7 @@ function href(action: HomeAction): string {
   flex-direction: column;
   padding-block: 12px;
   font-family: var(--vp-font-family-mono);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.7;
 }
 
@@ -440,8 +490,8 @@ function href(action: HomeAction): string {
 }
 
 .mh-feature-icon :deep(svg) {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 
 .mh-feature-title {
@@ -463,6 +513,26 @@ function href(action: HomeAction): string {
 
 /* ---- Responsive ------------------------------------------------- */
 @media (max-width: 860px) {
+  .mh-hero-inner {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .mh-hero-lede,
+  .mh-promise {
+    margin-inline: auto;
+  }
+
+  .mh-hero .mh-actions {
+    justify-content: center;
+  }
+
+  .mh-herodiff {
+    justify-self: center;
+    margin-inline: auto;
+    max-width: 480px;
+  }
+
   .mh-showcase-inner {
     grid-template-columns: 1fr;
   }
@@ -612,15 +682,31 @@ function href(action: HomeAction): string {
 }
 
 .mh-footer-links a {
+  display: inline-flex;
+  align-items: center;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--vp-c-text-2);
-  text-decoration: none;
-  transition: color 0.2s;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: color 0.2s, text-decoration-color 0.2s;
 }
 
 .mh-footer-links a:hover {
   color: var(--vp-c-text-1);
+  text-decoration-color: currentColor;
+}
+
+.mh-footer-ext {
+  display: inline-grid;
+  place-items: center;
+  margin-left: 5px;
+}
+
+.mh-footer-ext :deep(svg) {
+  width: 13px;
+  height: 13px;
 }
 
 .mh-footer-links a:focus-visible {
@@ -656,11 +742,11 @@ function href(action: HomeAction): string {
 }
 
 .mh-hero .mh-actions {
-  animation: mh-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+  animation: mh-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
 }
 
 .mh-promise {
-  animation: mh-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
+  animation: mh-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
 }
 
 .mh-herodiff {
