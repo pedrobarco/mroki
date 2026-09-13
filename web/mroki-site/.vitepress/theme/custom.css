@@ -1,8 +1,131 @@
-/* Show the navbar search box only on /docs/ (see theme/index.ts). */
+/* Show the navbar search box only where it's useful — the home page and
+   /docs/ (see theme/index.ts). It stays hidden on /api and /operations/,
+   which opt out of the search index. */
 .VPNavBarSearch {
   display: none;
 }
 
-html.is-docs-route .VPNavBarSearch {
+html.is-search-route .VPNavBarSearch {
   display: flex;
+}
+
+/* ------------------------------------------------------------------ *
+ * mroki brand tokens — ports the hub "Control Room" neutral zinc
+ * system onto VitePress. See SITE_BRANDING_PLAN.md (Phase 1/2).
+ * Neutral surfaces · blue = links (wayfinding) · ink = buttons ·
+ * signal color for status only. Values sourced from DESIGN.md.
+ * ------------------------------------------------------------------ */
+
+/* Light theme — built from the hub's light seed values. */
+:root {
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-alt: #fafafa;
+  --vp-c-bg-soft: #f4f4f5;
+  --vp-c-bg-elv: #ffffff;
+
+  --vp-c-text-1: #09090b;
+  --vp-c-text-2: #52525b;
+  --vp-c-text-3: #71717a;
+
+  --vp-c-border: #e4e4e7;
+  --vp-c-divider: #e4e4e7;
+  --vp-c-gutter: #e4e4e7;
+
+  /* Brand = links (signal-blue, AA on white) */
+  --vp-c-brand-1: #2563eb;
+  --vp-c-brand-2: #1d4ed8;
+  --vp-c-brand-3: #2563eb;
+  --vp-c-brand-soft: #f4f4f5;
+
+  /* Primary CTA = neutral ink (hub Primary Button parity) */
+  --vp-button-brand-bg: #18181b;
+  --vp-button-brand-text: #fafafa;
+  --vp-button-brand-border: #18181b;
+  --vp-button-brand-hover-bg: #3f3f46;
+  --vp-button-brand-hover-text: #fafafa;
+  --vp-button-brand-hover-border: #3f3f46;
+  --vp-button-brand-active-bg: #27272a;
+  --vp-button-brand-active-text: #fafafa;
+  --vp-button-brand-active-border: #27272a;
+
+  /* Tip/info → neutral zinc (so blue reads as "link") */
+  --vp-c-tip-1: #3f3f46;
+  --vp-c-tip-2: #52525b;
+  --vp-c-tip-3: #71717a;
+  --vp-c-tip-soft: #f4f4f5;
+
+  /* Warning → signal-amber (text tone AA-tuned) */
+  --vp-c-warning-1: #b45309;
+  --vp-c-warning-2: #d97706;
+  --vp-c-warning-3: #f59e0b;
+  --vp-c-warning-soft: rgba(245, 158, 11, 0.14);
+
+  /* Danger → signal-red (text tone AA-tuned) */
+  --vp-c-danger-1: #b91c1c;
+  --vp-c-danger-2: #dc2626;
+  --vp-c-danger-3: #ef4444;
+  --vp-c-danger-soft: rgba(239, 68, 68, 0.14);
+
+  /* Success → signal-green (diff "added" tone, AA on light surfaces) */
+  --vp-c-green-1: #15803d;
+  --vp-c-green-2: #16a34a;
+  --vp-c-green-3: #22c55e;
+  --vp-c-green-soft: rgba(34, 197, 94, 0.14);
+}
+
+/* Dark theme — the hub's shipped dark zinc palette. */
+.dark {
+  --vp-c-bg: #09090b;
+  --vp-c-bg-alt: #18181b;
+  --vp-c-bg-soft: #18181b;
+  --vp-c-bg-elv: #18181b;
+
+  --vp-c-text-1: #fafafa;
+  --vp-c-text-2: #a1a1aa;
+  --vp-c-text-3: #71717a;
+
+  --vp-c-border: #27272a;
+  --vp-c-divider: #27272a;
+  --vp-c-gutter: #27272a;
+
+  /* Brand = links (signal-blue, AA on near-black) */
+  --vp-c-brand-1: #60a5fa;
+  --vp-c-brand-2: #93c5fd;
+  --vp-c-brand-3: #3b82f6;
+  --vp-c-brand-soft: #27272a;
+
+  /* Primary CTA = neutral ink (inverted for dark) */
+  --vp-button-brand-bg: #fafafa;
+  --vp-button-brand-text: #18181b;
+  --vp-button-brand-border: #fafafa;
+  --vp-button-brand-hover-bg: #e4e4e7;
+  --vp-button-brand-hover-text: #18181b;
+  --vp-button-brand-hover-border: #e4e4e7;
+  --vp-button-brand-active-bg: #d4d4d8;
+  --vp-button-brand-active-text: #18181b;
+  --vp-button-brand-active-border: #d4d4d8;
+
+  /* Tip/info → neutral zinc */
+  --vp-c-tip-1: #d4d4d8;
+  --vp-c-tip-2: #a1a1aa;
+  --vp-c-tip-3: #71717a;
+  --vp-c-tip-soft: #27272a;
+
+  /* Warning → signal-amber */
+  --vp-c-warning-1: #fbbf24;
+  --vp-c-warning-2: #f59e0b;
+  --vp-c-warning-3: #d97706;
+  --vp-c-warning-soft: rgba(245, 158, 11, 0.16);
+
+  /* Danger → signal-red */
+  --vp-c-danger-1: #f87171;
+  --vp-c-danger-2: #ef4444;
+  --vp-c-danger-3: #dc2626;
+  --vp-c-danger-soft: rgba(239, 68, 68, 0.16);
+
+  /* Success → signal-green (diff "added" tone) */
+  --vp-c-green-1: #4ade80;
+  --vp-c-green-2: #22c55e;
+  --vp-c-green-3: #16a34a;
+  --vp-c-green-soft: rgba(34, 197, 94, 0.16);
 }
