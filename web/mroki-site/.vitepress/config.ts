@@ -56,16 +56,22 @@ const docGroups = [
   },
 ]
 
+// Deployed as a GitHub Pages project site at https://pedrobarco.github.io/mroki/,
+// so every asset and route is served under this base path (#218).
+const base = '/mroki/'
+
 // https://vitepress.dev/reference/site-config
 const config = withMermaid(
   defineConfig({
+    base,
     title: 'mroki',
     titleTemplate: ':title · mroki',
     description: 'Documentation for the mroki traffic-testing service',
-    // No favicon <head> tags: the bundle-openapi prebuild stages a single
-    // /favicon.ico at the site root (copied from docs/assets/brand/), which
-    // browsers request automatically. This also avoids VitePress not
-    // base-prepending head hrefs (see #218).
+    // Favicon: the bundle-openapi prebuild stages a single favicon.ico at the
+    // site root. Browsers auto-request /favicon.ico at the *domain* root, which
+    // misses the project subpath, and VitePress does not base-prepend head
+    // hrefs — so point the link at `${base}favicon.ico` explicitly (#218).
+    head: [['link', { rel: 'icon', href: `${base}favicon.ico` }]],
 
     // Map the per-operation params emitted by operations/[operationId].paths.js
     // onto each dynamic page's <title> and <meta name="description">.

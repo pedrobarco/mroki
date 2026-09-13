@@ -30,8 +30,43 @@ jobs:
     with:
       targets: >-
         [
-          "web/mroki-hub"
+          "web/mroki-hub",
+          "web/mroki-site"
         ]
+
+  # ── Deploy docs site to GitHub Pages ──────────────────────────────────
+
+  pages:
+    name: pages
+    # Publish only on merge to main; PRs still build + link-check via the pnpm job.
+    if: github.ref == 'refs/heads/main'
+    needs: [pnpm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node
+        with:
+          working-directory: web/mroki-site
+      - name: Build docs site
+        working-directory: web/mroki-site
+        run: pnpm run build
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/mroki-site/.vitepress/dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   # ── Push Docker images ────────────────────────────────────────────────
 

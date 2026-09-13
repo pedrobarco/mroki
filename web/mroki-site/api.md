@@ -4,6 +4,12 @@ title: API Reference
 search: false
 ---
 
+<script setup>
+// VitePress does not base-prepend hrefs inside raw HTML, so the openapi.json
+// link below is made base-aware explicitly to resolve under /mroki/ (#218).
+import { withBase } from 'vitepress'
+</script>
+
 # API Reference
 
 The REST API provided by `mroki-api`. It manages traffic-testing gates and the
@@ -16,7 +22,7 @@ resolved. Use the **sidebar** to open any single operation on its own page,
 grouped by tag.
 
 <small>Need the raw spec? Open the fully resolved
-<a href="/openapi.json" target="_blank" rel="noreferrer">openapi.json</a>.</small>
+<a :href="withBase('/openapi.json')" target="_blank" rel="noreferrer">openapi.json</a>.</small>
 
 ## Conventions
 

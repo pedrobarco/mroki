@@ -25,9 +25,12 @@ jobs:
         working-directory: ${{ matrix.target }}
         run: pnpm run lint
 
+      # --if-present (before the script name) so targets without a test script
+      # (e.g. web/mroki-site) are skipped rather than failing; targets that
+      # define one (web/mroki-hub) still run it.
       - name: Test
         working-directory: ${{ matrix.target }}
-        run: pnpm run test
+        run: pnpm run --if-present test
 
       - name: Build
         working-directory: ${{ matrix.target }}
