@@ -26,10 +26,11 @@ internal/            Private API code (DDD + CQRS layering, see below)
 pkg/                 Public libraries: proxy, diff, client, dto, logger, ratelimit, jsontree, caddymodule, metrics
 ent/                 GENERATED Ent code + schema/ + migrate/migrations/ (see Database)
 web/mroki-hub/       Vue 3 + TypeScript SPA (pnpm)
+web/mroki-site/      VitePress docs site (pnpm) — renders docs/, published to GitHub Pages
 docs/                Documentation (getting-started, production, api, architecture, development)
 build/               Dockerfiles (build/package/) and dev stack (build/dev/compose.yaml)
 deployments/         Docker Compose + Kubernetes/Helm manifests
-.github/workflows/   CI (ci.yaml orchestrates reusable _go/_pnpm/_docker/_helm/_release)
+.github/workflows/   CI (ci.yaml orchestrates reusable _go/_pnpm/_pages/_docker/_helm/_release)
 ```
 
 ## Setup & common commands
@@ -171,9 +172,29 @@ regenerate instead.
 ## CI/CD
 
 `.github/workflows/ci.yaml` runs on PRs and pushes to `main`: lint + test + build for Go
-(`_go.yaml`) and the hub (`_pnpm.yaml`). On `main`/tags it builds and pushes Docker images
-(`_docker.yaml`), packages Helm (`_helm.yaml`), and on `v*` tags cuts a release (`_release.yaml`,
-changelog via `cliff.toml`). Make sure `make lint` and `make test` pass locally before opening a PR.
+(`_go.yaml`) and for the hub and docs site (`_pnpm.yaml`). On `main` it deploys the docs site to
+GitHub Pages (`_pages.yaml`), builds and pushes Docker images (`_docker.yaml`), packages Helm
+(`_helm.yaml`), and on `v*` tags cuts a release (`_release.yaml`, changelog via `cliff.toml`). Make
+sure `make lint` and `make test` pass locally before opening a PR.
+
+## Documentation site
+
+`web/mroki-site/` is a VitePress site that publishes the canonical `docs/` tree to GitHub Pages at
+https://pedrobarco.github.io/mroki/ (served under base `/mroki/`).
+
+```bash
+cd web/mroki-site
+pnpm install   # first time
+pnpm dev       # local preview
+pnpm build     # production build + dead-link check (what CI runs)
+```
+
+- **Edit canonical `docs/`, never the generated copy under `web/mroki-site/docs/`.** The
+  `bundle:openapi` prebuild (run by both `dev` and `build`) rebuilds that copy from `docs/`, so edits
+  there are overwritten. Everything the prebuild emits is git-ignored: `web/mroki-site/docs/`,
+  `.vitepress/generated/`, `public/openapi.json`, `public/brand/`, and `public/favicon.ico`.
+- The navbar and sidebar in `.vitepress/config.ts` mirror the README documentation table (the IA
+  source of truth) — keep them in sync when adding or moving a page.
 
 ## Documentation map
 
