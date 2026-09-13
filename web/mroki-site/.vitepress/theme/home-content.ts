@@ -52,12 +52,46 @@ export interface HeroDiff {
   caption: string
 }
 
+/** One selectable diff view in the showcase, mirroring the hub's viewer. */
+export interface ShowcaseView {
+  /** Stable id used as the tab value and for wiring ARIA attributes. */
+  id: string
+  /** Segmented-control label, matching the hub UI verbatim. */
+  label: string
+  /** One-line explanation of what this view shows, rendered under the frame. */
+  caption: string
+}
+
+/** How a single field differs between the live and shadow responses. */
+export type ShowcaseChange = 'context' | 'changed' | 'added' | 'removed'
+
+/**
+ * One field of the illustrative example, rendered three ways by the switcher.
+ * Values are pre-formatted display strings (quotes included for JSON strings)
+ * so the renderer stays type-agnostic. This is an example, not live data.
+ */
+export interface ShowcaseField {
+  /** Property name as it appears in the JSON. */
+  key: string
+  /** RFC 6902 JSON Pointer, shown in the patch view. */
+  path: string
+  /** How the field differs between the two responses. */
+  change: ShowcaseChange
+  /** Live value — set for context, changed, and removed fields. */
+  live?: string
+  /** Shadow value — set for context, changed, and added fields. */
+  shadow?: string
+}
+
 export interface Showcase {
   title: string
   lede: string
-  /** Path under public/ (base-prepended at render time). */
-  image: string
-  alt: string
+  /** Selectable diff views, in the same order the hub presents them. */
+  views: ShowcaseView[]
+  /** Id of the view the showcase opens on. */
+  defaultView: string
+  /** The one example request, rendered three ways by the switcher. */
+  example: ShowcaseField[]
   action: HomeAction
 }
 
@@ -133,6 +167,12 @@ export const features: Feature[] = [
       'Your users always get the live response. Shadow mirroring runs to the side and never delays or breaks production — every diff, API call, and error stays best-effort.',
   },
   {
+    icon: iconDiff,
+    title: 'Diffing lives in the API',
+    detail:
+      'mroki-api diffs the two responses and stores each change as an RFC 6902 patch. Re-diff later with new rules — no replay needed.',
+  },
+  {
     icon: iconEye,
     title: 'See what changed',
     detail:
@@ -144,22 +184,50 @@ export const features: Feature[] = [
     detail:
       'Everything runs on your own infrastructure. No traffic leaves your network, no account to create, MIT-licensed.',
   },
-  {
-    icon: iconDiff,
-    title: 'Diffing lives in the API',
-    detail:
-      'mroki-api diffs the two responses and stores each change as an RFC 6902 patch. Re-diff later with new rules — no replay needed.',
-  },
 ]
 
-// Product showcase: a real hub screenshot (the dark-only Control Room) framed
-// in window chrome so the diff itself does the selling. Anchored by the
-// side-by-side "Response Comparison" split view.
+// Product showcase: one illustrative live-vs-shadow diff, rendered three ways by
+// a segmented control that mirrors the hub's own viewer — Unified, Split, and
+// Patch. Built from theme-native markup (not screenshots) so it stays crisp on
+// both site themes and speaks the same visual language as the hero diff. The
+// example extends the hero's order narrative to cover all three RFC 6902 ops
+// (replace, remove, add). Views are listed in the hub's order; the showcase
+// opens on Split to pay off the section headline.
 export const showcase: Showcase = {
   title: 'Live vs shadow, field by field.',
-  lede: 'Every mirrored request becomes a side-by-side comparison, with added, removed, and changed fields highlighted inline.',
-  image: '/screenshots/hub-request-detail-split.png',
-  alt: 'Hub request detail: a live and shadow JSON response side by side, with changed fields highlighted.',
+  lede: 'Every mirrored request becomes a diff you can read three ways — side by side, inline, or as a list of exact changes.',
+  defaultView: 'split',
+  views: [
+    {
+      id: 'unified',
+      label: 'Unified',
+      caption: 'One column, git-style — added, removed, and changed lines inline.',
+    },
+    {
+      id: 'split',
+      label: 'Split',
+      caption: 'Live and shadow side by side, with changed fields highlighted.',
+    },
+    {
+      id: 'patch',
+      label: 'Patch',
+      caption: 'Every change as an RFC 6902 add, remove, or replace operation.',
+    },
+  ],
+  example: [
+    { key: 'order', path: '/order', change: 'context', live: '"9f2c1b"', shadow: '"9f2c1b"' },
+    {
+      key: 'status',
+      path: '/status',
+      change: 'context',
+      live: '"confirmed"',
+      shadow: '"confirmed"',
+    },
+    { key: 'total', path: '/total', change: 'changed', live: '4200', shadow: '4180' },
+    { key: 'items', path: '/items', change: 'changed', live: '3', shadow: '2' },
+    { key: 'coupon', path: '/coupon', change: 'removed', live: '"SAVE10"' },
+    { key: 'tax', path: '/tax', change: 'added', shadow: '334' },
+  ],
   action: { text: 'How diffing works', link: '/docs/architecture/DIFF_ANALYSIS', theme: 'alt' },
 }
 

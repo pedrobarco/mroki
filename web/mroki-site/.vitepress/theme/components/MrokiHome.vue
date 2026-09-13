@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { withBase } from 'vitepress'
 import {
   hero,
@@ -21,6 +22,143 @@ function href(action: HomeAction): string {
 // External anchors open in a new tab; announce that to assistive tech.
 function ariaLabel(action: HomeAction): string | undefined {
   return action.external ? `${action.text} (opens in new tab)` : undefined
+}
+
+// Showcase view switcher (mirrors the hub's Unified/Split/Patch control).
+const activeView = ref(showcase.defaultView)
+const currentView = computed(
+  () => showcase.views.find((view) => view.id === activeView.value) ?? showcase.views[0],
+)
+
+// The one example, rendered three ways to mirror the hub's viewer. Kinds map to
+// the hero diff's line classes; the derived shapes below drive each view.
+type MockKind = 'context' | 'removed' | 'added'
+interface MockLine {
+  kind: MockKind
+  text: string
+}
+interface SplitRow {
+  left: MockLine | null
+  right: MockLine | null
+}
+type PatchOpKind = 'replace' | 'add' | 'remove'
+interface PatchOp {
+  op: PatchOpKind
+  path: string
+  from?: string
+  to?: string
+}
+
+const example = showcase.example
+const lastFieldIndex = example.length - 1
+
+// One `"key": value` line at the object's single nesting level.
+function fieldLine(key: string, value: string, comma: boolean): string {
+  return `  "${key}": ${value}${comma ? ',' : ''}`
+}
+
+// Unified: a single git-style column. Changed fields expand to a removed +
+// added pair; context/removed/added render one line each, wrapped in braces.
+const unifiedLines = computed<MockLine[]>(() => {
+  const lines: MockLine[] = [{ kind: 'context', text: '{' }]
+  example.forEach((field, i) => {
+    const comma = i !== lastFieldIndex
+    if (field.change === 'changed') {
+      lines.push({ kind: 'removed', text: fieldLine(field.key, field.live ?? '', comma) })
+      lines.push({ kind: 'added', text: fieldLine(field.key, field.shadow ?? '', comma) })
+    } else if (field.change === 'removed') {
+      lines.push({ kind: 'removed', text: fieldLine(field.key, field.live ?? '', comma) })
+    } else if (field.change === 'added') {
+      lines.push({ kind: 'added', text: fieldLine(field.key, field.shadow ?? '', comma) })
+    } else {
+      lines.push({ kind: 'context', text: fieldLine(field.key, field.live ?? '', comma) })
+    }
+  })
+  lines.push({ kind: 'context', text: '}' })
+  return lines
+})
+
+// Split: live on the left, shadow on the right, aligned row for row. Added
+// fields leave the left blank; removed fields leave the right blank.
+const splitRows = computed<SplitRow[]>(() => {
+  const brace = (text: string): SplitRow => ({
+    left: { kind: 'context', text },
+    right: { kind: 'context', text },
+  })
+  const rows: SplitRow[] = [brace('{')]
+  example.forEach((field, i) => {
+    const comma = i !== lastFieldIndex
+    if (field.change === 'changed') {
+      rows.push({
+        left: { kind: 'removed', text: fieldLine(field.key, field.live ?? '', comma) },
+        right: { kind: 'added', text: fieldLine(field.key, field.shadow ?? '', comma) },
+      })
+    } else if (field.change === 'removed') {
+      rows.push({
+        left: { kind: 'removed', text: fieldLine(field.key, field.live ?? '', comma) },
+        right: null,
+      })
+    } else if (field.change === 'added') {
+      rows.push({
+        left: null,
+        right: { kind: 'added', text: fieldLine(field.key, field.shadow ?? '', comma) },
+      })
+    } else {
+      rows.push({
+        left: { kind: 'context', text: fieldLine(field.key, field.live ?? '', comma) },
+        right: { kind: 'context', text: fieldLine(field.key, field.shadow ?? '', comma) },
+      })
+    }
+  })
+  rows.push(brace('}'))
+  return rows
+})
+
+// Patch: the changed fields only, as RFC 6902 operations.
+const patchOps = computed<PatchOp[]>(() =>
+  example
+    .filter((field) => field.change !== 'context')
+    .map((field): PatchOp => {
+      if (field.change === 'changed') {
+        return { op: 'replace', path: field.path, from: field.live, to: field.shadow }
+      }
+      if (field.change === 'added') {
+        return { op: 'add', path: field.path, to: field.shadow }
+      }
+      return { op: 'remove', path: field.path, from: field.live }
+    }),
+)
+
+// Collect the tab buttons so arrow-key navigation can move focus with the
+// roving-tabindex pattern.
+const tabEls = ref<(HTMLButtonElement | null)[]>([])
+function setTabEl(el: unknown, index: number): void {
+  tabEls.value[index] = el as HTMLButtonElement | null
+}
+
+function selectView(id: string): void {
+  activeView.value = id
+}
+
+// Left/right (and Home/End) move between tabs and carry focus, as expected of a
+// tablist; other keys fall through to default behavior.
+function onTabKeydown(event: KeyboardEvent, index: number): void {
+  const { views } = showcase
+  let next = index
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+    next = (index + 1) % views.length
+  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+    next = (index - 1 + views.length) % views.length
+  } else if (event.key === 'Home') {
+    next = 0
+  } else if (event.key === 'End') {
+    next = views.length - 1
+  } else {
+    return
+  }
+  event.preventDefault()
+  activeView.value = views[next].id
+  tabEls.value[next]?.focus()
 }
 </script>
 
@@ -112,18 +250,123 @@ function ariaLabel(action: HomeAction): string | undefined {
             >
           </div>
         </div>
-        <figure class="mh-frame">
-          <div class="mh-frame-bar" aria-hidden="true">
-            <span></span><span></span><span></span>
+        <div class="mh-showcase-media">
+          <div class="mh-viewtabs" role="tablist" aria-label="Diff view">
+            <button
+              v-for="(view, index) in showcase.views"
+              :id="`mh-viewtab-${view.id}`"
+              :key="view.id"
+              :ref="(el) => setTabEl(el, index)"
+              class="mh-viewtab"
+              type="button"
+              role="tab"
+              :aria-selected="activeView === view.id"
+              aria-controls="mh-viewpanel"
+              :tabindex="activeView === view.id ? 0 : -1"
+              @click="selectView(view.id)"
+              @keydown="onTabKeydown($event, index)"
+            >
+              {{ view.label }}
+            </button>
           </div>
-          <img
-            class="mh-frame-img"
-            :src="withBase(showcase.image)"
-            :alt="showcase.alt"
-            loading="lazy"
-            decoding="async"
-          />
-        </figure>
+
+          <figure class="mh-frame">
+            <div class="mh-frame-bar" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <div
+              id="mh-viewpanel"
+              class="mh-frame-body"
+              role="tabpanel"
+              :aria-labelledby="`mh-viewtab-${currentView.id}`"
+              tabindex="0"
+            >
+              <Transition name="mh-fade" mode="out-in">
+                <div :key="currentView.id" class="mh-mock">
+                  <!-- Unified: one git-style column -->
+                  <div v-if="activeView === 'unified'" class="mh-mock-code">
+                    <span
+                      v-for="(line, i) in unifiedLines"
+                      :key="i"
+                      class="mh-diff-line"
+                      :class="`mh-diff-line--${line.kind}`"
+                    >
+                      <span class="mh-diff-gutter">{{
+                        line.kind === 'added' ? '+' : line.kind === 'removed' ? '-' : ''
+                      }}</span>
+                      <span class="mh-diff-text">{{ line.text }}</span>
+                    </span>
+                  </div>
+
+                  <!-- Split: live vs shadow, side by side -->
+                  <div v-else-if="activeView === 'split'" class="mh-split">
+                    <div class="mh-split-col">
+                      <div class="mh-split-head">
+                        <span class="mh-split-dot mh-split-dot--live" aria-hidden="true"></span>Live
+                      </div>
+                      <div class="mh-mock-code">
+                        <span
+                          v-for="(row, i) in splitRows"
+                          :key="i"
+                          class="mh-diff-line"
+                          :class="
+                            row.left ? `mh-diff-line--${row.left.kind}` : 'mh-diff-line--blank'
+                          "
+                        >
+                          <span class="mh-diff-text">{{ row.left ? row.left.text : '' }}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div class="mh-split-col">
+                      <div class="mh-split-head">
+                        <span
+                          class="mh-split-dot mh-split-dot--shadow"
+                          aria-hidden="true"
+                        ></span
+                        >Shadow
+                      </div>
+                      <div class="mh-mock-code">
+                        <span
+                          v-for="(row, i) in splitRows"
+                          :key="i"
+                          class="mh-diff-line"
+                          :class="
+                            row.right ? `mh-diff-line--${row.right.kind}` : 'mh-diff-line--blank'
+                          "
+                        >
+                          <span class="mh-diff-text">{{ row.right ? row.right.text : '' }}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Patch: RFC 6902 operations -->
+                  <ul v-else class="mh-patch">
+                    <li v-for="(op, i) in patchOps" :key="i" class="mh-patch-row">
+                      <span class="mh-patch-op" :class="`mh-patch-op--${op.op}`">{{ op.op }}</span>
+                      <span class="mh-patch-path">{{ op.path }}</span>
+                      <span class="mh-patch-val">
+                        <template v-if="op.op === 'replace'"
+                          ><span class="mh-patch-from">{{ op.from }}</span
+                          ><span class="mh-patch-arrow" aria-hidden="true"> → </span
+                          ><span class="mh-patch-to">{{ op.to }}</span></template
+                        >
+                        <template v-else-if="op.op === 'add'"
+                          ><span class="mh-patch-to">{{ op.to }}</span></template
+                        >
+                        <template v-else
+                          ><span class="mh-patch-from">{{ op.from }}</span></template
+                        >
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+              </Transition>
+            </div>
+          </figure>
+
+          <p class="mh-frame-caption">{{ currentView.caption }}</p>
+        </div>
       </div>
     </section>
 
@@ -549,14 +792,65 @@ function ariaLabel(action: HomeAction): string | undefined {
   margin-top: 1.75rem;
 }
 
-/* Window chrome so the dark-only hub shot reads intentionally on both
-   site themes. Dark surface + title bar frame the screenshot. */
+/* Stack the view switcher, framed screenshot, and caption in the media column. */
+.mh-showcase-media {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Segmented control mirroring the hub's own Unified/Split/Patch switcher. */
+.mh-viewtabs {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--vp-c-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--vp-c-bg);
+}
+
+.mh-viewtab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--vp-c-text-2);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.mh-viewtab + .mh-viewtab {
+  border-left: 1px solid var(--vp-c-border);
+}
+
+.mh-viewtab:hover {
+  color: var(--vp-c-text-1);
+}
+
+.mh-viewtab[aria-selected='true'] {
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+
+.mh-viewtab:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: -2px;
+}
+
+/* Window chrome so the rendered diff reads as "the app" on both site themes.
+   Theme-aware surfaces (not the dark-only hub palette) keep the mockup crisp. */
 .mh-frame {
   margin: 0;
   border: 1px solid var(--vp-c-border);
   border-radius: 12px;
   overflow: hidden;
-  background: #09090b;
+  background: var(--vp-c-bg-soft);
   box-shadow: 0 12px 32px -12px rgba(9, 9, 11, 0.35);
 }
 
@@ -565,21 +859,184 @@ function ariaLabel(action: HomeAction): string | undefined {
   gap: 8px;
   align-items: center;
   padding: 12px 16px;
-  background: #18181b;
-  border-bottom: 1px solid #27272a;
+  background: var(--vp-c-bg);
+  border-bottom: 1px solid var(--vp-c-divider);
 }
 
 .mh-frame-bar span {
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: #3f3f46;
+  background: var(--vp-c-divider);
 }
 
-.mh-frame-img {
-  display: block;
+/* Holds whichever view is active. A min-height near the default (Split) view,
+   plus vertical centering, keeps the frame steady as views of different heights
+   crossfade — the shorter Patch view sits centered instead of jumping. */
+.mh-frame-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 232px;
+}
+
+.mh-mock {
   width: 100%;
-  height: auto;
+}
+
+/* Shared monospace canvas for the unified and split renders, matching the hero
+   diff's type treatment. */
+.mh-mock-code {
+  display: flex;
+  flex-direction: column;
+  padding-block: 12px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+/* Empty half of a split row (a field present on only one side): hold the line's
+   height so both columns stay aligned. */
+.mh-diff-line--blank {
+  min-height: 1.7em;
+}
+
+/* Split view: live vs shadow columns with a divider between. */
+.mh-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.mh-split-col {
+  min-width: 0;
+}
+
+.mh-split-col + .mh-split-col {
+  border-left: 1px solid var(--vp-c-divider);
+}
+
+.mh-split-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--vp-c-divider);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+}
+
+.mh-split-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.mh-split-dot--live {
+  background: var(--vp-c-green-1);
+}
+
+.mh-split-dot--shadow {
+  background: var(--vp-c-brand-1);
+}
+
+/* Patch view: RFC 6902 operations, one row each. */
+.mh-patch {
+  list-style: none;
+  margin: 0;
+  padding: 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mh-patch-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.mh-patch-op {
+  flex: none;
+  width: 5.5em;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.mh-patch-op--replace {
+  color: var(--vp-c-yellow-1);
+  background: var(--vp-c-yellow-soft);
+}
+
+.mh-patch-op--add {
+  color: var(--vp-c-green-1);
+  background: var(--vp-c-green-soft);
+}
+
+.mh-patch-op--remove {
+  color: var(--vp-c-danger-1);
+  background: var(--vp-c-danger-soft);
+}
+
+.mh-patch-path {
+  flex: none;
+  color: var(--vp-c-text-1);
+  font-weight: 500;
+}
+
+.mh-patch-val {
+  min-width: 0;
+  color: var(--vp-c-text-2);
+  word-break: break-all;
+}
+
+.mh-patch-from {
+  color: var(--vp-c-danger-1);
+}
+
+.mh-patch-to {
+  color: var(--vp-c-green-1);
+}
+
+.mh-patch-arrow {
+  color: var(--vp-c-text-3);
+}
+
+.mh-frame-caption {
+  margin: 0;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Crossfade between views; stilled for reduced-motion users. */
+.mh-fade-enter-active,
+.mh-fade-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.mh-fade-enter-from,
+.mh-fade-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mh-fade-enter-active,
+  .mh-fade-leave-active {
+    transition: none;
+  }
 }
 
 /* ---- Closing CTA band ------------------------------------------- */
