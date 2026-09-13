@@ -30,7 +30,33 @@ jobs:
     with:
       targets: >-
         [
-          "web/mroki-hub"
+          "web/mroki-hub",
+          "web/mroki-site"
+        ]
+
+  # ── Deploy docs site to GitHub Pages ──────────────────────────────────
+
+  pages:
+    name: pages
+    # Publish on merge to main only; PRs still build via the pnpm job.
+    # Add entries to serve more sources under subpaths, e.g. a hub demo:
+    #   { "name": "hub", "dir": "web/mroki-hub", "dist": "dist", "subpath": "hub" }
+    if: github.ref == 'refs/heads/main'
+    needs: [pnpm]
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/_pages.yaml
+    with:
+      sources: >-
+        [
+          {
+            "name": "site",
+            "dir": "web/mroki-site",
+            "dist": ".vitepress/dist",
+            "subpath": "."
+          }
         ]
 
   # ── Push Docker images ────────────────────────────────────────────────

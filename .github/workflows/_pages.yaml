@@ -1,0 +1,77 @@
+name: build-deploy-pages
+
+on:
+  workflow_call:
+    inputs:
+      sources:
+        description: >-
+          JSON array of sources to merge into the single Pages site. Each entry:
+          { name (artifact label), dir (package.json dir), dist (build output,
+          relative to dir), subpath ("." for root, else served under /<subpath>/) }.
+        required: true
+        type: string
+
+jobs:
+  # Build each source and stage its dist under its subpath; the artifacts
+  # overlay into one tree when merged at deploy.
+  build:
+    name: build / ${{ matrix.source.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        source: ${{ fromJSON(inputs.sources) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node
+        with:
+          working-directory: ${{ matrix.source.dir }}
+
+      - name: Build
+        working-directory: ${{ matrix.source.dir }}
+        run: pnpm run build
+
+      - name: Stage ${{ matrix.source.name }} at /${{ matrix.source.subpath }}
+        run: |
+          dest="_site/${{ matrix.source.subpath }}"
+          mkdir -p "$dest"
+          cp -R "${{ matrix.source.dir }}/${{ matrix.source.dist }}/." "$dest/"
+
+      - name: Upload staged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-${{ matrix.source.name }}
+          path: _site
+          include-hidden-files: true
+          if-no-files-found: error
+
+  # Combine every staged artifact and publish once.
+  deploy:
+    name: deploy
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Download staged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pages-*
+          path: _site
+          merge-multiple: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
