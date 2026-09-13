@@ -34,7 +34,7 @@ export interface Section {
   lede: string
 }
 
-export type DiffKind = 'context' | 'removed' | 'added'
+export type DiffKind = 'context' | 'removed' | 'added' | 'changed'
 
 export interface DiffLine {
   kind: DiffKind
@@ -42,10 +42,6 @@ export interface DiffLine {
 }
 
 export interface HeroDiff {
-  /** Short label for the panel header (e.g. "live vs shadow"). */
-  label: string
-  /** Badge summarizing the change (e.g. "1 field changed"). */
-  badge: string
   /** Illustrative unified-diff lines — an example, not live data. */
   lines: DiffLine[]
   /** Accessible one-line summary read in place of the raw lines. */
@@ -83,6 +79,15 @@ export interface ShowcaseField {
   shadow?: string
 }
 
+/** A signal tone shared by the diff views, used by the showcase legend. */
+export type DiffTone = 'added' | 'removed' | 'replace'
+
+/** One entry in the showcase color legend, mapping a signal tone to a label. */
+export interface LegendItem {
+  tone: DiffTone
+  label: string
+}
+
 export interface Showcase {
   title: string
   lede: string
@@ -92,13 +97,34 @@ export interface Showcase {
   defaultView: string
   /** The one example request, rendered three ways by the switcher. */
   example: ShowcaseField[]
+  /** Color key rendered under the frame (recognition over recall). */
+  legend: LegendItem[]
   action: HomeAction
+}
+
+/** A single line of the closing terminal illustration. */
+export type TerminalLineKind = 'prompt' | 'output' | 'success'
+
+export interface TerminalLine {
+  kind: TerminalLineKind
+  text: string
+}
+
+/** An illustrative terminal transcript shown in the closing band. */
+export interface Terminal {
+  /** Label shown in the terminal's title bar. */
+  title: string
+  /** Accessible one-line summary read in place of the illustrative lines. */
+  caption: string
+  lines: TerminalLine[]
 }
 
 export interface Closing {
   title: string
   lede: string
   actions: HomeAction[]
+  /** Illustrative "bring up the stack" transcript beside the actions. */
+  terminal: Terminal
 }
 
 export interface FooterLink {
@@ -132,24 +158,23 @@ export const hero: Hero = {
 }
 
 // Illustrative hero diff motif: a compact unified diff showing mroki's core job
-// (live vs shadow, field by field) rendered with the signal palette. The values
-// are an example, not live data — the caption says so for assistive tech.
+// (live vs shadow, field by field) rendered with the signal palette. It mirrors
+// the showcase example verbatim — the same order narrative across all three ops
+// (changed `total`, removed `coupon`, added `tax`) — so the hero and the
+// showcase's Unified view render the identical block. The values are an example,
+// not live data — the caption says so for assistive tech.
 export const heroDiff: HeroDiff = {
-  label: 'live vs shadow',
-  badge: '2 fields changed',
   lines: [
     { kind: 'context', text: '{' },
     { kind: 'context', text: '  "order": "9f2c1b",' },
-    { kind: 'context', text: '  "status": "confirmed",' },
-    { kind: 'removed', text: '  "total": 4200,' },
-    { kind: 'added', text: '  "total": 4180,' },
-    { kind: 'context', text: '  "currency": "USD",' },
-    { kind: 'removed', text: '  "items": 3' },
-    { kind: 'added', text: '  "items": 2' },
+    { kind: 'changed', text: '  "total": 4200,' },
+    { kind: 'changed', text: '  "total": 4180,' },
+    { kind: 'removed', text: '  "coupon": "SAVE10",' },
+    { kind: 'added', text: '  "tax": 334' },
     { kind: 'context', text: '}' },
   ],
   caption:
-    'Example response diff: the shadow service returned total 4180 and items 2 where the live service returned 4200 and 3.',
+    'Example response diff: compared with the live service, the shadow service changed total from 4200 to 4180, dropped the coupon field, and added a tax field.',
 }
 
 // Heading for the features grid, so the section is scannable and takes a proper
@@ -216,17 +241,14 @@ export const showcase: Showcase = {
   ],
   example: [
     { key: 'order', path: '/order', change: 'context', live: '"9f2c1b"', shadow: '"9f2c1b"' },
-    {
-      key: 'status',
-      path: '/status',
-      change: 'context',
-      live: '"confirmed"',
-      shadow: '"confirmed"',
-    },
     { key: 'total', path: '/total', change: 'changed', live: '4200', shadow: '4180' },
-    { key: 'items', path: '/items', change: 'changed', live: '3', shadow: '2' },
     { key: 'coupon', path: '/coupon', change: 'removed', live: '"SAVE10"' },
     { key: 'tax', path: '/tax', change: 'added', shadow: '334' },
+  ],
+  legend: [
+    { tone: 'added', label: 'Added' },
+    { tone: 'removed', label: 'Removed' },
+    { tone: 'replace', label: 'Replaced' },
   ],
   action: { text: 'How diffing works', link: '/docs/architecture/DIFF_ANALYSIS', theme: 'alt' },
 }
@@ -237,7 +259,7 @@ export const closing: Closing = {
   title: 'See how your change behaves on real traffic.',
   lede: 'Bring up the full stack with one Docker Compose file, point a gate at your live and shadow services, and start comparing.',
   actions: [
-    { text: 'Get Started', link: '/docs/getting-started/FULL_STACK', theme: 'brand' },
+    { text: 'Spin up the stack', link: '/docs/getting-started/FULL_STACK', theme: 'brand' },
     {
       text: 'View on GitHub',
       link: 'https://github.com/pedrobarco/mroki',
@@ -245,6 +267,21 @@ export const closing: Closing = {
       external: true,
     },
   ],
+  // Illustrative transcript (not live output): one Docker Compose file brings the
+  // database, API, proxy, and hub online, ending on the happy-path "ready" line.
+  terminal: {
+    title: 'bash',
+    caption:
+      'Illustration: docker compose up brings the mroki database, API, proxy, and hub online, with the hub ready on localhost.',
+    lines: [
+      { kind: 'prompt', text: 'docker compose up' },
+      { kind: 'output', text: '✔ Container mroki-db      Healthy' },
+      { kind: 'output', text: '✔ Container mroki-api     Started' },
+      { kind: 'output', text: '✔ Container mroki-proxy   Started' },
+      { kind: 'output', text: '✔ Container mroki-hub     Started' },
+      { kind: 'success', text: 'hub ready → http://localhost:5173' },
+    ],
+  },
 }
 
 // VitePress's default footer (themeConfig.footer) is hidden on any page with a
