@@ -8,12 +8,24 @@ web
 
 ## Users
 
-Primary users are **backend / platform engineers** who are about to change a
-production HTTP service — a refactor, a database migration, or a framework
-upgrade — and need to validate that change against real production behavior
-*before* rolling it out. They operate in the pre-rollout window: the change is
-built and running on a shadow instance, and they need evidence it behaves
-identically to live before they trust it with real users.
+mroki is for the people responsible for changing a production HTTP service and
+proving the change is safe before it ships — a refactor, a database migration, a
+framework upgrade built and running on a shadow instance that must be shown to
+behave identically to live before it is trusted with real users.
+
+Three complementary lenses on that shared responsibility:
+
+- **The engineer** validating a specific change — hands-on, reads docs, adopts
+  bottom-up, and wants to see *what changed* in seconds.
+- **The platform / SRE team** turning that check into a repeatable, standardized
+  gate across every service they operate.
+- **The engineering manager** who needs confidence a change is validated against
+  real production traffic — with zero risk to the live response path — before
+  approving the rollout.
+
+Messaging speaks to all three through mechanism and risk posture — mirror real
+traffic, diff responses, never touch the live path, self-hosted and open
+source — rather than through outcome metrics or proof that does not yet exist.
 
 ## Product Purpose
 
