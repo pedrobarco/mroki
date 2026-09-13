@@ -66,6 +66,8 @@ graph TD
 
 ## Documentation
 
+📚 **[Browse the docs online](https://pedrobarco.github.io/mroki/)** — or run the site locally with `cd web/mroki-site && pnpm dev`.
+
 | | Guide | Description |
 |---|---|---|
 | 🚀 | **Getting Started** | |
