@@ -24,6 +24,11 @@ function ariaLabel(action: HomeAction): string | undefined {
   return action.external ? `${action.text} (opens in new tab)` : undefined
 }
 
+// Decorative hero backdrop: a real (dark-only) hub screenshot, dimmed and masked
+// in CSS so it reads as "real app" texture behind the crisp diff mockup without
+// competing with it or hurting copy contrast. Base-safe for non-root deploys.
+const heroBgUrl = computed(() => withBase('/screenshots/hero-diff.png'))
+
 // Showcase view switcher (mirrors the hub's Unified/Split/Patch control).
 const activeView = ref(showcase.defaultView)
 const currentView = computed(
@@ -166,6 +171,11 @@ function onTabKeydown(event: KeyboardEvent, index: number): void {
   <div class="mh">
     <!-- Hero -->
     <section class="mh-hero">
+      <div
+        class="mh-hero-bg"
+        aria-hidden="true"
+        :style="{ backgroundImage: `url(${heroBgUrl})` }"
+      ></div>
       <div class="mh-container mh-hero-inner">
         <div class="mh-hero-copy">
           <h1 class="mh-hero-heading">
@@ -437,6 +447,29 @@ function onTabKeydown(event: KeyboardEvent, index: number): void {
 .mh-hero {
   position: relative;
   padding-block: clamp(72px, 12vh, 140px) clamp(48px, 8vw, 88px);
+}
+
+/* Decorative backdrop: a real (dark-only) hub screenshot, dimmed and masked so
+   it adds "real app" texture behind the crisp mockup without competing with it
+   or hurting copy contrast. Sits below .mh-hero-inner (z-index: 1). Anchored
+   top-right, behind the mockup; faded to nothing before it reaches the copy.
+   Faint in light mode; a touch stronger in dark mode, where the dark shot
+   belongs. */
+.mh-hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: top right;
+  background-size: 62% auto;
+  opacity: 0.05;
+  -webkit-mask-image: linear-gradient(to left, #000 30%, transparent 66%);
+  mask-image: linear-gradient(to left, #000 30%, transparent 66%);
+}
+
+.dark .mh-hero-bg {
+  opacity: 0.16;
 }
 
 .mh-hero-inner {
@@ -749,6 +782,11 @@ function onTabKeydown(event: KeyboardEvent, index: number): void {
 @media (max-width: 640px) {
   .mh-feature-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Single-column layout: drop the backdrop so it never sits under stacked copy. */
+  .mh-hero-bg {
+    display: none;
   }
 }
 
