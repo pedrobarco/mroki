@@ -184,7 +184,7 @@ https://pedrobarco.github.io/mroki/ (served under base `/mroki/`).
 
 ```bash
 cd web/mroki-site
-pnpm install   # first time
+pnpm install
 pnpm dev       # local preview
 pnpm build     # production build + dead-link check (what CI runs)
 ```
