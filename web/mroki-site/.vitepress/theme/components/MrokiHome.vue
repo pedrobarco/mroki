@@ -8,7 +8,6 @@ import {
   showcase,
   closing,
   footer,
-  iconShieldCheck,
   iconExternal,
   type HomeAction,
 } from '../home-content'
@@ -36,10 +35,6 @@ function ariaLabel(action: HomeAction): string | undefined {
             <span class="mh-hero-tagline">{{ hero.tagline }}</span>
           </h1>
           <p class="mh-hero-lede">{{ hero.lede }}</p>
-          <p class="mh-promise">
-            <span class="mh-promise-icon" aria-hidden="true" v-html="iconShieldCheck" />
-            <span>{{ hero.promise }}</span>
-          </p>
           <div class="mh-actions">
             <a
               v-for="action in hero.actions"
@@ -125,8 +120,6 @@ function ariaLabel(action: HomeAction): string | undefined {
             class="mh-frame-img"
             :src="withBase(showcase.image)"
             :alt="showcase.alt"
-            width="1280"
-            height="1145"
             loading="lazy"
             decoding="async"
           />
@@ -311,33 +304,6 @@ function ariaLabel(action: HomeAction): string | undefined {
   height: 15px;
 }
 
-/* ---- Hero safety promise (subordinate to the CTAs) -------------- */
-.mh-promise {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 1.5rem 0 0;
-  padding: 8px 16px;
-  border: 1px solid var(--vp-c-border);
-  border-radius: 999px;
-  background: var(--vp-c-bg-soft);
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.4;
-  color: var(--vp-c-text-2);
-}
-
-.mh-promise-icon {
-  display: inline-grid;
-  place-items: center;
-  color: var(--vp-c-text-2);
-}
-
-.mh-promise-icon :deep(svg) {
-  width: 16px;
-  height: 16px;
-}
-
 /* ---- Hero diff motif (mroki's core job, shown once) ------------- */
 .mh-herodiff {
   margin: 0;
@@ -516,11 +482,6 @@ function ariaLabel(action: HomeAction): string | undefined {
   .mh-hero-inner {
     grid-template-columns: 1fr;
     text-align: center;
-  }
-
-  .mh-hero-lede,
-  .mh-promise {
-    margin-inline: auto;
   }
 
   .mh-hero .mh-actions {
@@ -745,10 +706,6 @@ function ariaLabel(action: HomeAction): string | undefined {
   animation: mh-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
 }
 
-.mh-promise {
-  animation: mh-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
-}
-
 .mh-herodiff {
   animation: mh-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.32s both;
 }
@@ -757,7 +714,6 @@ function ariaLabel(action: HomeAction): string | undefined {
   .mh-hero-heading,
   .mh-hero-lede,
   .mh-hero .mh-actions,
-  .mh-promise,
   .mh-herodiff {
     animation: none;
   }
