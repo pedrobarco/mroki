@@ -801,7 +801,10 @@ function onTabKeydown(event: KeyboardEvent, index: number): void {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   gap: clamp(32px, 5vw, 64px);
-  align-items: center;
+  /* Top-anchor the copy so its position is decoupled from the media column's
+     height: switching view tabs changes the panel/caption height, and centering
+     would re-center the copy on every switch, making the text bob up and down. */
+  align-items: start;
 }
 
 .mh-showcase-copy {
