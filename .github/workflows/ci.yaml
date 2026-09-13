@@ -39,34 +39,28 @@ jobs:
   pages:
     name: pages
     # Publish only on merge to main; PRs still build + link-check via the pnpm job.
+    # Build-many → deploy-once (a repo has one Pages site): the docs site
+    # (landing at /mroki/ + docs under /mroki/docs) is the only source today.
+    # A future hub demo plugs in as one more entry, e.g.:
+    #   { "name": "hub", "dir": "web/mroki-hub", "dist": "dist", "subpath": "hub" }
+    # served at /mroki/hub/ (needs vite `base: '/mroki/hub/'` + demo data).
     if: github.ref == 'refs/heads/main'
     needs: [pnpm]
-    runs-on: ubuntu-latest
     permissions:
       contents: read
       pages: write
       id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-node
-        with:
-          working-directory: web/mroki-site
-      - name: Build docs site
-        working-directory: web/mroki-site
-        run: pnpm run build
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: web/mroki-site/.vitepress/dist
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+    uses: ./.github/workflows/_pages.yaml
+    with:
+      sources: >-
+        [
+          {
+            "name": "site",
+            "dir": "web/mroki-site",
+            "dist": ".vitepress/dist",
+            "subpath": "."
+          }
+        ]
 
   # ── Push Docker images ────────────────────────────────────────────────
 
