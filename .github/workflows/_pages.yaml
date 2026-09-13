@@ -5,20 +5,15 @@ on:
     inputs:
       sources:
         description: >-
-          JSON array of build sources to combine into a single GitHub Pages site
-          (a repo has exactly one Pages site). Each entry is an object:
-            - name:    unique artifact label (e.g. "site", "hub")
-            - dir:     directory containing package.json (e.g. web/mroki-site)
-            - dist:    build output path, relative to `dir` (e.g. .vitepress/dist)
-            - subpath: destination under the Pages root; "." publishes at the
-                       root, "hub" publishes under /hub/.
+          JSON array of sources to merge into the single Pages site. Each entry:
+          { name (artifact label), dir (package.json dir), dist (build output,
+          relative to dir), subpath ("." for root, else served under /<subpath>/) }.
         required: true
         type: string
 
 jobs:
-  # Build every source and stage its dist under its target subpath. The upload
-  # stores paths relative to _site, so the artifacts overlay into one combined
-  # tree when merged in the deploy job.
+  # Build each source and stage its dist under its subpath; the artifacts
+  # overlay into one tree when merged at deploy.
   build:
     name: build / ${{ matrix.source.name }}
     runs-on: ubuntu-latest
