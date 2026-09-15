@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-30T00:00:00Z",
+  "generatedAt": "2026-09-14T00:00:00Z",
   "title": "Design System: mroki-hub",
   "extensions": {
     "colorMeta": {
@@ -9,17 +9,17 @@
       "instrument-zinc-muted": { "role": "neutral", "displayName": "Instrument Zinc (muted)", "canonical": "#71717a", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#e4e4e7", "#fafafa"] },
       "instrument-zinc-border": { "role": "neutral", "displayName": "Instrument Zinc (border)", "canonical": "#e4e4e7", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#e4e4e7", "#fafafa"] },
       "instrument-zinc-accent": { "role": "neutral", "displayName": "Instrument Zinc (accent fill)", "canonical": "#f4f4f5", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#e4e4e7", "#fafafa"] },
-      "primary": { "role": "primary", "displayName": "Ink", "canonical": "#18181b", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8"] },
+      "primary": { "role": "primary", "displayName": "Ink", "canonical": "#fafafa", "tonalRamp": ["#09090b", "#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8"] },
       "primary-foreground": { "role": "primary", "displayName": "Ink (inverse)", "canonical": "#fafafa", "tonalRamp": ["#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5", "#fafafa"] },
       "signal-green": { "role": "success", "displayName": "Signal Green", "canonical": "#22c55e", "tonalRamp": ["#052e16", "#14532d", "#166534", "#15803d", "#16a34a", "#22c55e", "#4ade80", "#bbf7d0"] },
       "signal-blue": { "role": "info", "displayName": "Signal Blue", "canonical": "#3b82f6", "tonalRamp": ["#172554", "#1e3a8a", "#1e40af", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#bfdbfe"] },
       "signal-amber": { "role": "warning", "displayName": "Signal Amber", "canonical": "#f59e0b", "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fde68a"] },
       "signal-red": { "role": "danger", "displayName": "Signal Red", "canonical": "#ef4444", "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fecaca"] },
-      "syntax-key": { "role": "syntax", "displayName": "Syntax Key", "canonical": "#0369a1", "tonalRamp": ["#082f49", "#0c4a6e", "#075985", "#0369a1", "#0284c7", "#0ea5e9", "#38bdf8", "#bae6fd"] },
-      "syntax-string": { "role": "syntax", "displayName": "Syntax String", "canonical": "#6d28d9", "tonalRamp": ["#2e1065", "#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#8b5cf6", "#a78bfa", "#ddd6fe"] },
-      "syntax-number": { "role": "syntax", "displayName": "Syntax Number", "canonical": "#047857", "tonalRamp": ["#022c22", "#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#a7f3d0"] },
-      "syntax-boolean": { "role": "syntax", "displayName": "Syntax Boolean", "canonical": "#c2410c", "tonalRamp": ["#431407", "#7c2d12", "#9a3412", "#c2410c", "#ea580c", "#f97316", "#fb923c", "#fed7aa"] },
-      "syntax-null": { "role": "syntax", "displayName": "Syntax Null", "canonical": "#be185d", "tonalRamp": ["#500724", "#831843", "#9d174d", "#be185d", "#db2777", "#ec4899", "#f472b6", "#fbcfe8"] },
+      "syntax-key": { "role": "syntax", "displayName": "Syntax Key", "canonical": "#38bdf8", "tonalRamp": ["#082f49", "#0c4a6e", "#075985", "#0369a1", "#0284c7", "#0ea5e9", "#38bdf8", "#bae6fd"] },
+      "syntax-string": { "role": "syntax", "displayName": "Syntax String", "canonical": "#a78bfa", "tonalRamp": ["#2e1065", "#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#8b5cf6", "#a78bfa", "#ddd6fe"] },
+      "syntax-number": { "role": "syntax", "displayName": "Syntax Number", "canonical": "#34d399", "tonalRamp": ["#022c22", "#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#a7f3d0"] },
+      "syntax-boolean": { "role": "syntax", "displayName": "Syntax Boolean", "canonical": "#fb923c", "tonalRamp": ["#431407", "#7c2d12", "#9a3412", "#c2410c", "#ea580c", "#f97316", "#fb923c", "#fed7aa"] },
+      "syntax-null": { "role": "syntax", "displayName": "Syntax Null", "canonical": "#f472b6", "tonalRamp": ["#500724", "#831843", "#9d174d", "#be185d", "#db2777", "#ec4899", "#f472b6", "#fbcfe8"] },
       "syntax-punctuation": { "role": "syntax", "displayName": "Syntax Punctuation", "canonical": "#71717a", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8", "#f4f4f5"] }
     },
     "typographyMeta": {
@@ -103,7 +103,7 @@
       "Near-monochrome zinc base; semantic color reserved for actual signal.",
       "Flat surfaces, hairline borders, tonal layering instead of elevation.",
       "Monospace for all machine data; system sans for chrome and prose.",
-      "Full light/dark parity - every token has both values.",
+      "Dark-only: the hub ships a single dark palette (the .dark values are the canonical, and only reachable, theme); no light mode or theme toggle.",
       "Color never carries meaning alone; it accompanies a number or label."
     ],
     "rules": [
@@ -118,7 +118,7 @@
       "Do keep surfaces flat - separate layers with a 1px zinc border or a tonal fill, and reserve shadow-xs for interactive controls.",
       "Do pair every color signal with a number or label so meaning survives without color.",
       "Do provide a visible 3px focus ring and full keyboard operability on every control.",
-      "Do ship both light and dark values for any new token."
+      "Do define new tokens in the dark palette (.dark); a light seed value is optional, since the hub renders dark-only."
     ],
     "donts": [
       "Don't use a semantic accent for decoration, emphasis, or 'brand color' fills.",

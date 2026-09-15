@@ -1042,6 +1042,13 @@ function onTabKeydown(event: KeyboardEvent, index: number): void {
     text-align: center;
   }
 
+  /* Stacked/centered layout: center the width-constrained lede within the
+     column so its box matches its centered text (it's left-anchored on the
+     two-column desktop layout, where that alignment is intentional). */
+  .mh-hero-lede {
+    margin-inline: auto;
+  }
+
   .mh-hero .mh-actions {
     justify-content: center;
   }
