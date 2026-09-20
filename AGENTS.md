@@ -85,7 +85,8 @@ For **non-trivial or multi-layer** work (a new feature/behavior, a change spanni
    implementing.
 3. Implement layer by layer (schema → domain → application → repository/mapper → handler → DTO).
 4. Add or update tests; run `make lint` and `make test` (or the scoped targets) until green.
-5. Do a final review of code, tests, and docs together for consistency before handing back.
+5. Do a final read-only review of code, tests, and docs together. Address any gaps or
+   inconsistencies before handing back.
 
 Trivial changes (typos, one-line fixes, isolated doc tweaks) skip the approval gate.
 
