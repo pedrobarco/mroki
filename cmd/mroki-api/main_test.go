@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,8 +16,11 @@ import (
 
 	"github.com/pedrobarco/mroki/cmd/mroki-api/config"
 	"github.com/pedrobarco/mroki/internal/application/events"
+	"github.com/pedrobarco/mroki/internal/domain/pagination"
 	"github.com/pedrobarco/mroki/internal/domain/traffictesting"
 	"github.com/pedrobarco/mroki/pkg/diff"
+	"github.com/pedrobarco/mroki/pkg/dto"
+	"github.com/pedrobarco/mroki/pkg/ratelimit"
 )
 
 // stubHealthChecker implements handlers.HealthChecker with a configurable Ping
@@ -24,14 +29,65 @@ type stubHealthChecker struct{ err error }
 
 func (s stubHealthChecker) Ping(context.Context) error { return s.err }
 
-// TestSecurityHeaders_infraRoutes verifies the assembled handler chain: the
-// security-headers middleware wrapping the real mux with the health and metrics
-// routes mounted exactly as main() wires them (not a stub next handler). Every
-// infrastructure endpoint must carry the always-on security headers, and HSTS
-// must stay off by default since mroki does not terminate TLS.
-func TestSecurityHeaders_infraRoutes(t *testing.T) {
-	// sql.Open is lazy and never dials, so a real connection isn't required to
-	// build the metrics platform whose /metrics handler we mount below.
+type stubGateRepository struct{}
+
+func (stubGateRepository) Save(context.Context, *traffictesting.Gate) error { return nil }
+func (stubGateRepository) Update(context.Context, *traffictesting.Gate) error { return nil }
+func (stubGateRepository) Delete(context.Context, traffictesting.GateID) error { return nil }
+func (stubGateRepository) GetByID(context.Context, traffictesting.GateID) (*traffictesting.Gate, error) {
+	return nil, nil
+}
+func (stubGateRepository) GetAll(
+	context.Context,
+	traffictesting.GateFilters,
+	traffictesting.GateSort,
+	*pagination.Params,
+) (*pagination.PagedResult[*traffictesting.Gate], error) {
+	return &pagination.PagedResult[*traffictesting.Gate]{Items: []*traffictesting.Gate{}}, nil
+}
+func (stubGateRepository) ListRetentions(context.Context) ([]traffictesting.GateRetention, error) {
+	return nil, nil
+}
+
+type stubRequestRepository struct{}
+
+func (stubRequestRepository) Save(context.Context, *traffictesting.Request) error { return nil }
+func (stubRequestRepository) GetByID(context.Context, traffictesting.RequestID, traffictesting.GateID) (*traffictesting.Request, error) {
+	return nil, nil
+}
+func (stubRequestRepository) GetAllByGateID(
+	context.Context,
+	traffictesting.GateID,
+	traffictesting.RequestFilters,
+	traffictesting.RequestSort,
+	*pagination.Params,
+) (*pagination.PagedResult[*traffictesting.Request], error) {
+	return &pagination.PagedResult[*traffictesting.Request]{Items: []*traffictesting.Request{}}, nil
+}
+
+type stubStatsRepository struct{}
+
+func (stubStatsRepository) GetGlobalStats(context.Context) (*traffictesting.GlobalStats, error) {
+	return &traffictesting.GlobalStats{}, nil
+}
+func (stubStatsRepository) GetStatsByGateIDs(context.Context, []traffictesting.GateID) (map[traffictesting.GateID]traffictesting.GateStats, error) {
+	return map[traffictesting.GateID]traffictesting.GateStats{}, nil
+}
+
+func assertSecurityHeaders(t *testing.T, resp *http.Response) {
+	t.Helper()
+	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	assert.Equal(t, "no-referrer", resp.Header.Get("Referrer-Policy"))
+	assert.Empty(t, resp.Header.Get("Strict-Transport-Security"))
+}
+
+// TestNewHandler_securityHeadersOnInfraAndAPI exercises the full handler assembled
+// by newHandler via httptest.NewServer: security headers on infrastructure and API
+// routes (including auth failures), with HSTS off by default.
+func TestNewHandler_securityHeadersOnInfraAndAPI(t *testing.T) {
+	const apiKey = "test-api-key-min-16-chars"
+
 	db, err := sql.Open("pgx", "postgres://user:pass@127.0.0.1:5432/mroki?sslmode=disable")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
@@ -40,26 +96,62 @@ func TestSecurityHeaders_infraRoutes(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = platform.Shutdown(context.Background()) })
 
-	mux := http.NewServeMux()
-	mountInfraRoutes(mux, stubHealthChecker{}, platform.MetricsHandler())
-
-	// A zero-value config keeps HSTS disabled, mirroring the safe default.
 	var cfg config.Config
-	handler := withSecurityHeaders(mux, cfg)
+	cfg.App.APIKey = apiKey
+
+	limiter := ratelimit.NewLimiter(1000)
+	t.Cleanup(func() { _ = limiter.Stop() })
+
+	handler, err := newHandler(handlerDeps{
+		cfg:         cfg,
+		logger:      slog.New(slog.DiscardHandler),
+		gateRepo:    stubGateRepository{},
+		requestRepo: stubRequestRepository{},
+		statsRepo:   stubStatsRepository{},
+		dispatcher:  events.NewBus(),
+		limiter:     limiter,
+		metrics:     platform,
+		health:      stubHealthChecker{},
+	})
+	require.NoError(t, err)
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
 
 	for _, path := range []string{"/health/live", "/health/ready", "/metrics"} {
-		t.Run(path, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, path, nil)
-			rec := httptest.NewRecorder()
-			handler.ServeHTTP(rec, req)
-
-			require.Equal(t, http.StatusOK, rec.Code)
-			assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
-			assert.Equal(t, "DENY", rec.Header().Get("X-Frame-Options"))
-			assert.Equal(t, "no-referrer", rec.Header().Get("Referrer-Policy"))
-			assert.Empty(t, rec.Header().Get("Strict-Transport-Security"))
+		t.Run("infra "+path, func(t *testing.T) {
+			resp, err := http.Get(srv.URL + path)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = resp.Body.Close() })
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			assertSecurityHeaders(t, resp)
 		})
 	}
+
+	t.Run("API GET /gates unauthenticated", func(t *testing.T) {
+		resp, err := http.Get(srv.URL + "/gates")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = resp.Body.Close() })
+		require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		assertSecurityHeaders(t, resp)
+	})
+
+	t.Run("API GET /gates authenticated", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, srv.URL+"/gates", nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = resp.Body.Close() })
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		assertSecurityHeaders(t, resp)
+
+		var body dto.PaginatedResponse[[]dto.Gate]
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+		assert.Empty(t, body.Data)
+		assert.Equal(t, int64(0), body.Pagination.Total)
+	})
 }
 
 func TestNewAPIMetrics_Disabled(t *testing.T) {
